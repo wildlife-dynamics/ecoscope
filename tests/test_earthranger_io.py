@@ -17,41 +17,9 @@ if not pytest.earthranger:
     )
 
 
-GROUP_NAME = "Rhinos"  # Fatu, Najin
-UNKNOWN_UUID = ["b03c362d-f41b-48ae-8584-3cbb6b016950"]
-SUBJECT_IDS = [
-    "216b033d-c4ad-444a-9f41-baa6c97cde7d",  # Fatu
-    "aca64374-a102-4ef5-9b58-60fd0bf64a61",  # Najin
-]
-SOURCE_IDS = [
-    "d8f92f6e-1121-4833-b11c-6fc1ca334ff0",  # Fatu
-    "f46b6e92-a09d-41dd-bc42-8244870189fd",  # Najin
-]
-SUBJECTSOURCE_IDS = [
-    "bce94e49-37b0-4fd0-a302-21a8daa245ff",  # Fatu
-]
-OBSERVATIONS = [
-    {
-        "recorded_at": datetime.datetime.utcnow(),
-        "geometry": Point(0, 0),
-        "source": SOURCE_IDS[0],
-    },
-    {
-        "recorded_at": datetime.datetime.utcnow(),
-        "geometry": Point(0, 0),
-        "source": SOURCE_IDS[0],
-    },
-    {
-        "recorded_at": datetime.datetime.utcnow(),
-        "geometry": Point(1, 1.0),
-        "source": SOURCE_IDS[1],
-    },
-]
-
-
-def test_get_subject_observations(earthranger_io):
-    relocations = earthranger_io.get_subject_observations(
-        subject_ids=SUBJECT_IDS,
+def test_get_subject_observations(er_io):
+    relocations = er_io.get_subject_observations(
+        subject_ids=er_io.SUBJECT_IDS,
         include_subject_details=True,
         include_source_details=True,
         include_subjectsource_details=True,
@@ -62,19 +30,19 @@ def test_get_subject_observations(earthranger_io):
     assert "extra__source" in relocations
 
 
-def test_get_subject_no_observations(earthranger_io):
+def test_get_subject_no_observations(er_io):
     with pytest.raises(ecoscope.contrib.dasclient.DasClientNotFound):
-        earthranger_io.get_subject_observations(
-            subject_ids=UNKNOWN_UUID,
+        er_io.get_subject_observations(
+            subject_ids=str(uuid.uuid4()),
             include_subject_details=True,
             include_source_details=True,
             include_subjectsource_details=True,
         )
 
 
-def test_get_source_observations(earthranger_io):
-    relocations = earthranger_io.get_source_observations(
-        source_ids=SOURCE_IDS,
+def test_get_source_observations(er_io):
+    relocations = er_io.get_source_observations(
+        source_ids=er_io.SOURCE_IDS,
         include_source_details=True,
     )
     assert isinstance(relocations, ecoscope.base.Relocations)
@@ -82,17 +50,17 @@ def test_get_source_observations(earthranger_io):
     assert "groupby_col" in relocations
 
 
-def test_get_source_no_observations(earthranger_io):
-    relocations = earthranger_io.get_source_observations(
-        source_ids=UNKNOWN_UUID,
+def test_get_source_no_observations(er_io):
+    relocations = er_io.get_source_observations(
+        source_ids=str(uuid.uuid4()),
         include_source_details=True,
     )
     assert relocations.empty
 
 
-def test_get_subjectsource_observations(earthranger_io):
-    relocations = earthranger_io.get_subjectsource_observations(
-        subjectsource_ids=SUBJECTSOURCE_IDS,
+def test_get_subjectsource_observations(er_io):
+    relocations = er_io.get_subjectsource_observations(
+        subjectsource_ids=er_io.SUBJECTSOURCE_IDS,
         include_source_details=True,
     )
     assert isinstance(relocations, ecoscope.base.Relocations)
@@ -100,40 +68,40 @@ def test_get_subjectsource_observations(earthranger_io):
     assert "groupby_col" in relocations
 
 
-def test_get_subjectsource_no_observations(earthranger_io):
-    relocations = earthranger_io.get_subjectsource_observations(
-        subjectsource_ids=UNKNOWN_UUID,
+def test_get_subjectsource_no_observations(er_io):
+    relocations = er_io.get_subjectsource_observations(
+        subjectsource_ids=str(uuid.uuid4()),
         include_source_details=True,
     )
     assert relocations.empty
 
 
-def test_get_subjectsource_observations_with_pagesize_one(earthranger_io):
-    relocations = earthranger_io.get_subjectsource_observations(
-        subjectsource_ids=SUBJECTSOURCE_IDS,
+def test_get_subjectsource_observations_with_pagesize_one(er_io):
+    relocations = er_io.get_subjectsource_observations(
+        subjectsource_ids=er_io.SUBJECTSOURCE_IDS[0],
         include_source_details=True,
         page_size=1,
     )
     assert isinstance(relocations, ecoscope.base.Relocations)
-    assert relocations.shape[0] == 1
+    assert len(relocations) == 1
 
 
-def test_get_subjectgroup_observations(earthranger_io):
-    relocations = earthranger_io.get_subjectgroup_observations(group_name=GROUP_NAME)
+def test_get_subjectgroup_observations(er_io):
+    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
     assert "groupby_col" in relocations
 
 
-def test_get_events(earthranger_io):
-    events = earthranger_io.get_events(page_size=1000)
-    assert len(events) <= 1000
+def test_get_events(er_io):
+    events = er_io.get_events(page_size=100)
+    assert len(events) <= 100
 
 
 @pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
 @pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning")
-def test_collar_voltage(earthranger_io):
+def test_collar_voltage(er_io):
     start_time = pytz.utc.localize(datetime.datetime.now() - datetime.timedelta(days=31))
-    observations = earthranger_io.get_subjectgroup_observations(
-        group_name=GROUP_NAME,
+    observations = er_io.get_subjectgroup_observations(
+        group_name=er_io.GROUP_NAME,
         include_subject_details=True,
         include_subjectsource_details=True,
         include_details="true",
@@ -143,36 +111,44 @@ def test_collar_voltage(earthranger_io):
         ecoscope.plotting.plot.plot_collar_voltage(observations, start_time=start_time, output_folder=output_folder)
 
 
-def test_das_client_method(earthranger_io):
-    earthranger_io.pulse()
-    earthranger_io.get_me()
+def test_das_client_method(er_io):
+    er_io.pulse()
+    er_io.get_me()
 
 
-def test_get_patrols(earthranger_io):
-    patrols = earthranger_io.get_patrols()
+def test_get_patrols(er_io):
+    patrols = er_io.get_patrols()
     assert len(patrols) > 0
 
 
-def test_post_observations(earthranger_io):
-    observations = gpd.GeoDataFrame.from_dict(OBSERVATIONS)
-    response = earthranger_io.post_observations(observations)
+def test_post_observations(er_io):
+    observations = gpd.GeoDataFrame.from_dict(
+        [
+            {
+                "recorded_at": datetime.datetime.utcnow(),
+                "geometry": Point(0, 0),
+                "source": er_io.SOURCE_IDS[0],
+            },
+            {
+                "recorded_at": datetime.datetime.utcnow(),
+                "geometry": Point(0, 0),
+                "source": er_io.SOURCE_IDS[0],
+            },
+            {
+                "recorded_at": datetime.datetime.utcnow(),
+                "geometry": Point(1, 1),
+                "source": er_io.SOURCE_IDS[1],
+            },
+        ]
+    )
+
+    response = er_io.post_observations(observations)
     assert len(response) == 3
     assert "location" in response
     assert "recorded_at" in response
 
 
-def test_subjectsource(earthranger_io):
-    response = earthranger_io.post_subjectsource(
-        subject_id=SUBJECT_IDS[0],
-        source_id=SOURCE_IDS[0],
-        lower_bound_assignend_range=datetime.datetime.utcnow(),
-        upper_bound_assigned_range=datetime.datetime.utcnow() + datetime.timedelta(days=30),
-    )
-    assert response.shape[0] == 1
-    assert "216b033d-c4ad-444a-9f41-baa6c97cde7d" == response.subject[0]
-
-
-def test_post_events(earthranger_io):
+def test_post_events(er_io):
     events = [
         {
             "id": str(uuid.uuid4()),
@@ -203,7 +179,7 @@ def test_post_events(earthranger_io):
             "icon_id": "accident_rep",
         },
     ]
-    results = earthranger_io.post_event(events)
+    results = er_io.post_event(events)
     results["time"] = pd.to_datetime(results["time"], utc=True)
 
     expected = pd.DataFrame(events)
@@ -211,7 +187,7 @@ def test_post_events(earthranger_io):
     pd.testing.assert_frame_equal(results, expected)
 
 
-def test_patch_event(earthranger_io):
+def test_patch_event(er_io):
     event = [
         {
             "id": str(uuid.uuid4()),
@@ -232,7 +208,7 @@ def test_patch_event(earthranger_io):
             "icon_id": "arrest_rep",
         }
     ]
-    earthranger_io.post_event(event)
+    er_io.post_event(event)
     event_id = event[0]["id"]
 
     updated_event = pd.DataFrame(
@@ -245,14 +221,14 @@ def test_patch_event(earthranger_io):
         ]
     )
 
-    result = earthranger_io.patch_event(event_id=event_id, events=updated_event)
+    result = er_io.patch_event(event_id=event_id, events=updated_event)
     result = result[["priority", "state", "location"]]
     pd.testing.assert_frame_equal(result, updated_event)
 
 
-def test_get_observation_for_patrol(earthranger_io):
-    patrols = earthranger_io.get_patrols()
-    observations = earthranger_io.get_observations_for_patrols(
+def test_get_observation_for_patrol(er_io):
+    patrols = er_io.get_patrols()
+    observations = er_io.get_observations_for_patrols(
         patrols,
         include_source_details=False,
         include_subject_details=False,
@@ -261,6 +237,6 @@ def test_get_observation_for_patrol(earthranger_io):
     assert not observations.empty
 
 
-def test_users(earthranger_io):
-    users = earthranger_io.get_users()
+def test_users(er_io):
+    users = er_io.get_users()
     assert not users.empty

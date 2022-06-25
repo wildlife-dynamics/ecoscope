@@ -33,12 +33,20 @@ def pytest_configure(config):
         warnings.warn(Warning("EarthRanger_IO can not be initialized. Skipping related tests..."))
 
 
-@pytest.fixture
-def earthranger_io():
+@pytest.fixture(scope="session")
+def er_io():
     ER_SERVER = "https://sandbox.pamdas.org"
     ER_USERNAME = os.getenv("ER_USERNAME")
     ER_PASSWORD = os.getenv("ER_PASSWORD")
-    return ecoscope.io.EarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
+    er_io = ecoscope.io.EarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
+
+    er_io.GROUP_NAME = "Rhinos"
+    er_io.SUBJECT_IDS = er_io.get_subjects(group_name=er_io.GROUP_NAME).id.tolist()
+    er_io.SUBJECTSOURCE_IDS, er_io.SOURCE_IDS = er_io.get_subjectsources(subjects=",".join(er_io.SUBJECT_IDS))[
+        ["id", "source"]
+    ].values.T.tolist()
+
+    return er_io
 
 
 @pytest.fixture
