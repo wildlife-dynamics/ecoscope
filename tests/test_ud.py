@@ -1,3 +1,4 @@
+import os
 from tempfile import NamedTemporaryFile
 
 import geopandas as gpd
@@ -29,7 +30,8 @@ def test_etd_range(movbank_relocations):
         band_count=1,  # Albers Africa Equal Area Conic
     )
 
-    with NamedTemporaryFile() as file:
+    file = NamedTemporaryFile(delete=False)
+    try:
         ecoscope.analysis.UD.calculate_etd_range(
             trajectory_gdf=movbank_trajectory_gdf,
             output_path=file.name,
@@ -41,6 +43,9 @@ def test_etd_range(movbank_relocations):
         percentile_area = ecoscope.analysis.get_percentile_area(
             percentile_levels=[99.9], raster_path=file.name, subject_id="Salif_Keita"
         ).to_crs(4326)
+    finally:
+        file.close()
+        os.unlink(file.name)
 
     expected_percentile_area = gpd.read_feather("tests/test_output/etd_percentile_area.feather")
     gpd.testing.assert_geodataframe_equal(percentile_area, expected_percentile_area, check_less_precise=True)
