@@ -3,7 +3,7 @@
    :height: 200
    :align: center
 
-|PyPI| |Tests| |Codecov|
+|PyPI| |Tests| |Codecov| |Docs|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/ecoscope.svg
    :target: https://pypi.python.org/pypi/ecoscope
@@ -13,6 +13,9 @@
 
 .. |Codecov| image:: https://codecov.io/gh/wildlife-dynamics/ecoscope/branch/ECO-118/graphs/badge.svg?token=rXdzfueuhb
    :target: https://codecov.io/gh/wildlife-dynamics/ecoscope
+   
+.. |Docs| image:: https://readthedocs.org/projects/ecoscope/badge/?version=latest
+   :target: https://ecoscope.readthedocs.io/en/latest/?badge=latest
 
 ========
 Ecoscope

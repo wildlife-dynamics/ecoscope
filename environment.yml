@@ -44,5 +44,7 @@ dependencies:
   - xyzservices
   - pip:
     - coverage[toml]
+    - nbsphinx
+    - nbsphinx-multilink
     - sphinx-autoapi
 
