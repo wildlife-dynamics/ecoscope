@@ -1,0 +1,35 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  Test:
+    environment: Testing
+    name: ${{ matrix.os }}, ${{ matrix.env }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        env: [environment.yml]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Micromamba
+        uses: mamba-org/provision-with-micromamba@main
+        with:
+          environment-file: ${{ matrix.env }}
+
+      - name: Test
+        env:
+          ER_USERNAME: ${{ secrets.ER_USERNAME }}
+          ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+          EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
+          EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+        run: |
+          pytest -v -r s --color=yes --cov=ecoscope --cov-report=xml
+      
+      - name: Codecov
+        uses: codecov/codecov-action@v3

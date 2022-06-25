@@ -1,0 +1,41 @@
+repos:
+  - repo: https://github.com/python/black
+    rev: 22.3.0
+    hooks:
+      - id: black-jupyter
+        args: ['--line-length=120']
+  - repo: https://github.com/PyCQA/flake8
+    rev: 4.0.1
+    hooks:
+      - id: flake8
+        args: ['--ignore=E203,W503', '--max-line-length=120']
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        args: ['-m3', '--tc']
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.5.0
+    hooks:
+      - id: nbstripout
+        args: ["--extra-keys", "metadata.colab metadata.vscode cell.metadata.colab cell.metadata.executionInfo cell.metadata.id cell.metadata.outputId", "--strip-empty-cells"]
+  - repo: https://github.com/MarcoGorelli/absolufy-imports
+    rev: v0.3.1
+    hooks:
+    -   id: absolufy-imports
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.1.0
+    hooks:
+    - id: codespell
+      files: ^.*\.(py|md|rst|ipynb)$
+      args: ["-w"]
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.3.1
+    hooks:
+      - id: nbqa-black
+        args: ['--line-length=120']
+      - id: nbqa-flake8
+        args: ['--ignore=E203,E402,W503', '--max-line-length=120']
+      - id: nbqa-isort
+        args: ['-m3', '--tc']
+exclude: ^ecoscope/contrib/
