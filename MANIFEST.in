@@ -1,0 +1,4 @@
+exclude *.txt
+exclude MANIFEST.in
+recursive-include *.pxi *.pxd *.pyx *.so
+include ecoscope/contrib/legend.txt

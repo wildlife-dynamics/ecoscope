@@ -1,0 +1,14 @@
+{
+"type": "FeatureCollection",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "recorded_at": "2000-01-01 01:00:00", "source_id": "1652a77f-9c98-48dc-a00a-322501e366e4" }, "geometry": { "type": "Point", "coordinates": [ 39.375, 1.406108835435159 ] } },
+{ "type": "Feature", "properties": { "recorded_at": "2000-01-01 05:00:00", "source_id": "1652a77f-9c98-48dc-a00a-322501e366e4" }, "geometry": { "type": "Point", "coordinates": [ 36.650390625, -1.669685500986571 ] } },
+{ "type": "Feature", "properties": { "recorded_at": "2000-01-01 09:00:00", "source_id": "1652a77f-9c98-48dc-a00a-322501e366e4" }, "geometry": { "type": "Point", "coordinates": [ 34.541015625, 0.966750999766642 ] } },
+{ "type": "Feature", "properties": { "recorded_at": "2000-01-01 12:00:00", "source_id": "1652a77f-9c98-48dc-a00a-322501e366e4" }, "geometry": { "type": "Point", "coordinates": [ 33.310546875, -1.845383988573187 ] } },
+{ "type": "Feature", "properties": { "recorded_at": "2000-01-01 18:00:00", "source_id": "1652a77f-9c98-48dc-a00a-322501e366e4" }, "geometry": { "type": "Point", "coordinates": [ 30.322265625, 0.790990498154006 ] } },
+{ "type": "Feature", "properties": { "recorded_at": "2000-01-01 05:00:00", "source_id": "1652a77f-9c98-48dc-a00a-322501e366e4" }, "geometry": { "type": "Point", "coordinates": [ 28.388671875, 2.547987871471384 ] } },
+{ "type": "Feature", "properties": { "recorded_at": "2000-01-01 05:00:00", "source_id": "1652a77f-9c98-48dc-a00a-322501e366e4" }, "geometry": { "type": "Point", "coordinates": [ 26.279296875, -2.196727241761658 ] } },
+{ "type": "Feature", "properties": { "recorded_at": "2000-01-01 05:00:00", "source_id": "1652a77f-9c98-48dc-a00a-322501e366e4" }, "geometry": { "type": "Point", "coordinates": [ 20.302734375, 1.757536811308325 ] } }
+]
+}

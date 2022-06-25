@@ -1,0 +1,48 @@
+name: ecoscope
+channels:
+  - conda-forge
+dependencies:
+  - python == 3.7.12 # Fixed to mirror version on Google Colab
+  - pip
+  - git
+  - PyPDF2
+  - Shapely
+  - affine
+  - astroplan
+  - astropy
+  - backoff
+  - branca
+  - earthengine-api
+  - geopandas
+  - jinja2
+  - jupyterlab
+  - mapclassify
+  - matplotlib-base
+  - networkx
+  - numba
+  - numexpr
+  - numpy
+  - pandas
+  - plotly
+  - pre-commit
+  - pyarrow
+  - pygeos
+  - pyproj
+  - pytest
+  - pytest-cov
+  - pytest-mock
+  - python-igraph
+  - pydata-sphinx-theme
+  - python-kaleido
+  - rasterio
+  - scikit-image
+  - scikit-learn
+  - scipy
+  - selenium
+  - sphinx
+  - tqdm
+  - xyzservices
+  - pip:
+    - coverage[toml]
+    - sphinx-autoapi
+

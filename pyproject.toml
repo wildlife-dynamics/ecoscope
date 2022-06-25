@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools", "wheel", "cython"]
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+filterwarnings = [
+    "ignore:distutils Version classes are deprecated. Use packaging.version instead.:DeprecationWarning",
+    'ignore:Feature.geometry\(\) is deprecated. Use Element.geometry\(\):DeprecationWarning',
+]
+
+[tool.black]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | \.env
+  | _build
+  | buck-out
+  | build
+  | dist
+  | notebooks
+  | env
+
+)/
+'''
+
+[tool.coverage.run]
+source = ['ecoscope']
+omit = ['ecoscope/contrib/*']
