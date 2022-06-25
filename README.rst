@@ -18,7 +18,7 @@
 Ecoscope
 ========
 
-Ecoscope is open-source analytical reporting framework for conservation and movement data.
+Ecoscope is an open-source analysis module for tracking, environmental and conservation data analyses. It provides methods and approaches for: Data I/O (EarthRanger, Google Earth Engine, Landscape Dynamics, MoveBank, Geopandas), Movement Data (Relocations, Trajectories, Home-Ranges, EcoGraph, Recurse, Geofencing, Immobility, Moving Windows, Resampling, Filtering), Visualization (EcoMap, EcoPlot), Environmental analyses (Seasons determination, Remote sensing anomalies), Covariate labeling (Day/Night, Seasonal, GEE Image Collections/Images).
 
 Development & Testing
 =====================
@@ -34,3 +34,11 @@ Copyright & License
 -------------------
 
 Ecoscope is licensed under BSD 3-Clause license. Copyright (c) 2022, wildlife-dynamics.
+
+Donate
+------
+Ecoscope is currently developed and maintained by the Mara Elephant Project (www.maraelephantproject.org) a not-for-profit elephant conservation organization located in the Masai Mara, Kenya. If you find Ecoscope useful in your work, please consider donating to help support ongoing development and maintenance of the project or the conservation work performed by MEP: https://maraelephantproject.org/donate/
+
+Acknowledgments
+---------------
+We thank the many individuals and organizations who have contributed to the development of Ecoscope: Jake Wall, Peter Kulits, Zakaria Hussein, Catherine Villeneuve, Jes Lefcourt, George Wittemyer, Mara Elephant Project, Allen Institute for Artificial Intelligence, Google Earth Outreach, Save the Elephants, Elephants Alive, Berkeley Data Science Society.
