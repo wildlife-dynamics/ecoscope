@@ -91,14 +91,14 @@ html_logo = "_static/images/logo.svg"
 
 # material theme options (see theme.conf for more information)
 html_theme_options = {
-    # "search_bar_position": "sidebar",
     "github_url": "https://github.com/wildlife-dynamics/ecoscope",
-    "show_toc_level": 1,
+    "pygment_light_style": "rainbow_dash",
+    "pygment_dark_style": "dracula",
 }
 
 nbsphinx_prolog = """
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
-    :target: {{ "https://githubtocolab.com/wildlife-dynamics/ecoscope/blob/master/" + env.docname|urlencode + ".ipynb" }}
+  :target: {{ "https://githubtocolab.com/wildlife-dynamics/ecoscope/blob/master/" + env.docname|urlencode + ".ipynb" }}
 
 ----
 """

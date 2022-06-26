@@ -1,9 +1,10 @@
-.. image:: ./doc/source/_static/images/logo.svg
+.. image:: https://ecoscope.io/en/latest/_static/logo.svg
    :width: 400
    :height: 200
    :align: center
+   :target: https://ecoscope.io
 
-|PyPI| |Tests| |Codecov| |Docs|
+|PyPI| |Tests| |Codecov| |Docs| |Notebooks|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/ecoscope.svg
    :target: https://pypi.python.org/pypi/ecoscope
@@ -11,11 +12,14 @@
 .. |Tests| image:: https://github.com/wildlife-dynamics/ecoscope/workflows/Tests/badge.svg
    :target: https://github.com/wildlife-dynamics/ecoscope/actions?query=workflow%3ATests
 
-.. |Codecov| image:: https://codecov.io/gh/wildlife-dynamics/ecoscope/branch/ECO-118/graphs/badge.svg?token=rXdzfueuhb
+.. |Codecov| image:: https://codecov.io/gh/wildlife-dynamics/ecoscope/branch/master/graphs/badge.svg
    :target: https://codecov.io/gh/wildlife-dynamics/ecoscope
    
 .. |Docs| image:: https://readthedocs.org/projects/ecoscope/badge/?version=latest
-   :target: https://ecoscope.readthedocs.io/en/latest/?badge=latest
+   :target: https://ecoscope.io/en/latest/index.html
+
+.. |Notebooks| image:: https://img.shields.io/badge/Jupyter-Lab-F37626.svg?style=flat&logo=Jupyter
+   :target: https://ecoscope.io/en/latest/notebooks.html
 
 ========
 Ecoscope

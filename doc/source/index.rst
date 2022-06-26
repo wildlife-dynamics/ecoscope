@@ -1,9 +1,9 @@
-========
-Ecoscope
-========
+.. include:: ../../README.rst
 
 .. toctree::
+   :titlesonly:
    :maxdepth: 1
-   :glob:
+   :hidden:
 
+   Home <self>
    notebooks

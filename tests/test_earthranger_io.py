@@ -130,7 +130,7 @@ def test_post_observations(er_io):
                 "source": er_io.SOURCE_IDS[0],
             },
             {
-                "recorded_at": (pd.Timestamp.utcnow()+pd.Timedelta(seconds=1)).isoformat(),
+                "recorded_at": (pd.Timestamp.utcnow() + pd.Timedelta(seconds=1)).isoformat(),
                 "geometry": Point(0, 0),
                 "source": er_io.SOURCE_IDS[0],
             },
