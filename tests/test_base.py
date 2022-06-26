@@ -85,6 +85,31 @@ def test_turn_angle(movbank_relocations):
     pandas.testing.assert_series_equal(turn_angle, expected)
 
 
+def test_sampling(movbank_relocations):
+    # apply relocation coordinate filter to movbank data
+    pnts_filter = ecoscope.base.RelocsCoordinateFilter(
+        min_x=-5,
+        max_x=1,
+        min_y=12,
+        max_y=18,
+        filter_point_coords=[[180, 90], [0, 0]],
+    )
+    movbank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
+    movbank_relocations.remove_filtered(inplace=True)
+
+    upsampled_relocs = movbank_relocations.upsample(60 * 30)
+    downsampled_relocs_noint = movbank_relocations.downsample(interval=60 * 60 * 3, tolerance=60 * 15)
+    downsampled_relocs_int = movbank_relocations.downsample(interval=60 * 60 * 3, interpolation=True)
+
+    expected_upsample = gpd.read_feather("tests/test_output/upsampled_relocs.feather")
+    expected_downsample_noint = gpd.read_feather("tests/test_output/downsampled_relocs_noint.feather")
+    expected_downsample_int = gpd.read_feather("tests/test_output/downsampled_relocs.feather")
+
+    gpd.testing.assert_geodataframe_equal(upsampled_relocs, expected_upsample, check_less_precise=True)
+    gpd.testing.assert_geodataframe_equal(downsampled_relocs_noint, expected_downsample_noint, check_less_precise=True)
+    gpd.testing.assert_geodataframe_equal(downsampled_relocs_int, expected_downsample_int, check_less_precise=True)
+
+
 @pytest.mark.filterwarnings("ignore:Target with index", 'ignore: ERFA function "utctai"')
 def test_daynight_ratio(movbank_relocations):
     trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
