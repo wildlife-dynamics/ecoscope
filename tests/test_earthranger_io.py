@@ -125,17 +125,17 @@ def test_post_observations(er_io):
     observations = gpd.GeoDataFrame.from_dict(
         [
             {
-                "recorded_at": datetime.datetime.utcnow(),
+                "recorded_at": pd.Timestamp.utcnow().isoformat(),
                 "geometry": Point(0, 0),
                 "source": er_io.SOURCE_IDS[0],
             },
             {
-                "recorded_at": datetime.datetime.utcnow(),
+                "recorded_at": (pd.Timestamp.utcnow()+pd.Timedelta(seconds=1)).isoformat(),
                 "geometry": Point(0, 0),
                 "source": er_io.SOURCE_IDS[0],
             },
             {
-                "recorded_at": datetime.datetime.utcnow(),
+                "recorded_at": pd.Timestamp.utcnow().isoformat(),
                 "geometry": Point(1, 1),
                 "source": er_io.SOURCE_IDS[1],
             },
