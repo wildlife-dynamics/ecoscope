@@ -1,3 +1,4 @@
+import logging
 import warnings
 
 import astroplan
@@ -6,6 +7,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pygeos
+import shapely
 from pyproj import Geod
 
 from ecoscope.analysis import astronomy
@@ -276,6 +278,56 @@ class Relocations(EcoDataFrame):
 
         if not inplace:
             return frame
+
+    def upsample(self, upsample_time):
+        """
+        Function to upsample relocations. The upsampling works by doing a linear
+        interpolation between each of the relocation points.
+
+        Parameters
+        ----------
+        up_sample_time: int
+            Upsampling interval (in seconds)
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
+
+        relocations = self[["fixtime", "groupby_col", "geometry"]].copy()
+        relocations.sort_values("fixtime", inplace=True)
+        utm_crs = self.estimate_utm_crs()
+        relocations.to_crs(utm_crs, inplace=True)
+        upsampled_gdfs = []
+
+        def compute(relocs_ind):
+            relocs_ind.crs = utm_crs
+            subject_name = relocs_ind.name
+            logging.info(f"Resampling relocations for subject {subject_name}")
+
+            reloc_points, reloc_times = list(relocs_ind["geometry"]), list(relocs_ind["fixtime"])
+            upsampled_points = []
+            time = relocs_ind.fixtime.iat[0]
+            for i in range(len(relocs_ind) - 1):
+                line = shapely.geometry.LineString([reloc_points[i], reloc_points[i + 1]])
+                while reloc_times[i] <= time <= reloc_times[i + 1]:
+                    upsampled_points.append(
+                        line.interpolate(
+                            (time - reloc_times[i]) / (reloc_times[i + 1] - reloc_times[i]), normalized=True
+                        )
+                    )
+                    time += pd.Timedelta(seconds=upsample_time)
+
+            relocs_ind["fixtime"] = pd.to_datetime(relocs_ind.fixtime)
+            relocs_ind = relocs_ind.set_index("fixtime").resample(str(upsample_time) + "S", origin="start").pad()
+            relocs_ind["fixtime"] = relocs_ind.index
+            relocs_ind["junk_status"] = False
+            relocs_ind["geometry"] = upsampled_points[: len(relocs_ind)]
+            relocs_ind.to_crs(4326, inplace=True)
+            relocs_ind = relocs_ind.reset_index(drop=True)
+            upsampled_gdfs.append(relocs_ind)
+
+        relocations.groupby("groupby_col").progress_apply(compute)
+        return pd.concat(upsampled_gdfs)
 
     @cachedproperty
     def distance_from_centroid(self):
