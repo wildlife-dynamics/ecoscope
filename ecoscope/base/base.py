@@ -329,6 +329,66 @@ class Relocations(EcoDataFrame):
         relocations.groupby("groupby_col").progress_apply(compute)
         return pd.concat(upsampled_gdfs)
 
+    def downsample(self, interval=60 * 120, tolerance=60 * 15, interpolation=False):
+        """
+        Function to downsample relocations.
+        Parameters
+        ----------
+        interval: int, optional
+            Downsampling interval (in seconds)
+        tolerance: int, optional
+            Tolerance on the time interval (in seconds)
+        interpolation: bool, optional
+            If true, interpolates locations on the whole trajectory
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
+        if interpolation:
+            return self.upsample(interval)
+        else:
+            interval = pd.Timedelta(seconds=interval)
+            tolerance = pd.Timedelta(seconds=tolerance)
+            downsampled_gdfs = []
+
+            def compute(relocs_ind):
+                relocs_ind.sort_values("fixtime", inplace=True)
+                fixtime = list(relocs_ind["fixtime"])
+                subject_name = relocs_ind.name
+                logging.info(f"Downsampling relocations for subject {subject_name}")
+
+                k = 1
+                i = 0
+                n = len(relocs_ind)
+                out = np.full(n, -1)
+                out[i] = k
+                while i < (n - 1):
+                    t_min = fixtime[i] + interval - tolerance
+                    t_max = fixtime[i] + interval + tolerance
+
+                    j = i + 1
+
+                    while (j < (n - 1)) and (fixtime[j] < t_min):
+                        j += 1
+
+                    i = j
+
+                    if j == (n - 1):
+                        break
+                    elif (fixtime[j] >= t_min) and (fixtime[j] <= t_max):
+                        out[j] = k
+                    else:
+                        k += 1
+                        out[j] = k
+
+                relocs_ind["extra__burst"] = out
+                relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
+                relocs_ind.crs = self.crs
+                downsampled_gdfs.append(relocs_ind)
+
+            self.groupby("groupby_col").progress_apply(compute)
+            return pd.concat(downsampled_gdfs)
+
     @cachedproperty
     def distance_from_centroid(self):
         # calculate the distance between the centroid and the fix
