@@ -279,116 +279,6 @@ class Relocations(EcoDataFrame):
         if not inplace:
             return frame
 
-    def upsample(self, upsample_time):
-        """
-        Function to upsample relocations. The upsampling works by doing a linear
-        interpolation between each of the relocation points.
-
-        Parameters
-        ----------
-        up_sample_time: int
-            Upsampling interval (in seconds)
-        Returns
-        -------
-        ecoscope.base.Relocations
-        """
-
-        relocations = self[["fixtime", "groupby_col", "geometry"]].copy()
-        relocations.sort_values("fixtime", inplace=True)
-        utm_crs = self.estimate_utm_crs()
-        relocations.to_crs(utm_crs, inplace=True)
-        upsampled_gdfs = []
-
-        def compute(relocs_ind):
-            relocs_ind.crs = utm_crs
-            subject_name = relocs_ind.name
-            logging.info(f"Resampling relocations for subject {subject_name}")
-
-            reloc_points, reloc_times = list(relocs_ind["geometry"]), list(relocs_ind["fixtime"])
-            upsampled_points = []
-            time = relocs_ind.fixtime.iat[0]
-            for i in range(len(relocs_ind) - 1):
-                line = shapely.geometry.LineString([reloc_points[i], reloc_points[i + 1]])
-                while reloc_times[i] <= time <= reloc_times[i + 1]:
-                    upsampled_points.append(
-                        line.interpolate(
-                            (time - reloc_times[i]) / (reloc_times[i + 1] - reloc_times[i]), normalized=True
-                        )
-                    )
-                    time += pd.Timedelta(seconds=upsample_time)
-
-            relocs_ind["fixtime"] = pd.to_datetime(relocs_ind.fixtime)
-            relocs_ind = relocs_ind.set_index("fixtime").resample(str(upsample_time) + "S", origin="start").pad()
-            relocs_ind["fixtime"] = relocs_ind.index
-            relocs_ind["junk_status"] = False
-            relocs_ind["geometry"] = upsampled_points[: len(relocs_ind)]
-            relocs_ind.to_crs(4326, inplace=True)
-            relocs_ind = relocs_ind.reset_index(drop=True)
-            upsampled_gdfs.append(relocs_ind)
-
-        relocations.groupby("groupby_col").progress_apply(compute)
-        return pd.concat(upsampled_gdfs)
-
-    def downsample(self, interval=60 * 120, tolerance=60 * 15, interpolation=False):
-        """
-        Function to downsample relocations.
-        Parameters
-        ----------
-        interval: int, optional
-            Downsampling interval (in seconds)
-        tolerance: int, optional
-            Tolerance on the time interval (in seconds)
-        interpolation: bool, optional
-            If true, interpolates locations on the whole trajectory
-        Returns
-        -------
-        ecoscope.base.Relocations
-        """
-        if interpolation:
-            return self.upsample(interval)
-        else:
-            interval = pd.Timedelta(seconds=interval)
-            tolerance = pd.Timedelta(seconds=tolerance)
-            downsampled_gdfs = []
-
-            def compute(relocs_ind):
-                relocs_ind.sort_values("fixtime", inplace=True)
-                fixtime = list(relocs_ind["fixtime"])
-                subject_name = relocs_ind.name
-                logging.info(f"Downsampling relocations for subject {subject_name}")
-
-                k = 1
-                i = 0
-                n = len(relocs_ind)
-                out = np.full(n, -1)
-                out[i] = k
-                while i < (n - 1):
-                    t_min = fixtime[i] + interval - tolerance
-                    t_max = fixtime[i] + interval + tolerance
-
-                    j = i + 1
-
-                    while (j < (n - 1)) and (fixtime[j] < t_min):
-                        j += 1
-
-                    i = j
-
-                    if j == (n - 1):
-                        break
-                    elif (fixtime[j] >= t_min) and (fixtime[j] <= t_max):
-                        out[j] = k
-                    else:
-                        k += 1
-                        out[j] = k
-
-                relocs_ind["extra__burst"] = out
-                relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
-                relocs_ind.crs = self.crs
-                downsampled_gdfs.append(relocs_ind)
-
-            self.groupby("groupby_col").progress_apply(compute)
-            return pd.concat(downsampled_gdfs)
-
     @cachedproperty
     def distance_from_centroid(self):
         # calculate the distance between the centroid and the fix
@@ -627,6 +517,161 @@ class Trajectory(EcoDataFrame):
         angles = self.groupby("groupby_col").apply(turn_angle).droplevel(0) if uniq > 1 else turn_angle(self)
 
         return angles.rename("turn_angle").reindex(self.index)
+
+    def upsample(self, upsample_time):
+        """
+        Function to upsample a trajectory. The upsampling works by doing a linear
+        interpolation between each of the relocation points.
+
+        Parameters
+        ----------
+        up_sample_time: int
+            Upsampling interval (in seconds)
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
+
+        upsampled_relocs = []
+
+        def compute(traj_ind):
+            subject_name = traj_ind.name
+            traj_ind.crs = self.crs
+            utm_crs = traj_ind.estimate_utm_crs()
+            traj_ind.to_crs(utm_crs, inplace=True)
+            logging.info(f"Resampling relocations for subject {subject_name}")
+
+            traj_ind = traj_ind.sort_values("segment_start")
+            times = pd.date_range(
+                start=traj_ind.iloc[0]["segment_start"],
+                end=traj_ind.iloc[-1]["segment_end"],
+                freq=pd.Timedelta(seconds=upsample_time),
+            )
+            index = traj_ind.segment_start.searchsorted(
+                pd.date_range(
+                    traj_ind.segment_start.iat[0],
+                    traj_ind.segment_end.iat[-1],
+                    freq=pd.Timedelta(seconds=upsample_time),
+                )
+            )
+            index[1:] -= 1
+
+            traj_ind = traj_ind.iloc[index]
+            points = pygeos.line_interpolate_point(
+                traj_ind.geometry.values.data,
+                (pd.to_datetime(times) - traj_ind["segment_start"])
+                / (traj_ind["segment_end"] - traj_ind["segment_start"]),
+                normalized=True,
+            )
+            relocs_gdf = gpd.GeoDataFrame(
+                pd.DataFrame.from_dict(
+                    {"fixtime": times, "geometry": points, "junk_status": False, "groupby_col": traj_ind["groupby_col"]}
+                ).reset_index(drop=True),
+                geometry="geometry",
+                crs=traj_ind.crs,
+            )
+            relocs_gdf.to_crs(4326, inplace=True)
+            upsampled_relocs.append(Relocations.from_gdf(relocs_gdf, groupby_col="groupby_col", time_col="fixtime"))
+
+        self.groupby("groupby_col").progress_apply(compute)
+        return pd.concat(upsampled_relocs)
+
+    def to_relocations(self):
+        """
+        Converts a Trajectory object to a Relocations object.
+
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
+
+        relocs_gdfs = []
+
+        def compute(traj):
+            traj.crs = self.crs
+            subject_name = traj.name
+            extra_cols = [col for col in traj if col.startswith("extra__")]
+            points = [
+                shapely.geometry.Point(point)
+                for point in list(
+                    shapely.ops.linemerge(shapely.geometry.MultiLineString(list(traj["geometry"]))).coords
+                )
+            ]
+            times = list(traj["segment_start"]) + [traj.iloc[-1]["segment_end"]]
+            relocs_gdf = gpd.GeoDataFrame(
+                pd.DataFrame.from_dict(
+                    {"fixtime": times, "geometry": points, "junk_status": False, "groupby_col": subject_name}
+                ).reset_index(drop=True),
+                geometry="geometry",
+                crs=traj.crs,
+            )
+            combined_gdf = pd.concat([relocs_gdf, traj[extra_cols].reset_index(drop=True)], axis=1)
+            relocs_gdfs.append(Relocations.from_gdf(combined_gdf, groupby_col="groupby_col", time_col="fixtime"))
+
+        self.groupby("groupby_col").progress_apply(compute)
+        return pd.concat(relocs_gdfs)
+
+    def downsample(self, interval=60 * 120, tolerance=60 * 15, interpolation=False):
+        """
+        Function to downsample relocations.
+        Parameters
+        ----------
+        interval: int, optional
+            Downsampling interval (in seconds)
+        tolerance: int, optional
+            Tolerance on the time interval (in seconds)
+        interpolation: bool, optional
+            If true, interpolates locations on the whole trajectory
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
+
+        if interpolation:
+            return self.upsample(interval)
+        else:
+            interval = pd.Timedelta(seconds=interval)
+            tolerance = pd.Timedelta(seconds=tolerance)
+            downsampled_gdfs = []
+
+            def compute(relocs_ind):
+                relocs_ind.sort_values("fixtime", inplace=True)
+
+                fixtime = list(relocs_ind["fixtime"])
+                subject_name = relocs_ind.name
+                logging.info(f"Downsampling relocations for subject {subject_name}")
+
+                k = 1
+                i = 0
+                n = len(relocs_ind)
+                out = np.full(n, -1)
+                out[i] = k
+                while i < (n - 1):
+                    t_min = fixtime[i] + interval - tolerance
+                    t_max = fixtime[i] + interval + tolerance
+
+                    j = i + 1
+
+                    while (j < (n - 1)) and (fixtime[j] < t_min):
+                        j += 1
+
+                    i = j
+
+                    if j == (n - 1):
+                        break
+                    elif (fixtime[j] >= t_min) and (fixtime[j] <= t_max):
+                        out[j] = k
+                    else:
+                        k += 1
+                        out[j] = k
+
+                relocs_ind["extra__burst"] = out
+                relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
+                relocs_ind.crs = self.crs
+                downsampled_gdfs.append(relocs_ind)
+
+            self.to_relocations().groupby("groupby_col").progress_apply(compute)
+            return pd.concat(downsampled_gdfs)
 
     @staticmethod
     def _straighttrack_properties(df: gpd.GeoDataFrame):
