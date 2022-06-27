@@ -590,14 +590,18 @@ class Trajectory(EcoDataFrame):
         def compute(traj):
             traj.crs = self.crs
             subject_name = traj.name
-            extra_cols = [col for col in traj if col.startswith("extra__")]
-            points = [
-                shapely.geometry.Point(point)
-                for point in list(
-                    shapely.ops.linemerge(shapely.geometry.MultiLineString(list(traj["geometry"]))).coords
+            points = np.concatenate(
+                (
+                    np.array(
+                        traj["geometry"].map(lambda x: shapely.geometry.Point(x.coords.xy[0][0], x.coords.xy[1][0]))
+                    ).flatten(),
+                    np.array(
+                        traj["geometry"].map(lambda x: shapely.geometry.Point(x.coords.xy[1][0], x.coords.xy[1][1]))
+                    ).flatten(),
                 )
-            ]
-            times = list(traj["segment_start"]) + [traj.iloc[-1]["segment_end"]]
+            )
+            times = list(traj["segment_start"]) + list(traj["segment_end"])
+
             relocs_gdf = gpd.GeoDataFrame(
                 pd.DataFrame.from_dict(
                     {"fixtime": times, "geometry": points, "junk_status": False, "groupby_col": subject_name}
@@ -605,8 +609,8 @@ class Trajectory(EcoDataFrame):
                 geometry="geometry",
                 crs=traj.crs,
             )
-            combined_gdf = pd.concat([relocs_gdf, traj[extra_cols].reset_index(drop=True)], axis=1)
-            relocs_gdfs.append(Relocations.from_gdf(combined_gdf, groupby_col="groupby_col", time_col="fixtime"))
+            relocs_gdf = relocs_gdf.drop_duplicates(subset=["fixtime"])
+            relocs_gdfs.append(Relocations.from_gdf(relocs_gdf, groupby_col="groupby_col", time_col="fixtime"))
 
         self.groupby("groupby_col").progress_apply(compute)
         return pd.concat(relocs_gdfs)

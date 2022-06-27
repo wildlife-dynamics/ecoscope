@@ -96,10 +96,11 @@ def test_sampling(movbank_relocations):
     )
     movbank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
     movbank_relocations.remove_filtered(inplace=True)
+    movbank_trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
 
-    upsampled_relocs = movbank_relocations.upsample(60 * 30)
-    downsampled_relocs_noint = movbank_relocations.downsample(interval=60 * 60 * 3, tolerance=60 * 15)
-    downsampled_relocs_int = movbank_relocations.downsample(interval=60 * 60 * 3, interpolation=True)
+    upsampled_relocs = movbank_trajectory.upsample(60 * 30)
+    downsampled_relocs_noint = movbank_trajectory.downsample(interval=60 * 60 * 3, tolerance=60 * 15)
+    downsampled_relocs_int = movbank_trajectory.downsample(interval=60 * 60 * 3, interpolation=True)
 
     expected_upsample = gpd.read_feather("tests/test_output/upsampled_relocs.feather")
     expected_downsample_noint = gpd.read_feather("tests/test_output/downsampled_relocs_noint.feather")
