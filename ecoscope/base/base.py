@@ -649,7 +649,7 @@ class Trajectory(EcoDataFrame):
                 i = 0
                 n = len(relocs_ind)
                 out = np.full(n, -1)
-                out[i] = k
+                out[i] = np.int64(k)
                 while i < (n - 1):
                     t_min = fixtime[i] + interval - tolerance
                     t_max = fixtime[i] + interval + tolerance
@@ -664,10 +664,10 @@ class Trajectory(EcoDataFrame):
                     if j == (n - 1):
                         break
                     elif (fixtime[j] >= t_min) and (fixtime[j] <= t_max):
-                        out[j] = k
+                        out[j] = np.int64(k)
                     else:
                         k += 1
-                        out[j] = k
+                        out[j] = np.int64(k)
 
                 relocs_ind["extra__burst"] = out
                 relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
