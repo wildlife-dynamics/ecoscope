@@ -202,13 +202,6 @@ class Ecograph:
                 G.nodes[node_id][key].append(value)
 
     @staticmethod
-    def _get_day_night_value(day_night_value):
-        if day_night_value == "day":
-            return 0
-        elif day_night_value == "night":
-            return 1
-
-    @staticmethod
     def _initialize_node(G, node_id, attributes, empty=False):
         G.add_node(node_id)
         G.nodes[node_id]["weight"] = 1
