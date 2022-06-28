@@ -48,4 +48,4 @@ Ecoscope is currently developed and maintained by the Mara Elephant Project (www
 
 Acknowledgments
 ---------------
-We thank the many individuals and organizations who have contributed to the development of Ecoscope: Jake Wall, Peter Kulits, Zakaria Hussein, Catherine Villeneuve, Jes Lefcourt, George Wittemyer, Mara Elephant Project, Allen Institute for Artificial Intelligence, Google Earth Outreach, Save the Elephants, Elephants Alive, Berkeley Data Science Society.
+We thank the many individuals and organizations who have contributed to the development of Ecoscope: Jake Wall, Peter Kulits, Zakaria Hussein, Catherine Villeneuve, Jes Lefcourt, Chris Jones, George Wittemyer, Mara Elephant Project, Allen Institute for Artificial Intelligence, Google Earth Outreach, Save the Elephants, Elephants Alive, Berkeley Data Science Society.
