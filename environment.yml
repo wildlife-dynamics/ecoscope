@@ -14,6 +14,7 @@ dependencies:
   - branca
   - earthengine-api
   - geopandas
+  - ipywidgets
   - jinja2
   - jupyterlab
   - mapclassify
@@ -26,13 +27,13 @@ dependencies:
   - plotly
   - pre-commit
   - pyarrow
+  - pydata-sphinx-theme
   - pygeos
   - pyproj
   - pytest
   - pytest-cov
   - pytest-mock
   - python-igraph
-  - pydata-sphinx-theme
   - python-kaleido
   - rasterio
   - scikit-image
