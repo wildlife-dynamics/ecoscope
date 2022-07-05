@@ -41,3 +41,9 @@ def test_output():
 def test_add_arrow():
     m = ecoscope.mapping.EcoMap()
     m.add_north_arrow()
+
+
+def test_add_speedmap(movbank_relocations):
+    m = ecoscope.mapping.EcoMap()
+    traj = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+    m.add_speedmap(traj)
