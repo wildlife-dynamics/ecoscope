@@ -41,6 +41,7 @@ dependencies = [
     "shapely",
     "tqdm",
     "xyzservices",
+    "ipywidgets",
 ]
 
 setup(

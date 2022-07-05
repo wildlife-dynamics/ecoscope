@@ -42,6 +42,7 @@ dependencies:
   - sphinx
   - tqdm
   - xyzservices
+  - ipywidgets
   - pip:
     - coverage[toml]
     - nbsphinx
