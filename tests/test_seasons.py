@@ -1,4 +1,5 @@
 import geopandas as gpd
+import plotly.graph_objects as go
 import pytest
 
 import ecoscope
@@ -25,5 +26,6 @@ def test_seasons():
     windows = ecoscope.analysis.seasons.seasonal_windows(ndvi_vals, cuts, season_labels=["dry", "wet"])
 
     ecoscope.plotting.plot_seasonal_dist(ndvi_vals["NDVI"], cuts)
+    ecoscope.plotting.plot.add_seasons(go.Figure(), windows)
 
     assert len(windows) > 0
