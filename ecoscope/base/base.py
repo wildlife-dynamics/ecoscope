@@ -545,7 +545,7 @@ class Trajectory(EcoDataFrame):
             sub_traj = traj_ind.iloc[:-1].copy()
             sub_traj["next_endtime"] = next_endtime
             sub_traj = sub_traj.reset_index(drop=True)
-            breaking_points = list(sub_traj.index[sub_traj["segment_end"] != sub_traj["next_endtime"]])
+            breaking_points = np.array(sub_traj.index[sub_traj["segment_end"] != sub_traj["next_endtime"]])
             if len(breaking_points) >= 1:
                 breaking_points += 1
             sub_trajs = np.split(traj_ind, breaking_points)
@@ -590,7 +590,9 @@ class Trajectory(EcoDataFrame):
                 sub_relocs.append(relocs_gdf)
 
             upsampled_relocs.append(
-                Relocations.from_gdf(pd.concat(sub_relocs), groupby_col="groupby_col", time_col="fixtime")
+                Relocations.from_gdf(
+                    pd.concat(sub_relocs).reset_index(drop=True), groupby_col="groupby_col", time_col="fixtime"
+                )
             )
 
         self.groupby("groupby_col").progress_apply(compute)
