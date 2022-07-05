@@ -544,7 +544,10 @@ class Trajectory(EcoDataFrame):
             next_endtime = traj_ind["segment_start"].shift(-1)
             sub_traj = traj_ind.iloc[:-1].copy()
             sub_traj["next_endtime"] = next_endtime
+            sub_traj = sub_traj.reset_index(drop=True)
             breaking_points = list(sub_traj.index[sub_traj["segment_end"] != sub_traj["next_endtime"]])
+            if len(breaking_points) >= 1:
+                breaking_points += 1
             sub_trajs = np.split(traj_ind, breaking_points)
 
             sub_relocs = []
