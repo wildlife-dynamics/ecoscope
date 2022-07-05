@@ -7,7 +7,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pygeos
-import shapely
 from pyproj import Geod
 
 from ecoscope.analysis import astronomy
@@ -591,14 +590,7 @@ class Trajectory(EcoDataFrame):
             traj.crs = self.crs
             subject_name = traj.name
             points = np.concatenate(
-                (
-                    np.array(
-                        traj["geometry"].map(lambda x: shapely.geometry.Point(x.coords.xy[0][0], x.coords.xy[1][0]))
-                    ).flatten(),
-                    np.array(
-                        traj["geometry"].map(lambda x: shapely.geometry.Point(x.coords.xy[1][0], x.coords.xy[1][1]))
-                    ).flatten(),
-                )
+                [pygeos.get_point(traj.geometry.values.data, 0), pygeos.get_point(traj.geometry.values.data, 1)]
             )
             times = list(traj["segment_start"]) + list(traj["segment_end"])
 
