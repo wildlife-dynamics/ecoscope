@@ -541,36 +541,54 @@ class Trajectory(EcoDataFrame):
             logging.info(f"Resampling relocations for subject {subject_name}")
 
             traj_ind = traj_ind.sort_values("segment_start")
-            times = pd.date_range(
-                start=traj_ind.iloc[0]["segment_start"],
-                end=traj_ind.iloc[-1]["segment_end"],
-                freq=pd.Timedelta(seconds=upsample_time),
-            )
-            index = traj_ind.segment_start.searchsorted(
-                pd.date_range(
-                    traj_ind.segment_start.iat[0],
-                    traj_ind.segment_end.iat[-1],
+            next_endtime = traj_ind["segment_start"].shift(-1)
+            sub_traj = traj_ind.iloc[:-1].copy()
+            sub_traj["next_endtime"] = next_endtime
+            breaking_points = list(sub_traj.index[sub_traj["segment_end"] != sub_traj["next_endtime"]])
+            sub_trajs = np.split(traj_ind, breaking_points)
+
+            sub_relocs = []
+            for sub_traj in sub_trajs:
+                times = pd.date_range(
+                    start=sub_traj.iloc[0]["segment_start"],
+                    end=sub_traj.iloc[-1]["segment_end"],
                     freq=pd.Timedelta(seconds=upsample_time),
                 )
-            )
-            index[1:] -= 1
 
-            traj_ind = traj_ind.iloc[index]
-            points = pygeos.line_interpolate_point(
-                traj_ind.geometry.values.data,
-                (pd.to_datetime(times) - traj_ind["segment_start"])
-                / (traj_ind["segment_end"] - traj_ind["segment_start"]),
-                normalized=True,
+                index = sub_traj.segment_start.searchsorted(
+                    pd.date_range(
+                        sub_traj.segment_start.iat[0],
+                        sub_traj.segment_end.iat[-1],
+                        freq=pd.Timedelta(seconds=upsample_time),
+                    )
+                )
+                index[1:] -= 1
+
+                sub_traj = sub_traj.iloc[index]
+                points = pygeos.line_interpolate_point(
+                    sub_traj.geometry.values.data,
+                    (pd.to_datetime(times) - sub_traj["segment_start"])
+                    / (sub_traj["segment_end"] - sub_traj["segment_start"]),
+                    normalized=True,
+                )
+                relocs_gdf = gpd.GeoDataFrame(
+                    pd.DataFrame.from_dict(
+                        {
+                            "fixtime": times,
+                            "geometry": points,
+                            "junk_status": False,
+                            "groupby_col": sub_traj["groupby_col"],
+                        }
+                    ).reset_index(drop=True),
+                    geometry="geometry",
+                    crs=traj_ind.crs,
+                )
+                relocs_gdf.to_crs(4326, inplace=True)
+                sub_relocs.append(relocs_gdf)
+
+            upsampled_relocs.append(
+                Relocations.from_gdf(pd.concat(sub_relocs), groupby_col="groupby_col", time_col="fixtime")
             )
-            relocs_gdf = gpd.GeoDataFrame(
-                pd.DataFrame.from_dict(
-                    {"fixtime": times, "geometry": points, "junk_status": False, "groupby_col": traj_ind["groupby_col"]}
-                ).reset_index(drop=True),
-                geometry="geometry",
-                crs=traj_ind.crs,
-            )
-            relocs_gdf.to_crs(4326, inplace=True)
-            upsampled_relocs.append(Relocations.from_gdf(relocs_gdf, groupby_col="groupby_col", time_col="fixtime"))
 
         self.groupby("groupby_col").progress_apply(compute)
         return pd.concat(upsampled_relocs)
