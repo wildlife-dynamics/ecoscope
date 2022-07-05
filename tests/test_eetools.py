@@ -1,3 +1,5 @@
+import datetime as dt
+
 import ee
 import pandas as pd
 import pytest
@@ -6,6 +8,17 @@ import ecoscope
 
 if not pytest.earthengine:
     pytest.skip("Skipping tests because connection to Earth Engine is not available.", allow_module_level=True)
+
+
+def test_unix_time():
+    expected_time = dt.datetime(2022, 7, 5, 9, 0, 0)
+    time = ecoscope.io.eetools.convert_millisecs_datetime(1657011600000)
+    assert time == expected_time
+
+
+def test_add_img_time():
+    img = ee.Image("USGS/SRTMGL1_003").select("elevation")
+    ecoscope.io.eetools.add_img_time(img)
 
 
 def test_albedo_anomaly(aoi_gdf):
