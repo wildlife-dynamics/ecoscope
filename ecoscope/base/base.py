@@ -561,6 +561,10 @@ class Trajectory(EcoDataFrame):
                     freq=pd.Timedelta(seconds=upsample_time),
                 )
 
+                if len(times) == 1:
+                    sub_relocs.append(Relocations())
+                    continue
+
                 index = sub_traj.segment_start.searchsorted(
                     pd.date_range(
                         sub_traj.segment_start.iat[0],
@@ -584,20 +588,16 @@ class Trajectory(EcoDataFrame):
                             "fixtime": times,
                             "geometry": points,
                             "junk_status": False,
-                            "groupby_col": sub_traj["groupby_col"],
+                            "groupby_col": subject_name,
                         }
                     ).reset_index(drop=True),
                     geometry="geometry",
                     crs=traj_ind.crs,
                 )
                 relocs_gdf.to_crs(4326, inplace=True)
-                sub_relocs.append(relocs_gdf)
+                sub_relocs.append(Relocations.from_gdf(relocs_gdf, groupby_col="groupby_col", time_col="fixtime"))
 
-            upsampled_relocs.append(
-                Relocations.from_gdf(
-                    pd.concat(sub_relocs).reset_index(drop=True), groupby_col="groupby_col", time_col="fixtime"
-                )
-            )
+            upsampled_relocs.append(pd.concat(sub_relocs).reset_index(drop=True))
 
         self.groupby("groupby_col").progress_apply(compute)
         return pd.concat(upsampled_relocs)
@@ -691,7 +691,10 @@ class Trajectory(EcoDataFrame):
                 relocs_ind["extra__burst"] = np.array(out, dtype=np.int64)
                 relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
                 relocs_ind.crs = self.crs
-                downsampled_gdfs.append(relocs_ind)
+                if len(relocs_ind) >= 1:
+                    downsampled_gdfs.append(relocs_ind)
+                else:
+                    downsampled_gdfs.append(Relocations())
 
             self.to_relocations().groupby("groupby_col").progress_apply(compute)
             return pd.concat(downsampled_gdfs)
