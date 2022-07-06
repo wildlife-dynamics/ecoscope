@@ -541,13 +541,16 @@ class Trajectory(EcoDataFrame):
             logging.info(f"Resampling relocations for subject {subject_name}")
 
             traj_ind = traj_ind.sort_values("segment_start")
-            next_endtime = traj_ind["segment_start"].shift(-1)
-            sub_traj = traj_ind.iloc[:-1].copy()
-            sub_traj["next_endtime"] = next_endtime
-            sub_traj = sub_traj.reset_index(drop=True)
-            breaking_points = np.array(sub_traj.index[sub_traj["segment_end"] != sub_traj["next_endtime"]])
-            if len(breaking_points) >= 1:
-                breaking_points += 1
+            traj_ind["next_endtime"] = traj_ind["segment_start"].shift(-1)
+            traj_ind = traj_ind.reset_index(drop=True)
+            breaking_points = (
+                np.array(
+                    traj_ind.index[
+                        (traj_ind["segment_end"] != traj_ind["next_endtime"]) & ~traj_ind["next_endtime"].isnull()
+                    ]
+                )
+                + 1
+            )
             sub_trajs = np.split(traj_ind, breaking_points)
 
             sub_relocs = []
@@ -565,6 +568,7 @@ class Trajectory(EcoDataFrame):
                         freq=pd.Timedelta(seconds=upsample_time),
                     )
                 )
+
                 index[1:] -= 1
 
                 sub_traj = sub_traj.iloc[index]
