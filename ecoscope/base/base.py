@@ -543,6 +543,7 @@ class Trajectory(EcoDataFrame):
             traj_ind = traj_ind.sort_values("segment_start")
             traj_ind["next_endtime"] = traj_ind["segment_start"].shift(-1)
             traj_ind = traj_ind.reset_index(drop=True)
+
             breaking_points = (
                 np.array(
                     traj_ind.index[
@@ -556,6 +557,11 @@ class Trajectory(EcoDataFrame):
 
             sub_relocs = []
             for sub_traj in sub_trajs:
+                if (
+                    sub_traj.iloc[-1]["segment_end"] - sub_traj.iloc[0]["segment_start"]
+                ).total_seconds() < upsample_time:
+                    continue
+
                 if tolerance > 0:
                     sub_traj = Trajectory.from_relocations(sub_traj.to_relocations())
 
@@ -597,11 +603,13 @@ class Trajectory(EcoDataFrame):
                 relocs_gdf.to_crs(4326, inplace=True)
                 sub_relocs.append(Relocations.from_gdf(relocs_gdf, groupby_col="groupby_col", time_col="fixtime"))
 
-            upsampled_relocs.append(pd.concat(sub_relocs).reset_index(drop=True))
+            if len(sub_relocs) > 0:
+                upsampled_relocs.append(pd.concat(sub_relocs).reset_index(drop=True))
+            else:
+                upsampled_relocs.append(traj_ind.iloc[[0]].to_relocations().drop(1))
 
         self.groupby("groupby_col").progress_apply(compute)
-        upsampled_relocs = pd.concat(upsampled_relocs)
-        return upsampled_relocs
+        return pd.concat(upsampled_relocs)
 
     def to_relocations(self):
         """
