@@ -517,7 +517,7 @@ class Trajectory(EcoDataFrame):
 
         return angles.rename("turn_angle").reindex(self.index)
 
-    def upsample(self, upsample_time):
+    def upsample(self, upsample_time, tolerance=0):
         """
         Function to upsample a trajectory. The upsampling works by doing a linear
         interpolation between each of the relocation points.
@@ -546,7 +546,8 @@ class Trajectory(EcoDataFrame):
             breaking_points = (
                 np.array(
                     traj_ind.index[
-                        (traj_ind["segment_end"] != traj_ind["next_endtime"]) & ~traj_ind["next_endtime"].isnull()
+                        ((traj_ind["next_endtime"] - traj_ind["segment_end"]).dt.total_seconds() > tolerance)
+                        & ~traj_ind["next_endtime"].isnull()
                     ]
                 )
                 + 1
@@ -555,15 +556,14 @@ class Trajectory(EcoDataFrame):
 
             sub_relocs = []
             for sub_traj in sub_trajs:
+                if tolerance > 0:
+                    sub_traj = Trajectory.from_relocations(sub_traj.to_relocations())
+
                 times = pd.date_range(
                     start=sub_traj.iloc[0]["segment_start"],
                     end=sub_traj.iloc[-1]["segment_end"],
                     freq=pd.Timedelta(seconds=upsample_time),
                 )
-
-                if len(times) == 1:
-                    sub_relocs.append(Relocations())
-                    continue
 
                 index = sub_traj.segment_start.searchsorted(
                     pd.date_range(
@@ -600,7 +600,8 @@ class Trajectory(EcoDataFrame):
             upsampled_relocs.append(pd.concat(sub_relocs).reset_index(drop=True))
 
         self.groupby("groupby_col").progress_apply(compute)
-        return pd.concat(upsampled_relocs)
+        upsampled_relocs = pd.concat(upsampled_relocs)
+        return upsampled_relocs
 
     def to_relocations(self):
         """
@@ -632,9 +633,9 @@ class Trajectory(EcoDataFrame):
             relocs_gdfs.append(Relocations.from_gdf(relocs_gdf, groupby_col="groupby_col", time_col="fixtime"))
 
         self.groupby("groupby_col").progress_apply(compute)
-        return pd.concat(relocs_gdfs)
+        return pd.concat(relocs_gdfs).sort_values("fixtime")
 
-    def downsample(self, interval=60 * 120, tolerance=60 * 15, interpolation=False):
+    def downsample(self, interval=60 * 120, tolerance=0, interpolation=False):
         """
         Function to downsample relocations.
         Parameters
@@ -651,7 +652,7 @@ class Trajectory(EcoDataFrame):
         """
 
         if interpolation:
-            return self.upsample(interval)
+            return self.upsample(interval, tolerance=tolerance)
         else:
             interval = pd.Timedelta(seconds=interval)
             tolerance = pd.Timedelta(seconds=tolerance)
@@ -691,10 +692,7 @@ class Trajectory(EcoDataFrame):
                 relocs_ind["extra__burst"] = np.array(out, dtype=np.int64)
                 relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
                 relocs_ind.crs = self.crs
-                if len(relocs_ind) >= 1:
-                    downsampled_gdfs.append(relocs_ind)
-                else:
-                    downsampled_gdfs.append(Relocations())
+                downsampled_gdfs.append(relocs_ind)
 
             self.to_relocations().groupby("groupby_col").progress_apply(compute)
             return pd.concat(downsampled_gdfs)
