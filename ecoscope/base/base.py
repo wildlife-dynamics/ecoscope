@@ -517,99 +517,48 @@ class Trajectory(EcoDataFrame):
 
         return angles.rename("turn_angle").reindex(self.index)
 
-    def upsample(self, upsample_time, tolerance=0):
+    def upsample(self, freq):
         """
-        Function to upsample a trajectory. The upsampling works by doing a linear
-        interpolation between each of the relocation points.
+        Interpolate to create upsampled Relocations
 
         Parameters
         ----------
-        up_sample_time: int
-            Upsampling interval (in seconds)
+        freq : str, pd.Timedelta or pd.DateOffset
+            Sampling frequency for new Relocations object
+
         Returns
         -------
-        ecoscope.base.Relocations
+        relocs : ecoscope.base.Relocations
+
         """
 
-        upsampled_relocs = []
+        freq = pd.tseries.frequencies.to_offset(freq)
 
-        def compute(traj_ind):
-            subject_name = traj_ind.name
-            traj_ind.crs = self.crs
-            utm_crs = traj_ind.estimate_utm_crs()
-            traj_ind.to_crs(utm_crs, inplace=True)
-            logging.info(f"Resampling relocations for subject {subject_name}")
+        if not self["segment_start"].is_monotonic:
+            self.sort_values("segment_start", inplace=True)
 
-            traj_ind = traj_ind.sort_values("segment_start")
-            traj_ind["next_endtime"] = traj_ind["segment_start"].shift(-1)
-            traj_ind = traj_ind.reset_index(drop=True)
+        def f(traj):
+            traj.crs = self.crs  # Lost in groupby-apply due to GeoPandas bug
 
-            breaking_points = (
-                np.array(
-                    traj_ind.index[
-                        ((traj_ind["next_endtime"] - traj_ind["segment_end"]).dt.total_seconds() > tolerance)
-                        & ~traj_ind["next_endtime"].isnull()
-                    ]
-                )
-                + 1
+            times = pd.date_range(traj["segment_start"].iat[0], traj["segment_end"].iat[-1], freq=freq)
+
+            start_i = traj["segment_start"].searchsorted(times, side="right") - 1
+            end_i = traj["segment_end"].searchsorted(times, side="left")
+            valid_i = (start_i == end_i) | (times == traj["segment_start"].iloc[start_i])
+
+            traj = traj.iloc[start_i[valid_i]].reset_index(drop=True)
+            times = times[valid_i]
+
+            return gpd.GeoDataFrame(
+                {"fixtime": times},
+                geometry=pygeos.line_interpolate_point(
+                    traj["geometry"].values.data,
+                    (times - traj["segment_start"]) / (traj["segment_end"] - traj["segment_start"]),
+                ),
+                crs=traj.crs,
             )
-            sub_trajs = np.split(traj_ind, breaking_points)
 
-            sub_relocs = []
-            for sub_traj in sub_trajs:
-                if (
-                    sub_traj.iloc[-1]["segment_end"] - sub_traj.iloc[0]["segment_start"]
-                ).total_seconds() < upsample_time:
-                    continue
-
-                if tolerance > 0:
-                    sub_traj = Trajectory.from_relocations(sub_traj.to_relocations())
-
-                times = pd.date_range(
-                    start=sub_traj.iloc[0]["segment_start"],
-                    end=sub_traj.iloc[-1]["segment_end"],
-                    freq=pd.Timedelta(seconds=upsample_time),
-                )
-
-                index = sub_traj.segment_start.searchsorted(
-                    pd.date_range(
-                        sub_traj.segment_start.iat[0],
-                        sub_traj.segment_end.iat[-1],
-                        freq=pd.Timedelta(seconds=upsample_time),
-                    )
-                )
-
-                index[1:] -= 1
-
-                sub_traj = sub_traj.iloc[index]
-                points = pygeos.line_interpolate_point(
-                    sub_traj.geometry.values.data,
-                    (pd.to_datetime(times) - sub_traj["segment_start"])
-                    / (sub_traj["segment_end"] - sub_traj["segment_start"]),
-                    normalized=True,
-                )
-                relocs_gdf = gpd.GeoDataFrame(
-                    pd.DataFrame.from_dict(
-                        {
-                            "fixtime": times,
-                            "geometry": points,
-                            "junk_status": False,
-                            "groupby_col": subject_name,
-                        }
-                    ).reset_index(drop=True),
-                    geometry="geometry",
-                    crs=traj_ind.crs,
-                )
-                relocs_gdf.to_crs(4326, inplace=True)
-                sub_relocs.append(Relocations.from_gdf(relocs_gdf, groupby_col="groupby_col", time_col="fixtime"))
-
-            if len(sub_relocs) > 0:
-                upsampled_relocs.append(pd.concat(sub_relocs).reset_index(drop=True))
-            else:
-                upsampled_relocs.append(traj_ind.iloc[[0]].to_relocations().drop(1))
-
-        self.groupby("groupby_col").progress_apply(compute)
-        return pd.concat(upsampled_relocs)
+        return Relocations.from_gdf(self.groupby("groupby_col").apply(f).reset_index(level=0))
 
     def to_relocations(self):
         """
@@ -643,7 +592,7 @@ class Trajectory(EcoDataFrame):
         self.groupby("groupby_col").progress_apply(compute)
         return pd.concat(relocs_gdfs).sort_values("fixtime")
 
-    def downsample(self, interval=60 * 120, tolerance=0, interpolation=False):
+    def downsample(self, interval, tolerance="0S", interpolation=False):
         """
         Function to downsample relocations.
         Parameters
@@ -660,10 +609,10 @@ class Trajectory(EcoDataFrame):
         """
 
         if interpolation:
-            return self.upsample(interval, tolerance=tolerance)
+            return self.upsample(interval)
         else:
-            interval = pd.Timedelta(seconds=interval)
-            tolerance = pd.Timedelta(seconds=tolerance)
+            interval = pd.tseries.frequencies.to_offset(interval)
+            tolerance = pd.tseries.frequencies.to_offset(tolerance)
             downsampled_gdfs = []
 
             def compute(relocs_ind):

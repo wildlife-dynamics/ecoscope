@@ -99,18 +99,15 @@ def test_sampling(movbank_relocations):
     movbank_trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
     noncontiguous_trajectory = pd.concat([movbank_trajectory[0:3], movbank_trajectory[5:8], movbank_trajectory[10:]])
 
-    upsampled_noncontiguous = noncontiguous_trajectory.upsample(60 * 30)
-    upsampled_withtolerance = noncontiguous_trajectory.upsample(60 * 30, tolerance=60 * 60 * 3)
-    downsampled_relocs_noint = movbank_trajectory.downsample(interval=60 * 60 * 3, tolerance=60 * 15)
-    downsampled_relocs_int = movbank_trajectory.downsample(interval=60 * 60 * 3, interpolation=True)
+    upsampled_noncontiguous = noncontiguous_trajectory.upsample("1800S")
+    downsampled_relocs_noint = movbank_trajectory.downsample("10800S", tolerance="900S")
+    downsampled_relocs_int = movbank_trajectory.downsample("10800S", interpolation=True)
 
     expected_noncontiguous = gpd.read_feather("tests/test_output/upsampled_noncontiguous.feather")
-    expected_withtolerance = gpd.read_feather("tests/test_output/upsampled_withtolerance.feather")
     expected_downsample_noint = gpd.read_feather("tests/test_output/downsampled_relocs_noint.feather")
     expected_downsample_int = gpd.read_feather("tests/test_output/downsampled_relocs.feather")
 
     gpd.testing.assert_geodataframe_equal(upsampled_noncontiguous, expected_noncontiguous, check_less_precise=True)
-    gpd.testing.assert_geodataframe_equal(upsampled_withtolerance, expected_withtolerance, check_less_precise=True)
     gpd.testing.assert_geodataframe_equal(downsampled_relocs_noint, expected_downsample_noint, check_less_precise=True)
     gpd.testing.assert_geodataframe_equal(downsampled_relocs_int, expected_downsample_int, check_less_precise=True)
 
