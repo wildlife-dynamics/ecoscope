@@ -86,7 +86,26 @@ def test_turn_angle(movbank_relocations):
 
 
 def test_sampling(movbank_relocations):
-    # apply relocation coordinate filter to movbank data
+    relocs_1 = ecoscope.base.Relocations.from_gdf(
+        gpd.GeoDataFrame(
+            {"fixtime": pd.date_range(0, periods=1000, freq="1S", tz="utc")},
+            geometry=gpd.points_from_xy(x=np.zeros(1000), y=np.linspace(0, 1, 1000)),
+            crs=4326,
+        )
+    )
+    traj_1 = ecoscope.base.Trajectory.from_relocations(relocs_1).loc[::2]
+    upsampled_noncontiguous_1 = traj_1.upsample("3600S")
+
+    relocs_2 = ecoscope.base.Relocations.from_gdf(
+        gpd.GeoDataFrame(
+            {"fixtime": pd.date_range(0, periods=10000, freq="2S", tz="utc")},
+            geometry=gpd.points_from_xy(x=np.zeros(10000), y=np.linspace(0, 1, 10000)),
+            crs=4326,
+        )
+    )
+    traj_2 = ecoscope.base.Trajectory.from_relocations(relocs_2).loc[::2]
+    upsampled_noncontiguous_2 = traj_2.upsample("3S")
+
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
         max_x=1,
@@ -97,17 +116,16 @@ def test_sampling(movbank_relocations):
     movbank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
     movbank_relocations.remove_filtered(inplace=True)
     movbank_trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
-    noncontiguous_trajectory = pd.concat([movbank_trajectory[0:3], movbank_trajectory[5:8], movbank_trajectory[10:]])
-
-    upsampled_noncontiguous = noncontiguous_trajectory.upsample("1800S")
     downsampled_relocs_noint = movbank_trajectory.downsample("10800S", tolerance="900S")
     downsampled_relocs_int = movbank_trajectory.downsample("10800S", interpolation=True)
 
-    expected_noncontiguous = gpd.read_feather("tests/test_output/upsampled_noncontiguous.feather")
+    expected_noncontiguous_1 = gpd.read_feather("tests/test_output/upsampled_noncontiguous_1.feather")
+    expected_noncontiguous_2 = gpd.read_feather("tests/test_output/upsampled_noncontiguous_2.feather")
     expected_downsample_noint = gpd.read_feather("tests/test_output/downsampled_relocs_noint.feather")
     expected_downsample_int = gpd.read_feather("tests/test_output/downsampled_relocs.feather")
 
-    gpd.testing.assert_geodataframe_equal(upsampled_noncontiguous, expected_noncontiguous, check_less_precise=True)
+    gpd.testing.assert_geodataframe_equal(upsampled_noncontiguous_1, expected_noncontiguous_1, check_less_precise=True)
+    gpd.testing.assert_geodataframe_equal(upsampled_noncontiguous_2, expected_noncontiguous_2, check_less_precise=True)
     gpd.testing.assert_geodataframe_equal(downsampled_relocs_noint, expected_downsample_noint, check_less_precise=True)
     gpd.testing.assert_geodataframe_equal(downsampled_relocs_int, expected_downsample_int, check_less_precise=True)
 
