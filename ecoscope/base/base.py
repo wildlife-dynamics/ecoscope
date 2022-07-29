@@ -516,6 +516,133 @@ class Trajectory(EcoDataFrame):
 
         return angles.rename("turn_angle").reindex(self.index)
 
+    def upsample(self, freq):
+        """
+        Interpolate to create upsampled Relocations
+
+        Parameters
+        ----------
+        freq : str, pd.Timedelta or pd.DateOffset
+            Sampling frequency for new Relocations object
+
+        Returns
+        -------
+        relocs : ecoscope.base.Relocations
+
+        """
+
+        freq = pd.tseries.frequencies.to_offset(freq)
+
+        if not self["segment_start"].is_monotonic:
+            self.sort_values("segment_start", inplace=True)
+
+        def f(traj):
+            traj.crs = self.crs  # Lost in groupby-apply due to GeoPandas bug
+
+            times = pd.date_range(traj["segment_start"].iat[0], traj["segment_end"].iat[-1], freq=freq)
+
+            start_i = traj["segment_start"].searchsorted(times, side="right") - 1
+            end_i = traj["segment_end"].searchsorted(times, side="left")
+            valid_i = (start_i == end_i) | (times == traj["segment_start"].iloc[start_i])
+
+            traj = traj.iloc[start_i[valid_i]].reset_index(drop=True)
+            times = times[valid_i]
+
+            return gpd.GeoDataFrame(
+                {"fixtime": times},
+                geometry=pygeos.line_interpolate_point(
+                    traj["geometry"].values.data,
+                    (times - traj["segment_start"]) / (traj["segment_end"] - traj["segment_start"]),
+                ),
+                crs=traj.crs,
+            )
+
+        return Relocations.from_gdf(self.groupby("groupby_col").apply(f).reset_index(level=0))
+
+    def to_relocations(self):
+        """
+        Converts a Trajectory object to a Relocations object.
+
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
+
+        def f(traj):
+            traj.crs = self.crs
+            points = np.concatenate(
+                [pygeos.get_point(traj.geometry.values.data, 0), pygeos.get_point(traj.geometry.values.data, 1)]
+            )
+            times = np.concatenate([traj["segment_start"], traj["segment_end"]])
+
+            return (
+                gpd.GeoDataFrame(
+                    {"fixtime": times},
+                    geometry=points,
+                    crs=traj.crs,
+                )
+                .drop_duplicates(subset=["fixtime"])
+                .sort_values("fixtime")
+            )
+
+        return Relocations.from_gdf(self.groupby("groupby_col").apply(f).reset_index(drop=True))
+
+    def downsample(self, freq, tolerance="0S", interpolation=False):
+        """
+        Function to downsample relocations.
+        Parameters
+        ----------
+        freq: str, pd.Timedelta or pd.DateOffset
+            Downsampling frequency for new Relocations object
+        tolerance: str, pd.Timedelta or pd.DateOffset
+            Tolerance on the downsampling frequency
+        interpolation: bool, optional
+            If true, interpolates locations on the whole trajectory
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
+
+        if interpolation:
+            return self.upsample(freq)
+        else:
+            freq = pd.tseries.frequencies.to_offset(freq)
+            tolerance = pd.tseries.frequencies.to_offset(tolerance)
+
+            def f(relocs_ind):
+                relocs_ind.crs = self.crs
+                fixtime = relocs_ind["fixtime"]
+
+                k = 1
+                i = 0
+                n = len(relocs_ind)
+                out = np.full(n, -1)
+                out[i] = k
+                while i < (n - 1):
+                    t_min = fixtime.iloc[i] + freq - tolerance
+                    t_max = fixtime.iloc[i] + freq + tolerance
+
+                    j = i + 1
+
+                    while (j < (n - 1)) and (fixtime.iloc[j] < t_min):
+                        j += 1
+
+                    i = j
+
+                    if j == (n - 1):
+                        break
+                    elif (fixtime.iloc[j] >= t_min) and (fixtime.iloc[j] <= t_max):
+                        out[j] = k
+                    else:
+                        k += 1
+                        out[j] = k
+
+                relocs_ind["extra__burst"] = np.array(out, dtype=np.int64)
+                relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
+                return relocs_ind
+
+            return Relocations(self.to_relocations().groupby("groupby_col").apply(f).reset_index(drop=True))
+
     @staticmethod
     def _straighttrack_properties(df: gpd.GeoDataFrame):
         """Private function used by Trajectory class."""
