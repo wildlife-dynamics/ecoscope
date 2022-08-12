@@ -7,7 +7,7 @@ sphinx:
   configuration: doc/source/conf.py
 python:
   install:
-  - method: pip
+  - method: setuptools
     path: .
 conda:
   environment: environment.yml
