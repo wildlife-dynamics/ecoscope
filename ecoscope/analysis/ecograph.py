@@ -6,6 +6,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import rasterio
+import sklearn.base
 from affine import Affine
 from shapely.geometry import shape
 from skimage.draw import line
@@ -99,7 +100,7 @@ class Ecograph:
                     df[feature].append(G.nodes[node][feature])
         (pd.DataFrame.from_dict(df)).to_csv(output_path, index=False)
 
-    def to_geotiff(self, feature, output_path, individual="all", interpolation=None):
+    def to_geotiff(self, feature, output_path, individual="all", interpolation=None, transform=None):
         """
         Saves a specific node feature as a GeoTIFF
 
@@ -115,6 +116,8 @@ class Ecograph:
             Whether to interpolate the feature for each step in the trajectory (Default : None). If
             provided, has to be one of those four types of interpolation : "mean", "median", "max"
             or "min"
+        transform : sklearn.base.TransformerMixin or None
+            A feature transform method (Default : None)
         """
 
         if feature in self.features:
@@ -126,6 +129,12 @@ class Ecograph:
                 raise IndividualNameError("This individual is not in the dataset")
         else:
             raise FeatureNameError("This feature was not computed by EcoGraph")
+
+        if isinstance(transform, sklearn.base.TransformerMixin):
+            nan_mask = ~np.isnan(feature_ndarray)
+            feature_ndarray[nan_mask] = transform.fit_transform(feature_ndarray[nan_mask].reshape(-1, 1)).reshape(
+                feature_ndarray[nan_mask].shape
+            )
 
         raster_profile = ecoscope.io.raster.RasterProfile(
             pixel_size=self.resolution,

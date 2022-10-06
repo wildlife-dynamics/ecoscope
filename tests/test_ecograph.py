@@ -5,6 +5,7 @@ import geopandas.testing
 import numpy as np
 import pandas as pd
 import pytest
+import sklearn.preprocessing
 
 import ecoscope
 from ecoscope.analysis.ecograph import (
@@ -66,6 +67,15 @@ def test_ecograph(movbank_relocations):
     )
     salif_sl_median_gdf = ecoscope.analysis.ecograph.get_feature_gdf("tests/outputs/salif_sl_median.tif")
 
+    ecograph.to_geotiff(
+        "degree",
+        "tests/outputs/salif_degree_mean_std.tif",
+        individual="Salif Keita",
+        interpolation="mean",
+        transform=sklearn.preprocessing.StandardScaler(),
+    )
+    salif_degree_mean_std_gdf = ecoscope.analysis.ecograph.get_feature_gdf("tests/outputs/salif_degree_mean_std.tif")
+
     ecograph.to_geotiff("speed", "tests/outputs/salif_speed.tif", individual="Salif Keita")
     salif_speed_gdf = ecoscope.analysis.ecograph.get_feature_gdf("tests/outputs/salif_speed.tif")
 
@@ -78,6 +88,7 @@ def test_ecograph(movbank_relocations):
     expected_sl_median = gpd.read_feather("tests/test_output/salif_sl_median.feather")
     expected_speed = gpd.read_feather("tests/test_output/salif_speed.feather")
     expected_dotprod = gpd.read_feather("tests/test_output/salif_dotprod.feather")
+    expected_degree_mean_std = gpd.read_feather("tests/test_output/salif_degree_mean_std.feather")
 
     gpd.testing.assert_geodataframe_equal(salif_btwn_max_gdf, expected_btw_max, check_less_precise=True)
     gpd.testing.assert_geodataframe_equal(salif_degree_mean_gdf, expected_degree_mean, check_less_precise=True)
@@ -85,6 +96,7 @@ def test_ecograph(movbank_relocations):
     gpd.testing.assert_geodataframe_equal(salif_sl_median_gdf, expected_sl_median, check_less_precise=True)
     gpd.testing.assert_geodataframe_equal(salif_speed_gdf, expected_speed, check_less_precise=True)
     gpd.testing.assert_geodataframe_equal(salif_dotprod_gdf, expected_dotprod, check_less_precise=True)
+    gpd.testing.assert_geodataframe_equal(salif_degree_mean_std_gdf, expected_degree_mean_std, check_less_precise=True)
 
     with pytest.raises(InterpolationError):
         ecograph.to_geotiff(
