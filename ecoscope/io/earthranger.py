@@ -102,7 +102,7 @@ class ConcurrentDasClient(BackoffDasClient):
             )
         params["page"] = params.get("page", 1)
         params["page_size"] = params.get("page_size", 1000000000)
-        params["cursor"] = True
+        params["cursor"] = 'true'
         params = {k: v if not isinstance(v, bool) else str(v).lower() for k, v in params.items()}
         kwargs["params"] = params
         return self._concurrent_get(*args, **kwargs)
