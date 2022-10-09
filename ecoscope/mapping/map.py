@@ -19,6 +19,10 @@ from branca.element import MacroElement, Template
 import ecoscope
 from ecoscope.contrib.foliumap import Map
 
+import warnings
+warnings.filterwarnings('ignore', 'GeoSeries.isna', UserWarning)
+
+
 
 class EcoMapMixin:
     def add_speedmap(
