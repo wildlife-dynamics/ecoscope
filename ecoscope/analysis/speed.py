@@ -3,6 +3,7 @@ import typing
 import geopandas as gpd
 import mapclassify
 import pandas as pd
+import pygeos
 
 import ecoscope.base
 
@@ -34,7 +35,7 @@ class SpeedDataFrame(ecoscope.base.EcoDataFrame):
                 ),
             )
             .groupby(level=0)
-            .apply(lambda gs: gs.unary_union),
+            .apply(lambda gs: pygeos.multilinestrings(gs.values.data)),
             crs=trajectory.crs,
         )
         speed_df.reset_index(drop=False, inplace=True)

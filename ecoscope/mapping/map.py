@@ -4,6 +4,7 @@ import tempfile
 import time
 import typing
 import urllib
+import warnings
 
 import ee
 import folium
@@ -18,6 +19,8 @@ from branca.element import MacroElement, Template
 
 import ecoscope
 from ecoscope.contrib.foliumap import Map
+
+warnings.filterwarnings("ignore", "GeoSeries.isna", UserWarning)
 
 
 class EcoMapMixin:
