@@ -423,8 +423,8 @@ def plot_collar_voltage(
                         line_dash="dot",
                         line_width=1.5,
                         line_color="Red",
-                        annotation_text="historic average baseline",
-                        annotation_position="bottom right",
+                        annotation_text="Historic Mean",
+                        annotation_position="right",
                     )
                 else:
                     fig.add_hline(**hline_kwargs)
