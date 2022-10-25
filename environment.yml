@@ -48,3 +48,5 @@ dependencies:
     - nbsphinx
     - nbsphinx-multilink
     - sphinx-autoapi
+    - earthranger-client
+
