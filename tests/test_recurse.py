@@ -1,12 +1,8 @@
-import os
-
 import geopandas as gpd
 import geopandas.testing
-import numpy as np
-import pandas as pd
-import pytest
 
 import ecoscope
+
 
 def test_recurse(movbank_relocations):
     # apply relocation coordinate filter to movbank data
