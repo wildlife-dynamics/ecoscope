@@ -7,6 +7,7 @@ from ecoscope.base._dataclasses import (
 )
 from ecoscope.base.base import EcoDataFrame, Relocations, Trajectory
 from ecoscope.base.utils import (
+    Grid,
     cachedproperty,
     create_meshgrid,
     groupby_intervals,
@@ -24,4 +25,5 @@ __all__ = [
     "cachedproperty",
     "create_meshgrid",
     "groupby_intervals",
+    "Grid",
 ]

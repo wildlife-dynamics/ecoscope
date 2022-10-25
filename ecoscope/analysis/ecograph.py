@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import rasterio
-from affine import Affine
+import sklearn.base
 from shapely.geometry import shape
 from skimage.draw import line
 
@@ -57,19 +57,7 @@ class Ecograph:
         eastings = np.array([geom.iloc[i].coords.xy[0] for i in range(len(geom))]).flatten()
         northings = np.array([geom.iloc[i].coords.xy[1] for i in range(len(geom))]).flatten()
 
-        self.xmin = floor(np.min(eastings)) - self.resolution
-        self.ymin = floor(np.min(northings)) - self.resolution
-        self.xmax = ceil(np.max(eastings)) + self.resolution
-        self.ymax = ceil(np.max(northings)) + self.resolution
-
-        self.xmax += self.resolution - ((self.xmax - self.xmin) % self.resolution)
-        self.ymax += self.resolution - ((self.ymax - self.ymin) % self.resolution)
-
-        self.transform = Affine(self.resolution, 0.00, self.xmin, 0.00, -self.resolution, self.ymax)
-        self.inverse_transform = ~self.transform
-
-        self.n_rows = int((self.xmax - self.xmin) // self.resolution)
-        self.n_cols = int((self.ymax - self.ymin) // self.resolution)
+        self.grid = ecoscope.base.Grid(eastings, northings, self.resolution)
 
         def compute(df):
             subject_name = df.name
@@ -99,7 +87,7 @@ class Ecograph:
                     df[feature].append(G.nodes[node][feature])
         (pd.DataFrame.from_dict(df)).to_csv(output_path, index=False)
 
-    def to_geotiff(self, feature, output_path, individual="all", interpolation=None):
+    def to_geotiff(self, feature, output_path, individual="all", interpolation=None, transform=None):
         """
         Saves a specific node feature as a GeoTIFF
 
@@ -115,6 +103,8 @@ class Ecograph:
             Whether to interpolate the feature for each step in the trajectory (Default : None). If
             provided, has to be one of those four types of interpolation : "mean", "median", "max"
             or "min"
+        transform : sklearn.base.TransformerMixin or None
+            A feature transform method (Default : None)
         """
 
         if feature in self.features:
@@ -127,6 +117,12 @@ class Ecograph:
         else:
             raise FeatureNameError("This feature was not computed by EcoGraph")
 
+        if isinstance(transform, sklearn.base.TransformerMixin):
+            nan_mask = ~np.isnan(feature_ndarray)
+            feature_ndarray[nan_mask] = transform.fit_transform(feature_ndarray[nan_mask].reshape(-1, 1)).reshape(
+                feature_ndarray[nan_mask].shape
+            )
+
         raster_profile = ecoscope.io.raster.RasterProfile(
             pixel_size=self.resolution,
             crs=self.utm_crs,
@@ -134,7 +130,7 @@ class Ecograph:
             band_count=1,
         )
         raster_profile.raster_extent = ecoscope.io.raster.RasterExtent(
-            x_min=self.xmin, x_max=self.xmax, y_min=self.ymin, y_max=self.ymax
+            x_min=self.grid.xmin, x_max=self.grid.xmax, y_min=self.grid.ymin, y_max=self.grid.ymax
         )
         ecoscope.io.raster.RasterPy.write(
             ndarray=feature_ndarray,
@@ -151,8 +147,8 @@ class Ecograph:
             lines = [list(geom.iloc[i + j].coords) for j in range(tortuosity_length)]
             p1, p2, p3, p4 = lines[0][0], lines[0][1], lines[1][1], lines[1][0]
             pixel1, pixel2 = (
-                self.inverse_transform * p1,
-                self.inverse_transform * p2,
+                self.grid.inverse_transform * p1,
+                self.grid.inverse_transform * p2,
             )
 
             row1, row2 = floor(pixel1[0]), floor(pixel2[0])
@@ -287,9 +283,9 @@ class Ecograph:
         features = []
         for individual in self.graphs.keys():
             features.append(self._get_feature_map(self, feature, individual, interpolation))
-        mosaic = np.full((self.n_cols, self.n_rows), np.nan)
-        for i in range(self.n_cols):
-            for j in range(self.n_rows):
+        mosaic = np.full((self.grid.n_cols, self.grid.n_rows), np.nan)
+        for i in range(self.grid.n_cols):
+            for j in range(self.grid.n_rows):
                 values = []
                 for feature_map in features:
                     grid_val = feature_map[i][j]
@@ -310,7 +306,7 @@ class Ecograph:
 
     @staticmethod
     def _get_regular_feature_map(self, feature, individual):
-        feature_ndarray = np.full((self.n_cols, self.n_rows), np.nan)
+        feature_ndarray = np.full((self.grid.n_cols, self.grid.n_rows), np.nan)
         for node in self.graphs[individual].nodes():
             feature_ndarray[node[1]][node[0]] = (self.graphs[individual]).nodes[node][feature]
         return feature_ndarray
@@ -324,7 +320,7 @@ class Ecograph:
         for i in range(len(geom)):
             line1 = list(geom.iloc[i].coords)
             p1, p2 = line1[0], line1[1]
-            pixel1, pixel2 = self.inverse_transform * p1, self.inverse_transform * p2
+            pixel1, pixel2 = self.grid.inverse_transform * p1, self.grid.inverse_transform * p2
             row1, row2 = floor(pixel1[0]), floor(pixel2[0])
             col1, col2 = ceil(pixel1[1]), ceil(pixel2[1])
 

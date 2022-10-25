@@ -1,6 +1,9 @@
+from math import ceil, floor
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from affine import Affine
 from shapely.geometry import box
 
 
@@ -212,3 +215,65 @@ def create_modis_interval_index(start, intervals, overlap=pd.Timedelta(0), close
     left = pd.DatetimeIndex(left)
 
     return pd.IntervalIndex.from_arrays(left=left, right=left + pd.Timedelta(days=16), closed=closed)
+
+
+class Grid:
+    """
+    A class that creates a grid covering a list of UTM points
+
+    Parameters
+    ----------
+    eastings : list
+        UTM easting coordinates
+    northings : list
+        UTM northing coordinates
+    resolution : float
+        The width/length of a grid cell in meters
+    """
+
+    def __init__(self, eastings, northings, resolution):
+        self._xmin = floor(np.min(eastings)) - resolution
+        self._ymin = floor(np.min(northings)) - resolution
+        self._xmax = ceil(np.max(eastings)) + resolution
+        self._ymax = ceil(np.max(northings)) + resolution
+
+        self._xmax += resolution - ((self._xmax - self._xmin) % resolution)
+        self._ymax += resolution - ((self._ymax - self._ymin) % resolution)
+
+        self._transform = Affine(resolution, 0.00, self._xmin, 0.00, -resolution, self._ymax)
+        self._inverse_transform = ~self._transform
+
+        self._n_rows = int((self._xmax - self._xmin) // resolution)
+        self._n_cols = int((self._ymax - self._ymin) // resolution)
+
+    @property
+    def xmin(self):
+        return self._xmin
+
+    @property
+    def ymin(self):
+        return self._ymin
+
+    @property
+    def xmax(self):
+        return self._xmax
+
+    @property
+    def ymax(self):
+        return self._ymax
+
+    @property
+    def transform(self):
+        return self._transform
+
+    @property
+    def inverse_transform(self):
+        return self._inverse_transform
+
+    @property
+    def n_rows(self):
+        return self._n_rows
+
+    @property
+    def n_cols(self):
+        return self._n_cols
