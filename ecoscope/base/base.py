@@ -229,9 +229,9 @@ class Relocations(EcoDataFrame):
     def apply_reloc_filter(self, fix_filter=None, inplace=False):
         """Apply a given filter by marking the fix junk_status based on the conditions of a filter"""
 
-        if not self["fixtime"].is_monotonic:
+        if not self["fixtime"].is_monotonic_increasing:
             self.sort_values("fixtime", inplace=True)
-        assert self["fixtime"].is_monotonic
+        assert self["fixtime"].is_monotonic_increasing
 
         if inplace:
             frame = self
@@ -354,7 +354,7 @@ class Trajectory(EcoDataFrame):
         Get displacement in meters between first and final fixes.
         """
 
-        if not self["segment_start"].is_monotonic:
+        if not self["segment_start"].is_monotonic_increasing:
             self = self.sort_values("segment_start")
 
         gs = self.geometry.iloc[[0, -1]]
@@ -480,9 +480,9 @@ class Trajectory(EcoDataFrame):
         return df.join(gdf, how="left")
 
     def apply_traj_filter(self, traj_seg_filter, inplace=False):
-        if not self["segment_start"].is_monotonic:
+        if not self["segment_start"].is_monotonic_increasing:
             self.sort_values("segment_start", inplace=True)
-        assert self["segment_start"].is_monotonic
+        assert self["segment_start"].is_monotonic_increasing
 
         if inplace:
             frame = self
@@ -504,9 +504,9 @@ class Trajectory(EcoDataFrame):
             return frame
 
     def get_turn_angle(self):
-        if not self["segment_start"].is_monotonic:
+        if not self["segment_start"].is_monotonic_increasing:
             self.sort_values("segment_start", inplace=True)
-        assert self["segment_start"].is_monotonic
+        assert self["segment_start"].is_monotonic_increasing
 
         def turn_angle(traj):
             return ((traj["heading"].diff() + 540) % 360 - 180)[traj["segment_end"].shift(1) == traj["segment_start"]]
@@ -533,7 +533,7 @@ class Trajectory(EcoDataFrame):
 
         freq = pd.tseries.frequencies.to_offset(freq)
 
-        if not self["segment_start"].is_monotonic:
+        if not self["segment_start"].is_monotonic_increasing:
             self.sort_values("segment_start", inplace=True)
 
         def f(traj):
