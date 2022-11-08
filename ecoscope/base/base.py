@@ -553,6 +553,7 @@ class Trajectory(EcoDataFrame):
                 geometry=pygeos.line_interpolate_point(
                     traj["geometry"].values.data,
                     (times - traj["segment_start"]) / (traj["segment_end"] - traj["segment_start"]),
+                    normalized=True,
                 ),
                 crs=traj.crs,
             )
