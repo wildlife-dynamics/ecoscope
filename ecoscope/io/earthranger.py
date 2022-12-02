@@ -779,6 +779,10 @@ class EarthRangerIO(ConcurrentDasClient):
                         f"Getting observations for subject_id={subject_id} start_time={start_time} end_time={end_time}"
                         f"failed for: {e}"
                     )
+
+        for i, patrol in patrols_df.iterrows():
+            pd.DataFrame(observations[i])["groupby_col"] = patrol["id"]
+
         return ecoscope.base.Relocations(pd.concat(observations))
 
     def post_observations(
