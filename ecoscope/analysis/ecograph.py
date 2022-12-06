@@ -1,396 +1,693 @@
-from math import ceil, floor
+import warnings
 
+import astroplan
+import astropy
 import geopandas as gpd
-import igraph
-import networkx as nx
 import numpy as np
 import pandas as pd
-import rasterio
-import sklearn.base
-from affine import Affine
-from shapely.geometry import shape
-from skimage.draw import line
+import pygeos
+from pyproj import Geod
 
-import ecoscope
+from ecoscope.analysis import astronomy
+from ecoscope.base._dataclasses import (
+    RelocsCoordinateFilter,
+    RelocsDateRangeFilter,
+    RelocsDistFilter,
+    RelocsSpeedFilter,
+    TrajSegFilter,
+)
+from ecoscope.base.utils import cachedproperty
 
 
-class Ecograph:
+class EcoDataFrame(gpd.GeoDataFrame):
     """
-    A class that analyzes movement tracking data using Network Theory.
+    `EcoDataFrame` extends `geopandas.GeoDataFrame` to provide customizations and allow for simpler extension.
 
-    Parameters
-    ----------
-    trajectory : ecoscope.base.Trajectory
-        Trajectory dataframe
-    resolution : float
-        Pixel size, in meters
-    radius : int
-        Radius to compute Collective Influence (Default : 2)
-    cutoff : int
-        Cutoff to compute an approximation of betweenness index if the standard algorithm is
-        too slow. Can be useful for very large graphs (Default : None)
-    tortuosity_length : int
-        The number of steps used to compute the two tortuosity metrics (Default : 3 steps)
     """
 
-    def __init__(self, trajectory, resolution=15, radius=2, cutoff=None, tortuosity_length=3):
-        self.graphs = {}
-        self.trajectory = trajectory
-        self.resolution = ceil(resolution)
+    @property
+    def _constructor(self):
+        return type(self)
 
-        self.utm_crs = trajectory.estimate_utm_crs()
-        self.trajectory.to_crs(self.utm_crs, inplace=True)
-        self.features = [
-            "dot_product",
-            "speed",
-            "step_length",
-            "sin_time",
-            "cos_time",
-            "weight",
-            "degree",
-            "betweenness",
-            "collective_influence",
-            "tortuosity_1",
-            "tortuosity_2",
-        ]
-        geom = self.trajectory["geometry"]
+    def __init__(self, data=None, *args, **kwargs):
+        if kwargs.get("geometry") is None:
+            # Load geometry from data if not specified in kwargs
+            if hasattr(data, "geometry"):
+                kwargs["geometry"] = data.geometry.name
 
-        eastings = np.array([geom.iloc[i].coords.xy[0] for i in range(len(geom))]).flatten()
-        northings = np.array([geom.iloc[i].coords.xy[1] for i in range(len(geom))]).flatten()
+        if kwargs.get("crs") is None:
+            # Load crs from data if not specified in kwargs
+            if hasattr(data, "crs"):
+                kwargs["crs"] = data.crs
 
-        self.xmin = floor(np.min(eastings)) - self.resolution
-        self.ymin = floor(np.min(northings)) - self.resolution
-        self.xmax = ceil(np.max(eastings)) + self.resolution
-        self.ymax = ceil(np.max(northings)) + self.resolution
+        super().__init__(data, *args, **kwargs)
 
-        self.xmax += self.resolution - ((self.xmax - self.xmin) % self.resolution)
-        self.ymax += self.resolution - ((self.ymax - self.ymin) % self.resolution)
+    def __getitem__(self, key):
+        result = super().__getitem__(key)
+        if isinstance(key, (list, slice, np.ndarray, pd.Series)):
+            result.__class__ = self._constructor
+        return result
 
-        self.transform = Affine(self.resolution, 0.00, self.xmin, 0.00, -self.resolution, self.ymax)
-        self.inverse_transform = ~self.transform
+    @classmethod
+    def from_file(cls, filename, **kwargs):
+        result = gpd.GeoDataFrame.from_file(filename, **kwargs)
+        result.__class__ = cls
+        return result
 
-        self.n_rows = int((self.xmax - self.xmin) // self.resolution)
-        self.n_cols = int((self.ymax - self.ymin) // self.resolution)
+    @classmethod
+    def from_features(cls, features, **kwargs):
+        result = gpd.GeoDataFrame.from_features(features, **kwargs)
+        result.__class__ = cls
+        return result
 
-        def compute(df):
-            subject_name = df.name
-            print(f"Computing EcoGraph for subject {subject_name}")
-            G = self._get_ecograph(self, df, subject_name, radius, cutoff, tortuosity_length)
-            self.graphs[subject_name] = G
+    def __finalize__(self, *args, **kwargs):
+        result = super().__finalize__(*args, **kwargs)
+        result.__class__ = self._constructor
+        return result
 
-        self.trajectory.groupby("groupby_col").progress_apply(compute)
+    def astype(self, *args, **kwargs):
+        result = super().astype(*args, **kwargs)
+        result.__class__ = self._constructor
+        return result
 
-    def to_csv(self, output_path):
+    def merge(self, *args, **kwargs):
+        result = super().merge(*args, **kwargs)
+        result.__class__ = self._constructor
+        return result
+
+    def dissolve(self, *args, **kwargs):
+        result = super().dissolve(*args, **kwargs)
+        result.__class__ = self._constructor
+        return result
+
+    def explode(self, *args, **kwargs):
+        result = super().explode(*args, **kwargs)
+        result.__class__ = self._constructor
+        return result
+
+    def plot(self, *args, **kwargs):
+        if self._geometry_column_name in self:
+            return gpd.GeoDataFrame.plot(self, *args, **kwargs)
+        else:
+            return pd.DataFrame(self).plot(*args, **kwargs)
+
+    def reset_filter(self, inplace=False):
+        if inplace:
+            frame = self
+        else:
+            frame = self.copy()
+
+        frame["junk_status"] = False
+
+        if not inplace:
+            return frame
+
+    def remove_filtered(self, inplace=False):
+        if inplace:
+            frame = self
+        else:
+            frame = self.copy()
+
+        frame.query("~junk_status", inplace=True)
+
+        if not inplace:
+            return frame
+
+
+class Relocations(EcoDataFrame):
+    """
+    Relocation is a model for a set of fixes from a given subject.
+    Because fixes are temporal, they can be ordered asc or desc. The additional_data dict can contain info
+    specific to the subject and relocations: name, type, region, sex etc. These values are applicable to all
+    fixes in the relocations array. If they vary, then they should be put into each fix's additional_data dict.
+    """
+
+    @classmethod
+    def from_gdf(cls, gdf, groupby_col=None, time_col="fixtime", uuid_col=None, **kwargs):
         """
-        Saves the features of all nodes in a CSV file
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            Observations data
+        groupby_col : str, optional
+            Name of `gdf` column of identities to treat as separate individuals. Usually `subject_id`. Default is
+            treating the gdf as being of a single individual.
+        time_col : str, optional
+            Name of `gdf` column containing relocation times. Default is 'fixtime'.
+        uuid_col : str, optional
+            Name of `gdf` column of row identities. Used as index. Default is existing index.
+        """
+
+        assert {"geometry", time_col}.issubset(gdf)
+
+        if kwargs.get("copy") is not False:
+            gdf = gdf.copy()
+
+        if groupby_col is None:
+            if "groupby_col" not in gdf:
+                gdf["groupby_col"] = 0
+        else:
+            gdf["groupby_col"] = gdf.loc[:, groupby_col]
+
+        if time_col != "fixtime":
+            gdf["fixtime"] = gdf.loc[:, time_col]
+
+        if not pd.api.types.is_datetime64_any_dtype(gdf["fixtime"]):
+            warnings.warn(
+                f"{time_col} is not of type datetime64. Attempting to automatically infer format and timezone. "
+                "Results may be incorrect."
+            )
+            gdf["fixtime"] = pd.to_datetime(gdf["fixtime"])
+
+        if gdf["fixtime"].dt.tz is None:
+            warnings.warn(f"{time_col} is not timezone aware. Assuming datetime are in UTC.")
+            gdf["fixtime"] = gdf["fixtime"].dt.tz_localize(tz="UTC")
+
+        if gdf.crs is None:
+            warnings.warn("CRS was not set. Assuming geometries are in WGS84.")
+            gdf.set_crs(4326, inplace=True)
+
+        if uuid_col is not None:
+            gdf.set_index(uuid_col, drop=False, inplace=True)
+
+        gdf["junk_status"] = False
+
+        default_cols = ["groupby_col", "fixtime", "junk_status", "geometry"]
+        extra_cols = gdf.columns.difference(default_cols)
+        extra_cols = extra_cols[~extra_cols.str.startswith("extra__")]
+
+        assert gdf.columns.intersection("extra__" + extra_cols).empty, "Column names overlap with existing `extra`"
+
+        gdf.rename(columns=dict(zip(extra_cols, "extra__" + extra_cols)), inplace=True)
+
+        return cls(gdf, **kwargs)
+
+    @staticmethod
+    def _apply_speedfilter(df, fix_filter):
+        gdf = df.assign(
+            _fixtime=df["fixtime"].shift(-1),
+            _geometry=df["geometry"].shift(-1),
+            _junk_status=df["junk_status"].shift(-1),
+        )[:-1]
+
+        straight_track = Trajectory._straighttrack_properties(gdf)
+        gdf["speed_kmhr"] = straight_track.speed_kmhr
+
+        gdf.loc[
+            (~gdf["junk_status"]) & (~gdf["_junk_status"]) & (gdf["speed_kmhr"] > fix_filter.max_speed_kmhr),
+            "junk_status",
+        ] = True
+
+        gdf.drop(
+            ["_fixtime", "_geometry", "_junk_status", "speed_kmhr"],
+            axis=1,
+            inplace=True,
+        )
+        return gdf
+
+    @staticmethod
+    def _apply_distfilter(df, fix_filter):
+        gdf = df.assign(
+            _junk_status=df["junk_status"].shift(-1),
+            _geometry=df["geometry"].shift(-1),
+        )[:-1]
+
+        _, _, distance_m = Geod(ellps="WGS84").inv(
+            gdf["geometry"].x, gdf["geometry"].y, gdf["_geometry"].x, gdf["_geometry"].y
+        )
+        gdf["distance_km"] = distance_m / 1000
+
+        gdf.loc[
+            (~gdf["junk_status"]) & (~gdf["_junk_status"]) & (gdf["distance_km"] < fix_filter.min_dist_km)
+            | (gdf["distance_km"] > fix_filter.max_dist_km),
+            "junk_status",
+        ] = True
+
+        gdf.drop(["_geometry", "_junk_status", "distance_km"], axis=1, inplace=True)
+        return gdf
+
+    def apply_reloc_filter(self, fix_filter=None, inplace=False):
+        """Apply a given filter by marking the fix junk_status based on the conditions of a filter"""
+
+        if not self["fixtime"].is_monotonic:
+            self.sort_values("fixtime", inplace=True)
+        assert self["fixtime"].is_monotonic
+
+        if inplace:
+            frame = self
+        else:
+            frame = self.copy()
+
+        # Identify junk fixes based on location coordinate x,y ranges or that match specific coordinates
+        if isinstance(fix_filter, RelocsCoordinateFilter):
+            frame.loc[
+                (frame["geometry"].x < fix_filter.min_x)
+                | (frame["geometry"].x > fix_filter.max_x)
+                | (frame["geometry"].y < fix_filter.min_y)
+                | (frame["geometry"].y > fix_filter.max_y)
+                | (frame["geometry"].isin(fix_filter.filter_point_coords)),
+                "junk_status",
+            ] = True
+
+        # Mark fixes outside this date range as junk
+        elif isinstance(fix_filter, RelocsDateRangeFilter):
+            if fix_filter.start is not None:
+                frame.loc[frame["fixtime"] < fix_filter.start, "junk_status"] = True
+
+            if fix_filter.end is not None:
+                frame.loc[frame["fixtime"] > fix_filter.end, "junk_status"] = True
+
+        else:
+            crs = frame.crs
+            frame.to_crs(4326)
+            if isinstance(fix_filter, RelocsSpeedFilter):
+                frame._update_inplace(
+                    frame.groupby("groupby_col")
+                    .apply(self._apply_speedfilter, fix_filter=fix_filter)
+                    .droplevel(["groupby_col"])
+                )
+            elif isinstance(fix_filter, RelocsDistFilter):
+                frame._update_inplace(
+                    frame.groupby("groupby_col")
+                    .apply(self._apply_distfilter, fix_filter=fix_filter)
+                    .droplevel(["groupby_col"])
+                )
+            frame.to_crs(crs, inplace=True)
+
+        if not inplace:
+            return frame
+
+    @cachedproperty
+    def distance_from_centroid(self):
+        # calculate the distance between the centroid and the fix
+        gs = self.geometry.to_crs(crs=self.estimate_utm_crs())
+        return gs.distance(gs.unary_union.centroid)
+
+    @cachedproperty
+    def cluster_radius(self):
+        """
+        The cluster radius is the largest distance between a point in the relocationss and the
+        centroid of the relocationss
+        """
+        distance = self.distance_from_centroid
+        return distance.max()
+
+    @cachedproperty
+    def cluster_std_dev(self):
+        """
+        The cluster standard deviation is the standard deviation of the radii from the centroid
+        to each point making up the cluster
+        """
+        distance = self.distance_from_centroid
+        return np.std(distance)
+
+    def threshold_point_count(self, threshold_dist):
+        """Counts the number of points in the cluster that are within a threshold distance of the geographic centre"""
+        distance = self.distance_from_centroid
+        return distance[distance <= threshold_dist].size
+
+    def apply_threshold_filter(self, threshold_dist_meters=float("Inf")):
+        # Apply filter to the underlying geodataframe.
+        distance = self.distance_from_centroid
+        _filter = distance > threshold_dist_meters
+        self.relocations.loc[_filter, "junk_status"] = True
+
+
+class Trajectory(EcoDataFrame):
+    """
+    A trajectory represents a time-ordered collection of segments.
+    Currently only straight track segments exist.
+    It is based on an underlying relocs object that is the point representation
+    """
+
+    @classmethod
+    def from_relocations(cls, gdf, *args, **kwargs):
+        """
+        Create Trajectory class from Relocation dataframe.
 
         Parameters
         ----------
-        output_path : str, Pathlike
-            Output path for the CSV file
+        gdf: Geodataframe
+            Relocation geodataframe with relevant columns
+        args
+        kwargs
+        Returns
+        -------
+        Trajectory
+        """
+        assert isinstance(gdf, Relocations)
+        assert {"groupby_col", "fixtime", "geometry"}.issubset(gdf)
+
+        if kwargs.get("copy") is not False:
+            gdf = gdf.copy()
+
+        gdf = EcoDataFrame(gdf)
+        crs = gdf.crs
+        gdf.set_crs(4326, inplace=True)
+        gdf = gdf.groupby("groupby_col").apply(cls._create_multitraj).droplevel(level=0)
+        gdf.to_crs(crs, inplace=True)
+        gdf.sort_values("segment_start", inplace=True)
+        return cls(gdf, *args, **kwargs)
+
+    def get_displacement(self):
+        """
+        Get displacement in meters between first and final fixes.
         """
 
-        features_id = ["individual_name", "grid_id"] + self.features
-        df = {feat_id: [] for feat_id in features_id}
-        for individual_name, G in self.graphs.items():
-            for node in G.nodes():
-                df["individual_name"].append(individual_name)
-                df["grid_id"].append(node)
-                for feature in self.features:
-                    df[feature].append(G.nodes[node][feature])
-        (pd.DataFrame.from_dict(df)).to_csv(output_path, index=False)
+        if not self["segment_start"].is_monotonic:
+            self = self.sort_values("segment_start")
 
-    def to_geotiff(self, feature, output_path, individual="all", interpolation=None, transform=None):
+        gs = self.geometry.iloc[[0, -1]]
+        start, end = gs.to_crs(gs.estimate_utm_crs())
+
+        return start.distance(end)
+
+    def get_tortuosity(self):
         """
-        Saves a specific node feature as a GeoTIFF
+        Get tortuosity for dataframe defined as distance traveled divided by displacement between first and final
+        points.
+        """
+
+        return self["dist_meters"].sum() / self.get_displacement()
+
+    def get_daynight_ratio(self, n_grid_points=150) -> pd.Series:
+        """
+        Parameters
+        ----------
+        n_grid_points : int (optional)
+            The number of grid points on which to search for the horizon
+            crossings of the target over a 24-hour period, default is 150 which
+            yields rise time precisions better than one minute.
+
+            https://github.com/astropy/astroplan/pull/424
+
+        Returns
+        -------
+        pd.Series:
+            Daynight ratio for each unique individual subject in the grouby_col column.
+        """
+
+        locations = astronomy.to_EarthLocation(self.geometry.to_crs(crs=self.estimate_utm_crs()).centroid)
+
+        observer = astroplan.Observer(location=locations)
+        is_night_start = observer.is_night(self.segment_start)
+        is_night_end = observer.is_night(self.segment_end)
+
+        # Night -> Night
+        night_distance = self.dist_meters.loc[is_night_start & is_night_end].sum()
+
+        # Day -> Day
+        day_distance = self.dist_meters.loc[~is_night_start & ~is_night_end].sum()
+
+        # Night -> Day
+        night_day_mask = is_night_start & ~is_night_end
+        night_day_df = self.loc[night_day_mask, ["segment_start", "dist_meters", "timespan_seconds"]]
+        i = (
+            pd.to_datetime(
+                astroplan.Observer(location=locations[night_day_mask])
+                .sun_rise_time(
+                    astropy.time.Time(night_day_df.segment_start),
+                    n_grid_points=n_grid_points,
+                )
+                .datetime,
+                utc=True,
+            )
+            - night_day_df.segment_start
+        ).dt.total_seconds() / night_day_df.timespan_seconds
+
+        night_distance += (night_day_df.dist_meters * i).sum()
+        day_distance += ((1 - i) * night_day_df.dist_meters).sum()
+
+        # Day -> Night
+        day_night_mask = ~is_night_start & is_night_end
+        day_night_df = self.loc[day_night_mask, ["segment_start", "dist_meters", "timespan_seconds"]]
+        i = (
+            pd.to_datetime(
+                astroplan.Observer(location=locations[day_night_mask])
+                .sun_set_time(
+                    astropy.time.Time(day_night_df.segment_start),
+                    n_grid_points=n_grid_points,
+                )
+                .datetime,
+                utc=True,
+            )
+            - day_night_df.segment_start
+        ).dt.total_seconds() / day_night_df.timespan_seconds
+        day_distance += (day_night_df.dist_meters * i).sum()
+        night_distance += ((1 - i) * day_night_df.dist_meters).sum()
+
+        return day_distance / night_distance
+
+    @staticmethod
+    def _create_multitraj(df):
+        df["_fixtime"] = df["fixtime"].shift(-1)
+        df["_geometry"] = list(df["geometry"])
+        #df["_geometry"] = df["_geometry"].shift(-1)
+        df["_geometry"] = gpd.GeoSeries(df["_geometry"].shift(-1), crs=4326)
+        return Trajectory._create_trajsegments(df[:-1])
+
+    @staticmethod
+    def _create_trajsegments(gdf):
+        track_properties = Trajectory._straighttrack_properties(gdf)
+
+        coords = np.column_stack(
+            (
+                np.column_stack(track_properties.start_fixes),
+                np.column_stack(track_properties.end_fixes),
+            )
+        ).reshape(gdf.shape[0], 2, 2)
+
+        df = gpd.GeoDataFrame(
+            {
+                "groupby_col": gdf.groupby_col,
+                "segment_start": gdf.fixtime,
+                "segment_end": gdf._fixtime,
+                "timespan_seconds": track_properties.timespan_seconds,
+                "dist_meters": track_properties.dist_meters,
+                "speed_kmhr": track_properties.speed_kmhr,
+                "heading": track_properties.heading,
+                "geometry": pygeos.linestrings(coords),
+                "junk_status": gdf.junk_status,
+            },
+            crs=4326,
+            index=gdf.index,
+        )
+        gdf.drop(["fixtime", "_fixtime", "_geometry"], axis=1, inplace=True)
+        extra_cols = gdf.columns.difference(df.columns)
+        gdf = gdf[extra_cols]
+        print(gdf.columns)
+
+        extra_cols = extra_cols[~extra_cols.str.startswith("extra_")]
+        gdf.rename(columns=dict(zip(extra_cols, "extra__" + extra_cols)), inplace=True)
+        df = df.join(gdf, how="left")
+        print(type(df))
+        
+        return df.set_crs(4326, inplace=True)
+
+    def apply_traj_filter(self, traj_seg_filter, inplace=False):
+        if not self["segment_start"].is_monotonic:
+            self.sort_values("segment_start", inplace=True)
+        assert self["segment_start"].is_monotonic
+
+        if inplace:
+            frame = self
+        else:
+            frame = self.copy()
+
+        assert type(traj_seg_filter) is TrajSegFilter
+        frame.loc[
+            (frame["dist_meters"] < traj_seg_filter.min_length_meters)
+            | (frame["dist_meters"] > traj_seg_filter.max_length_meters)
+            | (frame["timespan_seconds"] < traj_seg_filter.min_time_secs)
+            | (frame["timespan_seconds"] > traj_seg_filter.max_time_secs)
+            | (frame["speed_kmhr"] < traj_seg_filter.min_speed_kmhr)
+            | (frame["speed_kmhr"] > traj_seg_filter.max_speed_kmhr),
+            "junk_status",
+        ] = True
+
+        if not inplace:
+            return frame
+
+    def get_turn_angle(self):
+        if not self["segment_start"].is_monotonic:
+            self.sort_values("segment_start", inplace=True)
+        assert self["segment_start"].is_monotonic
+
+        def turn_angle(traj):
+            return ((traj["heading"].diff() + 540) % 360 - 180)[traj["segment_end"].shift(1) == traj["segment_start"]]
+
+        uniq = self.groupby_col.nunique()
+        angles = self.groupby("groupby_col").apply(turn_angle).droplevel(0) if uniq > 1 else turn_angle(self)
+
+        return angles.rename("turn_angle").reindex(self.index)
+
+    def upsample(self, freq):
+        """
+        Interpolate to create upsampled Relocations
 
         Parameters
         ----------
-        feature : str
-            Feature of interest
-        output_path : str, Pathlike
-            Output path for the GeoTIFF file
-        individual : str
-            The individual for which we want to output the node feature (Default : "all")
-        interpolation : str or None
-            Whether to interpolate the feature for each step in the trajectory (Default : None). If
-            provided, has to be one of those four types of interpolation : "mean", "median", "max"
-            or "min"
-        transform : sklearn.base.TransformerMixin or None
-            A feature transform method (Default : None)
+        freq : str, pd.Timedelta or pd.DateOffset
+            Sampling frequency for new Relocations object
+
+        Returns
+        -------
+        relocs : ecoscope.base.Relocations
+
         """
 
-        if feature in self.features:
-            if individual == "all":
-                feature_ndarray = self._get_feature_mosaic(self, feature, interpolation)
-            elif individual in self.graphs.keys():
-                feature_ndarray = self._get_feature_map(self, feature, individual, interpolation)
-            else:
-                raise IndividualNameError("This individual is not in the dataset")
-        else:
-            raise FeatureNameError("This feature was not computed by EcoGraph")
+        freq = pd.tseries.frequencies.to_offset(freq)
 
-        if isinstance(transform, sklearn.base.TransformerMixin):
-            nan_mask = ~np.isnan(feature_ndarray)
-            feature_ndarray[nan_mask] = transform.fit_transform(feature_ndarray[nan_mask].reshape(-1, 1)).reshape(
-                feature_ndarray[nan_mask].shape
+        if not self["segment_start"].is_monotonic:
+            self.sort_values("segment_start", inplace=True)
+
+        def f(traj):
+            traj.crs = self.crs  # Lost in groupby-apply due to GeoPandas bug
+
+            times = pd.date_range(traj["segment_start"].iat[0], traj["segment_end"].iat[-1], freq=freq)
+
+            start_i = traj["segment_start"].searchsorted(times, side="right") - 1
+            end_i = traj["segment_end"].searchsorted(times, side="left")
+            valid_i = (start_i == end_i) | (times == traj["segment_start"].iloc[start_i])
+
+            traj = traj.iloc[start_i[valid_i]].reset_index(drop=True)
+            times = times[valid_i]
+
+            return gpd.GeoDataFrame(
+                {"fixtime": times},
+                geometry=pygeos.line_interpolate_point(
+                    traj["geometry"].values.data,
+                    (times - traj["segment_start"]) / (traj["segment_end"] - traj["segment_start"]),
+                    normalized=True,
+                ),
+                crs=traj.crs,
             )
 
-        raster_profile = ecoscope.io.raster.RasterProfile(
-            pixel_size=self.resolution,
-            crs=self.utm_crs,
-            nodata_value=np.nan,
-            band_count=1,
-        )
-        raster_profile.raster_extent = ecoscope.io.raster.RasterExtent(
-            x_min=self.xmin, x_max=self.xmax, y_min=self.ymin, y_max=self.ymax
-        )
-        ecoscope.io.raster.RasterPy.write(
-            ndarray=feature_ndarray,
-            fp=output_path,
-            **raster_profile,
-        )
+        return Relocations.from_gdf(self.groupby("groupby_col").apply(f).reset_index(level=0))
 
-    @staticmethod
-    def _get_ecograph(self, trajectory_gdf, individual_name, radius, cutoff, tortuosity_length):
-        G = nx.Graph()
-        geom = trajectory_gdf["geometry"]
-        for i in range(len(geom) - (tortuosity_length - 1)):
-            step_attributes = trajectory_gdf.iloc[i]
-            lines = [list(geom.iloc[i + j].coords) for j in range(tortuosity_length)]
-            p1, p2, p3, p4 = lines[0][0], lines[0][1], lines[1][1], lines[1][0]
-            pixel1, pixel2 = (
-                self.inverse_transform * p1,
-                self.inverse_transform * p2,
+    def to_relocations(self):
+        """
+        Converts a Trajectory object to a Relocations object.
+
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
+
+        def f(traj):
+            traj.crs = self.crs
+            points = np.concatenate(
+                [pygeos.get_point(traj.geometry.values.data, 0), pygeos.get_point(traj.geometry.values.data, 1)]
+            )
+            times = np.concatenate([traj["segment_start"], traj["segment_end"]])
+
+            return (
+                gpd.GeoDataFrame(
+                    {"fixtime": times},
+                    geometry=points,
+                    crs=traj.crs,
+                )
+                .drop_duplicates(subset=["fixtime"])
+                .sort_values("fixtime")
             )
 
-            row1, row2 = floor(pixel1[0]), floor(pixel2[0])
-            col1, col2 = ceil(pixel1[1]), ceil(pixel2[1])
+        return Relocations.from_gdf(self.groupby("groupby_col").apply(f).reset_index(drop=True))
 
-            t = step_attributes["segment_start"]
-            seconds_in_day = 24 * 60 * 60
-            seconds_past_midnight = (t.hour * 3600) + (t.minute * 60) + t.second + (t.microsecond / 1000000.0)
-            time_diff = pd.to_datetime(
-                trajectory_gdf.iloc[i + (tortuosity_length - 1)]["segment_end"]
-            ) - pd.to_datetime(t)
-            time_delta = time_diff.total_seconds() / 3600.0
-            tortuosity_1, tortuosity_2 = self._get_tortuosities(self, lines, time_delta)
+    def downsample(self, freq, tolerance="0S", interpolation=False):
+        """
+        Function to downsample relocations.
+        Parameters
+        ----------
+        freq: str, pd.Timedelta or pd.DateOffset
+            Downsampling frequency for new Relocations object
+        tolerance: str, pd.Timedelta or pd.DateOffset
+            Tolerance on the downsampling frequency
+        interpolation: bool, optional
+            If true, interpolates locations on the whole trajectory
+        Returns
+        -------
+        ecoscope.base.Relocations
+        """
 
-            attributes = {
-                "dot_product": self._get_dot_product(p1, p2, p3, p4),
-                "speed": step_attributes["speed_kmhr"],
-                "step_length": step_attributes["dist_meters"],
-                "sin_time": np.sin(2 * np.pi * seconds_past_midnight / seconds_in_day),
-                "cos_time": np.cos(2 * np.pi * seconds_past_midnight / seconds_in_day),
-                "tortuosity_1": tortuosity_1,
-                "tortuosity_2": tortuosity_2,
-            }
-
-            if G.has_node((row1, col1)):
-                self._update_node(G, (row1, col1), attributes)
-            else:
-                self._initialize_node(G, (row1, col1), attributes)
-            if not G.has_node((row2, col2)):
-                self._initialize_node(G, (row2, col2), attributes, empty=True)
-            if (row1, col1) != (row2, col2):
-                G.add_edge((row1, col1), (row2, col2))
-
-        for node in G.nodes():
-            for key in attributes.keys():
-                G.nodes[node][key] = np.mean(G.nodes[node][key])
-
-        self._compute_network_metrics(self, G, radius, cutoff)
-        return G
-
-    @staticmethod
-    def _update_node(G, node_id, attributes):
-        G.add_node(node_id)
-        G.nodes[node_id]["weight"] += 1
-        for key, value in attributes.items():
-            if value is not None:
-                G.nodes[node_id][key].append(value)
-
-    @staticmethod
-    def _get_day_night_value(day_night_value):
-        if day_night_value == "day":
-            return 0
-        elif day_night_value == "night":
-            return 1
-
-    @staticmethod
-    def _initialize_node(G, node_id, attributes, empty=False):
-        G.add_node(node_id)
-        G.nodes[node_id]["weight"] = 1
-        for key, value in attributes.items():
-            if empty:
-                G.nodes[node_id][key] = []
-            else:
-                if value is not None:
-                    G.nodes[node_id][key] = [value]
-
-    @staticmethod
-    def _get_dot_product(x, y, z, w):
-        if (floor(y[0]) == floor(w[0])) and (floor(y[1]) == floor(w[1])):
-            v = [y[0] - x[0], y[1] - x[1]]
-            w = [z[0] - y[0], z[1] - y[1]]
-            angle = np.arctan2(w[1], w[0]) - np.arctan2(v[1], v[0])
-
-            while angle <= -np.pi:
-                angle = angle + 2 * np.pi
-            while angle > np.pi:
-                angle = angle - 2 * np.pi
-            return np.cos(angle)
+        if interpolation:
+            return self.upsample(freq)
         else:
-            return None
+            freq = pd.tseries.frequencies.to_offset(freq)
+            tolerance = pd.tseries.frequencies.to_offset(tolerance)
 
-    @staticmethod
-    def _get_tortuosities(self, lines, time_delta):
-        point1, point2 = lines[0][0], lines[len(lines) - 1][1]
-        beeline_dist = np.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
-        total_length = 0
-        for i in range(len(lines) - 1):
-            point1, point2, point3 = lines[i][0], lines[i][1], lines[i + 1][0]
-            if (floor(point2[0]) == floor(point3[0])) and (floor(point2[1]) == floor(point3[1])):
-                total_length += np.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
-            else:
-                return None, np.log(time_delta / (beeline_dist**2))
-        point1, point2 = lines[len(lines) - 1][0], lines[len(lines) - 1][1]
-        total_length += np.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
-        return (beeline_dist / total_length), np.log(time_delta / (beeline_dist**2))
+            def f(relocs_ind):
+                relocs_ind.crs = self.crs
+                fixtime = relocs_ind["fixtime"]
 
-    @staticmethod
-    def _compute_network_metrics(self, G, radius, cutoff):
-        self._compute_degree(G)
-        self._compute_betweenness(G, cutoff)
-        self._compute_collective_influence(self, G, radius)
+                k = 1
+                i = 0
+                n = len(relocs_ind)
+                out = np.full(n, -1)
+                out[i] = k
+                while i < (n - 1):
+                    t_min = fixtime.iloc[i] + freq - tolerance
+                    t_max = fixtime.iloc[i] + freq + tolerance
 
-    @staticmethod
-    def _compute_degree(G):
-        for node in G.nodes():
-            G.nodes[node]["degree"] = G.degree[node]
+                    j = i + 1
 
-    @staticmethod
-    def _compute_collective_influence(self, G, radius):
-        for node in G.nodes():
-            G.nodes[node]["collective_influence"] = self._get_collective_influence(G, node, radius)
+                    while (j < (n - 1)) and (fixtime.iloc[j] < t_min):
+                        j += 1
 
-    @staticmethod
-    def _get_collective_influence(G, start, radius):
-        sub_g = nx.generators.ego_graph(G, start, radius=radius)
-        collective_influence = 0
-        for n in sub_g.nodes():
-            collective_influence += G.degree[n] - 1
-        collective_influence -= G.degree[start]
-        return (G.degree[start]) * collective_influence
+                    i = j
 
-    @staticmethod
-    def _compute_betweenness(G, cutoff):
-        g = igraph.Graph.from_networkx(G)
-        btw_idx = g.betweenness(cutoff=cutoff)
-        for v in g.vs:
-            node = v["_nx_name"]
-            G.nodes[node]["betweenness"] = btw_idx[v.index]
-
-    @staticmethod
-    def _get_feature_mosaic(self, feature, interpolation=None):
-        features = []
-        for individual in self.graphs.keys():
-            features.append(self._get_feature_map(self, feature, individual, interpolation))
-        mosaic = np.full((self.n_cols, self.n_rows), np.nan)
-        for i in range(self.n_cols):
-            for j in range(self.n_rows):
-                values = []
-                for feature_map in features:
-                    grid_val = feature_map[i][j]
-                    if not np.isnan(grid_val):
-                        values.append(grid_val)
-                if len(values) >= 2:
-                    mosaic[i][j] = np.mean(values)
-                elif len(values) == 1:
-                    mosaic[i][j] = values[0]
-        return mosaic
-
-    @staticmethod
-    def _get_feature_map(self, feature, individual, interpolation):
-        if interpolation is not None:
-            return self._get_interpolated_feature_map(self, feature, individual, interpolation)
-        else:
-            return self._get_regular_feature_map(self, feature, individual)
-
-    @staticmethod
-    def _get_regular_feature_map(self, feature, individual):
-        feature_ndarray = np.full((self.n_cols, self.n_rows), np.nan)
-        for node in self.graphs[individual].nodes():
-            feature_ndarray[node[1]][node[0]] = (self.graphs[individual]).nodes[node][feature]
-        return feature_ndarray
-
-    @staticmethod
-    def _get_interpolated_feature_map(self, feature, individual, interpolation):
-        feature_ndarray = self._get_regular_feature_map(self, feature, individual)
-        individual_trajectory = self.trajectory[self.trajectory["groupby_col"] == individual]
-        geom = individual_trajectory["geometry"]
-        idxs_dict = {}
-        for i in range(len(geom)):
-            line1 = list(geom.iloc[i].coords)
-            p1, p2 = line1[0], line1[1]
-            pixel1, pixel2 = self.inverse_transform * p1, self.inverse_transform * p2
-            row1, row2 = floor(pixel1[0]), floor(pixel2[0])
-            col1, col2 = ceil(pixel1[1]), ceil(pixel2[1])
-
-            rr, cc = line(col1, row1, col2, row2)
-            for j in range(len(rr)):
-                if np.isnan(feature_ndarray[rr[j], cc[j]]):
-                    if (rr[j], cc[j]) in idxs_dict:
-                        idxs_dict[(rr[j], cc[j])].append(feature_ndarray[rr[0], cc[0]])
+                    if j == (n - 1):
+                        break
+                    elif (fixtime.iloc[j] >= t_min) and (fixtime.iloc[j] <= t_max):
+                        out[j] = k
                     else:
-                        idxs_dict[(rr[j], cc[j])] = [feature_ndarray[rr[0], cc[0]]]
-        for key, value in idxs_dict.items():
-            if interpolation == "max":
-                feature_ndarray[key[0], key[1]] = np.max(value)
-            elif interpolation == "mean":
-                feature_ndarray[key[0], key[1]] = np.mean(value)
-            elif interpolation == "median":
-                feature_ndarray[key[0], key[1]] = np.median(value)
-            elif interpolation == "min":
-                feature_ndarray[key[0], key[1]] = np.min(value)
-            else:
-                raise InterpolationError("Interpolation type not supported by EcoGraph")
-        return feature_ndarray
+                        k += 1
+                        out[j] = k
 
+                relocs_ind["extra__burst"] = np.array(out, dtype=np.int64)
+                relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
+                return relocs_ind
 
-class InterpolationError(Exception):
-    pass
+            return Relocations(self.to_relocations().groupby("groupby_col").apply(f).reset_index(drop=True))
 
+    @staticmethod
+    def _straighttrack_properties(df: gpd.GeoDataFrame):
+        """Private function used by Trajectory class."""
 
-class IndividualNameError(Exception):
-    pass
+        class Properties:
+            @property
+            def start_fixes(self):
+                # unpack xy-coordinates of start fixes
+                return df["geometry"].x, df["geometry"].y
 
+            @property
+            def end_fixes(self):
+                # unpack xy-coordinates of end fixes
+                return df["_geometry"].x, df["_geometry"].y
 
-class FeatureNameError(Exception):
-    pass
+            @property
+            def inverse_transformation(self):
+                # use pyproj geodesic inverse function to compute vectorized distance & heading calculations
+                return Geod(ellps="WGS84").inv(*self.start_fixes, *self.end_fixes)
 
+            @property
+            def heading(self):
+                # Forward azimuth(s)
+                forward_azimuth, _, _ = self.inverse_transformation
+                forward_azimuth[forward_azimuth < 0] += 360
+                return forward_azimuth
 
-def get_feature_gdf(input_path):
-    """
-    Convert a GeoTIFF feature map into a GeoDataFrame
+            @property
+            def dist_meters(self):
+                _, _, distance = self.inverse_transformation
+                return distance
 
-    Parameters
-    ----------
-    input_path : str, Pathlike
-        Input path for the GeoTIFF file
-    """
-    shapes = []
-    with rasterio.open(input_path) as src:
-        crs = src.crs.to_wkt()
-        data_array = src.read(1).astype(np.float32)
-        data_array[data_array == src.nodata] = np.nan
-        shapes.extend(rasterio.features.shapes(data_array, transform=src.transform))
+            @property
+            def timespan_seconds(self):
+                return (df["_fixtime"] - df["fixtime"]).dt.total_seconds()
 
-    data = {"value": [], "geometry": []}
-    for geom, value in shapes:
-        if not np.isnan(value):
-            data["geometry"].append(shape(geom))
-            data["value"].append(value)
+            @property
+            def speed_kmhr(self):
+                return (self.dist_meters / self.timespan_seconds) * 3.6
 
-    df = pd.DataFrame.from_dict(data)
-    return gpd.GeoDataFrame(df, geometry=df.geometry, crs=crs)
+        instance = Properties()
+        return instance
