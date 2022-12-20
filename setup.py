@@ -41,6 +41,7 @@ dependencies = [
     "shapely",
     "tqdm",
     "xyzservices",
+    "earthranger-client",
 ]
 
 setup(

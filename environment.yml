@@ -43,6 +43,7 @@ dependencies:
   - sphinx==5.3.0
   - tqdm==4.64.1
   - xyzservices==2022.9.0
+  - earthranger-client
   - pip:
     - coverage[toml]
     - nbsphinx
