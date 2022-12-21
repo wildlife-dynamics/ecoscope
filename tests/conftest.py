@@ -25,7 +25,7 @@ def pytest_configure(config):
         warnings.warn(Warning("Earth Engine can not be initialized. Skipping related tests..."))
 
     pytest.earthranger = ecoscope.io.EarthRangerIO(
-        server=os.getenv("ER_SERVER", "https://sandbox.pamdas.org"),
+        server=os.getenv("ER_SERVER", "https://mep-dev.pamdas.org"),
         username=os.getenv("ER_USERNAME"),
         password=os.getenv("ER_PASSWORD"),
     ).login()
@@ -35,7 +35,7 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="session")
 def er_io():
-    ER_SERVER = "https://sandbox.pamdas.org"
+    ER_SERVER = "https://mep-dev.pamdas.org"
     ER_USERNAME = os.getenv("ER_USERNAME")
     ER_PASSWORD = os.getenv("ER_PASSWORD")
     er_io = ecoscope.io.EarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
