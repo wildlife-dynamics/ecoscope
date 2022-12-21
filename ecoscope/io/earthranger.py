@@ -847,7 +847,7 @@ class EarthRangerIO(ERClient):
         source_type: str,
         manufacturer_id: str,
         model_name: str,
-        provider: str,
+        provider: str = "default",
         additional: typing.Dict = {},
         **kwargs,
     ) -> pd.DataFrame:
