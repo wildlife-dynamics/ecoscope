@@ -811,7 +811,6 @@ class EarthRangerIO(ERClient):
         subject_type: str,
         subject_subtype: str,
         is_active: bool = True,
-        tracks_available: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
         """
@@ -821,7 +820,6 @@ class EarthRangerIO(ERClient):
         subject_type
         subject_subtype
         is_active
-        tracks_available
 
         Returns
         -------
@@ -833,7 +831,6 @@ class EarthRangerIO(ERClient):
             "subject_type": subject_type,
             "subject_subtype": subject_subtype,
             "is_active": is_active,
-            "tracks_available": tracks_available,
         }
 
         if kwargs:
