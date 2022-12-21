@@ -808,6 +808,19 @@ class EarthRangerIO(ERClient):
         tracks_available: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        subject_name
+        subject_type
+        subject_subtype
+        is_active
+        tracks_available
+
+        Returns
+        -------
+        pd.DataFrame
+        """
         payload = {
             "name": subject_name,
             "subject_type": subject_type,
@@ -831,6 +844,19 @@ class EarthRangerIO(ERClient):
         additional: typing.Dict = {},
         **kwargs,
     ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        source_type
+        manufacturer_id
+        model_name
+        provider
+        additional
+
+        Returns
+        -------
+        pd.DataFrame
+        """
         payload = {
             "source_type": source_type,
             "manufacturer_id": manufacturer_id,
@@ -846,6 +872,15 @@ class EarthRangerIO(ERClient):
         return pd.DataFrame([response])
 
     def post_patrol(self, priority: int, **kwargs) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        priority
+
+        Returns
+        -------
+        pd.DataFrame
+        """
         payload = {"priority": priority}
 
         if kwargs:
