@@ -13,15 +13,6 @@ import ecoscope
 from ecoscope.io.utils import pack_columns, to_hex
 
 
-def to_geodataframe(dataframe):
-    longitude, latitude = (0, 1) if isinstance(dataframe["location"].iat[0], list) else ("longitude", "latitude")
-    return gpd.GeoDataFrame(
-        dataframe,
-        geometry=gpd.points_from_xy(dataframe["location"].str[longitude], dataframe["location"].str[latitude]),
-        crs=4326,
-    )
-
-
 def fatal_status_code(e):
     return 400 <= e.response.status_code < 500
 
@@ -35,6 +26,21 @@ class EarthRangerIO(ERClient):
 
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
+
+    @staticmethod
+    def _to_gdf(df):
+        longitude, latitude = (0, 1) if isinstance(df["location"].iat[0], list) else ("longitude", "latitude")
+        return gpd.GeoDataFrame(
+            df,
+            geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
+            crs=4326,
+        )
+
+    @staticmethod
+    def _normalize_column(df, col):
+        print(col)
+        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
+            df[k] = v.values
 
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _get(self, path, stream=False, **kwargs):
@@ -313,7 +319,7 @@ class EarthRangerIO(ERClient):
         ).dt.tz_convert(tz)
 
         observations.sort_values("recorded_at", inplace=True)
-        return to_geodataframe(observations)
+        return EarthRangerIO._to_gdf(observations)
 
     def get_source_observations(self, source_ids, include_source_details=False, relocations=True, **kwargs):
         """
