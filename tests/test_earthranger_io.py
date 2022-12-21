@@ -6,6 +6,7 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import pytz
+import requests
 from shapely.geometry import Point
 
 import ecoscope
@@ -31,7 +32,7 @@ def test_get_subject_observations(er_io):
 
 
 def test_get_subject_no_observations(er_io):
-    with pytest.raises(ecoscope.contrib.dasclient.DasClientNotFound):
+    with pytest.raises(requests.exceptions.HTTPError):
         er_io.get_subject_observations(
             subject_ids=str(uuid.uuid4()),
             include_subject_details=True,
@@ -76,14 +77,14 @@ def test_get_subjectsource_no_observations(er_io):
     assert relocations.empty
 
 
-def test_get_subjectsource_observations_with_pagesize_one(er_io):
+def test_get_subjectsource_observations_with_cursor(er_io):
+    print(er_io.SUBJECTSOURCE_IDS[0])
     relocations = er_io.get_subjectsource_observations(
         subjectsource_ids=er_io.SUBJECTSOURCE_IDS[0],
         include_source_details=True,
-        page_size=1,
+        use_cursor=True,
     )
     assert isinstance(relocations, ecoscope.base.Relocations)
-    assert len(relocations) == 1
 
 
 def test_get_subjectgroup_observations(er_io):
@@ -155,7 +156,7 @@ def test_post_events(er_io):
             "title": "Accident",
             "event_type": "accident_rep",
             "time": pd.Timestamp.utcnow(),
-            "location": {"longitude": "38.033294677734375", "latitude": "-2.9553841592697982"},
+            "location": {"latitude": -2.9553841592697982, "longitude": 38.033294677734375},
             "priority": 200,
             "state": "new",
             "event_details": {"type_accident": "head-on collision", "number_people_involved": 3, "animals_involved": 1},
@@ -167,7 +168,7 @@ def test_post_events(er_io):
             "title": "Accident",
             "event_type": "accident_rep",
             "time": pd.Timestamp.utcnow(),
-            "location": {"longitude": "38.4906005859375", "latitude": "-3.0321834919139206"},
+            "location": {"latitude": -3.0321834919139206, "longitude": 38.4906005859375},
             "priority": 300,
             "state": "active",
             "event_details": {
@@ -194,7 +195,7 @@ def test_patch_event(er_io):
             "title": "Arrest",
             "event_type": "arrest_rep",
             "time": pd.Timestamp.utcnow(),
-            "location": {"longitude": 38.11809539794921, "latitude": -3.4017015747197306},
+            "location": {"latitude": -3.4017015747197306, "longitude": 38.11809539794921},
             "priority": 200,
             "state": "new",
             "event_details": {
@@ -202,7 +203,7 @@ def test_patch_event(er_io):
                 "arrestrep_nationality": "other",
                 "arrestrep_timeofarrest": datetime.datetime.utcnow().isoformat(),
                 "arrestrep_reaonforarrest": "firearm",
-                "arrestrep_arrestingranger": "Ranger Siera",
+                "arrestrep_arrestingranger": "catherine's cellphone",
             },
             "is_collection": False,
             "icon_id": "arrest_rep",
@@ -216,7 +217,7 @@ def test_patch_event(er_io):
             {
                 "priority": 300,
                 "state": "active",
-                "location": {"longitude": "38.4576416015625", "latitude": "-4.135503657998179"},
+                "location": {"latitude": -4.135503657998179, "longitude": 38.4576416015625},
             }
         ]
     )
