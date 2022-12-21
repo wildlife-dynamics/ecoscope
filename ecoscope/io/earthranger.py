@@ -1,126 +1,30 @@
-import concurrent.futures
 import datetime
-import itertools
-import math
-import re
+import json
 import typing
 
 import backoff
 import geopandas as gpd
 import pandas as pd
 import requests
+from erclient.client import ERClient, ERClientException, split_link
 from tqdm.auto import tqdm
 
 import ecoscope
-from ecoscope.contrib.dasclient import DasClient, DasClientException
 from ecoscope.io.utils import pack_columns, to_hex
 
 
-class BackoffDasClient(DasClient):
-    """
-    Extends DasClient to add backoff to requests.
-
-    """
-
-    @backoff.on_exception(
-        backoff.expo,
-        requests.exceptions.RequestException,
-        max_tries=10,
-    )
-    @backoff.on_exception(
-        backoff.expo,
-        DasClientException,
-        max_tries=10,
-        giveup=lambda e: len(e.args) == 0
-        or not isinstance(e.args[0], str)
-        or re.match("Failed to call DAS web service. 50[24] .*", e.args[0]) is None,
-    )
-    def _get(self, *args, **kwargs):
-        return super()._get(*args, **kwargs)
+def fatal_status_code(e):
+    return 400 <= e.response.status_code < 500
 
 
-class ConcurrentDasClient(BackoffDasClient):
-    """
-    Extends DasClient to make multiple requests while maintaining interface.
-
-    """
-
-    def __init__(self, *, sub_page_size=4000, tcp_limit=5, **kwargs):
-        self.sub_page_size = sub_page_size
-        self.tcp_limit = tcp_limit
-        super().__init__(**kwargs)
-
-    def _concurrent_get(self, path, stream=False, **kwargs):
-        page_size = kwargs.get("params", {}).get("page_size")
-
-        if page_size is None or page_size % self.sub_page_size or stream:
-            return super()._get(path, stream=stream, **kwargs)
-
-        p = kwargs["params"].copy()
-        p["page"] = int(p.get("page", 1))
-        current_page = p["page"]
-
-        p["page_size"] = 1
-        response = super()._get(path=path, params=p)
-        p["page_size"] = self.sub_page_size
-
-        if "count" not in response:
-            return response
-
-        if not response.get("count"):
-            return response
-
-        start = 1 + (p["page"] - 1) * page_size // self.sub_page_size
-        end = 1 + min(
-            p["page"] * page_size // self.sub_page_size,
-            math.ceil(response["count"] / self.sub_page_size),
-        )
-
-        if response["previous"] is not None:
-            response["previous"] = response["previous"].replace("page_size=1", f"page_size={page_size}")
-        if response["count"] > page_size * current_page:
-            response["next"] = response["next"].replace("page_size=1", f"page_size={page_size}")
-        else:
-            response["next"] = None
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.tcp_limit) as executor:
-            futures = []
-            for page in range(start, end):
-                p["page"] = page
-                futures.append(executor.submit(super()._get, path=path, params=p.copy()))
-
-            response["results"] = itertools.chain(
-                *(future.result()["results"] for future in concurrent.futures.as_completed(futures))
-            )
-        return response
-
-    def _get(self, *args, **kwargs):
-        params = kwargs.get("params", {})
-        if "sub_page_size" in params or "tcp_limit" in params:
-            print(
-                f"Warning: `sub_page_size` and `tcp_limit` should only be provided to the constructor of {type(self)}"
-            )
-        params["page"] = params.get("page", 1)
-        params["page_size"] = params.get("page_size", 1000000000)
-        params = {k: v if not isinstance(v, bool) else str(v).lower() for k, v in params.items()}
-        kwargs["params"] = params
-        return self._concurrent_get(*args, **kwargs)
-
-
-class EarthRangerIO(ConcurrentDasClient):
-    """
-    Extends ConcurrentDasClient with Ecoscope-specific configuration.
-
-    """
-
+class EarthRangerIO(ERClient):
     def __init__(self, **kwargs):
         if "server" in kwargs:
             server = kwargs.pop("server")
-            kwargs["service_root"] = server + "/api/v1.0"
-            kwargs["token_url"] = server + "/oauth2/token"
+            kwargs["service_root"] = f"{server}/api/v1.0"
+            kwargs["token_url"] = f"{server}/oauth2/token"
 
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
-
         super().__init__(**kwargs)
 
     @staticmethod
@@ -138,35 +42,64 @@ class EarthRangerIO(ConcurrentDasClient):
         for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
             df[k] = v.values
 
+    @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
+    def _get(self, path, stream=False, **kwargs):
+        headers = {"User-Agent": self.user_agent}
+        headers.update(self.auth_headers())
+
+        path = self._er_url(path) if not path.startswith("http") else path
+        get_method = self._http_session.get if self._http_session else requests.get
+        params = kwargs.get("params", {})
+        response = get_method(path, headers=headers, params=params, stream=stream)
+
+        def _getdata(response):
+            data = json.loads(response.text)
+            if "metadata" in data:
+                return data["metadata"]
+            elif "data" in data:
+                return data["data"]
+            else:
+                return data
+
+        if response.ok:
+            if kwargs.get("return_response", False):
+                return response
+            if results := _getdata(response):
+                if kwargs.get("return_data", params.get("return_data", False)):
+                    return results
+                elif "results" in results:
+                    return pd.DataFrame(results["results"])
+                else:
+                    return pd.DataFrame(results)
+        raise response.raise_for_status()
+
     @staticmethod
     def _clean_kwargs(addl_kwargs={}, **kwargs):
         for k in addl_kwargs.keys():
             print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
         return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
 
+    def _get_objects_count(self, params):
+        params = params.copy()
+        params["page"] = 1
+        params["page_size"] = 1
+        results = self._get(params["object"], params=params)
+        if results and results.get("count"):
+            return results["count"]
+        return 0
+
     def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
         """
         Parameters
         ----------
-        subjects
-            A comma-delimited list of Subject IDs.
-        sources
-            A comma-delimited list of Source IDs.
-
+        subjects: A comma-delimited list of Subject IDs.
+        sources: A comma-delimited list of Source IDs.
         Returns
         -------
         subjectsources : pd.DataFrame
-            DataFrame of queried subjectssources
-
         """
-
-        kwargs = self._clean_kwargs(
-            addl_kwargs,
-            subjects=subjects,
-            sources=sources,
-        )
-
-        return pd.DataFrame(self._get("subjectsources/", params=kwargs)["results"])
+        params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
+        return self._get("subjectsources/", params=params)
 
     def get_subjects(
         self,
@@ -187,38 +120,25 @@ class EarthRangerIO(ConcurrentDasClient):
         """
         Parameters
         ----------
-        include_inactive
-            Include inactive subjects in list.
-        tracks_since
-            Include tracks since this timestamp
-        tracks_until
-            Include tracks up through this timestamp
-        bbox
-            Include subjects having track data within this bounding box defined by a 4-tuple of coordinates marking
+        include_inactive: Include inactive subjects in list.
+        tracks_since: Include tracks since this timestamp
+        tracks_until: Include tracks up through this timestamp
+        bbox: Include subjects having track data within this bounding box defined by a 4-tuple of coordinates marking
             west, south, east, north.
-        subject_group
-            Indicate a subject group for which Subjects should be listed.
-        name : UUID
-            Find subjects with the given name.
-        updated_since
-            Return Subject that have been updated since the given timestamp.
-        render_last_location
-            Indicate whether to render each subject's last location.
-        tracks
-            Indicate whether to render each subject's recent tracks.
-        id
-            A comma-delimited list of Subject IDs.
+        subject_group: Indicate a subject group for which Subjects should be listed.
+        name : Find subjects with the given name [UUID]
+        updated_since: Return Subject that have been updated since the given timestamp.
+        render_last_location: Indicate whether to render each subject's last location.
+        tracks: Indicate whether to render each subject's recent tracks.
+        id: A comma-delimited list of Subject IDs.
         updated_until
         group_name
-
         Returns
         -------
         subjects : pd.DataFrame
-            DataFrame of queried subjects
-
         """
 
-        kwargs = self._clean_kwargs(
+        params = self._clean_kwargs(
             addl_kwargs,
             include_inactive=include_inactive,
             tracks_since=tracks_since,
@@ -234,68 +154,27 @@ class EarthRangerIO(ConcurrentDasClient):
             group_name=group_name,
         )
 
-        assert kwargs.get("subject_group") is None or kwargs.get("group_name") is None
+        assert params.get("subject_group") is None or params.get("group_name") is None
 
-        if kwargs.get("group_name") is not None:
+        if params.get("group_name") is not None:
             try:
-                kwargs["subject_group"] = self._get(
+                params["subject_group"] = self._get(
                     "subjectgroups/",
                     params={
-                        "group_name": kwargs.pop("group_name"),
+                        "group_name": params.pop("group_name"),
                         "include_inactive": True,
                         "include_hidden": True,
                         "flat": True,
                     },
-                )[0]["id"]
+                ).id[0]
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = pd.DataFrame(self._get("subjects/", params=kwargs)["results"])
-        assert not df.empty
-
-        df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
-
+        df = self._get("subjects/", params=params)
+        if df.empty:
+            df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
+        print(df.columns)
         return df
-
-    def get_patrols(self, filter=None, status=None, **addl_kwargs):
-        """
-        Parameters
-        ----------
-        filter:
-            example: {"date_range":{"lower":"2020-09-16T00:00:00.000Z"}}
-            date_range
-            patrols_overlap_daterange
-            text
-            patrol_type
-            tracked_by
-        status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
-
-        Returns
-        -------
-        patrols : pd.DataFrame
-            DataFrame of queried patrols
-
-        """
-
-        kwargs = self._clean_kwargs(
-            addl_kwargs,
-            filter=filter,
-            status=status,
-        )
-
-        return pd.DataFrame(self._get("activity/patrols/", params=kwargs)["results"])
-
-    def get_users(self) -> pd.DataFrame:
-        """
-        Get all users
-
-        Returns
-        -------
-        users: pd.DataFrame
-
-        """
-        return pd.DataFrame(super().get_users())
 
     def get_sources(
         self,
@@ -312,15 +191,13 @@ class EarthRangerIO(ConcurrentDasClient):
         provider_key
         provider
         id
-
         Returns
         -------
         sources : pd.DataFrame
             DataFrame of queried sources
-
         """
 
-        kwargs = self._clean_kwargs(
+        params = self._clean_kwargs(
             addl_kwargs,
             manufacturer_id=manufacturer_id,
             provider_key=provider_key,
@@ -328,7 +205,7 @@ class EarthRangerIO(ConcurrentDasClient):
             id=id,
         )
 
-        return pd.DataFrame(self._get("sources/", params=kwargs)["results"])
+        return self._get("sources/", params=params)
 
     def _get_observations(
         self,
@@ -341,24 +218,19 @@ class EarthRangerIO(ConcurrentDasClient):
         filter=None,
         include_details=None,
         created_after=None,
+        use_cursor=False,
         **addl_kwargs,
     ):
         """
         Return observations matching queries. If `subject_id`, `source_id`, or `subjectsource_id` is specified, the
         index is set to the provided value.
-
         Parameters
         ----------
-        subject_ids
-            filter to a single subject
-        source_ids
-            filter to a single source
-        subjectsource_ids
-            filter to a subjectsource_id, rather than source_id + time range
-        since
-            get observations after this ISO8061 date, include timezone
-        until
-            get observations up to this ISO8061 date, include timezone
+        subject_ids: filter to a single subject
+        source_ids: filter to a single source
+        subjectsource_ids: filter to a subjectsource_id, rather than source_id + time range
+        since: get observations after this ISO8061 date, include timezone
+        until:get observations up to this ISO8061 date, include timezone
         filter
             filter using exclusion_flags for an observation.
             filter=None returns everything
@@ -368,21 +240,15 @@ class EarthRangerIO(ConcurrentDasClient):
             data)
             filter=3, filters out everything but rows with exclusion flag 2 or 1 (i.e., passes back both manual and
             automatically filtered data)
-        include_details
-            one of [true,false], default is false. This brings back the observation additional field
-        created_after
-            get observations created (saved in EarthRanger) after this ISO8061 date, include timezone
-
+        include_details: one of [true,false], default is false. This brings back the observation additional field
+        created_after: get observations created (saved in EarthRanger) after this ISO8061 date, include timezone
         Returns
         -------
         observations : gpd.GeoDataFrame
-            GeoDataFrame of queried observations
-
         """
-
         assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
 
-        kwargs = self._clean_kwargs(
+        params = self._clean_kwargs(
             addl_kwargs,
             since=since,
             until=until,
@@ -391,27 +257,50 @@ class EarthRangerIO(ConcurrentDasClient):
             created_after=created_after,
         )
 
-        if source_ids is not None:
-            id_name = "source_id"
-            ids = source_ids
-        elif subject_ids is not None:
-            id_name = "subject_id"
-            ids = subject_ids
-        else:
-            id_name = "subjectsource_id"
-            ids = subjectsource_ids
+        def by_multithreads(params):
+            params["return_data"] = True
+            return pd.DataFrame(self.get_objects_multithreaded(object="observations", **params))
 
-        if isinstance(ids, str):
-            ids = [ids]
+        def by_cursor(params=params):
+            params["return_data"] = True
+            params["page_size"] = 1000
+
+            results = self._get(path="observations", params=params)
+
+            while True:
+                if results and results.get("results"):
+                    for r in results["results"]:
+                        yield r
+
+                if results and results["next"]:
+                    url, p = split_link(results["next"])
+                    params["page"] = p["page"]
+                    results = self._get(path="observations", params=p)
+                else:
+                    break
+
+        if source_ids:
+            id_name, ids = "source_id", source_ids
+        elif subject_ids:
+            id_name, ids = "subject_id", subject_ids
+        else:
+            id_name, ids = "subjectsource_id", subjectsource_ids
 
         observations = []
-        pbar = tqdm(ids)
-        for id in pbar:
-            pbar.set_description(f"Downloading Observations for {id_name}={id}")
-            kwargs[id_name] = id
-            df = pd.DataFrame(self._get("observations/", params=kwargs)["results"])
-            df[id_name] = id
-            observations.append(df)
+        pbar = tqdm([ids] if isinstance(ids, str) else ids)
+
+        for _id in pbar:
+            params[id_name] = _id
+            pbar.set_description(f"Downloading Observations for {id_name}={_id}")
+            if use_cursor is True:
+                params["use_cursor"] = use_cursor
+                dataframe = pd.DataFrame(by_cursor(params=params))
+                dataframe[id_name] = _id
+                observations.append(dataframe)
+            else:
+                dataframe = by_multithreads(params=params)
+                dataframe[id_name] = _id
+                observations.append(dataframe)
 
         observations = pd.concat(observations)
         if observations.empty:
@@ -422,6 +311,7 @@ class EarthRangerIO(ConcurrentDasClient):
             errors="coerce",
             utc=True,
         ).dt.tz_convert(tz)
+
         observations["recorded_at"] = pd.to_datetime(
             observations["recorded_at"],
             errors="coerce",
@@ -429,13 +319,11 @@ class EarthRangerIO(ConcurrentDasClient):
         ).dt.tz_convert(tz)
 
         observations.sort_values("recorded_at", inplace=True)
-
         return EarthRangerIO._to_gdf(observations)
 
     def get_source_observations(self, source_ids, include_source_details=False, relocations=True, **kwargs):
         """
         Get observations for each listed source and create a `Relocations` object.
-
         Parameters
         ----------
         source_ids : str or list[str]
@@ -445,12 +333,10 @@ class EarthRangerIO(ConcurrentDasClient):
         kwargs
             Additional arguments to pass in the request to EarthRanger. See the docstring of `_get_observations` for
             info.
-
         Returns
         -------
         relocations : ecoscope.base.Relocations
             Observations in `Relocations` format
-
         """
 
         if isinstance(source_ids, str):
@@ -488,7 +374,6 @@ class EarthRangerIO(ConcurrentDasClient):
     ):
         """
         Get observations for each listed subject and create a `Relocations` object.
-
         Parameters
         ----------
         subject_ids : str or list[str]
@@ -502,12 +387,10 @@ class EarthRangerIO(ConcurrentDasClient):
         kwargs
             Additional arguments to pass in the request to EarthRanger. See the docstring of `__get_observations` for
             info.
-
         Returns
         -------
         relocations : ecoscope.base.Relocations
             Observations in `Relocations` format
-
         """
 
         if isinstance(subject_ids, str):
@@ -520,11 +403,10 @@ class EarthRangerIO(ConcurrentDasClient):
 
         if include_source_details:
             observations = observations.merge(
-                pd.DataFrame(self.get_sources(id=",".join(observations["source"].unique()))).add_prefix("source__"),
+                self.get_sources(id=",".join(observations["source"].unique())).add_prefix("source__"),
                 left_on="source",
                 right_on="source__id",
             )
-
         if include_subject_details:
             observations = observations.merge(
                 self.get_subjects(id=",".join(subject_ids), include_inactive=True).add_prefix("subject__"),
@@ -537,14 +419,14 @@ class EarthRangerIO(ConcurrentDasClient):
                 self.get_subjectsources(subjects=",".join(observations["subject_id"].unique())).add_prefix(
                     "subjectsource__"
                 ),
-                left_on=["subject_id", "source"],
+                left_on=["id", "source"],
                 right_on=["subjectsource__subject", "subjectsource__source"],
             )
 
         if relocations:
             return ecoscope.base.Relocations.from_gdf(
                 observations,
-                groupby_col="subject_id",
+                groupby_col="id",
                 uuid_col="id",
                 time_col="recorded_at",
             )
@@ -560,7 +442,6 @@ class EarthRangerIO(ConcurrentDasClient):
     ):
         """
         Get observations for each listed subjectsource and create a `Relocations` object.
-
         Parameters
         ----------
         subjectsource_ids : str or list[str]
@@ -570,12 +451,10 @@ class EarthRangerIO(ConcurrentDasClient):
         kwargs
             Additional arguments to pass in the request to EarthRanger. See the docstring of `__get_observations` for
             info.
-
         Returns
         -------
         relocations : ecoscope.base.Relocations
             Observations in `Relocations` format
-
         """
 
         if isinstance(subjectsource_ids, str):
@@ -664,12 +543,10 @@ class EarthRangerIO(ConcurrentDasClient):
         filter : json dict
             Can contain any of 'event_filter_id', 'text', 'date_range', 'duration', 'state', 'priority',
             'event_category', 'event_type', 'reported_by', 'create_date', 'update_date'
-
         Returns
         -------
         events : gpd.GeoDataFrame
             GeoDataFrame of queried events
-
         """
 
         kwargs = self._clean_kwargs(
@@ -695,7 +572,7 @@ class EarthRangerIO(ConcurrentDasClient):
             filter=filter,
         )
 
-        df = pd.DataFrame(self._get("activity/events/", params=kwargs)["results"])
+        df = self._get("activity/events/", params=kwargs)
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
 
@@ -707,6 +584,28 @@ class EarthRangerIO(ConcurrentDasClient):
 
         df.sort_values("time", inplace=True)
         return df
+
+    def get_patrols(self, filter=None, status=None, **addl_kwargs):
+        """
+        Parameters
+        ----------
+        filter:
+            example: {"date_range":{"lower":"2020-09-16T00:00:00.000Z"}}
+            date_range
+            patrols_overlap_daterange
+            text
+            patrol_type
+            tracked_by
+        status
+            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+        Returns
+        -------
+        patrols : pd.DataFrame
+            DataFrame of queried patrols
+        """
+
+        params = self._clean_kwargs(addl_kwargs, filter=filter, status=status, return_data=True)
+        return pd.DataFrame(self.get_objects_multithreaded(object="activity/patrols", **params))
 
     def get_subjectgroup_observations(self, subject_group=None, group_name=None, include_inactive=True, **kwargs):
         """
@@ -721,12 +620,10 @@ class EarthRangerIO(ConcurrentDasClient):
         kwargs
             Additional arguments to pass in the request to `get_subject_observations`. See the docstring of
             `get_subject_observations` for info.
-
         Returns
         -------
         relocations : ecoscope.base.Relocations
             Observations in `Relocations` format
-
         """
 
         assert (subject_group is None) != (group_name is None)
@@ -741,18 +638,15 @@ class EarthRangerIO(ConcurrentDasClient):
     def get_observations_for_patrols(self, patrols_df, **kwargs):
         """
         Download observations for provided `patrols_df`.
-
         Parameters
         ----------
         patrols_df : pd.DataFrame
             Data returned from a call to `get_patrols`.
         kwargs
             Additional parameters to pass to `get_subject_observations`.
-
         Returns
         -------
         relocations : ecoscope.base.Relocations
-
         """
 
         observations = []
@@ -779,10 +673,6 @@ class EarthRangerIO(ConcurrentDasClient):
                         f"Getting observations for subject_id={subject_id} start_time={start_time} end_time={end_time}"
                         f"failed for: {e}"
                     )
-
-        for i, patrol in patrols_df.iterrows():
-            pd.DataFrame(observations[i])["groupby_col"] = patrol["id"]
-
         return ecoscope.base.Relocations(pd.concat(observations))
 
     def post_observations(
@@ -800,11 +690,9 @@ class EarthRangerIO(ConcurrentDasClient):
             The source column in the observation dataframe
         recorded_at_col : str
             The observation recorded time column in the dataframe
-
         Returns
         -------
         None
-
         """
 
         def upload(obs):
@@ -817,14 +705,14 @@ class EarthRangerIO(ConcurrentDasClient):
                 obs = pack_columns(obs, columns=["source", "recorded_at", "location"])
                 post_data = obs.to_dict("records")
                 results = super(EarthRangerIO, self).post_observation(post_data)
-            except DasClientException as exc:
+            except ERClientException as exc:
                 self.logger.error(exc)
             except requests.exceptions.RequestException as exc:
                 self.logger.error(exc)
             else:
                 return pd.DataFrame(results)
 
-        return observations.groupby(source_id_col).progress_apply(upload)
+        return observations.groupby(source_id_col, group_keys=False).progress_apply(upload)
 
     def post_subjectsource(
         self,
@@ -842,11 +730,9 @@ class EarthRangerIO(ConcurrentDasClient):
         lower_bound_assignend_range
         upper_bound_assigned_range
         additional
-
         Returns
         -------
         pd.DataFrame
-
         """
 
         if additional is None:
@@ -884,12 +770,10 @@ class EarthRangerIO(ConcurrentDasClient):
         Parameters
         ----------
         events
-
         Returns
         -------
         pd.DataFrame:
             New events created in EarthRanger.
-
         """
 
         events = self._dataframe_to_dict(events)
@@ -908,12 +792,10 @@ class EarthRangerIO(ConcurrentDasClient):
         event_id
             UUID for the event that will be updated.
         events
-
         Returns
         -------
         pd.DataFrame:
             Updated events in EarthRanger.
-
         """
 
         events = self._dataframe_to_dict(events)
@@ -922,3 +804,94 @@ class EarthRangerIO(ConcurrentDasClient):
         else:
             results = [self._patch(f"activity/event/{event_id}", payload=events)]
         return pd.DataFrame(results)
+
+    def post_subject(
+        self,
+        subject_name: str,
+        subject_type: str,
+        subject_subtype: str,
+        is_active: bool = True,
+        tracks_available: bool = True,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        subject_name
+        subject_type
+        subject_subtype
+        is_active
+        tracks_available
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+
+        payload = {
+            "name": subject_name,
+            "subject_type": subject_type,
+            "subject_subtype": subject_subtype,
+            "is_active": is_active,
+            "tracks_available": tracks_available,
+        }
+
+        if kwargs:
+            payload.update(kwargs)
+
+        response = self._post("subjects", payload=payload)
+        return pd.DataFrame([response])
+
+    def post_source(
+        self,
+        source_type: str,
+        manufacturer_id: str,
+        model_name: str,
+        provider: str,
+        additional: typing.Dict = {},
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        source_type
+        manufacturer_id
+        model_name
+        provider
+        additional
+        Returns
+        -------
+        pd.DataFrame
+        """
+
+        payload = {
+            "source_type": source_type,
+            "manufacturer_id": manufacturer_id,
+            "model_name": model_name,
+            "additional": additional,
+            "provider": provider,
+        }
+
+        if kwargs:
+            payload.update(kwargs)
+
+        response = self._post("sources", payload=payload)
+        return pd.DataFrame([response])
+
+    def post_patrol(self, priority: int, **kwargs) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        priority
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        payload = {"priority": priority}
+
+        if kwargs:
+            payload.update(kwargs)
+
+        response = self._post("activity/patrols", payload=payload)
+        return pd.DataFrame([response])
