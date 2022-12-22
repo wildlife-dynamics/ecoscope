@@ -126,7 +126,7 @@ class EarthRangerIO(ERClient):
         bbox: Include subjects having track data within this bounding box defined by a 4-tuple of coordinates marking
             west, south, east, north.
         subject_group: Indicate a subject group for which Subjects should be listed.
-        name : Find subjects with the given name [UUID]
+        name : Find subjects with the given name
         updated_since: Return Subject that have been updated since the given timestamp.
         render_last_location: Indicate whether to render each subject's last location.
         tracks: Indicate whether to render each subject's recent tracks.
@@ -171,9 +171,10 @@ class EarthRangerIO(ERClient):
                 raise KeyError("`group_name` not found")
 
         df = self._get("subjects/", params=params)
-        if df.empty:
-            df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
-        print(df.columns)
+        assert not df.empty
+
+        df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
+
         return df
 
     def get_sources(
