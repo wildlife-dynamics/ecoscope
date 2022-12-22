@@ -198,7 +198,7 @@ class Ecograph:
         for node in G.nodes():
             for key in attributes.keys():
                 if len(G.nodes[node][key]) != 0:
-                    G.nodes[node][key] = np.mean(G.nodes[node][key])
+                    G.nodes[node][key] = np.nanmean(G.nodes[node][key])
                 else:
                     G.nodes[node][key] = np.nan
 
@@ -210,8 +210,7 @@ class Ecograph:
         G.add_node(node_id)
         G.nodes[node_id]["weight"] += 1
         for key, value in attributes.items():
-            if value is not None:
-                G.nodes[node_id][key].append(value)
+            G.nodes[node_id][key].append(value)
 
     @staticmethod
     def _get_day_night_value(day_night_value):
@@ -228,10 +227,7 @@ class Ecograph:
             if empty:
                 G.nodes[node_id][key] = []
             else:
-                if value is not None:
-                    G.nodes[node_id][key] = [value]
-                else:
-                    G.nodes[node_id][key] = []
+                G.nodes[node_id][key] = [value]
 
     @staticmethod
     def _get_dot_product(x, y, z, w):
@@ -246,7 +242,7 @@ class Ecograph:
                 angle = angle - 2 * np.pi
             return np.cos(angle)
         else:
-            return None
+            return np.nan
 
     @staticmethod
     def _get_tortuosities(self, lines, time_delta):
@@ -259,20 +255,20 @@ class Ecograph:
                 total_length += ((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2) ** 0.5
             else:
                 if beeline_dist != 0:
-                    return None, np.log(time_delta / (beeline_dist**2))
+                    return np.nan, np.log(time_delta / (beeline_dist**2))
                 else:
-                    return None, None
+                    return np.nan, np.nan
         point1, point2 = lines[len(lines) - 1][0], lines[len(lines) - 1][1]
         total_length += ((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2) ** 0.5
 
         if (total_length != 0) and (beeline_dist != 0):
             return (beeline_dist / total_length), np.log(time_delta / (beeline_dist**2))
         elif (total_length == 0) and (beeline_dist > 0):
-            return None, np.log(time_delta / (beeline_dist**2))
+            return np.nan, np.log(time_delta / (beeline_dist**2))
         elif (total_length > 0) and (beeline_dist == 0):
-            return 0, None
+            return 0, np.nan
         else:
-            return None, None
+            return np.nan, np.nan
 
     @staticmethod
     def _compute_network_metrics(self, G, radius, cutoff):
