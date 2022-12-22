@@ -718,7 +718,7 @@ class EarthRangerIO(ERClient):
         self,
         subject_id: str,
         source_id: str,
-        lower_bound_assignend_range: datetime.datetime,
+        lower_bound_assigned_range: datetime.datetime,
         upper_bound_assigned_range: datetime.datetime,
         additional: typing.Dict = None,
     ) -> pd.DataFrame:
@@ -727,7 +727,7 @@ class EarthRangerIO(ERClient):
         ----------
         subject_id
         source_id
-        lower_bound_assignend_range
+        lower_bound_assigned_range
         upper_bound_assigned_range
         additional
         Returns
@@ -740,7 +740,7 @@ class EarthRangerIO(ERClient):
         payload = {
             "source": source_id,
             "assigned_range": {
-                "lower": lower_bound_assignend_range,
+                "lower": lower_bound_assigned_range,
                 "upper": upper_bound_assigned_range,
             },
             "additional": additional,
