@@ -893,64 +893,64 @@ class EarthRangerIO(ERClient):
         return pd.DataFrame([response])
 
 
-def post_patrol_segment(
-    self,
-    patrol_id: str,
-    patrol_type: str = None,
-    tracked_subject_id: str = None,
-    scheduled_start: str = None,
-    scheduled_end: str = None,
-    start_time: str = None,
-    end_time: str = None,
-    start_location: typing.Tuple[float, float] = None,
-    end_location: typing.Tuple[float, float] = None,
-    **kwargs,
-) -> pd.DataFrame:
-    """
-    Parameters
-    ----------
-    patrol_id
-    patrol_type
-    tracked_subject_id
-    scheduled_start
-    scheduled_end
-    start_time
-    end_time
-    start_location
-    end_location
+    def post_patrol_segment(
+        self,
+        patrol_id: str,
+        patrol_type: str = None,
+        tracked_subject_id: str = None,
+        scheduled_start: str = None,
+        scheduled_end: str = None,
+        start_time: str = None,
+        end_time: str = None,
+        start_location: typing.Tuple[float, float] = None,
+        end_location: typing.Tuple[float, float] = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        patrol_id
+        patrol_type
+        tracked_subject_id
+        scheduled_start
+        scheduled_end
+        start_time
+        end_time
+        start_location
+        end_location
 
-    Returns
-    -------
-    pd.DataFrame
-    """
+        Returns
+        -------
+        pd.DataFrame
+        """
 
-    payload = {
-        "patrol": patrol_id,
-        "scheduled_start": scheduled_start,
-        "scheduled_end": scheduled_end,
-        "time_range": {"start_time": start_time, "end_time": end_time},
-    }
+        payload = {
+            "patrol": patrol_id,
+            "scheduled_start": scheduled_start,
+            "scheduled_end": scheduled_end,
+            "time_range": {"start_time": start_time, "end_time": end_time},
+        }
 
-    if tracked_subject_id is not None:
-        payload.update({"leader": {"content_type": "observations.subject", "id": tracked_subject_id}})
-    else:
-        payload.update({"leader": None})
+        if tracked_subject_id is not None:
+            payload.update({"leader": {"content_type": "observations.subject", "id": tracked_subject_id}})
+        else:
+            payload.update({"leader": None})
 
-    if start_location is not None:
-        payload.update({"start_location": {"latitude": start_location[0], "longitude": start_location[1]}})
-    else:
-        payload.update({"start_location": None})
+        if start_location is not None:
+            payload.update({"start_location": {"latitude": start_location[0], "longitude": start_location[1]}})
+        else:
+            payload.update({"start_location": None})
 
-    if end_location is not None:
-        payload.update({"end_location": {"latitude": end_location[0], "longitude": end_location[1]}})
-    else:
-        payload.update({"end_location": None})
+        if end_location is not None:
+            payload.update({"end_location": {"latitude": end_location[0], "longitude": end_location[1]}})
+        else:
+            payload.update({"end_location": None})
 
-    if patrol_type is not None:
-        payload.update({"patrol_type": patrol_type})
+        if patrol_type is not None:
+            payload.update({"patrol_type": patrol_type})
 
-    if kwargs:
-        payload.update(kwargs)
+        if kwargs:
+            payload.update(kwargs)
 
-    response = self._post("activity/patrols/segments/", payload=payload)
-    return pd.DataFrame([response])
+        response = self._post("activity/patrols/segments/", payload=payload)
+        return pd.DataFrame([response])
