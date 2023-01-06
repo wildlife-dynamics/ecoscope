@@ -582,7 +582,7 @@ class EarthRangerIO(ERClient):
 
         def by_cursor(params=params):
             params["return_data"] = True
-            params["page_size"] = 50
+            params["page_size"] = 1000
 
             results = self._get(path="activity/events/", params=params)
 
