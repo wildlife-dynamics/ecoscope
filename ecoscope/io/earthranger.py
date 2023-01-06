@@ -582,7 +582,7 @@ class EarthRangerIO(ERClient):
 
         def by_cursor(params=params):
             params["return_data"] = True
-            params["page_size"] = 1000
+            params["page_size"] = 100
 
             results = self._get(path="observations", params=params)
 
@@ -602,11 +602,11 @@ class EarthRangerIO(ERClient):
             params["use_cursor"] = use_cursor
             dataframe = pd.DataFrame(by_cursor(params=params))
             dataframe[id_name] = _id
-            df = self._get("activity/events/", params=kwargs)
+            df = self._get("activity/events/", params=params)
         else:
             dataframe = by_multithreads(params=params)
             dataframe[id_name] = _id
-            df = self._get("activity/events/", params=kwargs)
+            df = self._get("activity/events/", params=params)
 
         #        df = self._get("activity/events/", params=kwargs)
         assert not df.empty
