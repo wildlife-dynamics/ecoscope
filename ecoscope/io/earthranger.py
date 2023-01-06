@@ -503,6 +503,7 @@ class EarthRangerIO(ERClient):
         exclude_contained=None,
         updated_since=None,
         event_category=None,
+        use_cursor=False,
         filter=None,
         **addl_kwargs,
     ):
@@ -550,7 +551,7 @@ class EarthRangerIO(ERClient):
             GeoDataFrame of queried events
         """
 
-        kwargs = self._clean_kwargs(
+        params = self._clean_kwargs(
             addl_kwargs,
             is_collection=is_collection,
             updated_size=updated_size,
@@ -570,10 +571,44 @@ class EarthRangerIO(ERClient):
             exclude_contained=exclude_contained,
             updated_since=updated_since,
             event_category=event_category,
+            use_cursor=use_cursor,
             filter=filter,
         )
 
-        df = self._get("activity/events/", params=kwargs)
+
+        def by_multithreads(params):
+            params["return_data"] = True
+            return pd.DataFrame(self.get_objects_multithreaded(object="observations", **params))
+
+        def by_cursor(params=params):
+            params["return_data"] = True
+            params["page_size"] = 1000
+
+            results = self._get(path="observations", params=params)
+
+            while True:
+                if results and results.get("results"):
+                    for r in results["results"]:
+                        yield r
+
+                if results and results["next"]:
+                    url, p = split_link(results["next"])
+                    params["page"] = p["page"]
+                    results = self._get(path="observations", params=p)
+                else:
+                    break
+
+        if use_cursor is True:
+            params["use_cursor"] = use_cursor
+            dataframe = pd.DataFrame(by_cursor(params=params))
+            dataframe[id_name] = _id
+            df = self._get("activity/events/", params=kwargs)
+        else:
+            dataframe = by_multithreads(params=params)
+            dataframe[id_name] = _id
+            df = self._get("activity/events/", params=kwargs)
+
+        #        df = self._get("activity/events/", params=kwargs)
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
 
@@ -891,7 +926,6 @@ class EarthRangerIO(ERClient):
 
         response = self._post("activity/patrols", payload=payload)
         return pd.DataFrame([response])
-
 
     def post_patrol_segment(
         self,
