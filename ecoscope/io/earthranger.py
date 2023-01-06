@@ -578,13 +578,13 @@ class EarthRangerIO(ERClient):
 
         def by_multithreads(params):
             params["return_data"] = True
-            return pd.DataFrame(self.get_objects_multithreaded(object="observations", **params))
+            return pd.DataFrame(self.get_objects_multithreaded(object="activity/events/", **params))
 
         def by_cursor(params=params):
             params["return_data"] = True
-            params["page_size"] = 100
+            params["page_size"] = 50
 
-            results = self._get(path="observations", params=params)
+            results = self._get(path="activity/events/", params=params)
 
             while True:
                 if results and results.get("results"):
@@ -594,21 +594,16 @@ class EarthRangerIO(ERClient):
                 if results and results["next"]:
                     url, p = split_link(results["next"])
                     params["page"] = p["page"]
-                    results = self._get(path="observations", params=p)
+                    results = self._get(path="activity/events/", params=p)
                 else:
                     break
 
         if use_cursor is True:
             params["use_cursor"] = use_cursor
-            dataframe = pd.DataFrame(by_cursor(params=params))
-            dataframe[id_name] = _id
-            df = self._get("activity/events/", params=params)
+            df = pd.DataFrame(by_cursor(params=params))
         else:
-            dataframe = by_multithreads(params=params)
-            dataframe[id_name] = _id
-            df = self._get("activity/events/", params=params)
+            df = by_multithreads(params=params)
 
-        #        df = self._get("activity/events/", params=kwargs)
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
 
