@@ -41,6 +41,29 @@ class EarthRangerIO(ERClient):
         print(col)
         for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
             df[k] = v.values
+            
+    def by_multithreads(self, params, object):
+        params["return_data"] = True
+        return pd.DataFrame(self.get_objects_multithreaded(object=object, **params))
+    
+    def by_cursor(self, params, path):
+        params["return_data"] = True
+        params["page_size"] = 1000
+
+        results = self._get(path=path, params=params)
+
+        while True:
+            if results and results.get("results"):
+                for r in results["results"]:
+                    yield r
+
+            if results and results["next"]:
+                url, p = split_link(results["next"])
+                params["page"] = p["page"]
+                results = self._get(path=path, params=p)
+            else:
+                break
+
 
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _get(self, path, stream=False, **kwargs):
@@ -258,28 +281,6 @@ class EarthRangerIO(ERClient):
             created_after=created_after,
         )
 
-        def by_multithreads(params):
-            params["return_data"] = True
-            return pd.DataFrame(self.get_objects_multithreaded(object="observations", **params))
-
-        def by_cursor(params=params):
-            params["return_data"] = True
-            params["page_size"] = 1000
-
-            results = self._get(path="observations", params=params)
-
-            while True:
-                if results and results.get("results"):
-                    for r in results["results"]:
-                        yield r
-
-                if results and results["next"]:
-                    url, p = split_link(results["next"])
-                    params["page"] = p["page"]
-                    results = self._get(path="observations", params=p)
-                else:
-                    break
-
         if source_ids:
             id_name, ids = "source_id", source_ids
         elif subject_ids:
@@ -295,11 +296,11 @@ class EarthRangerIO(ERClient):
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
             if use_cursor is True:
                 params["use_cursor"] = use_cursor
-                dataframe = pd.DataFrame(by_cursor(params=params))
+                dataframe = pd.DataFrame(self.by_cursor(params=params, path="observations"))
                 dataframe[id_name] = _id
                 observations.append(dataframe)
             else:
-                dataframe = by_multithreads(params=params)
+                dataframe = self.by_multithreads(params=params, object="observations")
                 dataframe[id_name] = _id
                 observations.append(dataframe)
 
@@ -575,34 +576,11 @@ class EarthRangerIO(ERClient):
             filter=filter,
         )
 
-
-        def by_multithreads(params):
-            params["return_data"] = True
-            return pd.DataFrame(self.get_objects_multithreaded(object="activity/events/", **params))
-
-        def by_cursor(params=params):
-            params["return_data"] = True
-            params["page_size"] = 1000
-
-            results = self._get(path="activity/events/", params=params)
-
-            while True:
-                if results and results.get("results"):
-                    for r in results["results"]:
-                        yield r
-
-                if results and results["next"]:
-                    url, p = split_link(results["next"])
-                    params["page"] = p["page"]
-                    results = self._get(path="activity/events/", params=p)
-                else:
-                    break
-
         if use_cursor is True:
             params["use_cursor"] = use_cursor
-            df = pd.DataFrame(by_cursor(params=params))
+            df = pd.DataFrame(self.by_cursor(path="activity/events/", params=params))
         else:
-            df = by_multithreads(params=params)
+            df = self.by_multithreads(object="activity/events/", params=params)
 
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
