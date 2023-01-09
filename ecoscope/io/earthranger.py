@@ -41,11 +41,11 @@ class EarthRangerIO(ERClient):
         print(col)
         for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
             df[k] = v.values
-            
+
     def by_multithreads(self, params, object):
         params["return_data"] = True
         return pd.DataFrame(self.get_objects_multithreaded(object=object, **params))
-    
+
     def by_cursor(self, params, path):
         params["return_data"] = True
         params["page_size"] = 1000
@@ -63,7 +63,6 @@ class EarthRangerIO(ERClient):
                 results = self._get(path=path, params=p)
             else:
                 break
-
 
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _get(self, path, stream=False, **kwargs):
@@ -127,13 +126,10 @@ class EarthRangerIO(ERClient):
     def get_subjects(
         self,
         include_inactive=None,
-        tracks_since=None,
-        tracks_until=None,
         bbox=None,
         subject_group=None,
         name=None,
         updated_since=None,
-        render_last_location=None,
         tracks=None,
         id=None,
         updated_until=None,
@@ -144,14 +140,11 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         include_inactive: Include inactive subjects in list.
-        tracks_since: Include tracks since this timestamp
-        tracks_until: Include tracks up through this timestamp
         bbox: Include subjects having track data within this bounding box defined by a 4-tuple of coordinates marking
             west, south, east, north.
         subject_group: Indicate a subject group for which Subjects should be listed.
         name : Find subjects with the given name
         updated_since: Return Subject that have been updated since the given timestamp.
-        render_last_location: Indicate whether to render each subject's last location.
         tracks: Indicate whether to render each subject's recent tracks.
         id: A comma-delimited list of Subject IDs.
         updated_until
@@ -164,13 +157,10 @@ class EarthRangerIO(ERClient):
         params = self._clean_kwargs(
             addl_kwargs,
             include_inactive=include_inactive,
-            tracks_since=tracks_since,
-            tracks_until=tracks_until,
             bbox=bbox,
             subject_group=subject_group,
             name=name,
             updated_since=updated_since,
-            render_last_location=render_last_location,
             tracks=tracks,
             id=id,
             updated_until=updated_until,
