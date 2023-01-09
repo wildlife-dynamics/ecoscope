@@ -495,7 +495,8 @@ class EarthRangerIO(ERClient):
         updated_since=None,
         event_category=None,
         use_cursor=False,
-        filter=None,
+        since=None,
+        until=None,
         **addl_kwargs,
     ):
         """
@@ -533,9 +534,8 @@ class EarthRangerIO(ERClient):
         oldest_update_date
         exclude_contained
         event_category
-        filter : json dict
-            Can contain any of 'event_filter_id', 'text', 'date_range', 'duration', 'state', 'priority',
-            'event_category', 'event_type', 'reported_by', 'create_date', 'update_date'
+        since
+        until
         Returns
         -------
         events : gpd.GeoDataFrame
@@ -563,8 +563,15 @@ class EarthRangerIO(ERClient):
             updated_since=updated_since,
             event_category=event_category,
             use_cursor=use_cursor,
-            filter=filter,
         )
+
+        filter = {"date_range": {}}
+        if since is not None:
+            filter["date_range"]["lower"] = since
+            params["filter"] = filter
+        if until is not None:
+            filter["date_range"]["upper"] = until
+            params["filter"] = filter
 
         if use_cursor is True:
             params["use_cursor"] = use_cursor
