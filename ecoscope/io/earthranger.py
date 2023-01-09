@@ -568,10 +568,10 @@ class EarthRangerIO(ERClient):
         filter = {"date_range": {}}
         if since is not None:
             filter["date_range"]["lower"] = since
-            params["filter"] = filter
+            params["filter"] = json.dumps(filter)
         if until is not None:
             filter["date_range"]["upper"] = until
-            params["filter"] = filter
+            params["filter"] = json.dumps(filter)
 
         if use_cursor is True:
             params["use_cursor"] = use_cursor
