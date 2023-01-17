@@ -653,70 +653,70 @@ class EarthRangerIO(ERClient):
         return df
     
     def post_source(
-    self,
-    manufacturer_id: str,
-    source_type: str,
-    model_name: str,
-    provider_name: str,
-    additional: typing.Dict = None,
-    ) -> pd.DataFrame:
-    """
-    Parameters
-    ----------
-    manufacturer_id
-    source_type
-    model_name
-    provider_name
-    additional
-    Returns
-    -------
-    pd.DataFrame
-    """
-
-    if additional is None:
-        additional = {}
-    payload = {
-        "manufacturer": manufacturer_id,
-        "source": source_type,
-        "model": model_name,
-        "provider": provider_name,
-        "additional": None
-    }
-
-    urlpath = f"/sources"
-    response = self._post(urlpath, payload=payload)
-    return pd.DataFrame([response])
+        self,
+        manufacturer_id: str,
+        source_type: str,
+        model_name: str,
+        provider_name: str,
+        additional: typing.Dict = None,
+        ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        manufacturer_id
+        source_type
+        model_name
+        provider_name
+        additional
+        Returns
+        -------
+        pd.DataFrame
+        """
+    
+        if additional is None:
+            additional = {}
+        payload = {
+            "manufacturer": manufacturer_id,
+            "source": source_type,
+            "model": model_name,
+            "provider": provider_name,
+            "additional": None
+        }
+    
+        urlpath = f"/sources"
+        response = self._post(urlpath, payload=payload)
+        return pd.DataFrame([response])
     
     def get_sources(
-    self,
-    use_cursor=False,
-    **addl_kwargs,
-    ):
-    """
-    Parameters
-    ----------
-    use_cursor
-        Whether to use cursors or multithreads
-
-    Returns
-    -------
-    sources : df.DataFrame
-        DataFrame of queried sources
-    """
-
-    params = self._clean_kwargs(
-        addl_kwargs,
-        use_cursor=use_cursor
-        )
-
-    if use_cursor is True:
-        params["use_cursor"] = use_cursor
-        df = pd.DataFrame(self.by_cursor(path="sources/", params=params))
-    else:
-        df = self.by_multithreads(object="sources/", params=params)
-
-    assert not df.empty
-    return df
+        self,
+        use_cursor=False,
+        **addl_kwargs,
+        ):
+        """
+        Parameters
+        ----------
+        use_cursor
+            Whether to use cursors or multithreads
+    
+        Returns
+        -------
+        sources : df.DataFrame
+            DataFrame of queried sources
+        """
+    
+        params = self._clean_kwargs(
+            addl_kwargs,
+            use_cursor=use_cursor
+            )
+    
+        if use_cursor is True:
+            params["use_cursor"] = use_cursor
+            df = pd.DataFrame(self.by_cursor(path="sources/", params=params))
+        else:
+            df = self.by_multithreads(object="sources/", params=params)
+    
+        assert not df.empty
+        return df
 
     def get_patrols(self, filter=None, status=None, **addl_kwargs):
         """
