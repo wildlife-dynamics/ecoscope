@@ -94,6 +94,36 @@ class EarthRangerIO(ERClient):
                 else:
                     return pd.DataFrame(results)
         raise response.raise_for_status()
+        
+    @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
+    def _delete(self, path):
+
+        headers = {'User-Agent': self.user_agent}
+        headers.update(self.auth_headers())
+
+        if (self._http_session):
+            response = self._http_session.delete(
+                self._er_url(path), headers=headers)
+        else:
+            response = requests.delete(self._er_url(path), headers=headers)
+
+        if response.ok:
+            return True
+
+        if response.status_code == 404:  # not found
+            self.logger.error(f"404 when calling {path}")
+            raise ERClientNotFound()
+
+        if response.status_code == 403:  # forbidden
+            try:
+                _ = json.loads(response.text)
+                reason = _['status']['detail']
+            except:
+                reason = 'unknown reason'
+            raise ERClientPermissionDenied(reason)
+
+        raise ERClientException(
+            f'Failed to delete: {response.status_code} {response.text}')
 
     @staticmethod
     def _clean_kwargs(addl_kwargs={}, **kwargs):
@@ -109,6 +139,37 @@ class EarthRangerIO(ERClient):
         if results and results.get("count"):
             return results["count"]
         return 0
+
+    def get_sources(
+        self,
+        use_cursor=False,
+        **addl_kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        use_cursor
+            Whether to use cursors or multithreads
+
+        Returns
+        -------
+        sources : df.DataFrame
+            DataFrame of queried sources
+        """
+
+        params = self._clean_kwargs(
+            addl_kwargs,
+            use_cursor=use_cursor
+            )
+
+        if use_cursor is True:
+            params["use_cursor"] = use_cursor
+            df = pd.DataFrame(self.by_cursor(path="sources/", params=params))
+        else:
+            df = self.by_multithreads(object="sources/", params=params)
+
+        assert not df.empty
+        return df
 
     def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
         """
@@ -590,6 +651,72 @@ class EarthRangerIO(ERClient):
 
         df.sort_values("time", inplace=True)
         return df
+    
+    def post_source(
+    self,
+    manufacturer_id: str,
+    source_type: str,
+    model_name: str,
+    provider_name: str,
+    additional: typing.Dict = None,
+    ) -> pd.DataFrame:
+    """
+    Parameters
+    ----------
+    manufacturer_id
+    source_type
+    model_name
+    provider_name
+    additional
+    Returns
+    -------
+    pd.DataFrame
+    """
+
+    if additional is None:
+        additional = {}
+    payload = {
+        "manufacturer": manufacturer_id,
+        "source": source_type,
+        "model": model_name,
+        "provider": provider_name,
+        "additional": None
+    }
+
+    urlpath = f"/sources"
+    response = self._post(urlpath, payload=payload)
+    return pd.DataFrame([response])
+    
+    def get_sources(
+    self,
+    use_cursor=False,
+    **addl_kwargs,
+    ):
+    """
+    Parameters
+    ----------
+    use_cursor
+        Whether to use cursors or multithreads
+
+    Returns
+    -------
+    sources : df.DataFrame
+        DataFrame of queried sources
+    """
+
+    params = self._clean_kwargs(
+        addl_kwargs,
+        use_cursor=use_cursor
+        )
+
+    if use_cursor is True:
+        params["use_cursor"] = use_cursor
+        df = pd.DataFrame(self.by_cursor(path="sources/", params=params))
+    else:
+        df = self.by_multithreads(object="sources/", params=params)
+
+    assert not df.empty
+    return df
 
     def get_patrols(self, filter=None, status=None, **addl_kwargs):
         """
@@ -878,6 +1005,17 @@ class EarthRangerIO(ERClient):
 
         response = self._post("sources", payload=payload)
         return pd.DataFrame([response])
+
+    def delete_source(self, source_id: str):
+        """
+        Parameters
+        ----------
+        source_id
+        -------
+        """
+        
+        urlpath = f"/source"
+        response = self._delete("source/" + source_id + "/")
 
     def post_patrol(self, priority: int, **kwargs) -> pd.DataFrame:
         """
