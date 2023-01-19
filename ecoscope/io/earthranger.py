@@ -937,6 +937,17 @@ class EarthRangerIO(ERClient):
         else:
             results = [self._patch(f"activity/event/{event_id}", payload=events)]
         return pd.DataFrame(results)
+    
+    def delete_event(self, event_id: str):
+        """
+        Parameters
+        ----------
+        event_id
+        -------
+        """
+        
+        urlpath = f"activity/event/"
+        response = self._delete("activity/event/" + event_id + "/")
 
     def post_subject(
         self,
