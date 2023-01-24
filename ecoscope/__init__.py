@@ -11,7 +11,7 @@ ASCII = """\
 __initialized = False
 
 
-def init(silent=False, selenium=False, force=False):
+def init(silent=False, force=False):
     """
     Initializes the environment with ecoscope-specific customizations.
 
@@ -19,8 +19,6 @@ def init(silent=False, selenium=False, force=False):
     ----------
     silent : bool, optional
         Removes console output
-    selenium : bool, optional
-        Installs selenium webdriver in a colab environment
     force : bool, optional
         Ignores `__initialized`
 
@@ -73,42 +71,25 @@ def init(silent=False, selenium=False, force=False):
     import plotly.io as pio
 
     pio.templates.default = "seaborn"
-
-    import sys
-
-    if "google.colab" in sys.modules and selenium:
-        import shlex
-        import subprocess
-      
-        cat_1 = shlex.split("cat > /etc/apt/sources.list.d/debian.list <<'EOF'")
-        deb_multiline = """\
+    
+    from IPython import get_ipython
+    get_ipython().run_cell_magic("shell", "",
+"""\
+cat > /etc/apt/sources.list.d/debian.list <<'EOF'
 deb [arch=amd64 signed-by=/usr/share/keyrings/debian-buster.gpg] http://deb.debian.org/debian buster main
 deb [arch=amd64 signed-by=/usr/share/keyrings/debian-buster-updates.gpg] http://deb.debian.org/debian buster-updates main
 deb [arch=amd64 signed-by=/usr/share/keyrings/debian-security-buster.gpg] http://deb.debian.org/debian-security buster/updates main
 EOF
-"""
-        subprocess.run([cat_1, deb_multiline])
 
-        apt_keyadv_1 = shlex.split("apt-key adv --keyserver keyserver.ubuntu.com --recv-keys DCC9EFBF77E11517")
-        subprocess.run(apt_keyadv_1)
-        
-        apt_keyadv_2 = shlex.split("apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138")
-        subprocess.run(apt_keyadv_2)
-        
-        apt_keyadv_3 = shlex.split("apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 112695A0E562B32A")
-        subprocess.run(apt_keyadv_3)
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys DCC9EFBF77E11517
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 112695A0E562B32A
 
-        apt_keyexport_1 = shlex.split("apt-key export 77E11517 | gpg --dearmour -o /usr/share/keyrings/debian-buster.gpg")
-        subprocess.run(apt_keyexport_1)
-        
-        apt_keyexport_2 = shlex.split("apt-key export 22F3D138 | gpg --dearmour -o /usr/share/keyrings/debian-buster-updates.gpg")
-        subprocess.run(apt_keyexport_2)
-        
-        apt_keyexport_3 = shlex.split("apt-key export E562B32A | gpg --dearmour -o /usr/share/keyrings/debian-security-buster.gpg")
-        subprocess.run(apt_keyexport_3)
+apt-key export 77E11517 | gpg --dearmour -o /usr/share/keyrings/debian-buster.gpg
+apt-key export 22F3D138 | gpg --dearmour -o /usr/share/keyrings/debian-buster-updates.gpg
+apt-key export E562B32A | gpg --dearmour -o /usr/share/keyrings/debian-security-buster.gpg
 
-        cat_2 = shlex.split("cat > /etc/apt/preferences.d/chromium.pref << 'EOF'")
-        package_multiline = """\
+cat > /etc/apt/preferences.d/chromium.pref << 'EOF'
 Package: *
 Pin: release a=eoan
 Pin-Priority: 500
@@ -123,17 +104,13 @@ Package: chromium*
 Pin: origin "deb.debian.org"
 Pin-Priority: 700
 EOF
+
+apt-get update
+apt-get install chromium chromium-driver
+
+pip install selenium
 """
-        subprocess.run([cat_2, package_multiline])
-  
-        apt_update = shlex.split("apt-get update")
-        subprocess.run(apt_update)
-        
-        apt_install = shlex.split("apt-get install chromium chromium-driver")
-        print(subprocess.run(apt_install, shell=True, capture_output=True).stdout.decode())
-       
-        pip_install = shlex.split("pip install selenium")
-        subprocess.run(pip_install)
+    )
 
     __initialized = True
     if not silent:
@@ -147,5 +124,5 @@ __all__ = [
     "init",
     "io",
     "mapping",
-    "plotting",
+    "plotting"
 ]
