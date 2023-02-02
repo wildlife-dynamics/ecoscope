@@ -11,7 +11,7 @@ ASCII = """\
 __initialized = False
 
 
-def init(silent=False, force=False, selenium=False):
+def init(silent=False, selenium=False, force=False):
     """
     Initializes the environment with ecoscope-specific customizations.
 
