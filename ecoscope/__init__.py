@@ -89,13 +89,13 @@ deb [arch=amd64 signed-by=/usr/share/keyrings/debian-buster-updates.gpg] http://
 deb [arch=amd64 signed-by=/usr/share/keyrings/debian-security-buster.gpg] http://deb.debian.org/debian-security buster/updates main
 EOF
 
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys DCC9EFBF77E11517
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 112695A0E562B32A
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys DCC9EFBF77E11517 > /dev/null 2>&1
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 648ACFD622F3D138 > /dev/null 2>&1
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 112695A0E562B32A > /dev/null 2>&1
 
-apt-key export 77E11517 | gpg --dearmour -o /usr/share/keyrings/debian-buster.gpg
-apt-key export 22F3D138 | gpg --dearmour -o /usr/share/keyrings/debian-buster-updates.gpg
-apt-key export E562B32A | gpg --dearmour -o /usr/share/keyrings/debian-security-buster.gpg
+apt-key export 77E11517 | gpg --dearmour -o /usr/share/keyrings/debian-buster.gpg > /dev/null 2>&1
+apt-key export 22F3D138 | gpg --dearmour -o /usr/share/keyrings/debian-buster-updates.gpg > /dev/null 2>&1
+apt-key export E562B32A | gpg --dearmour -o /usr/share/keyrings/debian-security-buster.gpg > /dev/null 2>&1
 
 cat > /etc/apt/preferences.d/chromium.pref << 'EOF'
 Package: *
@@ -113,10 +113,10 @@ Pin: origin "deb.debian.org"
 Pin-Priority: 700
 EOF
 
-apt-get update
-apt-get install chromium chromium-driver
+apt-get update > /dev/null 2>&1
+apt-get install chromium chromium-driver > /dev/null 2>&1
 
-pip install selenium
+pip install selenium > /dev/null 2>&1
 """,
         )
 
