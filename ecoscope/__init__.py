@@ -78,13 +78,8 @@ def init(silent=False, selenium=False, force=False):
 
     if "google.colab" in sys.modules and selenium:
         from IPython import get_ipython
-        from IPython.utils import io
         
-        with io.capture_output() as captured:
-            get_ipython().run_cell_magic(
-            "shell",
-            "",
-            """\
+        shell_text = """\
 cat > /etc/apt/sources.list.d/debian.list <<'EOF'
 deb [arch=amd64 signed-by=/usr/share/keyrings/debian-buster.gpg] http://deb.debian.org/debian buster main
 deb [arch=amd64 signed-by=/usr/share/keyrings/debian-buster-updates.gpg] http://deb.debian.org/debian buster-updates main
@@ -119,8 +114,14 @@ apt-get update
 apt-get install chromium chromium-driver
 
 pip install selenium
-""",
-        )
+"""
+        
+        if silent:
+            from IPython.utils import io
+            with io.capture_output() as captured:
+                get_ipython().run_cell_magic("shell", "", shell_text)
+        else:
+            get_ipython().run_cell_magic("shell", "", shell_text)
 
     __initialized = True
     if not silent:
