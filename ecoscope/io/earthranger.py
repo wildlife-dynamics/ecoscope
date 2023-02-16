@@ -847,6 +847,17 @@ class EarthRangerIO(ERClient):
 
         return observations.groupby(source_id_col, group_keys=False).progress_apply(upload)
 
+    def delete_observation(self, observation_id: str):
+        """
+        Parameters
+        ----------
+        observation_id
+        -------
+        """
+        
+        urlpath = f"observation/"
+        response = self._delete("observation/" + observation_id + "/")
+    
     def post_subjectsource(
         self,
         subject_id: str,
