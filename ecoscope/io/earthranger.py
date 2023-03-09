@@ -262,7 +262,6 @@ class EarthRangerIO(ERClient):
         filter=None,
         include_details=None,
         created_after=None,
-        use_cursor=False,
         **addl_kwargs,
     ):
         """
@@ -290,7 +289,7 @@ class EarthRangerIO(ERClient):
         -------
         observations : gpd.GeoDataFrame
         """
-#         assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
+        assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
 
         params = self._clean_kwargs(
             addl_kwargs,
@@ -298,9 +297,7 @@ class EarthRangerIO(ERClient):
             until=until,
             filter=filter,
             include_details=include_details,
-            created_after=created_after,
-            threads=5,
-            page_size=4000
+            created_after=created_after
         )
 
         if source_ids:
