@@ -321,7 +321,7 @@ class EarthRangerIO(ERClient):
             dataframe[id_name] = _id
             observations.append(dataframe)
 
-        observations = pd.concat(observations
+        observations = pd.concat(observations)
         if observations.empty:
             return gpd.GeoDataFrame()
 
