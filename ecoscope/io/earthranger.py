@@ -299,6 +299,9 @@ class EarthRangerIO(ERClient):
             filter=filter,
             include_details=include_details,
             created_after=created_after,
+            object="observations",
+            threads=5,
+            page_size=4000
         )
 
         if source_ids:
@@ -314,17 +317,11 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            if use_cursor is True:
-                params["use_cursor"] = use_cursor
-                dataframe = pd.DataFrame(self.by_cursor(params=params, path="observations"))
-                dataframe[id_name] = _id
-                observations.append(dataframe)
-            else:
-                dataframe = self.by_multithreads(params=params, object="observations")
-                dataframe[id_name] = _id
-                observations.append(dataframe)
+            dataframe = pd.DataFrame(self.get_objects_multithreaded(params=params))
+            dataframe[id_name] = _id
+            observations.append(dataframe)
 
-        observations = pd.concat(observations)
+        observations = pd.concat(observations
         if observations.empty:
             return gpd.GeoDataFrame()
 
