@@ -64,36 +64,36 @@ class EarthRangerIO(ERClient):
             else:
                 break
 
-    @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
-    def _get(self, path, stream=False, **kwargs):
-        headers = {"User-Agent": self.user_agent}
-        headers.update(self.auth_headers())
+#     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
+#     def _get(self, path, stream=False, **kwargs):
+#         headers = {"User-Agent": self.user_agent}
+#         headers.update(self.auth_headers())
 
-        path = self._er_url(path) if not path.startswith("http") else path
-        get_method = self._http_session.get if self._http_session else requests.get
-        params = kwargs.get("params", {})
-        response = get_method(path, headers=headers, params=params, stream=stream)
+#         path = self._er_url(path) if not path.startswith("http") else path
+#         get_method = self._http_session.get if self._http_session else requests.get
+#         params = kwargs.get("params", {})
+#         response = get_method(path, headers=headers, params=params, stream=stream)
 
-        def _getdata(response):
-            data = json.loads(response.text)
-            if "metadata" in data:
-                return data["metadata"]
-            elif "data" in data:
-                return data["data"]
-            else:
-                return data
+#         def _getdata(response):
+#             data = json.loads(response.text)
+#             if "metadata" in data:
+#                 return data["metadata"]
+#             elif "data" in data:
+#                 return data["data"]
+#             else:
+#                 return data
 
-        if response.ok:
-            if kwargs.get("return_response", False):
-                return response
-            if results := _getdata(response):
-                if kwargs.get("return_data", params.get("return_data", False)):
-                    return results
-                elif "results" in results:
-                    return pd.DataFrame(results["results"])
-                else:
-                    return pd.DataFrame(results)
-        raise response.raise_for_status()
+#         if response.ok:
+#             if kwargs.get("return_response", False):
+#                 return response
+#             if results := _getdata(response):
+#                 if kwargs.get("return_data", params.get("return_data", False)):
+#                     return results
+#                 elif "results" in results:
+#                     return pd.DataFrame(results["results"])
+#                 else:
+#                     return pd.DataFrame(results)
+#         raise response.raise_for_status()
         
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _delete(self, path):
