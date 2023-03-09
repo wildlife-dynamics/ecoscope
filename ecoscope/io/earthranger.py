@@ -290,7 +290,7 @@ class EarthRangerIO(ERClient):
         -------
         observations : gpd.GeoDataFrame
         """
-#         assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
+        assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
 
         params = self._clean_kwargs(
             addl_kwargs,
@@ -299,7 +299,6 @@ class EarthRangerIO(ERClient):
             filter=filter,
             include_details=include_details,
             created_after=created_after,
-            object="observations",
             threads=5,
             page_size=4000
         )
@@ -317,7 +316,7 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_objects_multithreaded(params=params))
+            dataframe = self.get_objects_multithreaded(params=params, object="observations")
             dataframe[id_name] = _id
             observations.append(dataframe)
 
