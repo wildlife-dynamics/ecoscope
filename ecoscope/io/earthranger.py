@@ -290,7 +290,7 @@ class EarthRangerIO(ERClient):
         -------
         observations : gpd.GeoDataFrame
         """
-        assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
+#         assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
 
         params = self._clean_kwargs(
             addl_kwargs,
