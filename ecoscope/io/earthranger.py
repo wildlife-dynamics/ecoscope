@@ -310,7 +310,10 @@ class EarthRangerIO(ERClient):
         observations = []
         pbar = tqdm([ids] if isinstance(ids, str) else ids)
 
+        pcount = 0
         for _id in pbar:
+            pcount += 1
+            print(pcount)
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
             dataframe = pd.DataFrame(self.get_objects_multithreaded(params=params, object="observations", threads=5, page_size=4000))
