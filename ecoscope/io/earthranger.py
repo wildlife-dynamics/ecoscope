@@ -313,7 +313,7 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            return self.get_observations()
+#             return self.get_observations()
             dataframe = pd.DataFrame(self.get_observations())
             dataframe[id_name] = _id
             observations.append(dataframe)
