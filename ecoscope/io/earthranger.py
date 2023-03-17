@@ -106,6 +106,7 @@ class EarthRangerIO(ERClient):
         params["page_size"] = 1
         results = self._get(params["object"], params=params)
         if results and results.get("count"):
+            
             return results["count"]
         return 0
 
@@ -114,11 +115,6 @@ class EarthRangerIO(ERClient):
         **addl_kwargs,
     ):
         """
-        Parameters
-        ----------
-        use_cursor
-            Whether to use cursors or multithreads
-
         Returns
         -------
         sources : df.DataFrame
