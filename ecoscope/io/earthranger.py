@@ -111,7 +111,7 @@ class EarthRangerIO(ERClient):
         return 0
 
     def get_sources(
-        self
+        self,
         **addl_kwargs,
     ):
         """
