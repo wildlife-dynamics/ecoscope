@@ -612,7 +612,7 @@ class EarthRangerIO(ERClient):
         return pd.DataFrame([response])
     
     def get_sources(
-        self
+        self,
         **addl_kwargs,
         ):
         """
