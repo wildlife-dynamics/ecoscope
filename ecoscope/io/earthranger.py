@@ -562,7 +562,7 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        df = self.get_objects_multithreaded(object="activity/events/", params=params)
+        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/events/", params=params))
 
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
