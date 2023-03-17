@@ -110,8 +110,7 @@ class EarthRangerIO(ERClient):
         return 0
 
     def get_sources(
-        self,
-        use_cursor=False,
+        self
         **addl_kwargs,
     ):
         """
@@ -127,15 +126,10 @@ class EarthRangerIO(ERClient):
         """
 
         params = self._clean_kwargs(
-            addl_kwargs,
-            use_cursor=use_cursor
+            addl_kwargs
             )
 
-        if use_cursor is True:
-            params["use_cursor"] = use_cursor
-            df = pd.DataFrame(self.by_cursor(path="sources/", params=params))
-        else:
-            df = self.by_multithreads(object="sources/", params=params)
+        df = self.get_objects_multithreaded(object="sources/", params=params)
 
         assert not df.empty
         return df
