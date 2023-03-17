@@ -506,8 +506,7 @@ class EarthRangerIO(ERClient):
         oldest_update_date=None,
         exclude_contained=None,
         updated_since=None,
-        event_category=None,
-        use_cursor=False,
+        event_category=None
         since=None,
         until=None,
         **addl_kwargs,
@@ -575,7 +574,6 @@ class EarthRangerIO(ERClient):
             exclude_contained=exclude_contained,
             updated_since=updated_since,
             event_category=event_category,
-            use_cursor=use_cursor,
         )
 
         filter = {"date_range": {}}
@@ -586,11 +584,7 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        if use_cursor is True:
-            params["use_cursor"] = use_cursor
-            df = pd.DataFrame(self.by_cursor(path="activity/events/", params=params))
-        else:
-            df = self.by_multithreads(object="activity/events/", params=params)
+       df = self.get_objects_multithreaded(object="activity/events/", params=params)
 
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
@@ -640,16 +634,10 @@ class EarthRangerIO(ERClient):
         return pd.DataFrame([response])
     
     def get_sources(
-        self,
-        use_cursor=False,
+        self
         **addl_kwargs,
         ):
         """
-        Parameters
-        ----------
-        use_cursor
-            Whether to use cursors or multithreads
-    
         Returns
         -------
         sources : df.DataFrame
@@ -658,14 +646,9 @@ class EarthRangerIO(ERClient):
     
         params = self._clean_kwargs(
             addl_kwargs,
-            use_cursor=use_cursor
             )
     
-        if use_cursor is True:
-            params["use_cursor"] = use_cursor
-            df = pd.DataFrame(self.by_cursor(path="sources/", params=params))
-        else:
-            df = self.by_multithreads(object="sources/", params=params)
+       df = self.get_objects_multithreaded(object="sources/", params=params)
     
         assert not df.empty
         return df
