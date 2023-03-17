@@ -42,28 +42,6 @@ class EarthRangerIO(ERClient):
         for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
             df[k] = v.values
 
-    def by_multithreads(self, params, object):
-        params["return_data"] = True
-        return pd.DataFrame(self.get_objects_multithreaded(object=object, **params))
-
-    def by_cursor(self, params, path):
-        params["return_data"] = True
-        params["page_size"] = 1000
-
-        results = self._get(path=path, params=params)
-
-        while True:
-            if results and results.get("results"):
-                for r in results["results"]:
-                    yield r
-
-            if results and results["next"]:
-                url, p = split_link(results["next"])
-                params["page"] = p["page"]
-                results = self._get(path=path, params=p)
-            else:
-                break
-       
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _delete(self, path):
 
