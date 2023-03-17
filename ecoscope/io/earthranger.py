@@ -506,7 +506,7 @@ class EarthRangerIO(ERClient):
         oldest_update_date=None,
         exclude_contained=None,
         updated_since=None,
-        event_category=None
+        event_category=None,
         since=None,
         until=None,
         **addl_kwargs,
