@@ -41,7 +41,29 @@ class EarthRangerIO(ERClient):
         print(col)
         for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
             df[k] = v.values
-            
+
+    def by_multithreads(self, params, object):
+        params["return_data"] = True
+        return pd.DataFrame(self.get_objects_multithreaded(object=object, **params))
+
+    def by_cursor(self, params, path):
+        params["return_data"] = True
+        params["page_size"] = 1000
+
+        results = self._get(path=path, params=params)
+
+        while True:
+            if results and results.get("results"):
+                for r in results["results"]:
+                    yield r
+
+            if results and results["next"]:
+                url, p = split_link(results["next"])
+                params["page"] = p["page"]
+                results = self._get(path=path, params=p)
+            else:
+                break
+
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _get(self, path, stream=False, **kwargs):
         headers = {"User-Agent": self.user_agent}
@@ -72,7 +94,7 @@ class EarthRangerIO(ERClient):
                 else:
                     return pd.DataFrame(results)
         raise response.raise_for_status()
-
+        
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _delete(self, path):
 
@@ -115,15 +137,20 @@ class EarthRangerIO(ERClient):
         params["page_size"] = 1
         results = self._get(params["object"], params=params)
         if results and results.get("count"):
-            
             return results["count"]
         return 0
 
     def get_sources(
         self,
+        use_cursor=False,
         **addl_kwargs,
     ):
         """
+        Parameters
+        ----------
+        use_cursor
+            Whether to use cursors or multithreads
+
         Returns
         -------
         sources : df.DataFrame
@@ -131,10 +158,15 @@ class EarthRangerIO(ERClient):
         """
 
         params = self._clean_kwargs(
-            addl_kwargs
+            addl_kwargs,
+            use_cursor=use_cursor
             )
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", params=params))
+        if use_cursor is True:
+            params["use_cursor"] = use_cursor
+            df = pd.DataFrame(self.by_cursor(path="sources/", params=params))
+        else:
+            df = self.by_multithreads(object="sources/", params=params)
 
         assert not df.empty
         return df
@@ -261,6 +293,7 @@ class EarthRangerIO(ERClient):
         filter=None,
         include_details=None,
         created_after=None,
+        use_cursor=False,
         **addl_kwargs,
     ):
         """
@@ -296,7 +329,7 @@ class EarthRangerIO(ERClient):
             until=until,
             filter=filter,
             include_details=include_details,
-            created_after=created_after
+            created_after=created_after,
         )
 
         if source_ids:
@@ -312,9 +345,15 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_observations())
-            dataframe[id_name] = _id
-            observations.append(dataframe)
+            if use_cursor is True:
+                params["use_cursor"] = use_cursor
+                dataframe = pd.DataFrame(self.by_cursor(params=params, path="observations"))
+                dataframe[id_name] = _id
+                observations.append(dataframe)
+            else:
+                dataframe = self.by_multithreads(params=params, object="observations")
+                dataframe[id_name] = _id
+                observations.append(dataframe)
 
         observations = pd.concat(observations)
         if observations.empty:
@@ -516,6 +555,7 @@ class EarthRangerIO(ERClient):
         exclude_contained=None,
         updated_since=None,
         event_category=None,
+        use_cursor=False,
         since=None,
         until=None,
         **addl_kwargs,
@@ -583,6 +623,7 @@ class EarthRangerIO(ERClient):
             exclude_contained=exclude_contained,
             updated_since=updated_since,
             event_category=event_category,
+            use_cursor=use_cursor,
         )
 
         filter = {"date_range": {}}
@@ -593,7 +634,11 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/events/", params=params))
+        if use_cursor is True:
+            params["use_cursor"] = use_cursor
+            df = pd.DataFrame(self.by_cursor(path="activity/events/", params=params))
+        else:
+            df = self.by_multithreads(object="activity/events/", params=params)
 
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
@@ -644,9 +689,15 @@ class EarthRangerIO(ERClient):
     
     def get_sources(
         self,
+        use_cursor=False,
         **addl_kwargs,
         ):
         """
+        Parameters
+        ----------
+        use_cursor
+            Whether to use cursors or multithreads
+    
         Returns
         -------
         sources : df.DataFrame
@@ -655,9 +706,14 @@ class EarthRangerIO(ERClient):
     
         params = self._clean_kwargs(
             addl_kwargs,
+            use_cursor=use_cursor
             )
     
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", params=params))
+        if use_cursor is True:
+            params["use_cursor"] = use_cursor
+            df = pd.DataFrame(self.by_cursor(path="sources/", params=params))
+        else:
+            df = self.by_multithreads(object="sources/", params=params)
     
         assert not df.empty
         return df
