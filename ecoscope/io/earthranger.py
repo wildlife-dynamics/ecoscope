@@ -134,7 +134,7 @@ class EarthRangerIO(ERClient):
             addl_kwargs
             )
 
-        df = self.get_objects_multithreaded(object="sources/", params=params)
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", params=params))
 
         assert not df.empty
         return df
