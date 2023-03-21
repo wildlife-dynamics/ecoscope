@@ -45,7 +45,7 @@ class EarthRangerIO(ERClient):
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _get(self, path, stream=False, max_retries=5, seconds_between_attempts=5, **kwargs):
         headers = {'User-Agent': self.user_agent}
-        
+
         headers.update(self.auth_headers())
         if (not path.startswith("http")):
             path = self._er_url(path)
