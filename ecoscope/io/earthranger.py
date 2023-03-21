@@ -43,54 +43,54 @@ class EarthRangerIO(ERClient):
             df[k] = v.values
             
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
-  def _get(self, path, stream=False, max_retries=5, seconds_between_attempts=5, **kwargs):
-          headers = {'User-Agent': self.user_agent}
+    def _get(self, path, stream=False, max_retries=5, seconds_between_attempts=5, **kwargs):
+        headers = {'User-Agent': self.user_agent}
+        
+        headers.update(self.auth_headers())
+        if (not path.startswith("http")):
+            path = self._er_url(path)
 
-          headers.update(self.auth_headers())
-          if (not path.startswith("http")):
-              path = self._er_url(path)
+        attempts = 0
+        while (attempts <= max_retries):
+            attempts += 1
 
-          attempts = 0
-          while (attempts <= max_retries):
-              attempts += 1
+            response = None
+            if (self._http_session):
+                response = self._http_session.get(path, headers=headers,
+                                                  params=kwargs.get('params'), stream=stream)
+            else:
+                response = requests.get(path, headers=headers,
+                                        params=kwargs.get('params'), stream=stream)
 
-              response = None
-              if (self._http_session):
-                  response = self._http_session.get(path, headers=headers,
-                                                    params=kwargs.get('params'), stream=stream)
-              else:
-                  response = requests.get(path, headers=headers,
-                                          params=kwargs.get('params'), stream=stream)
+            if response.ok:
+                if kwargs.get('return_response', False):
+                    return response
+                data = json.loads(response.text)
+                if 'metadata' in data:
+                    return data['metadata']
+                elif 'data' in data:
+                    return data['data']
+                else:
+                    return data
 
-              if response.ok:
-                  if kwargs.get('return_response', False):
-                      return response
-                  data = json.loads(response.text)
-                  if 'metadata' in data:
-                      return data['metadata']
-                  elif 'data' in data:
-                      return data['data']
-                  else:
-                      return data
+            if response.status_code == 404:  # not found
+                self.logger.error(f"404 when calling {path}")
+                raise ERClientNotFound()
 
-              if response.status_code == 404:  # not found
-                  self.logger.error(f"404 when calling {path}")
-                  raise ERClientNotFound()
+            if response.status_code == 403:  # forbidden
+                try:
+                    _ = json.loads(response.text)
+                    reason = _['status']['detail']
+                except:
+                    reason = 'unknown reason'
+                raise ERClientPermissionDenied(reason)
 
-              if response.status_code == 403:  # forbidden
-                  try:
-                      _ = json.loads(response.text)
-                      reason = _['status']['detail']
-                  except:
-                      reason = 'unknown reason'
-                  raise ERClientPermissionDenied(reason)
-
-              self.logger.warn(
-                  f"Fail attempt {attempts} of {max_retries+1}: {response.text}")
-              if (attempts >= max_retries):
-                  raise ERClientException(
-                      f"Failed to call ER web service at {response.url} after {attempts} tries. {response.status_code} {response.text}")
-              time.sleep(seconds_between_attempts)
+            self.logger.warn(
+                f"Fail attempt {attempts} of {max_retries+1}: {response.text}")
+            if (attempts >= max_retries):
+                raise ERClientException(
+                    f"Failed to call ER web service at {response.url} after {attempts} tries. {response.status_code} {response.text}")
+            time.sleep(seconds_between_attempts)
 
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _delete(self, path):
