@@ -248,7 +248,7 @@ class EarthRangerIO(ERClient):
             id=id,
         )
 
-        return self._get("sources/", params=params)
+        return self.get_sources(params=params)
 
     def _get_observations(
         self,
