@@ -188,36 +188,36 @@ class EarthRangerIO(ERClient):
 
         return df
 
-    def get_sources(
-        self,
-        manufacturer_id=None,
-        provider_key=None,
-        provider=None,
-        id=None,
-        **addl_kwargs,
-    ):
-        """
-        Parameters
-        ----------
-        manufacturer_id
-        provider_key
-        provider
-        id
-        Returns
-        -------
-        sources : pd.DataFrame
-            DataFrame of queried sources
-        """
+#     def get_sources(
+#         self,
+#         manufacturer_id=None,
+#         provider_key=None,
+#         provider=None,
+#         id=None,
+#         **addl_kwargs,
+#     ):
+#         """
+#         Parameters
+#         ----------
+#         manufacturer_id
+#         provider_key
+#         provider
+#         id
+#         Returns
+#         -------
+#         sources : pd.DataFrame
+#             DataFrame of queried sources
+#         """
 
-        params = self._clean_kwargs(
-            addl_kwargs,
-            manufacturer_id=manufacturer_id,
-            provider_key=provider_key,
-            provider=provider,
-            id=id,
-        )
+#         params = self._clean_kwargs(
+#             addl_kwargs,
+#             manufacturer_id=manufacturer_id,
+#             provider_key=provider_key,
+#             provider=provider,
+#             id=id,
+#         )
 
-        return self.get_sources(params=params)
+#         return self.get_sources(params=params)
 
     def _get_observations(
         self,
