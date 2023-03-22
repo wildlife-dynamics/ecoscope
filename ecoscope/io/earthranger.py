@@ -181,7 +181,7 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/"))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/", params=params))
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
