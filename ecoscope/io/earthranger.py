@@ -88,26 +88,6 @@ class EarthRangerIO(ERClient):
             return results["count"]
         return 0
 
-#     def get_sources(
-#         self,
-#         **addl_kwargs,
-#     ):
-#         """
-#         Returns
-#         -------
-#         sources : df.DataFrame
-#             DataFrame of queried sources
-#         """
-
-#         params = self._clean_kwargs(
-#             addl_kwargs,
-#             )
-
-#         df = pd.DataFrame(self.get_objects_multithreaded(object="sources/"))
-
-#         assert not df.empty
-#         return df
-
     def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
         """
         Parameters
@@ -216,10 +196,9 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", params=params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", manufacturer_id="ST-Habiba"))
         assert not df.empty
         return df    
-#         return self.get_sources(params=params)
 
     def _get_observations(
         self,
