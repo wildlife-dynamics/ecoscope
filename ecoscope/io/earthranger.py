@@ -160,7 +160,7 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/", params=params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/", **params))
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
@@ -195,9 +195,9 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", manufacturer_id=None))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
         assert not df.empty
-        return df    
+        return df
 
     def _get_observations(
         self,
@@ -261,7 +261,7 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", subject_ids=_id))
+            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", threads=5, page_size=4000, **params))
             dataframe[id_name] = _id
             observations.append(dataframe)
 
@@ -590,26 +590,6 @@ class EarthRangerIO(ERClient):
         urlpath = f"/sources"
         response = self._post(urlpath, payload=payload)
         return pd.DataFrame([response])
-    
-    def get_sources(
-        self,
-        **addl_kwargs,
-        ):
-        """
-        Returns
-        -------
-        sources : df.DataFrame
-            DataFrame of queried sources
-        """
-    
-        params = self._clean_kwargs(
-            addl_kwargs,
-            )
-    
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", params=params))
-    
-        assert not df.empty
-        return df
 
     def get_patrols(self, filter=None, status=None, **addl_kwargs):
         """
