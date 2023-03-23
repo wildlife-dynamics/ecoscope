@@ -214,7 +214,7 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-
+        breakpoint()
         return pd.DataFrame(self._get("sources/", params=kwargs)["results"])
 
     def _get_observations(
