@@ -198,7 +198,17 @@ class EarthRangerIO(ERClient):
 #         df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
 #         assert not df.empty
 #         return df
-
+    def _get(self, *args, **kwargs):
+        params = kwargs.get("params", {})
+        if "sub_page_size" in params or "tcp_limit" in params:
+            print(
+                f"Warning: `sub_page_size` and `tcp_limit` should only be provided to the constructor of {type(self)}"
+            )
+        params["page"] = params.get("page", 1)
+        params["page_size"] = params.get("page_size", 1000000000)
+        params = {k: v if not isinstance(v, bool) else str(v).lower() for k, v in params.items()}
+        kwargs["params"] = params
+        return self._concurrent_get(*args, **kwargs)
     def get_sources(
         self,
         manufacturer_id=None,
