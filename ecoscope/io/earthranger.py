@@ -28,6 +28,18 @@ class EarthRangerIO(ERClient):
         super().__init__(**kwargs)
 
     @staticmethod
+    def _clean_kwargs(addl_kwargs={}, **kwargs):
+        for k in addl_kwargs.keys():
+            print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
+        return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}        
+        
+    @staticmethod
+    def _normalize_column(df, col):
+        print(col)
+        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
+            df[k] = v.values        
+        
+    @staticmethod
     def _to_gdf(df):
         longitude, latitude = (0, 1) if isinstance(df["location"].iat[0], list) else ("longitude", "latitude")
         return gpd.GeoDataFrame(
@@ -35,12 +47,6 @@ class EarthRangerIO(ERClient):
             geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
             crs=4326,
         )
-
-    @staticmethod
-    def _normalize_column(df, col):
-        print(col)
-        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
-            df[k] = v.values
             
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _delete(self, path):
@@ -71,12 +77,6 @@ class EarthRangerIO(ERClient):
 
         raise ERClientException(
             f'Failed to delete: {response.status_code} {response.text}')
-
-    @staticmethod
-    def _clean_kwargs(addl_kwargs={}, **kwargs):
-        for k in addl_kwargs.keys():
-            print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
-        return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
 
     def _get_objects_count(self, params):
         params = params.copy()
