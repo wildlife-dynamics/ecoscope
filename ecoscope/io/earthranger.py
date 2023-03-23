@@ -207,21 +207,6 @@ class EarthRangerIO(ERClient):
         id=None,
         **addl_kwargs,
     ):
-        """
-        Parameters
-        ----------
-        manufacturer_id
-        provider_key
-        provider
-        id
-
-        Returns
-        -------
-        sources : pd.DataFrame
-            DataFrame of queried sources
-
-        """
-
         kwargs = self._clean_kwargs(
             addl_kwargs,
             manufacturer_id=manufacturer_id,
