@@ -167,6 +167,38 @@ class EarthRangerIO(ERClient):
 
         return df
 
+#     def get_sources(
+#         self,
+#         manufacturer_id=None,
+#         provider_key=None,
+#         provider=None,
+#         id=None,
+#         **addl_kwargs,
+#     ):
+#         """
+#         Parameters
+#         ----------
+#         manufacturer_id
+#         provider_key
+#         provider
+#         id
+#         Returns
+#         -------
+#         sources : pd.DataFrame
+#             DataFrame of queried sources
+#         """
+
+#         params = self._clean_kwargs(
+#             addl_kwargs,
+#             manufacturer_id=manufacturer_id,
+#             provider_key=provider_key,
+#             provider=provider,
+#             id=id,
+#         )
+#         df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
+#         assert not df.empty
+#         return df
+
     def get_sources(
         self,
         manufacturer_id=None,
@@ -182,22 +214,22 @@ class EarthRangerIO(ERClient):
         provider_key
         provider
         id
+
         Returns
         -------
         sources : pd.DataFrame
             DataFrame of queried sources
+
         """
 
-        params = self._clean_kwargs(
+        kwargs = self._clean_kwargs(
             addl_kwargs,
             manufacturer_id=manufacturer_id,
             provider_key=provider_key,
             provider=provider,
             id=id,
         )
-#         df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
-#         assert not df.empty
-#         return df
+
         return pd.DataFrame(self._get("sources/", params=kwargs)["results"])
 
     def _get_observations(
