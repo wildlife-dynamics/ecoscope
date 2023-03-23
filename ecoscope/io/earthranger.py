@@ -198,66 +198,6 @@ class EarthRangerIO(ERClient):
         df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
         assert not df.empty
         return df
-#     def _get(self, *args, **kwargs):
-#         params = kwargs.get("params", {})
-#         if "sub_page_size" in params or "tcp_limit" in params:
-#             print(
-#                 f"Warning: `sub_page_size` and `tcp_limit` should only be provided to the constructor of {type(self)}"
-#             )
-#         params["page"] = params.get("page", 1)
-#         params["page_size"] = params.get("page_size", 1000000000)
-#         params = {k: v if not isinstance(v, bool) else str(v).lower() for k, v in params.items()}
-#         kwargs["params"] = params
-#         return self._concurrent_get(*args, **kwargs)
-
-#     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
-#     def _get(self, path, stream=False, **kwargs):
-#         headers = {"User-Agent": self.user_agent}
-#         headers.update(self.auth_headers())
-
-#         path = self._er_url(path) if not path.startswith("http") else path
-#         get_method = self._http_session.get if self._http_session else requests.get
-#         params = kwargs.get("params", {})
-#         response = get_method(path, headers=headers, params=params, stream=stream)
-
-#         def _getdata(response):
-#             data = json.loads(response.text)
-#             if "metadata" in data:
-#                 return data["metadata"]
-#             elif "data" in data:
-#                 return data["data"]
-#             else:
-#                 return data
-
-#         if response.ok:
-#             if kwargs.get("return_response", False):
-#                 return response
-#             if results := _getdata(response):
-#                 if kwargs.get("return_data", params.get("return_data", False)):
-#                     return results
-#                 elif "results" in results:
-#                     return pd.DataFrame(results["results"])
-#                 else:
-#                     return pd.DataFrame(results)
-#         raise response.raise_for_status()
-        
-#     def get_sources(
-#         self,
-#         manufacturer_id=None,
-#         provider_key=None,
-#         provider=None,
-#         id=None,
-#         **addl_kwargs,
-#     ):
-#         kwargs = self._clean_kwargs(
-#             addl_kwargs,
-#             manufacturer_id=manufacturer_id,
-#             provider_key=provider_key,
-#             provider=provider,
-#             id=id,
-#         )
-#         breakpoint()
-#         return pd.DataFrame(self._get("sources/", params=kwargs)["results"])
 
     def _get_observations(
         self,
@@ -321,7 +261,7 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", subject_ids=_id))
+            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", **params))
             dataframe[id_name] = _id
             observations.append(dataframe)
 
