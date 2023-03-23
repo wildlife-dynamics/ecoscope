@@ -89,9 +89,9 @@ class EarthRangerIO(ERClient):
         raise ERClientException(
             f'Failed to delete: {response.status_code} {response.text}')
         
-"""
-GET Functions
-"""
+    """
+    GET Functions
+    """
 
     def _get_objects_count(self, params):
         params = params.copy()
@@ -663,9 +663,9 @@ GET Functions
                     )
         return ecoscope.base.Relocations(pd.concat(observations))    
     
-"""
-POST Functions
-"""
+    """
+    POST Functions
+    """
 
     def post_source(
         self,
@@ -909,9 +909,9 @@ POST Functions
         response = self._post("activity/patrols/segments/", payload=payload)
         return pd.DataFrame([response])
 
-"""
-PATCH Functions
-"""
+    """
+    PATCH Functions
+    """
 
     def patch_event(
         self,
@@ -938,9 +938,9 @@ PATCH Functions
         return pd.DataFrame(results)
 
     
-"""
-DELETE Functions
-"""
+    """
+    DELETE Functions
+    """
     
     def delete_source(self, source_id: str):
         """
