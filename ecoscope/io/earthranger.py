@@ -262,7 +262,7 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", params=params))
+            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", subject_ids=_id))
             dataframe[id_name] = _id
             observations.append(dataframe)
 
