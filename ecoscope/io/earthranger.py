@@ -12,7 +12,6 @@ from tqdm.auto import tqdm
 import ecoscope
 from ecoscope.io.utils import pack_columns, to_hex
 
-
 def fatal_status_code(e):
     return 400 <= e.response.status_code < 500
 
@@ -28,6 +27,18 @@ class EarthRangerIO(ERClient):
         super().__init__(**kwargs)
 
     @staticmethod
+    def _clean_kwargs(addl_kwargs={}, **kwargs):
+        for k in addl_kwargs.keys():
+            print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
+        return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}        
+        
+    @staticmethod
+    def _normalize_column(df, col):
+        print(col)
+        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
+            df[k] = v.values        
+        
+    @staticmethod
     def _to_gdf(df):
         longitude, latitude = (0, 1) if isinstance(df["location"].iat[0], list) else ("longitude", "latitude")
         return gpd.GeoDataFrame(
@@ -35,43 +46,6 @@ class EarthRangerIO(ERClient):
             geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
             crs=4326,
         )
-
-    @staticmethod
-    def _normalize_column(df, col):
-        print(col)
-        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
-            df[k] = v.values
-
-    @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
-    def _get(self, path, stream=False, **kwargs):
-        headers = {"User-Agent": self.user_agent}
-        headers.update(self.auth_headers())
-
-        path = self._er_url(path) if not path.startswith("http") else path
-        get_method = self._http_session.get if self._http_session else requests.get
-        params = kwargs.get("params", {})
-        response = get_method(path, headers=headers, params=params, stream=stream)
-
-        def _getdata(response):
-            data = json.loads(response.text)
-            if "metadata" in data:
-                return data["metadata"]
-            elif "data" in data:
-                return data["data"]
-            else:
-                return data
-
-        if response.ok:
-            if kwargs.get("return_response", False):
-                return response
-            if results := _getdata(response):
-                if kwargs.get("return_data", params.get("return_data", False)):
-                    return results
-                elif "results" in results:
-                    return pd.DataFrame(results["results"])
-                else:
-                    return pd.DataFrame(results)
-        raise response.raise_for_status()
             
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
     def _delete(self, path):
@@ -103,12 +77,6 @@ class EarthRangerIO(ERClient):
         raise ERClientException(
             f'Failed to delete: {response.status_code} {response.text}')
 
-    @staticmethod
-    def _clean_kwargs(addl_kwargs={}, **kwargs):
-        for k in addl_kwargs.keys():
-            print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
-        return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
-
     def _get_objects_count(self, params):
         params = params.copy()
         params["page"] = 1
@@ -118,26 +86,6 @@ class EarthRangerIO(ERClient):
             
             return results["count"]
         return 0
-
-    def get_sources(
-        self,
-        **addl_kwargs,
-    ):
-        """
-        Returns
-        -------
-        sources : df.DataFrame
-            DataFrame of queried sources
-        """
-
-        params = self._clean_kwargs(
-            addl_kwargs
-            )
-
-        df = self.get_objects_multithreaded(object="sources/", params=params)
-
-        assert not df.empty
-        return df
 
     def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
         """
@@ -212,7 +160,7 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = self._get("subjects/", params=params)
+        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/", params=params))
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
@@ -247,8 +195,9 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-
-        return self._get("sources/", params=params)
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", manufacturer_id=None))
+        assert not df.empty
+        return df    
 
     def _get_observations(
         self,
@@ -312,7 +261,7 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_observations())
+            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", subject_ids=_id))
             dataframe[id_name] = _id
             observations.append(dataframe)
 
