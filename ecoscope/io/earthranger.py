@@ -160,7 +160,7 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/", params=params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/", **params))
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
@@ -261,7 +261,7 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", **params))
+            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", threads=5, page_size=4000, **params))
             dataframe[id_name] = _id
             observations.append(dataframe)
 
