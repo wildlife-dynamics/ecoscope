@@ -167,37 +167,37 @@ class EarthRangerIO(ERClient):
 
         return df
 
-#     def get_sources(
-#         self,
-#         manufacturer_id=None,
-#         provider_key=None,
-#         provider=None,
-#         id=None,
-#         **addl_kwargs,
-#     ):
-#         """
-#         Parameters
-#         ----------
-#         manufacturer_id
-#         provider_key
-#         provider
-#         id
-#         Returns
-#         -------
-#         sources : pd.DataFrame
-#             DataFrame of queried sources
-#         """
+    def get_sources(
+        self,
+        manufacturer_id=None,
+        provider_key=None,
+        provider=None,
+        id=None,
+        **addl_kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        manufacturer_id
+        provider_key
+        provider
+        id
+        Returns
+        -------
+        sources : pd.DataFrame
+            DataFrame of queried sources
+        """
 
-#         params = self._clean_kwargs(
-#             addl_kwargs,
-#             manufacturer_id=manufacturer_id,
-#             provider_key=provider_key,
-#             provider=provider,
-#             id=id,
-#         )
-#         df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
-#         assert not df.empty
-#         return df
+        params = self._clean_kwargs(
+            addl_kwargs,
+            manufacturer_id=manufacturer_id,
+            provider_key=provider_key,
+            provider=provider,
+            id=id,
+        )
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
+        assert not df.empty
+        return df
 #     def _get(self, *args, **kwargs):
 #         params = kwargs.get("params", {})
 #         if "sub_page_size" in params or "tcp_limit" in params:
@@ -210,54 +210,54 @@ class EarthRangerIO(ERClient):
 #         kwargs["params"] = params
 #         return self._concurrent_get(*args, **kwargs)
 
-    @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
-    def _get(self, path, stream=False, **kwargs):
-        headers = {"User-Agent": self.user_agent}
-        headers.update(self.auth_headers())
+#     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
+#     def _get(self, path, stream=False, **kwargs):
+#         headers = {"User-Agent": self.user_agent}
+#         headers.update(self.auth_headers())
 
-        path = self._er_url(path) if not path.startswith("http") else path
-        get_method = self._http_session.get if self._http_session else requests.get
-        params = kwargs.get("params", {})
-        response = get_method(path, headers=headers, params=params, stream=stream)
+#         path = self._er_url(path) if not path.startswith("http") else path
+#         get_method = self._http_session.get if self._http_session else requests.get
+#         params = kwargs.get("params", {})
+#         response = get_method(path, headers=headers, params=params, stream=stream)
 
-        def _getdata(response):
-            data = json.loads(response.text)
-            if "metadata" in data:
-                return data["metadata"]
-            elif "data" in data:
-                return data["data"]
-            else:
-                return data
+#         def _getdata(response):
+#             data = json.loads(response.text)
+#             if "metadata" in data:
+#                 return data["metadata"]
+#             elif "data" in data:
+#                 return data["data"]
+#             else:
+#                 return data
 
-        if response.ok:
-            if kwargs.get("return_response", False):
-                return response
-            if results := _getdata(response):
-                if kwargs.get("return_data", params.get("return_data", False)):
-                    return results
-                elif "results" in results:
-                    return pd.DataFrame(results["results"])
-                else:
-                    return pd.DataFrame(results)
-        raise response.raise_for_status()
+#         if response.ok:
+#             if kwargs.get("return_response", False):
+#                 return response
+#             if results := _getdata(response):
+#                 if kwargs.get("return_data", params.get("return_data", False)):
+#                     return results
+#                 elif "results" in results:
+#                     return pd.DataFrame(results["results"])
+#                 else:
+#                     return pd.DataFrame(results)
+#         raise response.raise_for_status()
         
-    def get_sources(
-        self,
-        manufacturer_id=None,
-        provider_key=None,
-        provider=None,
-        id=None,
-        **addl_kwargs,
-    ):
-        kwargs = self._clean_kwargs(
-            addl_kwargs,
-            manufacturer_id=manufacturer_id,
-            provider_key=provider_key,
-            provider=provider,
-            id=id,
-        )
-        breakpoint()
-        return pd.DataFrame(self._get("sources/", params=kwargs)["results"])
+#     def get_sources(
+#         self,
+#         manufacturer_id=None,
+#         provider_key=None,
+#         provider=None,
+#         id=None,
+#         **addl_kwargs,
+#     ):
+#         kwargs = self._clean_kwargs(
+#             addl_kwargs,
+#             manufacturer_id=manufacturer_id,
+#             provider_key=provider_key,
+#             provider=provider,
+#             id=id,
+#         )
+#         breakpoint()
+#         return pd.DataFrame(self._get("sources/", params=kwargs)["results"])
 
     def _get_observations(
         self,
@@ -650,26 +650,6 @@ class EarthRangerIO(ERClient):
         urlpath = f"/sources"
         response = self._post(urlpath, payload=payload)
         return pd.DataFrame([response])
-    
-    def get_sources(
-        self,
-        **addl_kwargs,
-        ):
-        """
-        Returns
-        -------
-        sources : df.DataFrame
-            DataFrame of queried sources
-        """
-    
-        params = self._clean_kwargs(
-            addl_kwargs,
-            )
-    
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", params=params))
-    
-        assert not df.empty
-        return df
 
     def get_patrols(self, filter=None, status=None, **addl_kwargs):
         """
