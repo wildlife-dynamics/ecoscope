@@ -76,6 +76,10 @@ class EarthRangerIO(ERClient):
 
         raise ERClientException(
             f'Failed to delete: {response.status_code} {response.text}')
+        
+"""
+GET Functions
+"""
 
     def _get_objects_count(self, params):
         params = params.copy()
@@ -87,19 +91,38 @@ class EarthRangerIO(ERClient):
             return results["count"]
         return 0
 
-    def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
+    def get_sources(
+        self,
+        manufacturer_id=None,
+        provider_key=None,
+        provider=None,
+        id=None,
+        **addl_kwargs,
+    ):
         """
         Parameters
         ----------
-        subjects: A comma-delimited list of Subject IDs.
-        sources: A comma-delimited list of Source IDs.
+        manufacturer_id
+        provider_key
+        provider
+        id
         Returns
         -------
-        subjectsources : pd.DataFrame
+        sources : pd.DataFrame
+            DataFrame of queried sources
         """
-        params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
-        return self._get("subjectsources/", params=params)
 
+        params = self._clean_kwargs(
+            addl_kwargs,
+            manufacturer_id=manufacturer_id,
+            provider_key=provider_key,
+            provider=provider,
+            id=id,
+        )
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
+        assert not df.empty
+        return df    
+    
     def get_subjects(
         self,
         include_inactive=None,
@@ -165,39 +188,21 @@ class EarthRangerIO(ERClient):
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
 
-        return df
-
-    def get_sources(
-        self,
-        manufacturer_id=None,
-        provider_key=None,
-        provider=None,
-        id=None,
-        **addl_kwargs,
-    ):
+        return df    
+    
+    def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
         """
         Parameters
         ----------
-        manufacturer_id
-        provider_key
-        provider
-        id
+        subjects: A comma-delimited list of Subject IDs.
+        sources: A comma-delimited list of Source IDs.
         Returns
         -------
-        sources : pd.DataFrame
-            DataFrame of queried sources
+        subjectsources : pd.DataFrame
         """
+        params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
+        return self._get("subjectsources/", params=params)
 
-        params = self._clean_kwargs(
-            addl_kwargs,
-            manufacturer_id=manufacturer_id,
-            provider_key=provider_key,
-            provider=provider,
-            id=id,
-        )
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
-        assert not df.empty
-        return df
 
     def _get_observations(
         self,
@@ -542,7 +547,7 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/events/", params=params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/events/", threads=5, page_size=4000, **params))
 
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
