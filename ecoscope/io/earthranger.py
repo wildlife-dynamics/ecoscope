@@ -196,7 +196,7 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", manufacturer_id="ST-Habiba"))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", manufacturer_id=manufacturer_id))
         assert not df.empty
         return df    
 
