@@ -37,6 +37,18 @@ class EarthRangerIO(ERClient):
         print(col)
         for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
             df[k] = v.values        
+   
+    @staticmethod
+    def _dataframe_to_dict(events):
+        if isinstance(events, gpd.GeoDataFrame):
+            events["location"] = pd.DataFrame({"longitude": events.geometry.x, "latitude": events.geometry.y}).to_dict(
+                "records"
+            )
+            del events["geometry"]
+
+        if isinstance(events, pd.DataFrame):
+            events = events.to_dict("records")
+        return events        
         
     @staticmethod
     def _to_gdf(df):
@@ -450,6 +462,34 @@ GET Functions
         else:
             return observations
 
+    def get_subjectgroup_observations(self, subject_group=None, group_name=None, include_inactive=True, **kwargs):
+        """
+        Parameters
+        ----------
+        subject_group : str
+            UUID of subject group to filter by
+        group_name : str
+            Common name of subject group to filter by
+        include_inactive : bool, optional
+            Whether to get observations for Subjects marked inactive by EarthRanger
+        kwargs
+            Additional arguments to pass in the request to `get_subject_observations`. See the docstring of
+            `get_subject_observations` for info.
+        Returns
+        -------
+        relocations : ecoscope.base.Relocations
+            Observations in `Relocations` format
+        """
+
+        assert (subject_group is None) != (group_name is None)
+
+        if subject_group:
+            subject_ids = self.get_subjects(subject_group=subject_group, include_inactive=include_inactive).id.tolist()
+        else:
+            subject_ids = self.get_subjects(group_name=group_name, include_inactive=include_inactive).id.tolist()
+
+        return self.get_subject_observations(subject_ids, **kwargs)        
+        
     def get_events(
         self,
         is_collection=None,
@@ -560,41 +600,6 @@ GET Functions
 
         df.sort_values("time", inplace=True)
         return df
-    
-    def post_source(
-        self,
-        manufacturer_id: str,
-        source_type: str,
-        model_name: str,
-        provider_name: str,
-        additional: typing.Dict = None,
-        ) -> pd.DataFrame:
-        """
-        Parameters
-        ----------
-        manufacturer_id
-        source_type
-        model_name
-        provider_name
-        additional
-        Returns
-        -------
-        pd.DataFrame
-        """
-    
-        if additional is None:
-            additional = {}
-        payload = {
-            "manufacturer": manufacturer_id,
-            "source": source_type,
-            "model": model_name,
-            "provider": provider_name,
-            "additional": None
-        }
-    
-        urlpath = f"/sources"
-        response = self._post(urlpath, payload=payload)
-        return pd.DataFrame([response])
 
     def get_patrols(self, filter=None, status=None, **addl_kwargs):
         """
@@ -617,35 +622,7 @@ GET Functions
 
         params = self._clean_kwargs(addl_kwargs, filter=filter, status=status, return_data=True)
         return pd.DataFrame(self.get_objects_multithreaded(object="activity/patrols", **params))
-
-    def get_subjectgroup_observations(self, subject_group=None, group_name=None, include_inactive=True, **kwargs):
-        """
-        Parameters
-        ----------
-        subject_group : str
-            UUID of subject group to filter by
-        group_name : str
-            Common name of subject group to filter by
-        include_inactive : bool, optional
-            Whether to get observations for Subjects marked inactive by EarthRanger
-        kwargs
-            Additional arguments to pass in the request to `get_subject_observations`. See the docstring of
-            `get_subject_observations` for info.
-        Returns
-        -------
-        relocations : ecoscope.base.Relocations
-            Observations in `Relocations` format
-        """
-
-        assert (subject_group is None) != (group_name is None)
-
-        if subject_group:
-            subject_ids = self.get_subjects(subject_group=subject_group, include_inactive=include_inactive).id.tolist()
-        else:
-            subject_ids = self.get_subjects(group_name=group_name, include_inactive=include_inactive).id.tolist()
-
-        return self.get_subject_observations(subject_ids, **kwargs)
-
+    
     def get_observations_for_patrols(self, patrols_df, **kwargs):
         """
         Download observations for provided `patrols_df`.
@@ -684,8 +661,151 @@ GET Functions
                         f"Getting observations for subject_id={subject_id} start_time={start_time} end_time={end_time}"
                         f"failed for: {e}"
                     )
-        return ecoscope.base.Relocations(pd.concat(observations))
+        return ecoscope.base.Relocations(pd.concat(observations))    
+    
+"""
+POST Functions
+"""
+    
+#     def post_source(
+#         self,
+#         manufacturer_id: str,
+#         source_type: str,
+#         model_name: str,
+#         provider_name: str,
+#         additional: typing.Dict = None,
+#         ) -> pd.DataFrame:
+#         """
+#         Parameters
+#         ----------
+#         manufacturer_id
+#         source_type
+#         model_name
+#         provider_name
+#         additional
+#         Returns
+#         -------
+#         pd.DataFrame
+#         """
+    
+#         if additional is None:
+#             additional = {}
+#         payload = {
+#             "manufacturer": manufacturer_id,
+#             "source": source_type,
+#             "model": model_name,
+#             "provider": provider_name,
+#             "additional": None
+#         }
+    
+#         urlpath = f"/sources"
+#         response = self._post(urlpath, payload=payload)
+#         return pd.DataFrame([response])
 
+    def post_source(
+        self,
+        source_type: str,
+        manufacturer_id: str,
+        model_name: str,
+        provider: str = "default",
+        additional: typing.Dict = {},
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        source_type
+        manufacturer_id
+        model_name
+        provider
+        additional
+        Returns
+        -------
+        pd.DataFrame
+        """
+
+        payload = {
+            "source_type": source_type,
+            "manufacturer_id": manufacturer_id,
+            "model_name": model_name,
+            "additional": additional,
+            "provider": provider,
+        }
+
+        if kwargs:
+            payload.update(kwargs)
+
+        response = self._post("sources", payload=payload)
+        return pd.DataFrame([response])    
+    
+    def post_subject(
+        self,
+        subject_name: str,
+        subject_type: str,
+        subject_subtype: str,
+        is_active: bool = True,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        subject_name
+        subject_subtype
+        is_active
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+
+        payload = {
+            "name": subject_name,
+            "subject_subtype": subject_subtype,
+            "is_active": is_active,
+        }
+
+        if kwargs:
+            payload.update(kwargs)
+
+        response = self._post("subjects", payload=payload)
+        return pd.DataFrame([response])    
+    
+    def post_subjectsource(
+        self,
+        subject_id: str,
+        source_id: str,
+        lower_bound_assigned_range: datetime.datetime,
+        upper_bound_assigned_range: datetime.datetime,
+        additional: typing.Dict = None,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        subject_id
+        source_id
+        lower_bound_assigned_range
+        upper_bound_assigned_range
+        additional
+        Returns
+        -------
+        pd.DataFrame
+        """
+
+        if additional is None:
+            additional = {}
+        payload = {
+            "source": source_id,
+            "assigned_range": {
+                "lower": lower_bound_assigned_range,
+                "upper": upper_bound_assigned_range,
+            },
+            "additional": additional,
+        }
+
+        urlpath = f"subject/{subject_id}/sources"
+        response = self._post(urlpath, payload=payload)
+        return pd.DataFrame([response])    
+    
     def post_observations(
         self,
         observations: gpd.GeoDataFrame,
@@ -725,65 +845,6 @@ GET Functions
 
         return observations.groupby(source_id_col, group_keys=False).progress_apply(upload)
 
-    def delete_observation(self, observation_id: str):
-        """
-        Parameters
-        ----------
-        observation_id
-        -------
-        """
-        
-        urlpath = f"observation/"
-        response = self._delete("observation/" + observation_id + "/")
-    
-    def post_subjectsource(
-        self,
-        subject_id: str,
-        source_id: str,
-        lower_bound_assigned_range: datetime.datetime,
-        upper_bound_assigned_range: datetime.datetime,
-        additional: typing.Dict = None,
-    ) -> pd.DataFrame:
-        """
-        Parameters
-        ----------
-        subject_id
-        source_id
-        lower_bound_assigned_range
-        upper_bound_assigned_range
-        additional
-        Returns
-        -------
-        pd.DataFrame
-        """
-
-        if additional is None:
-            additional = {}
-        payload = {
-            "source": source_id,
-            "assigned_range": {
-                "lower": lower_bound_assigned_range,
-                "upper": upper_bound_assigned_range,
-            },
-            "additional": additional,
-        }
-
-        urlpath = f"subject/{subject_id}/sources"
-        response = self._post(urlpath, payload=payload)
-        return pd.DataFrame([response])
-
-    @staticmethod
-    def _dataframe_to_dict(events):
-        if isinstance(events, gpd.GeoDataFrame):
-            events["location"] = pd.DataFrame({"longitude": events.geometry.x, "latitude": events.geometry.y}).to_dict(
-                "records"
-            )
-            del events["geometry"]
-
-        if isinstance(events, pd.DataFrame):
-            events = events.to_dict("records")
-        return events
-
     def post_event(
         self,
         events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]],
@@ -802,121 +863,7 @@ GET Functions
         results = super().post_event(event=events)
         results = results if isinstance(results, list) else [results]
         return pd.DataFrame(results)
-
-    def patch_event(
-        self,
-        event_id: str,
-        events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]],
-    ) -> pd.DataFrame:
-        """
-        Parameters
-        ----------
-        event_id
-            UUID for the event that will be updated.
-        events
-        Returns
-        -------
-        pd.DataFrame:
-            Updated events in EarthRanger.
-        """
-
-        events = self._dataframe_to_dict(events)
-        if isinstance(events, list):
-            results = [self._patch(f"activity/event/{event_id}", payload=event) for event in events]
-        else:
-            results = [self._patch(f"activity/event/{event_id}", payload=events)]
-        return pd.DataFrame(results)
-    
-    def delete_event(self, event_id: str):
-        """
-        Parameters
-        ----------
-        event_id
-        -------
-        """
-        
-        urlpath = f"activity/event/"
-        response = self._delete("activity/event/" + event_id + "/")
-
-    def post_subject(
-        self,
-        subject_name: str,
-        subject_type: str,
-        subject_subtype: str,
-        is_active: bool = True,
-        **kwargs,
-    ) -> pd.DataFrame:
-        """
-        Parameters
-        ----------
-        subject_name
-        subject_subtype
-        is_active
-
-        Returns
-        -------
-        pd.DataFrame
-        """
-
-        payload = {
-            "name": subject_name,
-            "subject_subtype": subject_subtype,
-            "is_active": is_active,
-        }
-
-        if kwargs:
-            payload.update(kwargs)
-
-        response = self._post("subjects", payload=payload)
-        return pd.DataFrame([response])
-
-    def post_source(
-        self,
-        source_type: str,
-        manufacturer_id: str,
-        model_name: str,
-        provider: str = "default",
-        additional: typing.Dict = {},
-        **kwargs,
-    ) -> pd.DataFrame:
-        """
-        Parameters
-        ----------
-        source_type
-        manufacturer_id
-        model_name
-        provider
-        additional
-        Returns
-        -------
-        pd.DataFrame
-        """
-
-        payload = {
-            "source_type": source_type,
-            "manufacturer_id": manufacturer_id,
-            "model_name": model_name,
-            "additional": additional,
-            "provider": provider,
-        }
-
-        if kwargs:
-            payload.update(kwargs)
-
-        response = self._post("sources", payload=payload)
-        return pd.DataFrame([response])
-
-    def delete_source(self, source_id: str):
-        """
-        Parameters
-        ----------
-        source_id
-        -------
-        """
-        
-        urlpath = f"/source"
-        response = self._delete("source/" + source_id + "/")
-
+  
     def post_patrol(self, priority: int, **kwargs) -> pd.DataFrame:
         """
         Parameters
@@ -996,3 +943,69 @@ GET Functions
 
         response = self._post("activity/patrols/segments/", payload=payload)
         return pd.DataFrame([response])
+
+"""
+PATCH Functions
+"""
+
+    def patch_event(
+        self,
+        event_id: str,
+        events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]],
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        event_id
+            UUID for the event that will be updated.
+        events
+        Returns
+        -------
+        pd.DataFrame:
+            Updated events in EarthRanger.
+        """
+
+        events = self._dataframe_to_dict(events)
+        if isinstance(events, list):
+            results = [self._patch(f"activity/event/{event_id}", payload=event) for event in events]
+        else:
+            results = [self._patch(f"activity/event/{event_id}", payload=events)]
+        return pd.DataFrame(results)
+
+    
+"""
+DELETE Functions
+"""
+    
+    def delete_source(self, source_id: str):
+        """
+        Parameters
+        ----------
+        source_id
+        -------
+        """
+        
+        urlpath = f"/source"
+        response = self._delete("source/" + source_id + "/")    
+    
+    def delete_observation(self, observation_id: str):
+        """
+        Parameters
+        ----------
+        observation_id
+        -------
+        """
+        
+        urlpath = f"observation/"
+        response = self._delete("observation/" + observation_id + "/")
+    
+    def delete_event(self, event_id: str):
+        """
+        Parameters
+        ----------
+        event_id
+        -------
+        """
+        
+        urlpath = f"activity/event/"
+        response = self._delete("activity/event/" + event_id + "/")
