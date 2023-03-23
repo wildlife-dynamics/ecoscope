@@ -666,41 +666,6 @@ GET Functions
 """
 POST Functions
 """
-    
-#     def post_source(
-#         self,
-#         manufacturer_id: str,
-#         source_type: str,
-#         model_name: str,
-#         provider_name: str,
-#         additional: typing.Dict = None,
-#         ) -> pd.DataFrame:
-#         """
-#         Parameters
-#         ----------
-#         manufacturer_id
-#         source_type
-#         model_name
-#         provider_name
-#         additional
-#         Returns
-#         -------
-#         pd.DataFrame
-#         """
-    
-#         if additional is None:
-#             additional = {}
-#         payload = {
-#             "manufacturer": manufacturer_id,
-#             "source": source_type,
-#             "model": model_name,
-#             "provider": provider_name,
-#             "additional": None
-#         }
-    
-#         urlpath = f"/sources"
-#         response = self._post(urlpath, payload=payload)
-#         return pd.DataFrame([response])
 
     def post_source(
         self,
