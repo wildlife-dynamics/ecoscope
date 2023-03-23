@@ -12,7 +12,6 @@ from tqdm.auto import tqdm
 import ecoscope
 from ecoscope.io.utils import pack_columns, to_hex
 
-
 def fatal_status_code(e):
     return 400 <= e.response.status_code < 500
 
@@ -196,7 +195,7 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", manufacturer_id=None))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", manufacturer_id=manufacturer_id))
         assert not df.empty
         return df    
 
