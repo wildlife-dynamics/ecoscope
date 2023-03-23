@@ -195,9 +195,10 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
-        assert not df.empty
-        return df    
+#         df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
+#         assert not df.empty
+#         return df
+        return pd.DataFrame(self._get("sources/", params=kwargs)["results"])
 
     def _get_observations(
         self,
