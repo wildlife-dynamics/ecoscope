@@ -93,7 +93,7 @@ class EarthRangerIO(ERClient):
     GET Functions
     """
 
-    def _get_objects_count(self, params):
+    def _get_objects_count(self, params): 
         params = params.copy()
         params["page"] = 1
         params["page_size"] = 1
