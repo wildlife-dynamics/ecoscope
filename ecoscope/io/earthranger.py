@@ -941,36 +941,15 @@ class EarthRangerIO(ERClient):
     """
     DELETE Functions
     """
-    
-#     def delete_source(self, source_id: str):
-#         """
-#         Parameters
-#         ----------
-#         source_id
-#         -------
-#         """
+
+    def delete_observation(self, observation_id: str):
+        """
+        Parameters
+        ----------
+        observation_id
+        -------
+        """
         
-#         urlpath = f"/source"
-#         response = self._delete("source/" + source_id + "/")    
+        urlpath = f"observation/"
+        response = self._delete("observation/" + observation_id + "/")
     
-#     def delete_observation(self, observation_id: str):
-#         """
-#         Parameters
-#         ----------
-#         observation_id
-#         -------
-#         """
-        
-#         urlpath = f"observation/"
-#         response = self._delete("observation/" + observation_id + "/")
-    
-#     def delete_event(self, event_id: str):
-#         """
-#         Parameters
-#         ----------
-#         event_id
-#         -------
-#         """
-        
-#         urlpath = f"activity/event/"
-#         response = self._delete("activity/event/" + event_id + "/")
