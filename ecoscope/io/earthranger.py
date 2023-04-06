@@ -59,7 +59,7 @@ class EarthRangerIO(ERClient):
             crs=4326,
         )
             
-    @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
+#     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
 #     def _delete(self, path):
 
 #         headers = {'User-Agent': self.user_agent}
