@@ -59,41 +59,12 @@ class EarthRangerIO(ERClient):
             crs=4326,
         )
             
-    @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
-    def _delete(self, path):
-
-        headers = {'User-Agent': self.user_agent}
-        headers.update(self.auth_headers())
-
-        if (self._http_session):
-            response = self._http_session.delete(
-                self._er_url(path), headers=headers)
-        else:
-            response = requests.delete(self._er_url(path), headers=headers)
-
-        if response.ok:
-            return True
-
-        if response.status_code == 404:  # not found
-            self.logger.error(f"404 when calling {path}")
-            raise ERClientNotFound()
-
-        if response.status_code == 403:  # forbidden
-            try:
-                _ = json.loads(response.text)
-                reason = _['status']['detail']
-            except:
-                reason = 'unknown reason'
-            raise ERClientPermissionDenied(reason)
-
-        raise ERClientException(
-            f'Failed to delete: {response.status_code} {response.text}')
         
     """
     GET Functions
     """
 
-    def _get_objects_count(self, params):
+    def _get_objects_count(self, params): 
         params = params.copy()
         params["page"] = 1
         params["page_size"] = 1
@@ -941,18 +912,7 @@ class EarthRangerIO(ERClient):
     """
     DELETE Functions
     """
-    
-    def delete_source(self, source_id: str):
-        """
-        Parameters
-        ----------
-        source_id
-        -------
-        """
-        
-        urlpath = f"/source"
-        response = self._delete("source/" + source_id + "/")    
-    
+
     def delete_observation(self, observation_id: str):
         """
         Parameters
@@ -963,14 +923,4 @@ class EarthRangerIO(ERClient):
         
         urlpath = f"observation/"
         response = self._delete("observation/" + observation_id + "/")
-    
-    def delete_event(self, event_id: str):
-        """
-        Parameters
-        ----------
-        event_id
-        -------
-        """
         
-        urlpath = f"activity/event/"
-        response = self._delete("activity/event/" + event_id + "/")
