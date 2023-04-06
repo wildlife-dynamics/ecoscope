@@ -60,34 +60,34 @@ class EarthRangerIO(ERClient):
         )
             
     @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=10, giveup=fatal_status_code)
-    def _delete(self, path):
+#     def _delete(self, path):
 
-        headers = {'User-Agent': self.user_agent}
-        headers.update(self.auth_headers())
+#         headers = {'User-Agent': self.user_agent}
+#         headers.update(self.auth_headers())
 
-        if (self._http_session):
-            response = self._http_session.delete(
-                self._er_url(path), headers=headers)
-        else:
-            response = requests.delete(self._er_url(path), headers=headers)
+#         if (self._http_session):
+#             response = self._http_session.delete(
+#                 self._er_url(path), headers=headers)
+#         else:
+#             response = requests.delete(self._er_url(path), headers=headers)
 
-        if response.ok:
-            return True
+#         if response.ok:
+#             return True
 
-        if response.status_code == 404:  # not found
-            self.logger.error(f"404 when calling {path}")
-            raise ERClientNotFound()
+#         if response.status_code == 404:  # not found
+#             self.logger.error(f"404 when calling {path}")
+#             raise ERClientNotFound()
 
-        if response.status_code == 403:  # forbidden
-            try:
-                _ = json.loads(response.text)
-                reason = _['status']['detail']
-            except:
-                reason = 'unknown reason'
-            raise ERClientPermissionDenied(reason)
+#         if response.status_code == 403:  # forbidden
+#             try:
+#                 _ = json.loads(response.text)
+#                 reason = _['status']['detail']
+#             except:
+#                 reason = 'unknown reason'
+#             raise ERClientPermissionDenied(reason)
 
-        raise ERClientException(
-            f'Failed to delete: {response.status_code} {response.text}')
+#         raise ERClientException(
+#             f'Failed to delete: {response.status_code} {response.text}')
         
     """
     GET Functions
