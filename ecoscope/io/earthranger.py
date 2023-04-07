@@ -184,7 +184,7 @@ class EarthRangerIO(ERClient):
         subjectsources : pd.DataFrame
         """
         params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
-        return self.get_objects_multithreaded(object="subjectsources/", **params)
+        return pd.DataFrame(self.get_objects_multithreaded(object="subjectsources/", **params))
 
 
     def _get_observations(
