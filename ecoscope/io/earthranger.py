@@ -634,6 +634,16 @@ class EarthRangerIO(ERClient):
                     )
         return ecoscope.base.Relocations(pd.concat(observations))    
     
+    def get_patrol_segment_events(self,
+                                  patrol_segment_ids=None,
+                                  **addl_kwargs):
+        params = self._clean_kwargs(
+            addl_kwargs,
+            patrol_segment_ids=patrol_segment_ids)
+        
+        assert (patrol_segment_ids).count(None) == 0
+        
+    
     """
     POST Functions
     """
