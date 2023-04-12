@@ -639,7 +639,7 @@ class EarthRangerIO(ERClient):
                                   include_details=False,
                                   include_files=False,
                                   include_related_events=False,
-                                  include_notes=False
+                                  include_notes=False,
                                   **addl_kwargs):
         params = self._clean_kwargs(
             addl_kwargs,
