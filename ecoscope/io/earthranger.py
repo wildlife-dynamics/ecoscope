@@ -925,7 +925,7 @@ class EarthRangerIO(ERClient):
         if addl_kwargs:
             payload.update(addl_kwargs)
 
-        response = self._post("activity/patrols/segments/", payload=payload)
+        response = self._post(f"activity/patrols/segments/{patrol_segment_id}/events/", payload=payload)
         return pd.DataFrame([response])    
 
     """
