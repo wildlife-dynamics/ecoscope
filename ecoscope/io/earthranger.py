@@ -638,12 +638,16 @@ class EarthRangerIO(ERClient):
                                   patrol_segment_id=None,
                                   include_details=False,
                                   include_files=False,
+                                  include_related_events=False,
+                                  include_notes=False
                                   **addl_kwargs):
         params = self._clean_kwargs(
             addl_kwargs,
             patrol_segment_id=patrol_segment_id,
             include_details=include_details,
-            include_files=include_files            
+            include_files=include_files,
+            include_related_events=include_related_events,
+            include_notes=include_notes
         )
         
         object = f"activity/patrols/segments/{patrol_segment_id}/events/"
