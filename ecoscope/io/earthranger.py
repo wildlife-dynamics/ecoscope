@@ -636,10 +636,15 @@ class EarthRangerIO(ERClient):
     
     def get_patrol_segment_events(self,
                                   patrol_segment_id=None,
+                                  include_details=False,
+                                  include_files=False,
                                   **addl_kwargs):
         params = self._clean_kwargs(
             addl_kwargs,
-            patrol_segment_id=patrol_segment_id)
+            patrol_segment_id=patrol_segment_id,
+            include_details=include_details,
+            include_files=include_files            
+        )
         
         object = f"activity/patrols/segments/{patrol_segment_id}/events/"
         return pd.DataFrame(self.get_objects_multithreaded(object=object, **params))
