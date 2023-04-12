@@ -642,7 +642,7 @@ class EarthRangerIO(ERClient):
             patrol_segment_id=patrol_segment_id)
         
         object = f"activity/patrols/segments/{patrol_segment_id}/events/"
-        return pd.DataFrame(self.get_objects_multithreaded(object=object, **kwargs))
+        return pd.DataFrame(self.get_objects_multithreaded(object=object, **params))
                 
     
     """
