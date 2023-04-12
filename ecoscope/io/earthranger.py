@@ -899,6 +899,34 @@ class EarthRangerIO(ERClient):
 
         response = self._post("activity/patrols/segments/", payload=payload)
         return pd.DataFrame([response])
+    
+    def post_patrol_segment_event(
+        self,
+        patrol_segment_id: str,
+        event_type: str,
+        **addl_kwargs,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        patrol_segment_id
+        event_type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+
+        payload = {
+            "patrol_segment": patrol_segment_id,
+            "event_type": event_type,
+        }
+
+        if addl_kwargs:
+            payload.update(addl_kwargs)
+
+        response = self._post("activity/patrols/segments/", payload=payload)
+        return pd.DataFrame([response])    
 
     """
     PATCH Functions
