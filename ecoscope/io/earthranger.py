@@ -184,7 +184,7 @@ class EarthRangerIO(ERClient):
         subjectsources : pd.DataFrame
         """
         params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
-        return self._get("subjectsources/", params=params)
+        return pd.DataFrame(self.get_objects_multithreaded(object="subjectsources/", **params))
 
 
     def _get_observations(
@@ -634,6 +634,26 @@ class EarthRangerIO(ERClient):
                     )
         return ecoscope.base.Relocations(pd.concat(observations))    
     
+    def get_patrol_segment_events(self,
+                                  patrol_segment_id=None,
+                                  include_details=False,
+                                  include_files=False,
+                                  include_related_events=False,
+                                  include_notes=False,
+                                  **addl_kwargs):
+        params = self._clean_kwargs(
+            addl_kwargs,
+            patrol_segment_id=patrol_segment_id,
+            include_details=include_details,
+            include_files=include_files,
+            include_related_events=include_related_events,
+            include_notes=include_notes
+        )
+        
+        object = f"activity/patrols/segments/{patrol_segment_id}/events/"
+        return pd.DataFrame(self.get_objects_multithreaded(object=object, **params))
+                
+    
     """
     POST Functions
     """
@@ -879,6 +899,34 @@ class EarthRangerIO(ERClient):
 
         response = self._post("activity/patrols/segments/", payload=payload)
         return pd.DataFrame([response])
+    
+    def post_patrol_segment_event(
+        self,
+        patrol_segment_id: str,
+        event_type: str,
+        **addl_kwargs,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        patrol_segment_id
+        event_type
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+
+        payload = {
+            "patrol_segment": patrol_segment_id,
+            "event_type": event_type,
+        }
+
+        if addl_kwargs:
+            payload.update(addl_kwargs)
+
+        response = self._post(f"activity/patrols/segments/{patrol_segment_id}/events/", payload=payload)
+        return pd.DataFrame([response])    
 
     """
     PATCH Functions
@@ -923,4 +971,4 @@ class EarthRangerIO(ERClient):
         
         urlpath = f"observation/"
         response = self._delete("observation/" + observation_id + "/")
-        
+    
