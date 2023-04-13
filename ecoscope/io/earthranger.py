@@ -592,7 +592,9 @@ class EarthRangerIO(ERClient):
         """
 
         params = self._clean_kwargs(addl_kwargs, filter=filter, status=status, return_data=True)
-        return pd.DataFrame(self.get_objects_multithreaded(object="activity/patrols", **params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/patrols", **params))
+        df = df.sort_values(by="serial_number").reset_index(drop=True)
+        return df
     
     def get_observations_for_patrols(self, patrols_df, **kwargs):
         """
