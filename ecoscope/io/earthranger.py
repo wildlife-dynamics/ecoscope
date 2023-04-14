@@ -24,9 +24,11 @@ class EarthRangerIO(ERClient):
             kwargs["token_url"] = f"{server}/oauth2/token"
             
         if kwargs.get("tcp_limit"):
+            print(tcp_limit)
             self.threads = kwargs.get("tcp_limit")
             
         if kwargs.get("sub_page_size"):
+            print(sub_page_size)
             self.page_size = kwargs.get("sub_page_size")
 
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
