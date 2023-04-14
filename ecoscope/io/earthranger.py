@@ -161,7 +161,10 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/", **params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/",
+                                                         threads=self.tcp_limit,
+                                                         page_size=self.sub_page_size,
+                                                         **params))
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
@@ -179,7 +182,10 @@ class EarthRangerIO(ERClient):
         subjectsources : pd.DataFrame
         """
         params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
-        return pd.DataFrame(self.get_objects_multithreaded(object="subjectsources/", **params))
+        return pd.DataFrame(self.get_objects_multithreaded(object="subjectsources/",
+                                                           threads=self.tcp_limit,
+                                                           page_size=self.sub_page_size,
+                                                           **params))
 
 
     def _get_observations(
@@ -244,7 +250,10 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/", threads=5, page_size=4000, **params))
+            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/",
+                                                                    threads=self.tcp_limit,
+                                                                    page_size=self.sub_page_size,
+                                                                    **params))
             dataframe[id_name] = _id
             observations.append(dataframe)
 
@@ -553,7 +562,10 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/events/", threads=5, page_size=100, **params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/events/",
+                                                         threads=self.tcp_limit,
+                                                         page_size=self.sub_page_size,
+                                                         **params))
 
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
@@ -587,7 +599,10 @@ class EarthRangerIO(ERClient):
         """
 
         params = self._clean_kwargs(addl_kwargs, filter=filter, status=status, return_data=True)
-        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/patrols", **params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/patrols",
+                                                         threads=self.tcp_limit,
+                                                         page_size=self.sub_page_size,
+                                                         **params))
         df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
     
@@ -648,7 +663,10 @@ class EarthRangerIO(ERClient):
         )
         
         object = f"activity/patrols/segments/{patrol_segment_id}/events/"
-        return pd.DataFrame(self.get_objects_multithreaded(object=object, **params))
+        return pd.DataFrame(self.get_objects_multithreaded(object=object,
+                                                           threads=self.tcp_limit,
+                                                           page_size=self.sub_page_size,
+                                                           **params))
                 
     
     """
