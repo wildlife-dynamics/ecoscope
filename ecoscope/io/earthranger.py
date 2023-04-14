@@ -467,15 +467,15 @@ class EarthRangerIO(ERClient):
         updated_size=None,
         event_ids=None,
         bbox=None,
-        include_updates=None,
-        include_details=None,
         sort_by=None,
         patrol_segment=None,
         state=None,
         event_type=None,
-        include_notes=None,
-        include_related_events=None,
-        include_files=None,
+        include_updates=False,
+        include_details=False,
+        include_notes=False,
+        include_related_events=False,
+        include_files=False,
         max_results=None,
         oldest_update_date=None,
         exclude_contained=None,
@@ -497,10 +497,6 @@ class EarthRangerIO(ERClient):
         bbox
             bounding box including four coordinate values, comma-separated. Ex. bbox=-122.4,48.4,-122.95,49.0
             (west, south, east, north).
-        include_updates
-            Boolean value
-        include_details
-            Boolean value
         sort_by
             Sort by (use 'event_time', 'updated_at', 'created_at', 'serial_number') with optional minus ('-') prefix to
             reverse order.
@@ -510,6 +506,10 @@ class EarthRangerIO(ERClient):
             Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
         event_type
             Comma-separated list of event type uuids
+        include_updates
+            Boolean value
+        include_details
+            Boolean value
         include_notes
             Boolean value
         include_related_events
@@ -534,12 +534,12 @@ class EarthRangerIO(ERClient):
             updated_size=updated_size,
             event_ids=event_ids,
             bbox=bbox,
-            include_updates=include_updates,
-            include_details=include_details,
             sort_by=sort_by,
             patrol_segment=patrol_segment,
             state=state,
             event_type=event_type,
+            include_updates=include_updates,
+            include_details=include_details,
             include_notes=include_notes,
             include_related_events=include_related_events,
             include_files=include_files,
