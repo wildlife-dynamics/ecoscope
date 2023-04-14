@@ -17,7 +17,9 @@ def fatal_status_code(e):
 
 
 class EarthRangerIO(ERClient):
-    def __init__(self, **kwargs):
+    def __init__(self, tcp_limit, sub_page_size, **kwargs):
+        self.tcp_limit = tcp_limit
+        self.sub_page_size = sub_page_size
         if "server" in kwargs:
             server = kwargs.pop("server")
             kwargs["service_root"] = f"{server}/api/v1.0"
