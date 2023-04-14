@@ -17,20 +17,14 @@ def fatal_status_code(e):
 
 
 class EarthRangerIO(ERClient):
-    def __init__(self, **kwargs):
+    def __init__(self, sub_page_size=4000, tcp_limit=5, **kwargs):
         if "server" in kwargs:
             server = kwargs.pop("server")
             kwargs["service_root"] = f"{server}/api/v1.0"
             kwargs["token_url"] = f"{server}/oauth2/token"
             
-        if kwargs.get("tcp_limit"):
-            print(tcp_limit)
-            self.threads = kwargs.get("tcp_limit")
-            
-        if kwargs.get("sub_page_size"):
-            print(sub_page_size)
-            self.page_size = kwargs.get("sub_page_size")
-
+        self.sub_page_size = sub_page_size
+        self.tcp_limit = tcp_limit
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
 
@@ -100,7 +94,10 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/", **params))
+        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/",
+                                                         threads=self.tcp_limit,
+                                                         page_size=self.sub_page_size,
+                                                         **params))
         assert not df.empty
         return df    
     
