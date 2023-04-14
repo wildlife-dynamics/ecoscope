@@ -64,16 +64,6 @@ class EarthRangerIO(ERClient):
     GET Functions
     """
 
-    def _get_objects_count(self, params): 
-        params = params.copy()
-        params["page"] = 1
-        params["page_size"] = 1
-        results = self._get(params["object"], params=params)
-        if results and results.get("count"):
-            
-            return results["count"]
-        return 0
-
     def get_sources(
         self,
         manufacturer_id=None,
