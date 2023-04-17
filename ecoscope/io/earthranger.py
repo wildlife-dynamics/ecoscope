@@ -667,7 +667,14 @@ class EarthRangerIO(ERClient):
                                                            threads=self.tcp_limit,
                                                            page_size=self.sub_page_size,
                                                            **params))
-                
+    
+    def get_eventtype(self):
+        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/events/eventtypes/",
+                                                         threads=self.tcp_limit,
+                                                         page_size=self.sub_page_size)
+        assert not df.empty
+        return df                 
+        
     
     """
     POST Functions
