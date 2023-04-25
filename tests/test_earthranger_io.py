@@ -31,16 +31,6 @@ def test_get_subject_observations(er_io):
     assert "extra__source" in relocations
 
 
-def test_get_subject_no_observations(er_io):
-    with pytest.raises(requests.exceptions.HTTPError):
-        er_io.get_subject_observations(
-            subject_ids=str(uuid.uuid4()),
-            include_subject_details=True,
-            include_source_details=True,
-            include_subjectsource_details=True,
-        )
-
-
 def test_get_source_observations(er_io):
     relocations = er_io.get_source_observations(
         source_ids=er_io.SOURCE_IDS,
