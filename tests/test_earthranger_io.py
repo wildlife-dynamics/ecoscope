@@ -73,8 +73,8 @@ def test_get_subjectgroup_observations(er_io):
 
 
 def test_get_events(er_io):
-    events = er_io.get_events(page_size=100)
-    assert len(events) <= 100
+    events = er_io.get_events()
+    assert not events.empty
 
 
 @pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
