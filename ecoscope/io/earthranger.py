@@ -157,7 +157,7 @@ class EarthRangerIO(ERClient):
                         "include_hidden": True,
                         "flat": True,
                     },
-                ).id[0]
+                )[0]["id"]
             except IndexError:
                 raise KeyError("`group_name` not found")
 
