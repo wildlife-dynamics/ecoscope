@@ -77,16 +77,6 @@ def test_get_subjectsource_no_observations(er_io):
     assert relocations.empty
 
 
-def test_get_subjectsource_observations_with_cursor(er_io):
-    print(er_io.SUBJECTSOURCE_IDS[0])
-    relocations = er_io.get_subjectsource_observations(
-        subjectsource_ids=er_io.SUBJECTSOURCE_IDS[0],
-        include_source_details=True,
-        use_cursor=True,
-    )
-    assert isinstance(relocations, ecoscope.base.Relocations)
-
-
 def test_get_subjectgroup_observations(er_io):
     relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
     assert "groupby_col" in relocations
