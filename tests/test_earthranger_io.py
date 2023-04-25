@@ -229,5 +229,5 @@ def test_get_observation_for_patrol(er_io):
 
 
 def test_users(er_io):
-    users = er_io.get_users()
+    users = pd.DataFrame(er_io.get_users())
     assert not users.empty
