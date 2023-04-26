@@ -1,3 +1,4 @@
+import pytz
 import datetime
 import json
 import typing
@@ -6,7 +7,7 @@ import backoff
 import geopandas as gpd
 import pandas as pd
 import requests
-from erclient.client import ERClient, ERClientException, split_link
+from erclient.client import ERClient, ERClientException, ERClientNotFound, split_link
 from tqdm.auto import tqdm
 
 import ecoscope
@@ -27,6 +28,23 @@ class EarthRangerIO(ERClient):
         self.tcp_limit = tcp_limit
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
+        try:
+            self.login()
+        except:
+            raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")            
+        
+    def _token_request(self, payload):
+        response = requests.post(self.token_url, data=payload)
+        if response.ok:
+            self.auth = json.loads(response.text)
+            expires_in = int(self.auth['expires_in']) - 5 * 60
+            self.auth_expires = pytz.utc.localize(
+                datetime.datetime.utcnow()) + datetime.timedelta(seconds=expires_in)
+            return True
+        
+        self.auth = None
+        self.auth_expires = pytz.utc.localize(datetime.datetime.min)
+        raise ERClientNotFound(json.loads(response.text)["error_description"])
 
     @staticmethod
     def _clean_kwargs(addl_kwargs={}, **kwargs):
@@ -157,7 +175,7 @@ class EarthRangerIO(ERClient):
                         "include_hidden": True,
                         "flat": True,
                     },
-                )[0]["id"]
+                ).id[0]
             except IndexError:
                 raise KeyError("`group_name` not found")
 
