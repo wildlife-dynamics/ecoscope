@@ -606,6 +606,12 @@ class EarthRangerIO(ERClient):
         df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
     
+    def get_patrol_segments(self):
+        object = f"activity/patrols/segments/"
+        return pd.DataFrame(self.get_objects_multithreaded(object=object,
+                                                       threads=self.tcp_limit,
+                                                       page_size=self.sub_page_size))
+    
     def get_observations_for_patrols(self, patrols_df, **kwargs):
         """
         Download observations for provided `patrols_df`.
