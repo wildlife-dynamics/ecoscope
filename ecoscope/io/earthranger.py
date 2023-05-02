@@ -861,6 +861,7 @@ class EarthRangerIO(ERClient):
     def post_patrol_segment(
         self,
         patrol_id: str,
+        patrol_segment_id: str,
         patrol_type: str = None,
         tracked_subject_id: str = None,
         scheduled_start: str = None,
@@ -875,6 +876,7 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         patrol_id
+        patrol_segment_id
         patrol_type
         tracked_subject_id
         scheduled_start
@@ -891,6 +893,7 @@ class EarthRangerIO(ERClient):
 
         payload = {
             "patrol": patrol_id,
+            "patrol_segment": patrol_segment_id,
             "scheduled_start": scheduled_start,
             "scheduled_end": scheduled_end,
             "time_range": {"start_time": start_time, "end_time": end_time},
