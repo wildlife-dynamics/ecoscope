@@ -579,17 +579,23 @@ class EarthRangerIO(ERClient):
         df.sort_values("time", inplace=True)
         return df
 
-    def get_patrols(self, filter=None, status=None, **addl_kwargs):
+    def get_patrols(
+            self,
+            since=None,
+            until=None,
+            patrol_type=None,
+            status=None,
+            **addl_kwargs
+      ):
         """
         Parameters
         ----------
-        filter:
-            example: {"date_range":{"lower":"2020-09-16T00:00:00.000Z"}}
-            date_range
-            patrols_overlap_daterange
-            text
-            patrol_type
-            tracked_by
+        since:
+            lower date range
+        until:
+            upper date range
+        patrol_type:
+            Type of patrol UUID
         status
             Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
         Returns
@@ -598,7 +604,21 @@ class EarthRangerIO(ERClient):
             DataFrame of queried patrols
         """
 
-        params = self._clean_kwargs(addl_kwargs, filter=filter, status=status, return_data=True)
+        params = self._clean_kwargs(
+            addl_kwargs,
+            status=status,
+            patrol_type=patrol_type,
+            return_data=True
+        )
+
+        filter = {"date_range": {}}
+        if since is not None:
+          filter["date_range"]["lower"] = since
+          params["filter"] = json.dumps(filter)
+        if until is not None:
+          filter["date_range"]["upper"] = until
+          params["filter"] = json.dumps(filter)
+            
         df = pd.DataFrame(self.get_objects_multithreaded(object="activity/patrols",
                                                          threads=self.tcp_limit,
                                                          page_size=self.sub_page_size,
