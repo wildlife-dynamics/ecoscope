@@ -6,7 +6,6 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import pytz
-import requests
 from shapely.geometry import Point
 
 import ecoscope

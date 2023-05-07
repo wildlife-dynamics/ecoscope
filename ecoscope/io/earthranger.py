@@ -2,15 +2,15 @@ import datetime
 import json
 import typing
 
-import backoff
 import geopandas as gpd
 import pandas as pd
 import requests
-from erclient.client import ERClient, ERClientException, split_link
+from erclient.client import ERClient, ERClientException
 from tqdm.auto import tqdm
 
 import ecoscope
 from ecoscope.io.utils import pack_columns, to_hex
+
 
 def fatal_status_code(e):
     return 400 <= e.response.status_code < 500
@@ -22,7 +22,7 @@ class EarthRangerIO(ERClient):
             server = kwargs.pop("server")
             kwargs["service_root"] = f"{server}/api/v1.0"
             kwargs["token_url"] = f"{server}/oauth2/token"
-            
+
         self.sub_page_size = sub_page_size
         self.tcp_limit = tcp_limit
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
@@ -32,14 +32,14 @@ class EarthRangerIO(ERClient):
     def _clean_kwargs(addl_kwargs={}, **kwargs):
         for k in addl_kwargs.keys():
             print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
-        return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}        
-        
+        return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
+
     @staticmethod
     def _normalize_column(df, col):
         print(col)
         for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
-            df[k] = v.values        
-   
+            df[k] = v.values
+
     @staticmethod
     def _dataframe_to_dict(events):
         if isinstance(events, gpd.GeoDataFrame):
@@ -50,8 +50,8 @@ class EarthRangerIO(ERClient):
 
         if isinstance(events, pd.DataFrame):
             events = events.to_dict("records")
-        return events        
-        
+        return events
+
     @staticmethod
     def _to_gdf(df):
         longitude, latitude = (0, 1) if isinstance(df["location"].iat[0], list) else ("longitude", "latitude")
@@ -60,8 +60,7 @@ class EarthRangerIO(ERClient):
             geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
             crs=4326,
         )
-            
-        
+
     """
     GET Functions
     """
@@ -94,13 +93,14 @@ class EarthRangerIO(ERClient):
             provider=provider,
             id=id,
         )
-        df = pd.DataFrame(self.get_objects_multithreaded(object="sources/",
-                                                         threads=self.tcp_limit,
-                                                         page_size=self.sub_page_size,
-                                                         **params))
+        df = pd.DataFrame(
+            self.get_objects_multithreaded(
+                object="sources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+            )
+        )
         assert not df.empty
-        return df    
-    
+        return df
+
     def get_subjects(
         self,
         include_inactive=None,
@@ -161,16 +161,17 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="subjects/",
-                                                         threads=self.tcp_limit,
-                                                         page_size=self.sub_page_size,
-                                                         **params))
+        df = pd.DataFrame(
+            self.get_objects_multithreaded(
+                object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+            )
+        )
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
 
-        return df    
-    
+        return df
+
     def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
         """
         Parameters
@@ -182,11 +183,11 @@ class EarthRangerIO(ERClient):
         subjectsources : pd.DataFrame
         """
         params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
-        return pd.DataFrame(self.get_objects_multithreaded(object="subjectsources/",
-                                                           threads=self.tcp_limit,
-                                                           page_size=self.sub_page_size,
-                                                           **params))
-
+        return pd.DataFrame(
+            self.get_objects_multithreaded(
+                object="subjectsources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+            )
+        )
 
     def _get_observations(
         self,
@@ -234,7 +235,7 @@ class EarthRangerIO(ERClient):
             until=until,
             filter=filter,
             include_details=include_details,
-            created_after=created_after
+            created_after=created_after,
         )
 
         if source_ids:
@@ -250,10 +251,11 @@ class EarthRangerIO(ERClient):
         for _id in pbar:
             params[id_name] = _id
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
-            dataframe = pd.DataFrame(self.get_objects_multithreaded(object="observations/",
-                                                                    threads=self.tcp_limit,
-                                                                    page_size=self.sub_page_size,
-                                                                    **params))
+            dataframe = pd.DataFrame(
+                self.get_objects_multithreaded(
+                    object="observations/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                )
+            )
             dataframe[id_name] = _id
             observations.append(dataframe)
 
@@ -463,8 +465,8 @@ class EarthRangerIO(ERClient):
         else:
             subject_ids = self.get_subjects(group_name=group_name, include_inactive=include_inactive).id.tolist()
 
-        return self.get_subject_observations(subject_ids, **kwargs)        
-        
+        return self.get_subject_observations(subject_ids, **kwargs)
+
     def get_events(
         self,
         is_collection=None,
@@ -562,10 +564,11 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/events/",
-                                                         threads=self.tcp_limit,
-                                                         page_size=self.sub_page_size,
-                                                         **params))
+        df = pd.DataFrame(
+            self.get_objects_multithreaded(
+                object="activity/events/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+            )
+        )
 
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
@@ -599,19 +602,20 @@ class EarthRangerIO(ERClient):
         """
 
         params = self._clean_kwargs(addl_kwargs, filter=filter, status=status, return_data=True)
-        df = pd.DataFrame(self.get_objects_multithreaded(object="activity/patrols",
-                                                         threads=self.tcp_limit,
-                                                         page_size=self.sub_page_size,
-                                                         **params))
+        df = pd.DataFrame(
+            self.get_objects_multithreaded(
+                object="activity/patrols", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+            )
+        )
         df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
-    
+
     def get_patrol_segments(self):
-        object = f"activity/patrols/segments/"
-        return pd.DataFrame(self.get_objects_multithreaded(object=object,
-                                                       threads=self.tcp_limit,
-                                                       page_size=self.sub_page_size))
-    
+        object = "activity/patrols/segments/"
+        return pd.DataFrame(
+            self.get_objects_multithreaded(object=object, threads=self.tcp_limit, page_size=self.sub_page_size)
+        )
+
     def get_observations_for_patrols(self, patrols_df, **kwargs):
         """
         Download observations for provided `patrols_df`.
@@ -650,30 +654,33 @@ class EarthRangerIO(ERClient):
                         f"Getting observations for subject_id={subject_id} start_time={start_time} end_time={end_time}"
                         f"failed for: {e}"
                     )
-        return ecoscope.base.Relocations(pd.concat(observations))    
-    
-    def get_patrol_segment_events(self,
-                                  patrol_segment_id=None,
-                                  include_details=False,
-                                  include_files=False,
-                                  include_related_events=False,
-                                  include_notes=False,
-                                  **addl_kwargs):
+        return ecoscope.base.Relocations(pd.concat(observations))
+
+    def get_patrol_segment_events(
+        self,
+        patrol_segment_id=None,
+        include_details=False,
+        include_files=False,
+        include_related_events=False,
+        include_notes=False,
+        **addl_kwargs,
+    ):
         params = self._clean_kwargs(
             addl_kwargs,
             patrol_segment_id=patrol_segment_id,
             include_details=include_details,
             include_files=include_files,
             include_related_events=include_related_events,
-            include_notes=include_notes
+            include_notes=include_notes,
         )
-        
+
         object = f"activity/patrols/segments/{patrol_segment_id}/events/"
-        return pd.DataFrame(self.get_objects_multithreaded(object=object,
-                                                           threads=self.tcp_limit,
-                                                           page_size=self.sub_page_size,
-                                                           **params))
-    
+        return pd.DataFrame(
+            self.get_objects_multithreaded(
+                object=object, threads=self.tcp_limit, page_size=self.sub_page_size, **params
+            )
+        )
+
     """
     POST Functions
     """
@@ -712,8 +719,8 @@ class EarthRangerIO(ERClient):
             payload.update(kwargs)
 
         response = self._post("sources", payload=payload)
-        return pd.DataFrame([response])    
-    
+        return pd.DataFrame([response])
+
     def post_subject(
         self,
         subject_name: str,
@@ -744,8 +751,8 @@ class EarthRangerIO(ERClient):
             payload.update(kwargs)
 
         response = self._post("subjects", payload=payload)
-        return pd.DataFrame([response])    
-    
+        return pd.DataFrame([response])
+
     def post_subjectsource(
         self,
         subject_id: str,
@@ -780,8 +787,8 @@ class EarthRangerIO(ERClient):
 
         urlpath = f"subject/{subject_id}/sources"
         response = self._post(urlpath, payload=payload)
-        return pd.DataFrame([response])    
-    
+        return pd.DataFrame([response])
+
     def post_observations(
         self,
         observations: gpd.GeoDataFrame,
@@ -839,7 +846,7 @@ class EarthRangerIO(ERClient):
         results = super().post_event(event=events)
         results = results if isinstance(results, list) else [results]
         return pd.DataFrame(results)
-  
+
     def post_patrol(self, priority: int, **kwargs) -> pd.DataFrame:
         """
         Parameters
@@ -922,7 +929,7 @@ class EarthRangerIO(ERClient):
 
         response = self._post("activity/patrols/segments/", payload=payload)
         return pd.DataFrame([response])
-    
+
     def post_patrol_segment_event(
         self,
         patrol_segment_id: str,
@@ -949,7 +956,7 @@ class EarthRangerIO(ERClient):
             payload.update(addl_kwargs)
 
         response = self._post(f"activity/patrols/segments/{patrol_segment_id}/events/", payload=payload)
-        return pd.DataFrame([response])    
+        return pd.DataFrame([response])
 
     """
     PATCH Functions
@@ -979,7 +986,6 @@ class EarthRangerIO(ERClient):
             results = [self._patch(f"activity/event/{event_id}", payload=events)]
         return pd.DataFrame(results)
 
-    
     """
     DELETE Functions
     """
@@ -991,7 +997,5 @@ class EarthRangerIO(ERClient):
         observation_id
         -------
         """
-        
-        urlpath = f"observation/"
-        response = self._delete("observation/" + observation_id + "/")
-    
+
+        self._delete("observation/" + observation_id + "/")
