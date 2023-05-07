@@ -607,7 +607,7 @@ class EarthRangerIO(ERClient):
             return_data=True,
         )
 
-        filter = {"date_range": {}, "patrol_type": params["patrol_type"]}  # @gitonga: needed the patrol type here.
+        filter = {"date_range": {}, "patrol_type": params["patrol_type"]}
 
         if since is not None:
             filter["date_range"]["lower"] = since
