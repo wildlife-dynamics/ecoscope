@@ -615,7 +615,7 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
         if patrol_type is not None:
             filter["patrol_type"] = params["patrol_type"]
-            params["filter"] = json.dumps(filter)
+        params["filter"] = json.dumps(filter)
 
         df = pd.DataFrame(
             self.get_objects_multithreaded(
