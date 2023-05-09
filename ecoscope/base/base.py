@@ -22,7 +22,6 @@ from ecoscope.base.utils import cachedproperty
 class EcoDataFrame(gpd.GeoDataFrame):
     """
     `EcoDataFrame` extends `geopandas.GeoDataFrame` to provide customizations and allow for simpler extension.
-
     """
 
     @property
@@ -184,11 +183,17 @@ class Relocations(EcoDataFrame):
 
     @staticmethod
     def _apply_speedfilter(df, fix_filter):
-        gdf = df.assign(
-            _fixtime=df["fixtime"].shift(-1),
-            _geometry=df["geometry"].shift(-1),
-            _junk_status=df["junk_status"].shift(-1),
-        )[:-1]
+        with warnings.catch_warnings():
+            """
+            Note : This warning can be removed once the version of Geopandas is updated
+            on Colab to the one that fixes this bug
+            """
+            warnings.filterwarnings("ignore", message="CRS not set for some of the concatenation inputs")
+            gdf = df.assign(
+                _fixtime=df["fixtime"].shift(-1),
+                _geometry=df["geometry"].shift(-1),
+                _junk_status=df["junk_status"].shift(-1),
+            )[:-1]
 
         straight_track = Trajectory._straighttrack_properties(gdf)
         gdf["speed_kmhr"] = straight_track.speed_kmhr
@@ -207,10 +212,16 @@ class Relocations(EcoDataFrame):
 
     @staticmethod
     def _apply_distfilter(df, fix_filter):
-        gdf = df.assign(
-            _junk_status=df["junk_status"].shift(-1),
-            _geometry=df["geometry"].shift(-1),
-        )[:-1]
+        with warnings.catch_warnings():
+            """
+            Note : This warning can be removed once the version of Geopandas is updated
+            on Colab to the one that fixes this bug
+            """
+            warnings.filterwarnings("ignore", message="CRS not set for some of the concatenation inputs")
+            gdf = df.assign(
+                _junk_status=df["junk_status"].shift(-1),
+                _geometry=df["geometry"].shift(-1),
+            )[:-1]
 
         _, _, distance_m = Geod(ellps="WGS84").inv(
             gdf["geometry"].x, gdf["geometry"].y, gdf["_geometry"].x, gdf["_geometry"].y
@@ -229,9 +240,9 @@ class Relocations(EcoDataFrame):
     def apply_reloc_filter(self, fix_filter=None, inplace=False):
         """Apply a given filter by marking the fix junk_status based on the conditions of a filter"""
 
-        if not self["fixtime"].is_monotonic:
+        if not self["fixtime"].is_monotonic_increasing:
             self.sort_values("fixtime", inplace=True)
-        assert self["fixtime"].is_monotonic
+        assert self["fixtime"].is_monotonic_increasing
 
         if inplace:
             frame = self
@@ -324,7 +335,6 @@ class Trajectory(EcoDataFrame):
     def from_relocations(cls, gdf, *args, **kwargs):
         """
         Create Trajectory class from Relocation dataframe.
-
         Parameters
         ----------
         gdf: Geodataframe
@@ -354,7 +364,7 @@ class Trajectory(EcoDataFrame):
         Get displacement in meters between first and final fixes.
         """
 
-        if not self["segment_start"].is_monotonic:
+        if not self["segment_start"].is_monotonic_increasing:
             self = self.sort_values("segment_start")
 
         gs = self.geometry.iloc[[0, -1]]
@@ -378,9 +388,7 @@ class Trajectory(EcoDataFrame):
             The number of grid points on which to search for the horizon
             crossings of the target over a 24-hour period, default is 150 which
             yields rise time precisions better than one minute.
-
             https://github.com/astropy/astroplan/pull/424
-
         Returns
         -------
         pd.Series:
@@ -440,8 +448,15 @@ class Trajectory(EcoDataFrame):
 
     @staticmethod
     def _create_multitraj(df):
+        with warnings.catch_warnings():
+            """
+            Note : This warning can be removed once the version of Geopandas is updated
+            on Colab to the one that fixes this bug
+            """
+            warnings.filterwarnings("ignore", message="CRS not set for some of the concatenation inputs")
+            df["_geometry"] = df["geometry"].shift(-1)
+
         df["_fixtime"] = df["fixtime"].shift(-1)
-        df["_geometry"] = df["geometry"].shift(-1)
         return Trajectory._create_trajsegments(df[:-1])
 
     @staticmethod
@@ -480,9 +495,9 @@ class Trajectory(EcoDataFrame):
         return df.join(gdf, how="left")
 
     def apply_traj_filter(self, traj_seg_filter, inplace=False):
-        if not self["segment_start"].is_monotonic:
+        if not self["segment_start"].is_monotonic_increasing:
             self.sort_values("segment_start", inplace=True)
-        assert self["segment_start"].is_monotonic
+        assert self["segment_start"].is_monotonic_increasing
 
         if inplace:
             frame = self
@@ -504,9 +519,9 @@ class Trajectory(EcoDataFrame):
             return frame
 
     def get_turn_angle(self):
-        if not self["segment_start"].is_monotonic:
+        if not self["segment_start"].is_monotonic_increasing:
             self.sort_values("segment_start", inplace=True)
-        assert self["segment_start"].is_monotonic
+        assert self["segment_start"].is_monotonic_increasing
 
         def turn_angle(traj):
             return ((traj["heading"].diff() + 540) % 360 - 180)[traj["segment_end"].shift(1) == traj["segment_start"]]
@@ -519,21 +534,18 @@ class Trajectory(EcoDataFrame):
     def upsample(self, freq):
         """
         Interpolate to create upsampled Relocations
-
         Parameters
         ----------
         freq : str, pd.Timedelta or pd.DateOffset
             Sampling frequency for new Relocations object
-
         Returns
         -------
         relocs : ecoscope.base.Relocations
-
         """
 
         freq = pd.tseries.frequencies.to_offset(freq)
 
-        if not self["segment_start"].is_monotonic:
+        if not self["segment_start"].is_monotonic_increasing:
             self.sort_values("segment_start", inplace=True)
 
         def f(traj):
@@ -563,7 +575,6 @@ class Trajectory(EcoDataFrame):
     def to_relocations(self):
         """
         Converts a Trajectory object to a Relocations object.
-
         Returns
         -------
         ecoscope.base.Relocations
