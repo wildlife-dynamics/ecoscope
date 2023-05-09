@@ -614,19 +614,16 @@ class EarthRangerIO(ERClient):
         if until is not None:
             filter["date_range"]["upper"] = until
         if patrol_type is not None:
-          filter["patrol_type"] = params["patrol_type"]
-          params["filter"] = json.dumps(filter)
-            
+            filter["patrol_type"] = params["patrol_type"]
+            params["filter"] = json.dumps(filter)
+
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="activity/patrols",
-                threads=self.tcp_limit,
-                page_size=self.sub_page_size,
-                **params
+                object="activity/patrols", threads=self.tcp_limit, page_size=self.sub_page_size, **params
             )
         )
         if "serial_number" in df.columns:
-          df = df.sort_values(by="serial_number").reset_index(drop=True)
+            df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
 
     def get_patrol_segments(self):
