@@ -40,7 +40,7 @@ def er_io():
     ER_PASSWORD = os.getenv("ER_PASSWORD")
     er_io = ecoscope.io.EarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
 
-    er_io.GROUP_NAME = "Rhinos"
+    er_io.GROUP_NAME = "Elephants"
     er_io.SUBJECT_IDS = er_io.get_subjects(group_name=er_io.GROUP_NAME).id.tolist()
     er_io.SUBJECTSOURCE_IDS, er_io.SOURCE_IDS = er_io.get_subjectsources(subjects=",".join(er_io.SUBJECT_IDS))[
         ["id", "source"]
