@@ -3,6 +3,7 @@ import warnings
 
 import ee
 import geopandas as gpd
+import pandas as pd
 import pytest
 
 import ecoscope
@@ -65,7 +66,22 @@ def er_events_io():
 
     return er_events_io
 
-
+@pytest.fixture
+def movbank_relocations():
+    df = pd.read_feather("tests/sample_data/vector/movbank_data.feather")
+    gdf = gpd.GeoDataFrame(
+        df,
+        geometry=gpd.points_from_xy(df.pop("location-long"), df.pop("location-lat")),
+        crs=4326,
+    )
+    gdf["timestamp"] = pd.to_datetime(gdf["timestamp"], utc=True)
+    return ecoscope.base.Relocations.from_gdf(
+        gdf,
+        groupby_col="individual-local-identifier",
+        time_col="timestamp",
+        uuid_col="event-id",
+    )
+    
 @pytest.fixture
 def aoi_gdf():
     AOI_FILE = "tests/sample_data/vector/maec_4zones_UTM36S.gpkg"
