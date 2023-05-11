@@ -66,6 +66,7 @@ def er_events_io():
 
     return er_events_io
 
+
 @pytest.fixture
 def movbank_relocations():
     df = pd.read_feather("tests/sample_data/vector/movbank_data.feather")
@@ -81,7 +82,8 @@ def movbank_relocations():
         time_col="timestamp",
         uuid_col="event-id",
     )
-    
+
+
 @pytest.fixture
 def aoi_gdf():
     AOI_FILE = "tests/sample_data/vector/maec_4zones_UTM36S.gpkg"
