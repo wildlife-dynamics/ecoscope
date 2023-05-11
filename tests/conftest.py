@@ -40,13 +40,31 @@ def er_io():
     ER_PASSWORD = os.getenv("ER_PASSWORD")
     er_io = ecoscope.io.EarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
 
-    er_io.GROUP_NAME = "Rhinos"
+    er_io.GROUP_NAME = "Elephants"
     er_io.SUBJECT_IDS = er_io.get_subjects(group_name=er_io.GROUP_NAME).id.tolist()
     er_io.SUBJECTSOURCE_IDS, er_io.SOURCE_IDS = er_io.get_subjectsources(subjects=",".join(er_io.SUBJECT_IDS))[
         ["id", "source"]
     ].values.T.tolist()
 
     return er_io
+
+
+@pytest.fixture(scope="session")
+def er_events_io():
+    ER_SERVER = "https://mep-dev.pamdas.org"
+    ER_USERNAME = os.getenv("ER_USERNAME")
+    ER_PASSWORD = os.getenv("ER_PASSWORD")
+    er_events_io = ecoscope.io.EarthRangerIO(
+        server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD, tcp_limit=5, sub_page_size=100
+    )
+
+    er_events_io.GROUP_NAME = "Elephants"
+    er_events_io.SUBJECT_IDS = er_events_io.get_subjects(group_name=er_events_io.GROUP_NAME).id.tolist()
+    er_events_io.SUBJECTSOURCE_IDS, er_events_io.SOURCE_IDS = er_events_io.get_subjectsources(
+        subjects=",".join(er_events_io.SUBJECT_IDS)
+    )[["id", "source"]].values.T.tolist()
+
+    return er_events_io
 
 
 @pytest.fixture

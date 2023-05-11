@@ -8,30 +8,41 @@ import pytest
 import ecoscope
 
 
-def test_redundant_columns_in_trajectory(movbank_relocations):
+def test_trajectory_is_not_empty(er_io):
+    # test there is actually data in trajectory
+    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
+    assert not trajectory.empty
+
+
+def test_redundant_columns_in_trajectory(er_io):
     # test there is no redundant column in trajectory
-    trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
     assert "extra__fixtime" not in trajectory
     assert "extra___fixtime" not in trajectory
     assert "extra___geometry" not in trajectory
 
 
-def test_relocs_speedfilter(movbank_relocations):
+def test_relocs_speedfilter(er_io):
+    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
     relocs_speed_filter = ecoscope.base.RelocsSpeedFilter(max_speed_kmhr=8)
-    relocs_after_filter = movbank_relocations.apply_reloc_filter(relocs_speed_filter)
+    relocs_after_filter = relocations.apply_reloc_filter(relocs_speed_filter)
     relocs_after_filter.remove_filtered(inplace=True)
-    assert movbank_relocations.shape[0] != relocs_after_filter.shape[0]
+    assert relocations.shape[0] != relocs_after_filter.shape[0]
 
 
-def test_relocs_distancefilter(movbank_relocations):
+def test_relocs_distancefilter(er_io):
+    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
     relocs_speed_filter = ecoscope.base.RelocsDistFilter(min_dist_km=1.0, max_dist_km=6.0)
-    relocs_after_filter = movbank_relocations.apply_reloc_filter(relocs_speed_filter)
+    relocs_after_filter = relocations.apply_reloc_filter(relocs_speed_filter)
     relocs_after_filter.remove_filtered(inplace=True)
-    assert movbank_relocations.shape[0] != relocs_after_filter.shape[0]
+    assert relocations.shape[0] != relocs_after_filter.shape[0]
 
 
-def test_relocations_from_gdf_preserve_fields(movbank_relocations):
-    gpd.testing.assert_geodataframe_equal(movbank_relocations, ecoscope.base.Relocations.from_gdf(movbank_relocations))
+def test_relocations_from_gdf_preserve_fields(er_io):
+    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    gpd.testing.assert_geodataframe_equal(relocations, ecoscope.base.Relocations.from_gdf(relocations))
 
 
 def test_displacement_property(movbank_relocations):
@@ -115,9 +126,9 @@ def test_sampling(movbank_relocations):
     )
     movbank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
     movbank_relocations.remove_filtered(inplace=True)
-    movbank_trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
-    downsampled_relocs_noint = movbank_trajectory.downsample("10800S", tolerance="900S")
-    downsampled_relocs_int = movbank_trajectory.downsample("10800S", interpolation=True)
+    trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+    downsampled_relocs_noint = trajectory.downsample("10800S", tolerance="900S")
+    downsampled_relocs_int = trajectory.downsample("10800S", interpolation=True)
 
     expected_noncontiguous_1 = gpd.read_feather("tests/test_output/upsampled_noncontiguous_1.feather")
     expected_noncontiguous_2 = gpd.read_feather("tests/test_output/upsampled_noncontiguous_2.feather")

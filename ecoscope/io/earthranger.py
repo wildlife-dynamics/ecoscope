@@ -383,7 +383,7 @@ class EarthRangerIO(ERClient):
         if relocations:
             return ecoscope.base.Relocations.from_gdf(
                 observations,
-                groupby_col="id",
+                groupby_col="subject_id",
                 uuid_col="id",
                 time_col="recorded_at",
             )
