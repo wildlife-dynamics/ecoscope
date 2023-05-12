@@ -6,7 +6,6 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import pytz
-import requests
 from shapely.geometry import Point
 
 import ecoscope
@@ -72,8 +71,8 @@ def test_get_subjectgroup_observations(er_io):
     assert "groupby_col" in relocations
 
 
-def test_get_events(er_io):
-    events = er_io.get_events()
+def test_get_events(er_events_io):
+    events = er_events_io.get_events()
     assert not events.empty
 
 

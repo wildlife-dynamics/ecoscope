@@ -117,7 +117,7 @@ def groupby_intervals(df, col, intervals):
 
     """
 
-    if not df[col].is_monotonic:
+    if not df[col].is_monotonic_increasing:
         df = df.sort_values(col)
 
     return pd.concat(
