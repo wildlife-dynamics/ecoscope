@@ -6,7 +6,7 @@ import typing
 import geopandas as gpd
 import pandas as pd
 import requests
-from erclient.client import ERClient, ERClientException
+from erclient.client import ERClient, ERClientException, ERClientNotFound
 from tqdm.auto import tqdm
 
 import ecoscope
