@@ -29,8 +29,8 @@ class EarthRangerIO(ERClient):
         super().__init__(**kwargs)
         try:
             self.login()
-        except:
-            raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")        
+        except ERClientNotFound:
+            raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")
 
     @staticmethod
     def _clean_kwargs(addl_kwargs={}, **kwargs):
