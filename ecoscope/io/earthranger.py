@@ -393,7 +393,7 @@ class EarthRangerIO(ERClient):
                 self.get_subjectsources(subjects=",".join(observations["subject_id"].unique())).add_prefix(
                     "subjectsource__"
                 ),
-                left_on=["id", "source"],
+                left_on=["subject_id", "source"],
                 right_on=["subjectsource__subject", "subjectsource__source"],
             )
 
