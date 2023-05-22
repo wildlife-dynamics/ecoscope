@@ -1,12 +1,12 @@
-import pytz
 import datetime
+import pytz
 import json
 import typing
 
 import geopandas as gpd
 import pandas as pd
 import requests
-from erclient.client import ERClient, ERClientException
+from erclient.client import ERClient, ERClientException, ERClientNotFound
 from tqdm.auto import tqdm
 
 import ecoscope
@@ -30,18 +30,17 @@ class EarthRangerIO(ERClient):
         super().__init__(**kwargs)
         try:
             self.login()
-        except:
-            raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")            
-        
+        except ERClientNotFound:
+            raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")
+
     def _token_request(self, payload):
         response = requests.post(self.token_url, data=payload)
         if response.ok:
             self.auth = json.loads(response.text)
-            expires_in = int(self.auth['expires_in']) - 5 * 60
-            self.auth_expires = pytz.utc.localize(
-                datetime.datetime.utcnow()) + datetime.timedelta(seconds=expires_in)
+            expires_in = int(self.auth["expires_in"]) - 5 * 60
+            self.auth_expires = pytz.utc.localize(datetime.datetime.utcnow()) + datetime.timedelta(seconds=expires_in)
             return True
-        
+
         self.auth = None
         self.auth_expires = pytz.utc.localize(datetime.datetime.min)
         raise ERClientNotFound(json.loads(response.text)["error_description"])
@@ -175,7 +174,7 @@ class EarthRangerIO(ERClient):
                         "include_hidden": True,
                         "flat": True,
                     },
-                ).id[0]
+                )[0]["id"]
             except IndexError:
                 raise KeyError("`group_name` not found")
 
@@ -394,7 +393,7 @@ class EarthRangerIO(ERClient):
                 self.get_subjectsources(subjects=",".join(observations["subject_id"].unique())).add_prefix(
                     "subjectsource__"
                 ),
-                left_on=["id", "source"],
+                left_on=["subject_id", "source"],
                 right_on=["subjectsource__subject", "subjectsource__source"],
             )
 
