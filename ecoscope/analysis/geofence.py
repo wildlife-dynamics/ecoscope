@@ -4,7 +4,7 @@ import typing
 
 import geopandas as gpd
 import pandas as pd
-import pygeos
+import shapely
 
 import ecoscope
 
@@ -75,8 +75,8 @@ class GeoFenceCrossing:
 
         """
         trajectory = trajectory.copy()
-        trajectory["start_point"] = pygeos.get_point(trajectory.geometry.values.data, 0)
-        trajectory["end_point"] = pygeos.get_point(trajectory.geometry.values.data, 1)
+        trajectory["start_point"] = shapely.get_point(trajectory.geometry, 0)
+        trajectory["end_point"] = shapely.get_point(trajectory.geometry, 1)
 
         def apply_func(fence):
             geofence = fence.geometry
@@ -98,7 +98,7 @@ class GeoFenceCrossing:
                 traj[colname] = (
                     geocrossing_profile.region_df.sjoin(
                         gpd.GeoDataFrame(
-                            geometry=pygeos.get_point(traj["segment_geometry"].values.data, index),
+                            geometry=shapely.get_point(traj["segment_geometry"], index),
                             index=traj.index,
                             crs=4326,
                         ),
