@@ -599,6 +599,9 @@ class EarthRangerIO(ERClient):
         df.sort_values("time", inplace=True)
         return df
 
+    def get_patrol_types(self):
+        return pd.DataFrame(self._get("activity/patrols/types"))
+
     def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
         """
         Parameters
