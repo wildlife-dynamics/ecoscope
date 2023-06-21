@@ -5,8 +5,8 @@ import astropy
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import pygeos
 from pyproj import Geod
+import shapely
 
 from ecoscope.analysis import astronomy
 from ecoscope.base._dataclasses import (
@@ -479,7 +479,7 @@ class Trajectory(EcoDataFrame):
                 "dist_meters": track_properties.dist_meters,
                 "speed_kmhr": track_properties.speed_kmhr,
                 "heading": track_properties.heading,
-                "geometry": pygeos.linestrings(coords),
+                "geometry": shapely.linestrings(coords),
                 "junk_status": gdf.junk_status,
             },
             crs=4326,
@@ -562,8 +562,8 @@ class Trajectory(EcoDataFrame):
 
             return gpd.GeoDataFrame(
                 {"fixtime": times},
-                geometry=pygeos.line_interpolate_point(
-                    traj["geometry"].values.data,
+                geometry=shapely.line_interpolate_point(
+                    traj["geometry"].values,
                     (times - traj["segment_start"]) / (traj["segment_end"] - traj["segment_start"]),
                     normalized=True,
                 ),
@@ -582,9 +582,7 @@ class Trajectory(EcoDataFrame):
 
         def f(traj):
             traj.crs = self.crs
-            points = np.concatenate(
-                [pygeos.get_point(traj.geometry.values.data, 0), pygeos.get_point(traj.geometry.values.data, 1)]
-            )
+            points = np.concatenate([shapely.get_point(traj.geometry, 0), shapely.get_point(traj.geometry, 1)])
             times = np.concatenate([traj["segment_start"], traj["segment_end"]])
 
             return (

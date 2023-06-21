@@ -1,4 +1,5 @@
 import os
+
 import warnings
 
 import ee
@@ -7,6 +8,8 @@ import pandas as pd
 import pytest
 
 import ecoscope
+
+os.environ["USE_PYGEOS"] = "0"
 
 
 def pytest_configure(config):
