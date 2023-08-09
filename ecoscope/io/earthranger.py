@@ -662,8 +662,10 @@ class EarthRangerIO(ERClient):
         dataframe : Dataframe of patrols.
         """
 
+        params = self._clean_kwargs(addl_kwargs)
+
         object = f"activity/patrols/{patrol_id}/"
-        df = self._get(object)
+        df = self._get(object, **params)
         df["patrol_segments"][0].pop("updates")
         df.pop("updates")
 
