@@ -645,38 +645,30 @@ class EarthRangerIO(ERClient):
         if "serial_number" in df.columns:
             df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
-        
-  def get_patrols_from_id(
-      self,
-      patrol_id,
-      **addl_kwargs
-      ):
-      """
-      Download patrols for a given `patrol id`.
 
-      Parameters
-      ----------
-      patrol_id :
-          Patrol UUID.
-      kwargs
-          Additional parameters to pass to `_get`.
-      
-      Returns
-      -------
-      dataframe : Dataframe of patrols.
-      """      
-        
-      params = self._clean_kwargs(
-          addl_kwargs,
-          patrol_id=patrol_id
-      )
-      object = f"activity/patrols/{patrol_id}/"
-      df = self._get(object)
-      df["patrol_segments"][0].pop("updates")
-      df.pop("updates")
-    
-      return pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in df.items() ]))
-    
+    def get_patrols_from_id(self, patrol_id, **addl_kwargs):
+        """
+        Download patrols for a given `patrol id`.
+
+        Parameters
+        ----------
+        patrol_id :
+            Patrol UUID.
+        kwargs
+            Additional parameters to pass to `_get`.
+
+        Returns
+        -------
+        dataframe : Dataframe of patrols.
+        """
+
+        object = f"activity/patrols/{patrol_id}/"
+        df = self._get(object)
+        df["patrol_segments"][0].pop("updates")
+        df.pop("updates")
+
+        return pd.DataFrame(dict([(k, pd.Series(v)) for k, v in df.items()]))
+
     def get_patrol_segments(self):
         object = "activity/patrols/segments/"
         return pd.DataFrame(
