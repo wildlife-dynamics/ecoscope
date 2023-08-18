@@ -401,7 +401,7 @@ class ControlElement(MacroElement):
 
 class NorthArrowElement(MacroElement):
     """
-    Class to wrap arbitrary HTML as Leaflet Control.
+    Class to wrap arbitrary HTML or PNG as Leaflet Control.
 
     Parameters
     ----------
