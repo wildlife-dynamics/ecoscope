@@ -646,7 +646,7 @@ class EarthRangerIO(ERClient):
             df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
 
-    def get_patrols_from_id(self, patrol_id, **addl_kwargs):
+    def get_patrol_segments_from_patrol_id(self, patrol_id, **addl_kwargs):
         """
         Download patrols for a given `patrol id`.
 
