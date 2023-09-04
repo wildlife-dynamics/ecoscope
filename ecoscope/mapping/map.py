@@ -1,8 +1,5 @@
 import asyncio
 import base64
-import os
-import tempfile
-import time
 import typing
 import urllib
 import warnings
@@ -15,7 +12,6 @@ import numpy as np
 import pandas as pd
 from pyppeteer import launch
 import rasterio
-import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
 
