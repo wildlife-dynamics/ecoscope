@@ -18,6 +18,7 @@ dependencies = [
     "backoff",
     "branca",
     "earthengine-api",
+    "earthranger-client",
     "folium>=0.11.0",
     "geopandas",
     "igraph",
@@ -31,17 +32,16 @@ dependencies = [
     "pandas",
     "plotly",
     "pyarrow",
+    "pyppeteer",
     "pyproj",
     "pytest-mock",
     "rasterio",
     "scikit-image",
     "scikit-learn",
     "scipy",
-    "selenium",
     "shapely",
     "tqdm",
     "xyzservices",
-    "earthranger-client",
 ]
 
 setup(
@@ -76,6 +76,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     include_package_data=True,
 )

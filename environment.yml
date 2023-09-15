@@ -2,7 +2,7 @@ name: ecoscope
 channels:
   - conda-forge
 dependencies:
-  - python==3.7.12 # Fixed to mirror version on Google Colab
+  - python==3.10.12 # Fixed to mirror version on Google Colab
   - pip==22.3
   - git==2.38.1
   - affine==2.3.1
@@ -11,6 +11,7 @@ dependencies:
   - backoff==2.2.1
   - branca==0.5.0
   - earthengine-api==0.1.328
+  - earthranger-client
   - geopandas==0.10.2
   - ipywidgets==8.0.2
   - jinja2==3.1.2
@@ -27,6 +28,7 @@ dependencies:
   - pyarrow==9.0.0
   - pydata-sphinx-theme==0.11.0
   - pypdf2==2.10.8
+  - pyppeteer
   - pyproj==3.2.1
   - pytest-cov==4.0.0
   - pytest-mock==3.10.0
@@ -37,12 +39,10 @@ dependencies:
   - scikit-image==0.19.2
   - scikit-learn==1.0.2
   - scipy==1.7.3
-  - selenium==4.5.0
   - shapely==1.8.2
   - sphinx==5.3.0
   - tqdm==4.64.1
   - xyzservices==2022.9.0
-  - earthranger-client
   - pip:
     - coverage[toml]
     - nbsphinx
