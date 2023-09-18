@@ -183,20 +183,20 @@ class EcoMap(EcoMapMixin, Map):
         outfile : str, Pathlike
             Output destination
         sleep_time : int, optional
-            Additional seconds to wait before taking screenshot. Should be increased if map tiles in the output haven't
-            fully loaded but can also be decreased in most cases.
-
+            Additional seconds to wait before taking screenshot. Should be increased
+            if map tiles in the output haven't fully loaded but can also be decreased
+            in most cases.
         """
 
-        html_string=self.get_root().render()
+        html_string = self.get_root().render()
 
-        async def capture_screenshot(html_string,outfile):
-            browser = await launch()
+        async def capture_screenshot(html_string, outfile):
+            browser = await launch(options={"args": ["--no-sandbox"]})
             page = await browser.newPage()
-            await page.setViewport({'width': self.px_width, 'height': self.px_height})  # Set the viewport size as needed
+            await page.setViewport({"width": int(self.px_width), "height": int(self.px_height)})
             await page.setContent(html_string)
             await asyncio.sleep(sleep_time)
-            await page.screenshot({'path': outfile})
+            await page.screenshot({"path": outfile})
             await browser.close()
 
         loop = asyncio.get_event_loop()
