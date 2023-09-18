@@ -600,7 +600,8 @@ class EarthRangerIO(ERClient):
         return df
 
     def get_patrol_types(self):
-        return pd.DataFrame(self._get("activity/patrols/types"))
+        df = pd.DataFrame(self._get("activity/patrols/types"))
+        return df.set_index("id")
 
     def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
         """
@@ -677,15 +678,17 @@ class EarthRangerIO(ERClient):
             self.get_objects_multithreaded(object=object, threads=self.tcp_limit, page_size=self.sub_page_size)
         )
 
-    def get_observations_for_patrols(self, patrols_df, **kwargs):
+    def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
         """
         Download observations for provided `patrols_df`.
         Parameters
         ----------
-        patrols_df :
-            Data returned from a call to `get_patrols`.
+        patrols_df : pd.DataFrame
+           Data returned from a call to `get_patrols`.
+        include_patrol_details : bool, optional
+           Whether to merge patrol details into dataframe
         kwargs
-            Additional parameters to pass to `get_subject_observations`.
+           Additional parameters to pass to `get_subject_observations`.
         Returns
         -------
         relocations : ecoscope.base.Relocations
@@ -695,27 +698,52 @@ class EarthRangerIO(ERClient):
         for _, patrol in patrols_df.iterrows():
             for patrol_segment in patrol["patrol_segments"]:
                 subject_id = (patrol_segment.get("leader") or {}).get("id")
-                start_time = (patrol_segment.get("time_range") or {}).get("start_time")
-                end_time = (patrol_segment.get("time_range") or {}).get("end_time")
+                patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
+                patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
-                if None in {subject_id, start_time}:
+                df_pt = self.get_patrol_types()
+                patrol_type = df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
+
+                if None in {subject_id, patrol_start_time}:
                     continue
+
                 try:
-                    observations.append(
-                        self.get_subject_observations(
-                            subject_ids=[subject_id],
-                            since=start_time,
-                            until=end_time,
-                            **kwargs,
+                    observation = self.get_subject_observations(
+                        subject_ids=[subject_id], since=patrol_start_time, until=patrol_end_time
+                    )
+                    if include_patrol_details:
+                        observation["patrol_id"] = patrol["id"]
+                        observation["patrol_serial_number"] = patrol["serial_number"]
+                        observation["patrol_start_time"] = patrol_start_time
+                        observation["patrol_end_time"] = patrol_end_time
+                        observation["patrol_type"] = patrol_type
+                        observation = (
+                            observation.reset_index()
+                            .merge(
+                                pd.DataFrame(self.get_patrol_types()).add_prefix("patrol_type__"),
+                                left_on="patrol_type",
+                                right_on="id",
+                            )
+                            .drop(
+                                columns=[
+                                    "patrol_type__ordernum",
+                                    "patrol_type__icon_id",
+                                    "patrol_type__default_priority",
+                                    "patrol_type__is_active",
+                                ]
+                            )
                         )
-                    )
+                    observations.append(observation)
                 except Exception as e:
-                    # print(f'Getting observations for {subject_id=} {start_time=} {end_time=} failed for: {e}')
                     print(
-                        f"Getting observations for subject_id={subject_id} start_time={start_time} end_time={end_time}"
-                        f"failed for: {e}"
+                        f"Getting observations for subject_id={subject_id} start_time={patrol_start_time}"
+                        f"end_time={patrol_end_time} failed for: {e}"
                     )
-        return ecoscope.base.Relocations(pd.concat(observations))
+
+        df = ecoscope.base.Relocations(pd.concat(observations))
+        if include_patrol_details:
+            return df.set_index("id")
+        return df
 
     def get_patrol_segment_events(
         self,
