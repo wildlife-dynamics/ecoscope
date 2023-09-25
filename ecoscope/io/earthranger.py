@@ -484,6 +484,11 @@ class EarthRangerIO(ERClient):
 
         return self.get_subject_observations(subject_ids, **kwargs)
 
+    def get_event_types(self, include_inactive=False, **addl_kwargs):
+        params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
+
+        return pd.DataFrame(self._get("activity/events/eventtypes", **params))
+
     def get_events(
         self,
         is_collection=None,
@@ -597,7 +602,7 @@ class EarthRangerIO(ERClient):
         df.set_crs(4326, inplace=True)
 
         df.sort_values("time", inplace=True)
-        return df
+        return df.set_index("id")
 
     def get_patrol_types(self):
         df = pd.DataFrame(self._get("activity/patrols/types"))
