@@ -714,7 +714,7 @@ class EarthRangerIO(ERClient):
 
                 try:
                     observation = self.get_subject_observations(
-                        subject_ids=[subject_id], since=patrol_start_time, until=patrol_end_time
+                        subject_ids=[subject_id], since=patrol_start_time, until=patrol_end_time, **kwargs
                     )
                     if include_patrol_details:
                         observation["patrol_id"] = patrol["id"]
@@ -738,7 +738,8 @@ class EarthRangerIO(ERClient):
                                 ]
                             )
                         )
-                    observations.append(observation)
+                    if len(observation) > 0:
+                        observations.append(observation)
                 except Exception as e:
                     print(
                         f"Getting observations for subject_id={subject_id} start_time={patrol_start_time}"
