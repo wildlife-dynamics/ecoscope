@@ -484,8 +484,8 @@ class EarthRangerIO(ERClient):
 
         return self.get_subject_observations(subject_ids, **kwargs)
 
-    def get_event_types(self, include_inactive=False, include_schema=False, **addl_kwargs):
-        params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive, include_schema=include_schema)
+    def get_event_types(self, include_inactive=False, **addl_kwargs):
+        params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
 
         return pd.DataFrame(self._get("activity/events/eventtypes", **params))
 
