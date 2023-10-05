@@ -1,5 +1,7 @@
-import asyncio
 import base64
+import os
+import tempfile
+import time
 import typing
 import urllib
 import warnings
@@ -10,8 +12,8 @@ import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-from pyppeteer import launch
 import rasterio
+import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
 
@@ -183,24 +185,23 @@ class EcoMap(EcoMapMixin, Map):
         outfile : str, Pathlike
             Output destination
         sleep_time : int, optional
-            Additional seconds to wait before taking screenshot. Should be increased
-            if map tiles in the output haven't fully loaded but can also be decreased
-            in most cases.
+            Additional seconds to wait before taking screenshot. Should be increased if map tiles in the output haven't
+            fully loaded but can also be decreased in most cases.
+
         """
 
-        html_string = self.get_root().render()
-
-        async def capture_screenshot(html_string, outfile):
-            browser = await launch(options={"args": ["--no-sandbox"]})
-            page = await browser.newPage()
-            await page.setViewport({"width": int(self.px_width), "height": int(self.px_height)})
-            await page.setContent(html_string)
-            await asyncio.sleep(sleep_time)
-            await page.screenshot({"path": outfile})
-            await browser.close()
-
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(capture_screenshot(html_string, outfile))
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as tmp:
+            super().to_html(tmp.name, **kwargs)
+            chrome_options = selenium.webdriver.chrome.options.Options()
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            driver = selenium.webdriver.Chrome(options=chrome_options)
+            if self.px_width and self.px_height:
+                driver.set_window_size(width=self.px_width, height=self.px_height)
+            driver.get(f"file://{os.path.abspath(tmp.name)}")
+            time.sleep(sleep_time)
+            driver.save_screenshot(outfile)
 
     def add_ee_layer(self, ee_object, visualization_params, name) -> None:
         """
