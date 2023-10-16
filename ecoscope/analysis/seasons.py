@@ -20,22 +20,31 @@ def _min_max_scaler(x):
     return x_std
 
 
-def std_ndvi_vals(aoi=None, start=None, end=None):
-    coll = ee.ImageCollection("MODIS/MCD43A4_006_NDVI").select("NDVI").filterDate(start, end)
+def std_ndvi_vals(aoi=None, img_coll=None, band=None, img_scale=1, start=None, end=None):
 
-    ndvi_vals = (
-        coll.toBands()
-        .reduceRegion("mean", ee.Feature(shapely.geometry.mapping(aoi)).geometry(), bestEffort=True)
-        .values()
-        .getInfo()
+    coll = (
+        ee.ImageCollection(img_coll)
+        .select(band)
+        .filterDate(start, end)
+        .map(lambda x: x.multiply(ee.Image(img_scale)).set("system:time_start", x.get("system:time_start")))
     )
-    ndvi_vals_std = _min_max_scaler(ndvi_vals)
-    return pd.DataFrame(
+
+    if aoi:
+        geo = ee.Feature(shapely.geometry.mapping(aoi)).geometry()
+    else:
+        geo = None
+
+    ndvi_vals = coll.toBands().reduceRegion("mean", geo, bestEffort=True).values().getInfo()
+
+    df = pd.DataFrame(
         {
             "img_date": pd.to_datetime(coll.aggregate_array("system:time_start").getInfo(), unit="ms", utc=True),
-            "NDVI": ndvi_vals_std,
+            "NDVI": ndvi_vals,
         }
     ).dropna(axis=0)
+
+    df["NDVI"] = _min_max_scaler(df["NDVI"])
+    return df
 
 
 def val_cuts(vals, num_seasons=2):
