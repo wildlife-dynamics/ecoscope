@@ -39,6 +39,7 @@ builtin_legends = {}
 from branca.element import Figure, JavascriptLink
 from folium.map import Layer
 from jinja2 import Template
+from typing import Union
 
 basemaps = xyz_to_folium()
 
@@ -972,6 +973,10 @@ class Map(folium.Map):
         legend_dict=None,
         builtin_legend=None,
         opacity=1.0,
+        title_styles:dict=None,
+        background_color:Union[str,tuple]=None,
+        border_styles:Union[str, dict]="2px solid gray", 
+        box_position:dict=None,
         **kwargs,
     ):
         """Adds a customized legend to the map. Reference: https://bit.ly/3oV6vnH
@@ -983,7 +988,26 @@ class Map(folium.Map):
             legend_dict (dict, optional): A dictionary containing legend items as keys and color as values. If provided, legend_keys and legend_colors will be ignored. Defaults to None.
             builtin_legend (str, optional): Name of the builtin legend to add to the map. Defaults to None.
             opacity (float, optional): The opacity of the legend. Defaults to 1.0.
-
+            title_styles (dict, optional): A dictionary containing font-family, size and color properties, provided with the following structure:
+            ex. {
+                    "font": "Helvetica",
+                    "size": "12px",
+                    "color": "rgba(0,0,0,1)"
+                }
+            background_color (str, tuple, optional): Container background color. Could be passed as an hex string (with or without #), or as an rgb/rgba tuple.
+            border_styles (str, dict, optional): Space separated string for borders 'size style color radius' or dict structure with same fields definition.
+            ex. {
+                    "width": "3px",
+                    "style": "solid",
+                    "color": "gray"
+                    "radius": "6px"
+                }
+            box_position (dict, optional): Dictionary with box position values; combination of one x axis (left or right) and one y axis (bottom or top) values.
+            ex. {
+                    "bottom": "40px",
+                    "right": "20px
+                }
+                Default: {"bottom":"20px", "right":"20px"}
         """
         from branca.element import Template, MacroElement
 
@@ -1061,19 +1085,194 @@ class Map(folium.Map):
 
         with open(legend_template) as f:
             lines = f.readlines()
+            r_l_aux = False 
+            t_b_aux = False
             for index, line in enumerate(lines):
                 if index < 36:
                     content.append(line)
+
+                
                 elif index == 36:
+                    if isinstance(border_styles, str):
+                        border_options = border_styles.split(" ")
+                        if len(border_options)<3: continue
+                        if len(border_options) == 3:
+                            border = "{} {} {}".format(*[op for op in border_options])
+                        elif len(border_options) == 4:
+                            border = "{} {} {}".format(*[op for op in border_options[:3]])
+                            #border_radius = f"{border_options[3]}px"
+                    elif isinstance(border_styles, dict):
+                        border_color = ""
+                        if isinstance(border_styles["color"], tuple):
+                            if border_styles["color"].__len__() == 3:
+                                border_color = "rgb({},{},{})".format(*[c for c in border_styles["color"]])
+                            elif border_styles["color"].__len__() == 4:
+                                border_color = "rgba({},{},{},{})".format(*[c for c in border_styles["color"]])
+                        elif isinstance(border_styles["color"], str):
+                            border_color = border_styles["color"] if border_styles["color"].startswith("#") else f"#{border_styles['color']}"
+                        
+                        border = "{} {} {}".format(
+                            border_styles["width"],
+                            border_styles["style"],
+                            border_color
+                        )  
+                    
+                    line = lines[index].replace("2px solid grey", border)
+                    content.append(line)
+
+                
+                elif (index==37) and (background_color is not None):
+                    bkg = ""
+                    if isinstance(background_color, tuple):
+                        if background_color.__len__() == 3:
+                            bkg = "rgb({},{},{})".format(*[c for c in background_color])
+                        elif background_color.__len__() == 4:
+                            bkg = "rgba({},{},{},{})".format(*[c for c in background_color])
+                    elif isinstance(background_color, str):
+                        bkg = background_color if background_color.startswith("#") else f"#{background_color}"
+                    line = lines[index].replace("rgba(255, 255, 255, 0.8)", bkg)
+                    content.append(line)
+                
+                
+                elif index == 38:
+                    if isinstance(border_styles, str):
+                        border_options = border_styles.split(" ")
+                        if len(border_options) == 4:
+                            radius = border_options[-1]
+                        else: continue
+                    elif isinstance(border_styles, dict):
+                        radius = border_styles["radius"]
+                    else: continue
+                    
+                    line = lines[index].replace("6px", radius)
+                    content.append(line)
+
+                elif (index > 38) and (index < 41):
+                    content.append(line)
+
+
+                
+                elif (index==41) and (box_position is not None):
+                    if isinstance(box_position, dict):
+                        if "right" not in box_position.keys():
+                            r_l_aux = True
+                            line = line 
+                        elif box_position['right']=='':
+                            r_l_aux = True
+                            line = line 
+                        elif ("right" in box_position.keys()) and not ("left" in box_position.keys()) and (list(box_position['right'])[0]!='0'):
+                            line = lines[index].replace("20px", box_position['right'])
+                        elif (list(box_position['right'])[0]!='0') and (box_position["left"] != "") and not (box_position['left'] in ['0px', '0%', '0em', '0']):
+                            line = lines[index].replace("right: 20px;", "")
+                        else: 
+                            r_l_aux = True
+                            line = line
+                            
+                        content.append(line)
+                elif (index==42) and (box_position is not None):
+                    if isinstance(box_position, dict):
+                        if "bottom" not in box_position.keys():
+                            t_b_aux = True
+                            line = line 
+                        elif box_position['bottom']=='':
+                            t_b_aux = True
+                            line = line 
+                        elif ("bottom" in box_position.keys()) and not ("top" in box_position.keys()) and (list(box_position['bottom'])[0]!='0'):
+                            line = lines[index].replace("20px", box_position['bottom'])
+                        elif (list(box_position['bottom'])[0]!='0') and (box_position["top"] != "") and not (box_position['top'] in ['0px', '0%', '0em', '0']):
+                            line = lines[index].replace("bottom: 20px;", "")
+                        else: 
+                            t_b_aux = True
+                            line = line
+                        content.append(line)
+
+                elif (index==43) and (box_position is not None):
+                    if isinstance(box_position, dict):
+                        if "top" not in box_position.keys():
+                            line = lines[index].replace("top", "")
+                        elif box_position['top']=='':
+                            line = lines[index].replace("top", "")
+                        elif ("top" in box_position.keys()) and not ("bottom" in box_position.keys()) and not (list(box_position['top'])[0] in ['0', '']):
+                            line = lines[index].replace("top", f"top: {box_position['top']};")
+                        elif ("top" in box_position.keys()) and (box_position["top"]!="") and t_b_aux and (list(box_position['top'])[0]!='0'):
+                            content[-1] = content[-3].replace("bottom: 20px;", "")
+                            line = lines[index].replace("top", f"top: {box_position['top']};")
+                        elif ("top" in box_position.keys() and box_position["top"]!="") and t_b_aux==False:
+                            line = lines[index].replace("top", "")
+                        else:
+                            line = lines[index].replace("top", "")
+                        content.append(line)
+                elif (index==44) and (box_position is not None):
+                    if isinstance(box_position, dict):
+                        if "left" not in box_position.keys():
+                            line = lines[index].replace("left", "")
+                        elif box_position['left']=='':
+                            line = lines[index].replace("left", "")
+                        elif ("left" in box_position.keys()) and not ("right" in box_position.keys()):
+                            content[-3] = content[-3].replace("right: 20px;", "")
+                            line = lines[index].replace("left", f"left: {box_position['left']};")
+                        elif ("left" in box_position.keys()) and (box_position["left"]!="") and r_l_aux and (list(box_position['left'])[0]!='0'):
+                            content[-3] = content[-3].replace("right: 20px;", "")
+                            line = lines[index].replace("left", f"left: {box_position['left']};")
+                        elif ("left" in box_position.keys() and box_position["left"]!="") and r_l_aux==False:
+                            line = lines[index].replace("left", "")
+                        else:
+                            line = lines[index].replace("left", "")
+                        content.append(line)
+
+                elif (index > 44) and (index < 47):
+                    content.append(line)
+
+
+
+                elif index == 47:
                     line = lines[index].replace("Legend", title)
                     content.append(line)
-                elif index < 39:
+
+                elif index in [48,49]:
                     content.append(line)
-                elif index == 39:
+
+
+                elif (index > 49) and (index < 52):
+                    if (labels is not None) and (index in [50,51]):continue
+                    content.append(line)
+
+
+                elif index == 52:
                     for i, color in enumerate(colors):
                         item = f"    <li><span style='background:{color};opacity:{opacity};'></span>{labels[i]}</li>\n"
                         content.append(item)
-                elif index > 41:
+
+
+                elif (index > 52) and (index < 65):
+                    content.append(line)
+
+
+                
+                elif (index==65) and (title_styles is not None):
+                    if isinstance(title_styles, dict):
+                        if "size" in title_styles.keys():
+                            line = lines[index].replace("90%", title_styles['size'])
+                            content.append(line)
+                elif (index==66) and (title_styles is not None):
+                    if isinstance(title_styles, dict):
+                        if "font" in title_styles.keys():
+                            line = lines[index].replace("Helvetica", title_styles['font'])
+                            content.append(line)
+                elif (index==67) and (title_styles is not None):
+                    if isinstance(title_styles, dict):
+                        if "color" in title_styles.keys():
+                            bkg = ""
+                            if isinstance(title_styles["color"], tuple):
+                                if title_styles["color"].__len__() == 3:
+                                    bkg = "rgb({},{},{})".format(*[c for c in title_styles["color"]])
+                                elif title_styles["color"].__len__() == 4:
+                                    bkg = "rgba({},{},{},{})".format(*[c for c in title_styles["color"]])
+                            elif isinstance(title_styles["color"], str):
+                                bkg = title_styles["color"] if title_styles["color"].startswith("#") else f"#{title_styles['color']}"
+                            line = lines[index].replace("rgba(0, 0, 0, 1)", bkg)
+                            content.append(line)                    
+                elif (index > 67):
                     content.append(line)
 
         template = "".join(content)
