@@ -129,16 +129,17 @@ class EcoMap(EcoMapMixin, Map):
         )
 
     def add_title(
-        self, 
-        title:str, 
-        font_size:str="32px", 
-        font_style:str="normal", 
-        font_family:typing.Union[str, list]="Helvetica", 
-        font_color:typing.Union[str, tuple]="rgba(0,0,0,1)", 
-        position:dict=None,
-        background_color:typing.Union[str, tuple]='#FFFFFF99', 
-        outline:typing.Union[str, dict]="0px solid rgba(0, 0, 0, 0)", 
-        **kwargs):
+        self,
+        title: str,
+        font_size: str = "32px",
+        font_style: str = "normal",
+        font_family: typing.Union[str, list] = "Helvetica",
+        font_color: typing.Union[str, tuple] = "rgba(0,0,0,1)",
+        position: dict = None,
+        background_color: typing.Union[str, tuple] = "#FFFFFF99",
+        outline: typing.Union[str, dict] = "0px solid rgba(0, 0, 0, 0)",
+        **kwargs,
+    ):
         """
         Parameters
         ----------
@@ -147,11 +148,11 @@ class EcoMap(EcoMapMixin, Map):
         font_size : str
             CSS font size that includes units.
             font_style : str
-        font_family:str"Helvetica", 
+        font_family:str"Helvetica",
             Font family selection; Could be one or more separated by spaces.
         font_color : str
             Text color (css color property); supports rgb, rgba and hex string formats.
-        position : dict|None 
+        position : dict|None
             Dict object with top, left and bottom margin values for the title container position.
             ex. {
                     "top": "10px",
@@ -159,7 +160,7 @@ class EcoMap(EcoMapMixin, Map):
                     "right": "0px",
                     "bottom": "0px"
                 }
-            All keys are optional in the dictionary (could be passed some of them as necesary).
+            All keys are optional in the dictionary (could be passed some of them as necessary).
             Values could be passed as px or accepted css metric. Default None.
         background_color : str
             Box background color; supports rgb, rgba and hex string formats. Default '#FFFFFF99'.
@@ -176,8 +177,8 @@ class EcoMap(EcoMapMixin, Map):
         """
         position_styles = ""
         if isinstance(position, dict):
-            VALID_POSITION_OPTIONS = ['top', 'bottom', 'left', 'right']
-            position_styles = ' '.join([f"{k}:{v};" for k,v in position.items() if k in VALID_POSITION_OPTIONS]) 
+            VALID_POSITION_OPTIONS = ["top", "bottom", "left", "right"]
+            position_styles = " ".join([f"{k}:{v};" for k, v in position.items() if k in VALID_POSITION_OPTIONS])
         else:
             position_styles = "left: 50%;"
         if isinstance(font_family, str):
@@ -186,37 +187,25 @@ class EcoMap(EcoMapMixin, Map):
             font = " ".join(font_family)
         if isinstance(font_color, tuple):
             if font_color.__len__() == 3:
-                fc = "rgb({},{},{})".format(
-                    font_color[0],
-                    font_color[1],
-                    font_color[2])
+                fc = "rgb({},{},{})".format(font_color[0], font_color[1], font_color[2])
             elif font_color.__len__() == 4:
-                fc = "rgba({},{},{},{})".format(
-                    font_color[0],
-                    font_color[1],
-                    font_color[2],
-                    font_color[3])
+                fc = "rgba({},{},{},{})".format(font_color[0], font_color[1], font_color[2], font_color[3])
         elif isinstance(font_color, str):
             fc = font_color if font_color.startswith("#") else f"#{font_color}"
         if isinstance(background_color, tuple):
             if background_color.__len__() == 3:
-                bkg = "rgb({},{},{})".format(
-                    background_color[0],
-                    background_color[1],
-                    background_color[2])
+                bkg = "rgb({},{},{})".format(background_color[0], background_color[1], background_color[2])
             elif background_color.__len__() == 4:
                 bkg = "rgba({},{},{},{})".format(
-                    background_color[0],
-                    background_color[1],
-                    background_color[2],
-                    background_color[3])
+                    background_color[0], background_color[1], background_color[2], background_color[3]
+                )
         elif isinstance(background_color, str):
             bkg = background_color if background_color.startswith("#") else f"#{background_color}"
-        outline = outline if isinstance(outline, str) else "{} {} {}".format(
-            outline["width"], 
-            outline["style"],
-            outline["color"]
-        )  
+        outline = (
+            outline
+            if isinstance(outline, str)
+            else "{} {} {}".format(outline["width"], outline["style"], outline["color"])
+        )
         title_html = f"""\
         <div style="position: absolute; {position_styles}">
             <p style="position: relative;
