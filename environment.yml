@@ -2,46 +2,47 @@ name: ecoscope
 channels:
   - conda-forge
 dependencies:
-  - python=3.10.12=hd12c33a_0_cpython # Fixed to mirror version on Google Colab
-  - pip=23.3.1=pyhd8ed1ab_0
-  - git=2.38.1=pl5321h8df7355_1
-  - affine=2.4.0=pyhd8ed1ab_0
-  - astroplan=0.9.1=pyhd8ed1ab_0
-  - astropy=5.3.4=py310h1f7b6fc_2
-  - backoff=2.2.1=pyhd8ed1ab_0
-  - branca=0.6.0=pyhd8ed1ab_0
-  - earthengine-api=0.1.376=pyhd8ed1ab_0
-  - geopandas=0.14.0=pyhd8ed1ab_1
-  - ipywidgets=8.1.1=pyhd8ed1ab_0
-  - jinja2=3.1.2=pyhd8ed1ab_1
-  - jupyterlab=4.0.7=pyhd8ed1ab_0
-  - mapclassify=2.6.1=pyhd8ed1ab_0
-  - matplotlib-base=3.8.0=py310h62c0568_2
-  - networkx=3.2=pyhd8ed1ab_1
-  - numba=0.57.1=py310h0f6aa51_0
-  - numexpr=2.8.7=py310hc2d3c2e_104
-  - numpy=1.24.4=py310ha4c1d20_0
-  - pandas=2.1.1=py310hcc13569_1
-  - plotly=5.18.0=pyhd8ed1ab_0
-  - pre-commit=3.5.0=pyha770c72_0
-  - pyarrow=13.0.0=py310hf9e7431_11_cpu
-  - pydata-sphinx-theme=0.14.2=pyhd8ed1ab_0
-  - pypdf2=2.11.1=pyhd8ed1ab_0
-  - pyproj=3.6.1=py310h32c33b7_3
-  - pytest=7.4.3=pyhd8ed1ab_0
-  - pytest-cov=4.1.0=pyhd8ed1ab_0
-  - pytest-mock=3.12.0=pyhd8ed1ab_0
-  - python-igraph=0.11.2=py310h1e3ba49_1
-  - python-kaleido=0.2.1=pyhd8ed1ab_0
-  - rasterio=1.3.9=py310h6a913dc_0
-  - scikit-image=0.22.0=py310hcc13569_2
-  - scikit-learn=1.3.2=py310h1fdf081_1
-  - scipy=1.11.3=py310hb13e2d6_1
-  - selenium=4.14.0=pyhd8ed1ab_0
-  - shapely=2.0.2=py310h7dcad9a_0
-  - sphinx=7.2.6=pyhd8ed1ab_0
-  - tqdm=4.66.1=pyhd8ed1ab_0
-  - xyzservices=2023.10.0=pyhd8ed1ab_0
+  # Fixed to mirror version on Google Colab
+  - python=3.10.12
+  - pip=23.3.1
+  - git=2.38.1
+  - affine=2.4.0
+  - astroplan=0.9.1
+  - astropy=5.3.4
+  - backoff=2.2.1
+  - branca=0.6.0
+  - earthengine-api=0.1.376
+  - geopandas=0.14.0
+  - ipywidgets=8.1.1
+  - jinja2=3.1.2
+  - jupyterlab=4.0.7
+  - mapclassify=2.6.1
+  - matplotlib-base=3.8.0
+  - networkx=3.2
+  - numba=0.57.1
+  - numexpr=2.8.7
+  - numpy=1.24.4
+  - pandas=2.1.1
+  - plotly=5.18.0
+  - pre-commit=3.5.0
+  - pyarrow=13.0.0
+  - pydata-sphinx-theme=0.14.2
+  - pypdf2=2.11.1
+  - pyproj=3.6.1
+  - pytest=7.4.3
+  - pytest-cov=4.1.0
+  - pytest-mock=3.12.0
+  - python-igraph=0.11.2
+  - python-kaleido=0.2.1
+  - rasterio=1.3.9
+  - scikit-image=0.22.0
+  - scikit-learn=1.3.2
+  - scipy=1.11.3
+  - selenium=4.14.0
+  - shapely=2.0.2
+  - sphinx=7.2.6
+  - tqdm=4.66.1
+  - xyzservices=2023.10.0
   - pip:
     - coverage[toml]
     - nbsphinx==0.9.3
