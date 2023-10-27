@@ -28,7 +28,7 @@ dependencies = [
     "networkx",
     "numba",
     "numexpr",
-    "numpy<=1.22",
+    "numpy",
     "pandas",
     "plotly",
     "pyarrow",
