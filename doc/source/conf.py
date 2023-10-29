@@ -28,7 +28,6 @@ author = "Wildlife Dynamics"
 
 source_suffix = {
     '.rst': 'restructuredtext',
-    '.txt': 'restructuredtext',
     '.md': 'markdown',
 }
 
@@ -48,6 +47,10 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "myst_parser",
+]
+
+myst_enable_extensions = [
+    "colon_fence",
 ]
 
 nbsphinx_execute = "never"
