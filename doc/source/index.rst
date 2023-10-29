@@ -6,4 +6,6 @@
    :hidden:
 
    Home <self>
-   notebooks
+   notebooks;
+   ecoscope_gui
+   abc
