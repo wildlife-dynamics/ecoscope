@@ -26,6 +26,11 @@ project = "Ecocope"
 copyright = "2022, Wildlife Dynamics"
 author = "Wildlife Dynamics"
 
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
+
 
 # -- General configuration ---------------------------------------------------
 
@@ -41,6 +46,11 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "myst_parser",
+]
+
+myst_enable_extensions = [
+    "colon_fence",
 ]
 
 nbsphinx_execute = "never"
