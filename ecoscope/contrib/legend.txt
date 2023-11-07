@@ -30,9 +30,20 @@
 <body>
 
 
-<div id='maplegend' class='maplegend'
-    style='position: absolute; z-index:9999; border:2px solid grey; background-color:rgba(255, 255, 255, 0.8);
-     border-radius:6px; padding: 10px; font-size:14px; right: 20px; bottom: 20px;'>
+<div id='maplegend' class='maplegend' 
+    style="
+        position: absolute; 
+        z-index:9999; 
+        border:2px solid grey; 
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius:6px; 
+        padding: 10px; 
+        font-size:14px; 
+        right: 20px; 
+        bottom: 20px;
+        top
+        left
+">
 
 <div class='legend-title'>Legend</div>
 <div class='legend-scale'>
@@ -53,6 +64,8 @@
     margin-bottom: 5px;
     font-weight: bold;
     font-size: 90%;
+    font-family: "Helvetica";
+    color: rgba(0, 0, 0, 1);
     }
   .maplegend .legend-scale ul {
     margin: 0;
