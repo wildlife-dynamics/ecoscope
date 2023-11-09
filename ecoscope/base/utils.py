@@ -212,3 +212,52 @@ def create_modis_interval_index(start, intervals, overlap=pd.Timedelta(0), close
     left = pd.DatetimeIndex(left)
 
     return pd.IntervalIndex.from_arrays(left=left, right=left + pd.Timedelta(days=16), closed=closed)
+
+
+def add_val_index(df, index_name, val):
+    """
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe to create index on
+    index_name : str
+        Name of index
+    val : str
+        Current column to rename and set as index
+
+    Returns
+    -------
+    pd.DataFrame
+
+    """
+    if val in df.columns:
+        return df.rename(columns={val: index_name}).set_index(index_name, append=True)
+    else:
+        df[index_name] = val
+        df = df.set_index(index_name, append=True)
+    return df
+
+
+def add_temporal_index(df, index_name, time_col, directive):
+    """
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Dataframe to create index on
+    index_name : str
+        Name of temporal index
+    time_col : str
+        Name of the time column
+    directive : str
+        Time format string
+
+    Returns
+    -------
+    pd.DataFrame
+
+    """
+    if directive and time_col:
+        df[index_name] = df[time_col].dt.strftime(directive)
+        return df.set_index(index_name, append=True)
+    else:
+        return df
