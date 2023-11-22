@@ -686,6 +686,7 @@ class EarthRangerIO(ERClient):
     def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
         """
         Download observations for provided `patrols_df`.
+
         Parameters
         ----------
         patrols_df : pd.DataFrame
@@ -694,6 +695,7 @@ class EarthRangerIO(ERClient):
            Whether to merge patrol details into dataframe
         kwargs
            Additional parameters to pass to `get_subject_observations`.
+
         Returns
         -------
         relocations : ecoscope.base.Relocations
@@ -776,6 +778,54 @@ class EarthRangerIO(ERClient):
             )
         )
 
+    def get_spatial_features_group(self, spatial_features_group_id=None, **addl_kwargs):
+        """
+        Download spatial features in a spatial features group for a given  `spatial features group id`.
+
+        Parameters
+        ----------
+        spatial_features_group_id :
+            Spatial Features Group UUID.
+        kwargs
+            Additional parameters to pass to `_get`.
+
+        Returns
+        -------
+        dataframe : GeoDataFrame of spatial features in a spatial features group.
+        """
+        params = self._clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
+
+        object = f"spatialfeaturegroup/{spatial_features_group_id}/"
+        spatial_features_group = self._get(object, **params)
+
+        spatial_features = []
+        for spatial_feature in spatial_features_group["features"]:
+            spatial_features.append(spatial_feature["features"][0])
+
+        return gpd.GeoDataFrame.from_features(spatial_features)
+
+    def get_spatial_feature(self, spatial_feature_id=None, **addl_kwargs):
+        """
+        Download spatial feature for a given  `spatial feature id`.
+
+        Parameters
+        ----------
+        spatial_feature_id :
+            Spatial Feature UUID.
+        kwargs
+            Additional parameters to pass to `_get`.
+
+        Returns
+        -------
+        dataframe : GeoDataFrame of spatial feature.
+        """
+
+        params = self._clean_kwargs(addl_kwargs, spatial_feature_id=spatial_feature_id)
+
+        object = f"spatialfeature/{spatial_feature_id}/"
+        spatial_feature = self._get(object, **params)
+        return gpd.GeoDataFrame.from_features(spatial_feature["features"])
+
     """
     POST Functions
     """
@@ -797,6 +847,7 @@ class EarthRangerIO(ERClient):
         model_name
         provider
         additional
+
         Returns
         -------
         pd.DataFrame
@@ -864,6 +915,7 @@ class EarthRangerIO(ERClient):
         lower_bound_assigned_range
         upper_bound_assigned_range
         additional
+
         Returns
         -------
         pd.DataFrame
@@ -899,6 +951,7 @@ class EarthRangerIO(ERClient):
             The source column in the observation dataframe
         recorded_at_col : str
             The observation recorded time column in the dataframe
+
         Returns
         -------
         None
@@ -931,6 +984,7 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         events
+
         Returns
         -------
         pd.DataFrame:
@@ -1068,6 +1122,7 @@ class EarthRangerIO(ERClient):
         event_id
             UUID for the event that will be updated.
         events
+
         Returns
         -------
         pd.DataFrame:

@@ -222,3 +222,15 @@ def test_get_patrol_observations(er_io):
 def test_users(er_io):
     users = pd.DataFrame(er_io.get_users())
     assert not users.empty
+
+
+def test_get_spatial_feature(er_io):
+    spatial_feature = er_io.get_spatial_feature(spatial_feature_id="8868718f-0154-45bf-a74d-a66706ef958f")
+    assert not spatial_feature.empty
+
+
+def test_get_spatial_features_group(er_io):
+    spatial_features = er_io.get_spatial_features_group(
+        spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097"
+    )
+    assert not spatial_features.empty
