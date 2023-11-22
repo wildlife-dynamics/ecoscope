@@ -5,7 +5,6 @@ from ecoscope.plotting.plot import (
     ecoplot,
     mcp,
     nsd,
-    plot_collar_voltage,
     plot_seasonal_dist,
     speed,
 )
@@ -18,6 +17,5 @@ __all__ = [
     "mcp",
     "nsd",
     "speed",
-    "plot_collar_voltage",
     "plot_seasonal_dist",
 ]
