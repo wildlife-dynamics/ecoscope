@@ -158,3 +158,4 @@ doc/source/_autosummary
 doc/source/notebooks
 tags
 Ecoscope-Outputs
+tests/test_output/new.html

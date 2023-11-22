@@ -8,6 +8,7 @@ import pytest
 import ecoscope
 
 
+@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_trajectory_is_not_empty(er_io):
     # test there is actually data in trajectory
     relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
@@ -15,6 +16,7 @@ def test_trajectory_is_not_empty(er_io):
     assert not trajectory.empty
 
 
+@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_redundant_columns_in_trajectory(er_io):
     # test there is no redundant column in trajectory
     relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
@@ -32,6 +34,7 @@ def test_relocs_speedfilter(er_io):
     assert relocations.shape[0] != relocs_after_filter.shape[0]
 
 
+@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_relocs_distancefilter(er_io):
     relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
     relocs_speed_filter = ecoscope.base.RelocsDistFilter(min_dist_km=1.0, max_dist_km=6.0)
@@ -40,6 +43,7 @@ def test_relocs_distancefilter(er_io):
     assert relocations.shape[0] != relocs_after_filter.shape[0]
 
 
+@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_relocations_from_gdf_preserve_fields(er_io):
     relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
     gpd.testing.assert_geodataframe_equal(relocations, ecoscope.base.Relocations.from_gdf(relocations))
