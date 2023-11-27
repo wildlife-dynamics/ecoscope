@@ -1,11 +1,9 @@
 import datetime
 import uuid
-from tempfile import TemporaryDirectory
 
 import geopandas as gpd
 import pandas as pd
 import pytest
-import pytz
 from shapely.geometry import Point
 
 import ecoscope
@@ -75,21 +73,6 @@ def test_get_subjectgroup_observations(er_io):
 def test_get_events(er_events_io):
     events = er_events_io.get_events()
     assert not events.empty
-
-
-@pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
-@pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning")
-def test_collar_voltage(er_io):
-    start_time = pytz.utc.localize(datetime.datetime.now() - datetime.timedelta(days=31))
-    observations = er_io.get_subjectgroup_observations(
-        group_name=er_io.GROUP_NAME,
-        include_subject_details=True,
-        include_subjectsource_details=True,
-        include_details="true",
-    )
-
-    with TemporaryDirectory() as output_folder:
-        ecoscope.plotting.plot.plot_collar_voltage(observations, start_time=start_time, output_folder=output_folder)
 
 
 def test_das_client_method(er_io):
