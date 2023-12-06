@@ -1,7 +1,6 @@
 from ecoscope.plotting.plot import (
     EcoPlotData,
     add_seasons,
-    collar_event_timeline,
     ecoplot,
     mcp,
     nsd,
@@ -12,7 +11,6 @@ from ecoscope.plotting.plot import (
 __all__ = [
     "EcoPlotData",
     "add_seasons",
-    "collar_event_timeline",
     "ecoplot",
     "mcp",
     "nsd",

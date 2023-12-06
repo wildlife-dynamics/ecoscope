@@ -1,17 +1,9 @@
-import logging
-import os
-import uuid
-
 import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 import shapely
 from plotly.subplots import make_subplots
 from sklearn.neighbors import KernelDensity
-
-from ecoscope.io.utils import extract_voltage
-
-logger = logging.getLogger(__name__)
 
 
 class EcoPlotData:
@@ -155,42 +147,6 @@ def add_seasons(fig, season_df):
         secondary_y=True,
     )
     fig.update_yaxes(categoryorder="array", categoryarray=["dry", "wet"])
-    return fig
-
-
-def collar_event_timeline(relocations, collar_events):
-    fig = go.FigureWidget()
-
-    ys = [0]
-    if not collar_events.empty:
-        times = collar_events["time"].to_list()
-        times.append(relocations["fixtime"][-1])
-        xs = [[times[i]] * 3 + [times[i + 1]] for i in range(len(collar_events))]
-        ys = [[0, i + 1, 0, 0] for i in range(len(collar_events))]
-        colors = collar_events["colors"]
-
-        for x, y, color in zip(xs, ys, colors):
-            fig.add_trace(go.Scatter(x=x, y=y, line_color=color))
-            fig.update_layout(
-                annotations=[
-                    go.layout.Annotation(x=row.time, y=i, text=f"{row.event_type}<br>{row.time.date()}")
-                    for i, (_, row) in enumerate(collar_events.iterrows(), 1)
-                ]
-            )
-
-    x = relocations.fixtime
-    y = np.full(len(x), np.max(ys) / 10)
-    fig.add_trace(go.Scatter(x=x, y=y, line_color="rgb(0,0,255)", mode="markers", marker_size=1))
-
-    fig.update_layout(
-        margin_l=0,
-        margin_r=0,
-        margin_t=0,
-        margin_b=15,
-        yaxis_visible=False,
-        showlegend=False,
-    )
-
     return fig
 
 

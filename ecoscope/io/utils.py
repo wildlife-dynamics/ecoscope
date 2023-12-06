@@ -25,29 +25,6 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
     return dataframe
 
 
-def extract_voltage(s: typing.Dict):
-    """
-    Extracts voltage from different source-provider in EarthRanger
-    Parameters
-    ----------
-    s: typing.Dict
-
-    Returns
-    -------
-    typing.Any
-
-    """
-    additional = s["extra__observation_details"] or {}
-    voltage = additional.get("battery", None)  # savannah tracking
-    if not voltage:
-        voltage = additional.get("mainVoltage", None)  # vectronics
-    if not voltage:
-        voltage = additional.get("batt", None)  # AWT
-    if not voltage:
-        voltage = additional.get("power", None)  # Followit
-    return voltage
-
-
 def download_file(url, path, overwrite_existing=False, chunk_size=1024, **request_kwargs):
     r = requests.get(url, stream=True, **request_kwargs)
 
