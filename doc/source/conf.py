@@ -27,8 +27,8 @@ copyright = "2022, Wildlife Dynamics"
 author = "Wildlife Dynamics"
 
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.md': 'markdown',
+    ".rst": "restructuredtext",
+    ".md": "markdown",
 }
 
 

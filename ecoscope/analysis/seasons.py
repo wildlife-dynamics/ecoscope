@@ -109,22 +109,22 @@ def seasonal_windows(ndvi_vals, cuts, season_labels):
     ).set_index("unique_season")
 
 
-def add_seasonal_index(df, index_name, start_date, end_date, aoi_geom_filter=None, seasons=2, season_labels=["dry", "wet"]):
-    
+def add_seasonal_index(
+    df, index_name, start_date, end_date, aoi_geom_filter=None, seasons=2, season_labels=["dry", "wet"]
+):
+
     aoi_ = None
     try:
-        aoi_ = aoi_geom_filter.dissolve().iloc[0]['geometry']
+        aoi_ = aoi_geom_filter.dissolve().iloc[0]["geometry"]
     except:
         aoi_ = aoi_geom_filter
 
     if len(season_labels) != seasons:
-        raise Exception(f"Parameter value 'seasons' ({seasons}) must match the number of 'season_labels' elements ({season_labels})")
+        raise Exception(
+            f"Parameter value 'seasons' ({seasons}) must match the number of 'season_labels' elements ({season_labels})"
+        )
     # extract the standardized NDVI ndvi_vals within the AOI
-    ndvi_vals = std_ndvi_vals(
-        aoi_,
-        start=since_filter.isoformat(),
-        end=until_filter.isoformat()
-    )
+    ndvi_vals = std_ndvi_vals(aoi_, start=since_filter.isoformat(), end=until_filter.isoformat())
 
     # calculate the seasonal transition point
     cuts = val_cuts(ndvi_vals, seasons)
@@ -135,7 +135,7 @@ def add_seasonal_index(df, index_name, start_date, end_date, aoi_geom_filter=Non
     # Categorize the fixtime values according to the season
     bins = pandas.IntervalIndex(data=windows.apply(lambda x: pandas.Interval(x["start"], x["end"]), axis=1))
     labels = windows.season
-    df[index_name] = pandas.cut(df[time_col], bins=bins).map(dict(zip(bins,labels)))
+    df[index_name] = pandas.cut(df[time_col], bins=bins).map(dict(zip(bins, labels)))
 
     # set the index
     return df.set_index(index_name, append=True)
