@@ -137,6 +137,32 @@ class EcoMap(EcoMapMixin, Map):
             )
         )
 
+    def add_scale_bar(self, style="single", position="bottomleft", imperial=False, force=False):
+        """
+        Parameters
+        ----------
+        style : str, optional
+            Possible values are 'single', 'double', 'empty' or 'comb'. Default is 'single'.
+        position : str, optional
+            Possible values are 'topleft', 'topright', 'bottomleft' or 'bottomright'.
+        imperial : bool, optional
+            If True, the scale bar uses miles and feet. Default is False.
+        force : bool, optional
+            If True, adds index=0 to the add_child() call, forcing the scale bar 'behind' Folium's default controls
+        """
+
+        svg = (
+            """<svg xmlns="http://www.w3.org/2000/svg" id="test" style="width:300;height:40px;"><rect id="border" style="stroke:#000;fill:#FFF;" height="40%" width="75%" x="5%" y="2%"/><rect id="first_block" style="fill:#000" height="20%" width="37.5%" x="5%" y="2%"/><rect id="second_block" style="fill:#000" height="20%" width="37.5%" x="42.5%" y="22%"/><text id="zero" text-anchor="middle" font-size="20" x="5%" y="95%">0</text><text id="half_scale" font-size="20" text-anchor="middle" x="42.5%" y="95%">15</text><text id="scale" font-size="20" text-anchor="middle" x="80%" y="95%">30</text><text id="unit" font-size="20" x="82%" y="42%">km</text></svg>"""  # noqa
+            if style == "double"
+            else """<svg xmlns="http://www.w3.org/2000/svg" id="test" style="width:300;height:40px;"><rect id="border" style="stroke:#000;fill:#FFF;" height="50%" width="75%" x="5%" y="48%" /><text id="zero" font-size="20" x="0%" y="95%" visibility="hidden">0</text><text id="half_scale" font-size="20" text-anchor="middle" x="42.5%" y="95%" visibility="hidden">15</text><text id="scale" font-size="20" text-anchor="middle" x="42.5%" y="92%">30</text><text id="unit" font-size="20" x="82%" y="95%">km</text></svg>"""  # noqa
+            if style == "empty"
+            else """<svg xmlns="http://www.w3.org/2000/svg" id="test" style="width:300;height:40px;"><svg y="50%" x="5%" width="75%" height="48%" viewBox="-0.4 0 101 101" preserveAspectRatio="none"><path d="M 0 50 L 0 99 h 50 V 50 V 99 H 100 V 50" vector-effect="non-scaling-stroke" fill="None" stroke-width="2" stroke="#000"/></svg><text id="zero" font-size="20" text-anchor="middle" x="5%" y="50%">0</text><text id="half_scale" font-size="20" text-anchor="middle" y="50%" x="42.5%">15</text><text id="scale" font-size="20" text-anchor="middle" y="50%" x="80%">1500</text><text id="unit" font-size="20" x="85%" y="98%">km</text></svg>"""  # noqa
+            if style == "comb"
+            else """<svg xmlns="http://www.w3.org/2000/svg" id="test" style="width:300;height:40px;"><rect id="border" style="stroke:#000;fill:#FFF;" height="40%" width="75%" x="5%" y="2%"/><rect id="first_block" style="fill:#000" height="40%" width="37.5%" x="5%" y="2%"/><text id="zero" text-anchor="middle" font-size="20" x="5%" y="95%">0</text><text id="half_scale" font-size="20" text-anchor="middle" x="42.5%" y="95%">15</text><text id="scale" font-size="20" text-anchor="middle" x="80%" y="95%">30</text><text id="unit" font-size="20" x="82%" y="42%">km</text></svg>"""  # noqa
+        )
+
+        self.add_child(ScaleElement(svg, position=position, imperial=imperial), index=0 if force else None)
+
     def add_title(
         self,
         title: str,
@@ -588,6 +614,93 @@ class NorthArrowElement(ControlElement):
         super().__init__(html=html, position=position)
         self.angle = angle
         self.options = folium.utilities.parse_options(imagePath=imagePath, scale=scale, position=position)
+
+
+class ScaleElement(MacroElement):
+    """
+    Class to wrap arbitrary HTML as Leaflet Control.
+
+    Parameters
+    ----------
+    html : str
+        HTML to render an element from.
+    position : str
+        Possible values are 'topleft', 'topright', 'bottomleft' or 'bottomright'.
+
+    """
+
+    _template = Template(
+        """
+        {% macro script(this, kwargs) %}
+
+        var {{ this.get_name() }} = L.Control.Scale.extend({
+            onAdd: function(map) {
+
+                var template = document.createElement('template');
+                var container = document.createElement('div');
+                container.classList.add("leaflet-control-scale");
+                container.innerHTML = `{{ this.html }}`.trim();
+                template.innerHTML = `{{ this.html }}`.trim();
+
+                this._scale = container.firstChild;
+
+                map.on('move', this._update, this);
+                map.whenReady(this._update, this);
+
+                return container;
+            },
+
+            _updateImperial(maxMeters) {
+                const maxFeet = maxMeters * 3.2808399;
+                let maxMiles, miles, feet;
+
+                if (maxFeet > 5280) {
+                    maxMiles = maxFeet / 5280;
+                    miles = this._getRoundNum(maxMiles);
+                    this._updateScale(this._scale, miles, "mi", miles / maxMiles);
+
+                } else {
+                    feet = this._getRoundNum(maxFeet);
+                    this._updateScale(this._scale, feet, "ft", feet / maxFeet);
+                }
+            },
+
+            _updateMetric(maxMeters) {
+                const meters = this._getRoundNum(maxMeters),
+                label = meters < 1000 ? `${meters} m` : `${meters / 1000} km`;
+
+                value = meters < 1000 ? meters : meters / 1000;
+                unit = meters < 1000 ? `m` : `km`;
+
+                this._updateScale(this._scale, value, unit, meters / maxMeters);
+            },
+
+            _updateScale(scale, value, unit, ratio) {
+                scale.style.width = `${Math.round(this.options.maxWidth * ratio * (4/3))}px`;
+
+                scale.getElementById("scale").textContent = value;
+                scale.getElementById("half_scale").textContent = value / 2;
+                scale.getElementById("unit").textContent = unit;
+
+            },
+
+            onRemove(map) {
+                map.off('move', this._update, this);
+            }
+
+        });
+        (new {{ this.get_name() }}({{ this.options|tojson }})).addTo({{this._parent.get_name()}});
+
+        {% endmacro %}
+    """
+    )
+
+    def __init__(self, html, position="bottomright", imperial=False):
+        super().__init__()
+        self.html = html
+        self.options = folium.utilities.parse_options(
+            position=position, maxWidth=300, imperial=imperial, metric=not imperial
+        )
 
 
 class FloatElement(MacroElement):
