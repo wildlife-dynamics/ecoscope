@@ -12,6 +12,8 @@ import pandas as pd
 import pytz
 import tqdm.auto as tqdm
 
+from ecoscope.contrib import geemap
+
 logging.getLogger("urllib3").setLevel(logging.ERROR)  # Filter "Connection pool is full, discarding connection"
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ def initialize_earthengine(key_dict):
             return
 
         sac = ee.ServiceAccountCredentials(key_dict["client_email"], key_data=json.dumps(key_dict))
-        ee.Initialize(credentials=sac)
+        geemap.ee_initialize(credentials=sac)
 
     except Exception as e:
         logger.exception("Not able to initialize EarthEngine: %s", e)
