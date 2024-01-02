@@ -37,9 +37,16 @@ def test_label_gdf_with_temporal_image_collection_by_features_aois(aoi_gdf):
     # Add a time_column to the gdf
     aoi_gdf["time"] = pd.Timestamp.utcnow() - pd.Timedelta(days=365)
 
-    img_coll = ee.ImageCollection("MODIS/061/MYD13A1").select("NDVI").map(
-        lambda img: img.multiply(0.0001).set("system:time_start", img.get("system:time_start")).set("id", img.get("id"))
-        ).sort('system:time_start')
+    img_coll = (
+        ee.ImageCollection("MODIS/061/MYD13A1")
+        .select("NDVI")
+        .map(
+            lambda img: img.multiply(0.0001)
+            .set("system:time_start", img.get("system:time_start"))
+            .set("id", img.get("id"))
+        )
+        .sort("system:time_start")
+    )
 
     params = {
         "time_col_name": "time",
