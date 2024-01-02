@@ -8,7 +8,7 @@ dependencies:
   - jupyterlab
   - pip:
     - coverage[toml]
-    - git+https://github.com/wildlife-dynamics/ecoscope.git@ECO-260-ee-geemap-update
+    - ecoscope
     - nbsphinx
     - nbsphinx-multilink
     - sphinx-autoapi
