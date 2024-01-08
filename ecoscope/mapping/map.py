@@ -12,6 +12,7 @@ import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
+import datashader as ds
 import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
@@ -422,6 +423,73 @@ class EcoMap(EcoMapMixin, Map):
 
     def add_print_control(self):
         self.add_child(PrintControl())
+
+    def add_datashader_gdf(
+        self,
+        gdf,
+        geom_type,
+        name=None,
+        width=600,
+        height=600,
+        cmap=["lightblue", "darkblue"],
+        ds_agg=None,
+        zoom=True,
+        opacity=1,
+        **kwargs,
+    ):
+        """
+        Overlays a static visualization of the given gdf generated using Datashader
+
+        Parameters
+        ----------
+        gdf : geopandas.GeoDataFrame
+            GeoDataFrame used to create visualization (geometry must be projected to a CRS)
+        geom_type : str
+            The Datashader canvas() function to use valid values are 'polygon', 'line', 'point'
+        name : string
+            The name of the image layer to be displayed in Folium layer control
+        width : int
+            The canvas width in pixels, determines the resolution of the generated image
+        height : int
+            The canvas height in pixels, determines the resolution of the generated image
+        cmap : list of colors or matplotlib.colors.Colormap
+            The colormap to use for the generated image
+        ds_agg : datashader.reductions function
+            The Datashader reduction to use
+        zoom : bool
+            Zoom to the generated image
+        opacity : float
+            Sets opacity of overlaid image
+        kwargs
+            Additional kwargs passed to datashader.transfer_functions.shade
+        """
+
+        gdf = gdf.to_crs(epsg=4326)
+        bounds = gdf.geometry.total_bounds
+        canvas = ds.Canvas(width, height)
+
+        if geom_type == "polygon":
+            func = canvas.polygons
+        elif geom_type == "line":
+            func = canvas.line
+        elif geom_type == "point":
+            func = canvas.points
+        else:
+            raise ValueError("geom_type must be 'polygon', 'line' or 'point'")
+
+        agg = func(gdf, geometry="geometry", agg=ds_agg)
+        img = ds.tf.shade(agg, cmap, **kwargs)
+
+        folium.raster_layers.ImageOverlay(
+            image=img.to_pil(),
+            bounds=[[bounds[1], bounds[0]], [bounds[3], bounds[2]]],
+            opacity=opacity,
+            mercator_project=True,
+            name=name,
+        ).add_to(self)
+
+        if zoom:
+            self.zoom_to_gdf(gdf)
 
 
 class ControlElement(MacroElement):
