@@ -1,7 +1,43 @@
+"""
+MIT License
+
+Copyright (c) 2020-2021, Qiusheng Wu
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+
 import ee
 import os
 import json
-from .__init__ import in_colab_shell
+
+__version__ = "0.30.0"
+
+
+def in_colab_shell():
+    """Tests if the code is being executed within Google Colab."""
+    import sys
+
+    if "google.colab" in sys.modules:
+        return True
+    else:
+        return False
+
 
 def ee_initialize(
     token_name="EARTHENGINE_TOKEN",
@@ -23,7 +59,6 @@ def ee_initialize(
             opt_url='https://earthengine-highvolume.googleapis.com' to use the Earth Engine High-Volume platform. Defaults to {}.
     """
     import httplib2
-    from .__init__ import __version__
 
     user_agent = f"{user_agent_prefix}/{__version__}"
     if "http_transport" not in kwargs:
