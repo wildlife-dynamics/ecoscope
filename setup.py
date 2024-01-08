@@ -15,6 +15,7 @@ dependencies = [
     "affine",
     "astroplan",
     "backoff",
+    "datashader",
     "earthengine-api",
     "earthranger-client",
     "folium",
