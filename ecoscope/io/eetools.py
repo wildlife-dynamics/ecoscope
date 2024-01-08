@@ -97,8 +97,13 @@ def label_gdf_with_img(gdf=None, img=None, region_reducer=None, scale=500.0):
 
 
 def _match_gdf_to_img_coll_ids(
-    gdf=None, time_col="", img_coll=None, output_col_name=None, stack_limit_before=1, stack_limit_after=1
-):
+                                gdf=None,
+                                time_col="",
+                                img_coll=None,
+                                output_col_name=None,
+                                stack_limit_before=1,
+                                stack_limit_after=1
+                              ):
     """
     A function that will add a column to a gdf (output_col_name) that contains
     the stack_limit_before -> stack_limit_after temporally closest image IDs from an image collection.
