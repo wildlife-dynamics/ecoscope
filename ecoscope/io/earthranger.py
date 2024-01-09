@@ -484,6 +484,11 @@ class EarthRangerIO(ERClient):
 
         return self.get_subject_observations(subject_ids, **kwargs)
 
+    def get_event_types(self, include_inactive=False, **addl_kwargs):
+        params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
+
+        return pd.DataFrame(self._get("activity/events/eventtypes", **params))
+
     def get_events(
         self,
         is_collection=None,
@@ -588,7 +593,7 @@ class EarthRangerIO(ERClient):
         )
 
         assert not df.empty
-        df["time"] = pd.to_datetime(df["time"])
+        df["time"] = pd.to_datetime(df["time"], format="mixed")
 
         df = gpd.GeoDataFrame(df)
         df.loc[~df["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
@@ -597,10 +602,11 @@ class EarthRangerIO(ERClient):
         df.set_crs(4326, inplace=True)
 
         df.sort_values("time", inplace=True)
-        return df
+        return df.set_index("id")
 
     def get_patrol_types(self):
-        return pd.DataFrame(self._get("activity/patrols/types"))
+        df = pd.DataFrame(self._get("activity/patrols/types"))
+        return df.set_index("id")
 
     def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
         """
@@ -646,21 +652,50 @@ class EarthRangerIO(ERClient):
             df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
 
+    def get_patrol_segments_from_patrol_id(self, patrol_id, **addl_kwargs):
+        """
+        Download patrols for a given `patrol id`.
+
+        Parameters
+        ----------
+        patrol_id :
+            Patrol UUID.
+        kwargs
+            Additional parameters to pass to `_get`.
+
+        Returns
+        -------
+        dataframe : Dataframe of patrols.
+        """
+
+        params = self._clean_kwargs(addl_kwargs)
+
+        object = f"activity/patrols/{patrol_id}/"
+        df = self._get(object, **params)
+        df["patrol_segments"][0].pop("updates")
+        df.pop("updates")
+
+        return pd.DataFrame(dict([(k, pd.Series(v)) for k, v in df.items()]))
+
     def get_patrol_segments(self):
         object = "activity/patrols/segments/"
         return pd.DataFrame(
             self.get_objects_multithreaded(object=object, threads=self.tcp_limit, page_size=self.sub_page_size)
         )
 
-    def get_observations_for_patrols(self, patrols_df, **kwargs):
+    def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
         """
         Download observations for provided `patrols_df`.
+
         Parameters
         ----------
         patrols_df : pd.DataFrame
-            Data returned from a call to `get_patrols`.
+           Data returned from a call to `get_patrols`.
+        include_patrol_details : bool, optional
+           Whether to merge patrol details into dataframe
         kwargs
-            Additional parameters to pass to `get_subject_observations`.
+           Additional parameters to pass to `get_subject_observations`.
+
         Returns
         -------
         relocations : ecoscope.base.Relocations
@@ -670,27 +705,53 @@ class EarthRangerIO(ERClient):
         for _, patrol in patrols_df.iterrows():
             for patrol_segment in patrol["patrol_segments"]:
                 subject_id = (patrol_segment.get("leader") or {}).get("id")
-                start_time = (patrol_segment.get("time_range") or {}).get("start_time")
-                end_time = (patrol_segment.get("time_range") or {}).get("end_time")
+                patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
+                patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
-                if None in {subject_id, start_time}:
+                df_pt = self.get_patrol_types()
+                patrol_type = df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
+
+                if None in {subject_id, patrol_start_time}:
                     continue
+
                 try:
-                    observations.append(
-                        self.get_subject_observations(
-                            subject_ids=[subject_id],
-                            since=start_time,
-                            until=end_time,
-                            **kwargs,
+                    observation = self.get_subject_observations(
+                        subject_ids=[subject_id], since=patrol_start_time, until=patrol_end_time, **kwargs
+                    )
+                    if include_patrol_details:
+                        observation["patrol_id"] = patrol["id"]
+                        observation["patrol_serial_number"] = patrol["serial_number"]
+                        observation["patrol_start_time"] = patrol_start_time
+                        observation["patrol_end_time"] = patrol_end_time
+                        observation["patrol_type"] = patrol_type
+                        observation = (
+                            observation.reset_index()
+                            .merge(
+                                pd.DataFrame(self.get_patrol_types()).add_prefix("patrol_type__"),
+                                left_on="patrol_type",
+                                right_on="id",
+                            )
+                            .drop(
+                                columns=[
+                                    "patrol_type__ordernum",
+                                    "patrol_type__icon_id",
+                                    "patrol_type__default_priority",
+                                    "patrol_type__is_active",
+                                ]
+                            )
                         )
-                    )
+                    if len(observation) > 0:
+                        observations.append(observation)
                 except Exception as e:
-                    # print(f'Getting observations for {subject_id=} {start_time=} {end_time=} failed for: {e}')
                     print(
-                        f"Getting observations for subject_id={subject_id} start_time={start_time} end_time={end_time}"
-                        f"failed for: {e}"
+                        f"Getting observations for subject_id={subject_id} start_time={patrol_start_time}"
+                        f"end_time={patrol_end_time} failed for: {e}"
                     )
-        return ecoscope.base.Relocations(pd.concat(observations))
+
+        df = ecoscope.base.Relocations(pd.concat(observations))
+        if include_patrol_details:
+            return df.set_index("id")
+        return df
 
     def get_patrol_segment_events(
         self,
@@ -717,6 +778,54 @@ class EarthRangerIO(ERClient):
             )
         )
 
+    def get_spatial_features_group(self, spatial_features_group_id=None, **addl_kwargs):
+        """
+        Download spatial features in a spatial features group for a given  `spatial features group id`.
+
+        Parameters
+        ----------
+        spatial_features_group_id :
+            Spatial Features Group UUID.
+        kwargs
+            Additional parameters to pass to `_get`.
+
+        Returns
+        -------
+        dataframe : GeoDataFrame of spatial features in a spatial features group.
+        """
+        params = self._clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
+
+        object = f"spatialfeaturegroup/{spatial_features_group_id}/"
+        spatial_features_group = self._get(object, **params)
+
+        spatial_features = []
+        for spatial_feature in spatial_features_group["features"]:
+            spatial_features.append(spatial_feature["features"][0])
+
+        return gpd.GeoDataFrame.from_features(spatial_features)
+
+    def get_spatial_feature(self, spatial_feature_id=None, **addl_kwargs):
+        """
+        Download spatial feature for a given  `spatial feature id`.
+
+        Parameters
+        ----------
+        spatial_feature_id :
+            Spatial Feature UUID.
+        kwargs
+            Additional parameters to pass to `_get`.
+
+        Returns
+        -------
+        dataframe : GeoDataFrame of spatial feature.
+        """
+
+        params = self._clean_kwargs(addl_kwargs, spatial_feature_id=spatial_feature_id)
+
+        object = f"spatialfeature/{spatial_feature_id}/"
+        spatial_feature = self._get(object, **params)
+        return gpd.GeoDataFrame.from_features(spatial_feature["features"])
+
     """
     POST Functions
     """
@@ -738,6 +847,7 @@ class EarthRangerIO(ERClient):
         model_name
         provider
         additional
+
         Returns
         -------
         pd.DataFrame
@@ -805,6 +915,7 @@ class EarthRangerIO(ERClient):
         lower_bound_assigned_range
         upper_bound_assigned_range
         additional
+
         Returns
         -------
         pd.DataFrame
@@ -840,6 +951,7 @@ class EarthRangerIO(ERClient):
             The source column in the observation dataframe
         recorded_at_col : str
             The observation recorded time column in the dataframe
+
         Returns
         -------
         None
@@ -872,6 +984,7 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         events
+
         Returns
         -------
         pd.DataFrame:
@@ -1009,6 +1122,7 @@ class EarthRangerIO(ERClient):
         event_id
             UUID for the event that will be updated.
         events
+
         Returns
         -------
         pd.DataFrame:

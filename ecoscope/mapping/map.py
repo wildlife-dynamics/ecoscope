@@ -13,6 +13,7 @@ import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
+import datashader as ds
 import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
@@ -136,7 +137,18 @@ class EcoMap(EcoMapMixin, Map):
             )
         )
 
-    def add_title(self, title, font_size="32px", **kwargs):
+    def add_title(
+        self,
+        title: str,
+        font_size: str = "32px",
+        font_style: str = "normal",
+        font_family: typing.Union[str, list] = "Helvetica",
+        font_color: typing.Union[str, tuple] = "rgba(0,0,0,1)",
+        position: dict = None,
+        background_color: typing.Union[str, tuple] = "#FFFFFF99",
+        outline: typing.Union[str, dict] = "0px solid rgba(0, 0, 0, 0)",
+        **kwargs,
+    ):
         """
         Parameters
         ----------
@@ -144,19 +156,78 @@ class EcoMap(EcoMapMixin, Map):
             Text of title.
         font_size : str
             CSS font size that includes units.
+            font_style : str
+        font_family:str"Helvetica",
+            Font family selection; Could be one or more separated by spaces.
+        font_color : str
+            Text color (css color property); supports rgb, rgba and hex string formats.
+        position : dict|None
+            Dict object with top, left and bottom margin values for the title container position.
+            ex. {
+                    "top": "10px",
+                    "left": "25px",
+                    "right": "0px",
+                    "bottom": "0px"
+                }
+            All keys are optional in the dictionary (could be passed some of them as necessary).
+            Values could be passed as px or accepted css metric. Default None.
+        background_color : str
+            Box background color; supports rgb, rgba and hex string formats. Default '#FFFFFF99'.
+        outline : str
+            Element outline values (width style color_with_transparency).
+            Could be passed as a string with spaced separated values or a dict structure:
+            ex. {
+                    "width": "1px",
+                    "style": "solid",
+                    "color": "#FFFFFF99" # or rgb/rgba tuple (0, 0, 0, 0)
+                }
         kwargs
             Additional style kwargs. Underscores in keys will be replaced with dashes
-
         """
+        position_styles = ""
+        if isinstance(position, dict):
+            VALID_POSITION_OPTIONS = ["top", "bottom", "left", "right"]
+            position_styles = " ".join([f"{k}:{v};" for k, v in position.items() if k in VALID_POSITION_OPTIONS])
+        else:
+            position_styles = "left: 50%;"
+        if isinstance(font_family, str):
+            font = font_family
+        elif isinstance(font_family, list):
+            font = " ".join(font_family)
+        if isinstance(font_color, tuple):
+            if font_color.__len__() == 3:
+                fc = "rgb({},{},{})".format(font_color[0], font_color[1], font_color[2])
+            elif font_color.__len__() == 4:
+                fc = "rgba({},{},{},{})".format(font_color[0], font_color[1], font_color[2], font_color[3])
+        elif isinstance(font_color, str):
+            fc = font_color if font_color.startswith("#") else f"#{font_color}"
+        if isinstance(background_color, tuple):
+            if background_color.__len__() == 3:
+                bkg = "rgb({},{},{})".format(background_color[0], background_color[1], background_color[2])
+            elif background_color.__len__() == 4:
+                bkg = "rgba({},{},{},{})".format(
+                    background_color[0], background_color[1], background_color[2], background_color[3]
+                )
+        elif isinstance(background_color, str):
+            bkg = background_color if background_color.startswith("#") else f"#{background_color}"
+        outline = (
+            outline
+            if isinstance(outline, str)
+            else "{} {} {}".format(outline["width"], outline["style"], outline["color"])
+        )
         title_html = f"""\
-        <div style="position: absolute; left: 50%;">
+        <div style="position: absolute; {position_styles}">
             <p style="position: relative;
                     left: -50%;
                     border: 1px solid #000;
                     border-radius: 5px;
-                    background-color: #FFFFFF99;
+                    background-color: {bkg};
                     padding: 3px;
+                    outline: {outline};
                     font-size: { font_size };
+                    font-family: {font};
+                    font-style:{font_style};
+                    color: {fc};
                     { "".join([f"{k.replace('_', '-')}: {v};" for k, v in kwargs.items() ]) }
                     ">
             { title }
@@ -361,6 +432,75 @@ class EcoMap(EcoMapMixin, Map):
 
     def add_print_control(self):
         self.add_child(PrintControl())
+
+        
+    def add_datashader_gdf(
+        self,
+        gdf,
+        geom_type,
+        name=None,
+        width=600,
+        height=600,
+        cmap=["lightblue", "darkblue"],
+        ds_agg=None,
+        zoom=True,
+        opacity=1,
+        **kwargs,
+    ):
+        """
+        Overlays a static visualization of the given gdf generated using Datashader
+
+        Parameters
+        ----------
+        gdf : geopandas.GeoDataFrame
+            GeoDataFrame used to create visualization (geometry must be projected to a CRS)
+        geom_type : str
+            The Datashader canvas() function to use valid values are 'polygon', 'line', 'point'
+        name : string
+            The name of the image layer to be displayed in Folium layer control
+        width : int
+            The canvas width in pixels, determines the resolution of the generated image
+        height : int
+            The canvas height in pixels, determines the resolution of the generated image
+        cmap : list of colors or matplotlib.colors.Colormap
+            The colormap to use for the generated image
+        ds_agg : datashader.reductions function
+            The Datashader reduction to use
+        zoom : bool
+            Zoom to the generated image
+        opacity : float
+            Sets opacity of overlaid image
+        kwargs
+            Additional kwargs passed to datashader.transfer_functions.shade
+        """
+
+        gdf = gdf.to_crs(epsg=4326)
+        bounds = gdf.geometry.total_bounds
+        canvas = ds.Canvas(width, height)
+
+        if geom_type == "polygon":
+            func = canvas.polygons
+        elif geom_type == "line":
+            func = canvas.line
+        elif geom_type == "point":
+            func = canvas.points
+        else:
+            raise ValueError("geom_type must be 'polygon', 'line' or 'point'")
+
+        agg = func(gdf, geometry="geometry", agg=ds_agg)
+        img = ds.tf.shade(agg, cmap, **kwargs)
+
+        folium.raster_layers.ImageOverlay(
+            image=img.to_pil(),
+            bounds=[[bounds[1], bounds[0]], [bounds[3], bounds[2]]],
+            opacity=opacity,
+            mercator_project=True,
+            name=name,
+        ).add_to(self)
+
+        if zoom:
+            self.zoom_to_gdf(gdf)
+
 
 class ControlElement(MacroElement):
     """

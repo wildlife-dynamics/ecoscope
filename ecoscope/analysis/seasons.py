@@ -3,7 +3,6 @@ import logging
 import ee
 import numpy as np
 import pandas
-import pandas as pd
 import shapely
 import sklearn.mixture
 from scipy.stats import norm
@@ -20,22 +19,31 @@ def _min_max_scaler(x):
     return x_std
 
 
-def std_ndvi_vals(aoi=None, start=None, end=None):
-    coll = ee.ImageCollection("MODIS/MCD43A4_006_NDVI").select("NDVI").filterDate(start, end)
+def std_ndvi_vals(aoi=None, img_coll=None, band=None, img_scale=1, start=None, end=None):
 
-    ndvi_vals = (
-        coll.toBands()
-        .reduceRegion("mean", ee.Feature(shapely.geometry.mapping(aoi)).geometry(), bestEffort=True)
-        .values()
-        .getInfo()
+    coll = (
+        ee.ImageCollection(img_coll)
+        .select(band)
+        .filterDate(start, end)
+        .map(lambda x: x.multiply(ee.Image(img_scale)).set("system:time_start", x.get("system:time_start")))
     )
-    ndvi_vals_std = _min_max_scaler(ndvi_vals)
-    return pd.DataFrame(
+
+    if aoi:
+        geo = ee.Feature(shapely.geometry.mapping(aoi)).geometry()
+    else:
+        geo = None
+
+    ndvi_vals = coll.toBands().reduceRegion("mean", geo, bestEffort=True).values().getInfo()
+
+    df = pandas.DataFrame(
         {
-            "img_date": pd.to_datetime(coll.aggregate_array("system:time_start").getInfo(), unit="ms", utc=True),
-            "NDVI": ndvi_vals_std,
+            "img_date": pandas.to_datetime(coll.aggregate_array("system:time_start").getInfo(), unit="ms", utc=True),
+            "NDVI": ndvi_vals,
         }
     ).dropna(axis=0)
+
+    df["NDVI"] = _min_max_scaler(df["NDVI"])
+    return df
 
 
 def val_cuts(vals, num_seasons=2):
@@ -93,9 +101,41 @@ def seasonal_windows(ndvi_vals, cuts, season_labels):
         {
             "start": pandas.Series([grp["img_date"].iloc[0] for _, grp in grpd]),
             "end": pandas.Series([grp["img_date"].iloc[-1] for _, grp in grpd]).apply(
-                lambda x: x + pd.Timedelta(days=1)
+                lambda x: x + pandas.Timedelta(days=1)
             ),
             "season": pandas.Series(grp["season"].iloc[0] for name, grp in grpd),
             "unique_season": pandas.Series([name for name, _ in grpd]),
         }
     ).set_index("unique_season")
+
+
+def add_seasonal_index(
+    df, index_name, start_date, end_date, aoi_geom_filter=None, seasons=2, season_labels=["dry", "wet"]
+):
+
+    aoi_ = None
+    try:
+        aoi_ = aoi_geom_filter.dissolve().iloc[0]["geometry"]
+    except:
+        aoi_ = aoi_geom_filter
+
+    if len(season_labels) != seasons:
+        raise Exception(
+            f"Parameter value 'seasons' ({seasons}) must match the number of 'season_labels' elements ({season_labels})"
+        )
+    # extract the standardized NDVI ndvi_vals within the AOI
+    ndvi_vals = std_ndvi_vals(aoi_, start=since_filter.isoformat(), end=until_filter.isoformat())
+
+    # calculate the seasonal transition point
+    cuts = val_cuts(ndvi_vals, seasons)
+
+    # determine the seasonal time windows
+    windows = seasonal_windows(ndvi_vals, cuts, season_labels)
+
+    # Categorize the fixtime values according to the season
+    bins = pandas.IntervalIndex(data=windows.apply(lambda x: pandas.Interval(x["start"], x["end"]), axis=1))
+    labels = windows.season
+    df[index_name] = pandas.cut(df[time_col], bins=bins).map(dict(zip(bins, labels)))
+
+    # set the index
+    return df.set_index(index_name, append=True)

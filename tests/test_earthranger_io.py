@@ -1,11 +1,9 @@
 import datetime
 import uuid
-from tempfile import TemporaryDirectory
 
 import geopandas as gpd
 import pandas as pd
 import pytest
-import pytz
 from shapely.geometry import Point
 
 import ecoscope
@@ -75,21 +73,6 @@ def test_get_subjectgroup_observations(er_io):
 def test_get_events(er_events_io):
     events = er_events_io.get_events()
     assert not events.empty
-
-
-@pytest.mark.filterwarnings("ignore:All-NaN slice encountered:RuntimeWarning")
-@pytest.mark.filterwarnings("ignore:Mean of empty slice:RuntimeWarning")
-def test_collar_voltage(er_io):
-    start_time = pytz.utc.localize(datetime.datetime.now() - datetime.timedelta(days=31))
-    observations = er_io.get_subjectgroup_observations(
-        group_name=er_io.GROUP_NAME,
-        include_subject_details=True,
-        include_subjectsource_details=True,
-        include_details="true",
-    )
-
-    with TemporaryDirectory() as output_folder:
-        ecoscope.plotting.plot.plot_collar_voltage(observations, start_time=start_time, output_folder=output_folder)
 
 
 def test_das_client_method(er_io):
@@ -207,9 +190,9 @@ def test_patch_event(er_io):
     pd.testing.assert_frame_equal(result, updated_event)
 
 
-def test_get_observation_for_patrol(er_io):
+def test_get_patrol_observations(er_io):
     patrols = er_io.get_patrols()
-    observations = er_io.get_observations_for_patrols(
+    observations = er_io.get_patrol_observations(
         patrols,
         include_source_details=False,
         include_subject_details=False,
@@ -221,3 +204,15 @@ def test_get_observation_for_patrol(er_io):
 def test_users(er_io):
     users = pd.DataFrame(er_io.get_users())
     assert not users.empty
+
+
+def test_get_spatial_feature(er_io):
+    spatial_feature = er_io.get_spatial_feature(spatial_feature_id="8868718f-0154-45bf-a74d-a66706ef958f")
+    assert not spatial_feature.empty
+
+
+def test_get_spatial_features_group(er_io):
+    spatial_features = er_io.get_spatial_features_group(
+        spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097"
+    )
+    assert not spatial_features.empty

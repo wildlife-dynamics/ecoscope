@@ -69,7 +69,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+**/_build
 
 # PyBuilder
 target/
@@ -158,3 +158,4 @@ doc/source/_autosummary
 doc/source/notebooks
 tags
 Ecoscope-Outputs
+tests/test_output/new.html

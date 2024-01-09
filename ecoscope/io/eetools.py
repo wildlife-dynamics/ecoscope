@@ -12,6 +12,8 @@ import pandas as pd
 import pytz
 import tqdm.auto as tqdm
 
+from ecoscope.contrib import geemap
+
 logging.getLogger("urllib3").setLevel(logging.ERROR)  # Filter "Connection pool is full, discarding connection"
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ def initialize_earthengine(key_dict):
             return
 
         sac = ee.ServiceAccountCredentials(key_dict["client_email"], key_data=json.dumps(key_dict))
-        ee.Initialize(credentials=sac)
+        geemap.ee_initialize(credentials=sac)
 
     except Exception as e:
         logger.exception("Not able to initialize EarthEngine: %s", e)
@@ -95,7 +97,7 @@ def label_gdf_with_img(gdf=None, img=None, region_reducer=None, scale=500.0):
 
 
 def _match_gdf_to_img_coll_ids(
-    gdf, time_col="", img_coll=None, output_col_name=None, stack_limit_before=1, stack_limit_after=1
+    gdf=None, time_col="", img_coll=None, output_col_name=None, stack_limit_before=1, stack_limit_after=1
 ):
     """
     A function that will add a column to a gdf (output_col_name) that contains
@@ -112,6 +114,10 @@ def _match_gdf_to_img_coll_ids(
     try:
         # Step 1: download the img_coll image times and ids to a dataframe
         logger.info("Downloading Image Collection IDs and Dates")
+
+        if (stack_limit_before == 0) and (stack_limit_after == 0):
+            raise Exception("The stack limit before and after cannot both be zero")
+
         img_data = (
             img_coll.reduceColumns(ee.Reducer.toList(2), ["system:index", "system:time_start"]).get("list").getInfo()
         )
@@ -127,7 +133,18 @@ def _match_gdf_to_img_coll_ids(
         # Step 2: determine the closest image IDs to a given feature date
         def determine_img_ids(row):
             row_time = row.get(time_col, pd.Timestamp(0, tz="utc"))
-            nearest_index = img_data.index.get_loc(row_time, method="nearest")
+
+            if stack_limit_before == 0:
+                nearest_index = img_data[img_data.index >= row_time].index.get_indexer(
+                    target=[row_time], method="nearest"
+                )
+            elif stack_limit_after == 0:
+                nearest_index = img_data[img_data.index <= row_time].index.get_indexer(
+                    target=[row_time], method="nearest"
+                )
+            else:
+                nearest_index = img_data.index.get_indexer(target=[row_time], method="nearest")
+
             lower = int(nearest_index - stack_limit_before)
             if lower < 0:
                 lower = 0
