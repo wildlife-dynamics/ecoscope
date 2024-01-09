@@ -591,7 +591,8 @@ class NorthArrowElement(ControlElement):
         self.angle=angle
         self.options = folium.utilities.parse_options(
             imagePath=imagePath,
-            scale=scale
+            scale=scale,
+            position=position
         )
 
 
