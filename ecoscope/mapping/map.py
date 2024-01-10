@@ -799,7 +799,7 @@ class PrintControl(MacroElement):
     _template = Template(
         """
                 {% macro header(this, kwargs) %}
-                <link rel="stylesheet" href="https://gitcdn.link/cdn/pasichnykvasyl/Leaflet.BigImage/master/src/Leaflet.BigImage.css">
+                <link rel="stylesheet" href="https://unpkg.com/leaflet.bigimage@1.0.1/src/Leaflet.BigImage.css">
                 <script src='https://unpkg.com/leaflet.bigimage@1.0.1/src/Leaflet.BigImage.js'></script>
                 {% endmacro %}
                 {% macro script(this, kwargs) %}
