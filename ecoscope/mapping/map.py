@@ -55,7 +55,7 @@ class EcoMap(EcoMapMixin, Map):
     def __init__(self, *args, static=False, print_control=True, **kwargs):
         kwargs["attr"] = kwargs.get("attr", " ")
         kwargs["canvas"] = kwargs.get("canvas", True)
-        kwargs["control_scale"] = kwargs.get("control_scale", True)
+        kwargs["control_scale"] = kwargs.get("control_scale", False)
         kwargs["height"] = kwargs.get("height", 600)
         kwargs["width"] = kwargs.get("width", 800)
 
