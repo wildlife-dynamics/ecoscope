@@ -636,11 +636,9 @@ class ScaleElement(MacroElement):
         var {{ this.get_name() }} = L.Control.Scale.extend({
             onAdd: function(map) {
 
-                var template = document.createElement('template');
                 var container = document.createElement('div');
                 container.classList.add("leaflet-control-scale");
                 container.innerHTML = `{{ this.html }}`.trim();
-                template.innerHTML = `{{ this.html }}`.trim();
 
                 this._scale = container.firstChild;
 
