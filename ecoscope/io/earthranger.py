@@ -593,7 +593,7 @@ class EarthRangerIO(ERClient):
         )
 
         assert not df.empty
-        df["time"] = pd.to_datetime(df["time"], format="mixed")
+        df["time"] = pd.to_datetime(df["time"])
 
         df = gpd.GeoDataFrame(df)
         df.loc[~df["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
