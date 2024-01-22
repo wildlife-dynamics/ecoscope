@@ -525,6 +525,9 @@ class EcoMap(EcoMapMixin, Map):
         if zoom:
             self.zoom_to_gdf(gdf)
 
+    def add_pmtiles_layer(self, url, style="", as_ts=False):
+        self.add_child(ProtomapsElement(url, style, as_ts))
+
 
 class ControlElement(MacroElement):
     """
@@ -701,6 +704,74 @@ class ScaleElement(MacroElement):
         )
 
 
+class ProtomapsElement(MacroElement):
+    # json style adapted from
+    # https://github.com/protomaps/protomaps-leaflet/blob/a08304417ef36fef03679976cd3e5a971fec19a2/src/compat/json_style.ts
+
+    _template = Template(
+        """
+    {% macro html(this, kwargs) %}
+        <script src="https://unpkg.com/protomaps-leaflet@latest/dist/protomaps-leaflet.min.js"></script>
+    {% endmacro %}
+
+    {% macro script(this, kwargs) %}
+        
+        {% if this.as_ts %}
+            let {{ this.get_name() }}_paint_rules = {{this.style}};
+
+        {% else %}
+            let {{ this.get_name() }}_paint_rules = [];
+            for (layer of {{this.style|tojson}}.layers) {
+                if (layer.type === "fill") {
+                    {{ this.get_name() }}_paint_rules.push({
+                        dataLayer: layer["source-layer"],
+                        symbolizer: new protomapsL.PolygonSymbolizer({
+                            fill: layer["fill-color"],
+                            stroke: layer["stroke-color"],
+                            width: layer["stroke-width"],
+                            opacity: layer["opacity"]
+                        }),
+                    });
+                } 
+                else if (layer.type === "line") {
+                    {{ this.get_name() }}_paint_rules.push({
+                        dataLayer: layer["source-layer"],
+                        symbolizer: new protomapsL.LineSymbolizer({
+                            color: layer["line-color"],
+                            width: layer["line-width"],
+                            opacity: layer["opacity"]
+                        }),
+                    });
+                }
+                else if (layer.type === "circle") {
+                    {{ this.get_name() }}_paint_rules.push({
+                        dataLayer: layer["source-layer"],
+                        symbolizer: new protomapsL.CircleSymbolizer({
+                            radius: layer["radius"],
+                            fill: layer["fill-color"],
+                            stroke: layer["stroke-color"],
+                            width: layer["stroke-width"],
+                            opacity: layer["opacity"]
+                        }),
+                    });
+                }
+            }            
+           
+        {% endif %}
+         
+        var {{ this.get_name() }} = protomapsL.leafletLayer({ url: "{{ this.path }}", paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
+
+    {% endmacro %}
+    """  # noqa
+    )
+
+    def __init__(self, path, style="", as_ts=False):
+        super().__init__()
+        self.path = path
+        self.style = style
+        self.as_ts = as_ts
+
+
 class FloatElement(MacroElement):
     """
     Class to wrap arbitrary HTML as a floating Element.
@@ -773,7 +844,6 @@ class GeoTIFFElement(MacroElement):
           parseGeoraster(arrayBuffer).then(georaster => {
             var layer = new GeoRasterLayer({
                 georaster: georaster,
-                opacity: 0.7
             });
             layer.addTo({{this._parent.get_name()}});
 
