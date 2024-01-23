@@ -18,6 +18,8 @@ import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
+from rasterio.plot import reshape_as_raster
+from pyproj import Transformer
 
 import ecoscope
 from ecoscope.contrib.foliumap import Map
@@ -458,6 +460,86 @@ class EcoMap(EcoMapMixin, Map):
     def add_print_control(self):
         self.add_child(PrintControl())
 
+    def rasterize_gdf(
+        self,
+        gdf,
+        geom_type,
+        name=None,
+        width=600,
+        height=600,
+        cmap=["lightblue", "darkblue"],
+        ds_agg=None,
+        export_cog=False,
+        **kwargs,
+    ):
+        """
+        Creates a raster of the given gdf using Datashader
+
+        Parameters
+        ----------
+        gdf : geopandas.GeoDataFrame
+            GeoDataFrame used to create visualization (geometry must be projected to a CRS)
+        geom_type : str
+            The Datashader canvas() function to use valid values are 'polygon', 'line', 'point'
+        name : string
+            The name of the image layer to be displayed in Folium layer control
+        width : int
+            The canvas width in pixels, determines the resolution of the generated image
+        height : int
+            The canvas height in pixels, determines the resolution of the generated image
+        cmap : list of colors or matplotlib.colors.Colormap
+            The colormap to use for the generated image
+        ds_agg : datashader.reductions function
+            The Datashader reduction to use
+        kwargs
+            Additional kwargs passed to datashader.transfer_functions.shade
+        """
+
+        gdf = gdf.to_crs(epsg=4326)
+        # bounds = gdf.geometry.total_bounds
+        canvas = ds.Canvas(width, height)
+
+        if geom_type == "polygon":
+            func = canvas.polygons
+        elif geom_type == "line":
+            func = canvas.line
+        elif geom_type == "point":
+            func = canvas.points
+        else:
+            raise ValueError("geom_type must be 'polygon', 'line' or 'point'")
+
+        agg = func(gdf, geometry="geometry", agg=ds_agg)
+        img = ds.tf.shade(agg, cmap, **kwargs)
+
+        return img.to_pil()
+
+    def datashader_image_to_cog(image, filename, bounds, crs="EPSG:4326"):
+        data = np.array(image)
+        data = reshape_as_raster(data)
+
+        width = data.shape[2]
+        height = data.shape[1]
+        bands = data.shape[0]
+
+        pyproj_transformer = Transformer.from_crs(crs, "EPSG:3857")
+        bounds = pyproj_transformer.transform_bounds(bounds[0], bounds[3], bounds[2], bounds[1])
+
+        rio_transform = rasterio.transform.from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
+
+        ecoscope.io.raster.RasterPy.write(
+            ndarray=data,
+            fp=filename,
+            columns=width,
+            rows=height,
+            band_count=bands,
+            driver="COG",
+            dtype="uint8",
+            crs=rasterio.CRS.from_epsg(3857),
+            nodata=0,
+            transform=rio_transform,
+            indexes=bands,
+        )
+
     def add_datashader_gdf(
         self,
         gdf,
@@ -764,6 +846,8 @@ class GeoTIFFElement(MacroElement):
     {% macro html(this, kwargs) %}
         <script src="https://unpkg.com/georaster-layer-for-leaflet@3.8.0/dist/georaster-layer-for-leaflet.min.js"></script>
         <script src="https://unpkg.com/georaster@1.5.6/dist/georaster.browser.bundle.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.10.0/proj4.js" integrity="sha512-e3rsOu6v8lmVnZylXpOq3DO/UxrCgoEMqosQxGygrgHlves9HTwQzVQ/dLO+nwSbOSAecjRD7Y/c4onmiBVo6w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
     {% endmacro %}
 
     {% macro script(this, kwargs) %}
@@ -773,7 +857,9 @@ class GeoTIFFElement(MacroElement):
           parseGeoraster(arrayBuffer).then(georaster => {
             var layer = new GeoRasterLayer({
                 georaster: georaster,
-                opacity: 0.7
+                opacity: {{ this.zoom }},
+                proj4: proj4(`{{ this.projection }}`),
+                resolution: {{ this.resolution }}
             });
             layer.addTo({{this._parent.get_name()}});
 
@@ -787,10 +873,13 @@ class GeoTIFFElement(MacroElement):
     """  # noqa
     )
 
-    def __init__(self, url, zoom=False):
+    def __init__(self, url, zoom=False, opacity=0.7, projection="ESPG:4326", resolution=64):
         super().__init__()
         self.url = url
         self.zoom = zoom
+        self.opacity = opacity
+        self.projection = projection
+        self.resolution = resolution
 
 
 class PrintControl(MacroElement):
