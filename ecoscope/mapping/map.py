@@ -19,7 +19,6 @@ import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
 from rasterio.plot import reshape_as_raster
-from pyproj import Transformer
 
 import ecoscope
 from ecoscope.contrib.foliumap import Map
@@ -513,7 +512,7 @@ class EcoMap(EcoMapMixin, Map):
 
         return img.to_pil()
 
-    def datashader_image_to_cog(image, filename, bounds, crs="EPSG:4326"):
+    def datashader_image_to_cog(image, filename, bounds):
         data = np.array(image)
         data = reshape_as_raster(data)
 
@@ -521,10 +520,7 @@ class EcoMap(EcoMapMixin, Map):
         height = data.shape[1]
         bands = data.shape[0]
 
-        pyproj_transformer = Transformer.from_crs(crs, "EPSG:3857")
-        bounds = pyproj_transformer.transform_bounds(bounds[0], bounds[3], bounds[2], bounds[1])
-
-        rio_transform = rasterio.transform.from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
+        transform = rasterio.transform.from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
 
         ecoscope.io.raster.RasterPy.write(
             ndarray=data,
@@ -534,10 +530,10 @@ class EcoMap(EcoMapMixin, Map):
             band_count=bands,
             driver="COG",
             dtype="uint8",
-            crs=rasterio.CRS.from_epsg(3857),
+            crs=rasterio.CRS.from_epsg(4326),
             nodata=0,
-            transform=rio_transform,
-            indexes=bands,
+            transform=transform,
+            indexes=[i + 1 for i in range(bands)],
         )
 
     def add_datashader_gdf(
@@ -844,8 +840,8 @@ class GeoTIFFElement(MacroElement):
     _template = Template(
         """
     {% macro html(this, kwargs) %}
-        <script src="https://unpkg.com/georaster-layer-for-leaflet@3.8.0/dist/georaster-layer-for-leaflet.min.js"></script>
-        <script src="https://unpkg.com/georaster@1.5.6/dist/georaster.browser.bundle.min.js"></script>
+        <script src="https://unpkg.com/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
+        <script src="https://unpkg.com/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.10.0/proj4.js" integrity="sha512-e3rsOu6v8lmVnZylXpOq3DO/UxrCgoEMqosQxGygrgHlves9HTwQzVQ/dLO+nwSbOSAecjRD7Y/c4onmiBVo6w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     {% endmacro %}
@@ -857,9 +853,13 @@ class GeoTIFFElement(MacroElement):
           parseGeoraster(arrayBuffer).then(georaster => {
             var layer = new GeoRasterLayer({
                 georaster: georaster,
-                opacity: {{ this.zoom }},
+                opacity: {{ this.opacity }},
+                resolution: {{ this.resolution }},
+                
+                {%- if this.projection != None %}
                 proj4: proj4(`{{ this.projection }}`),
-                resolution: {{ this.resolution }}
+                {%- endif %}
+                
             });
             layer.addTo({{this._parent.get_name()}});
 
@@ -873,7 +873,7 @@ class GeoTIFFElement(MacroElement):
     """  # noqa
     )
 
-    def __init__(self, url, zoom=False, opacity=0.7, projection="ESPG:4326", resolution=64):
+    def __init__(self, url, zoom=False, opacity=0.7, projection=None, resolution=64):
         super().__init__()
         self.url = url
         self.zoom = zoom
