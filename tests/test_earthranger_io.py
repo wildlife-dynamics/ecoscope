@@ -70,11 +70,8 @@ def test_get_subjectgroup_observations(er_io):
     assert "groupby_col" in relocations
 
 
-@pytest.mark.skip(
-    reason="PR62 fixed this, but had to be reversed due to production get_events failing. Need to fix this test."
-)
 def test_get_events(er_events_io):
-    events = er_events_io.get_events()
+    events = er_events_io.get_events(event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"])
     assert not events.empty
 
 
