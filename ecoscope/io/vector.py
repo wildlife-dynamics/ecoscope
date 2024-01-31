@@ -4,6 +4,23 @@ from subprocess import Popen, PIPE
 
 
 def export_pmtiles(gdf, filepath, layer_name="", use_gdal=False, *args):
+    """
+    Exports a given gdf as a pmtiles archive using the local install of either tippecanoe or gdal
+    Will search for tippecanoe on path and use that, falling back to gdal if it's not found
+
+    Parameters
+    ----------
+    gdf : GeoDataFrame
+        The gdf to export
+    filepath : str
+        The output filepath
+    layer_name : str, optional
+        The layer name of the feature collection within the exported PMTiles
+    use_gdal : bool, optional
+        Force the use of gdal, default is False
+    args :
+        Override the default command line args for either executable, this will respect the provided filename
+    """
 
     tempfile = "temp.fgb"
     gdf.to_file(tempfile, "FlatGeobuf")

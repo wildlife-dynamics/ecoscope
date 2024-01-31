@@ -526,6 +526,37 @@ class EcoMap(EcoMapMixin, Map):
             self.zoom_to_gdf(gdf)
 
     def add_pmtiles_layer(self, url, style="", as_ts=False):
+        """
+        Adds a local or remote PMTiles archive as an overlay, using the provided styling options
+
+        Parameters
+        ----------
+        url : str
+            The local file or url of the PMTiles archive
+        style : str, optional
+            Either a json style definition or a typescript array implementing
+            the underlying https://github.com/protomaps/protomaps-leaflet style rules
+            json style options as follows:
+
+            {
+                "layers": [
+                    {
+                        "source-layer": "<string>",
+                        "type": "circle" | "fill" | "line",
+                        "fill-color": "<string>",
+                        "stroke-color": "<string>",
+                        "stroke-width": "<number>",
+                        "line-color": "<string>",
+                        "line-width": "<number>",
+                        "radius": "<number>",
+                        "opacity": "<float>"
+                    },
+                ]
+            }
+
+        as_ts : bool, optional, default False
+            Must be set to True if the provided style string is to be interpreted as typescript
+        """
         self.add_child(ProtomapsElement(url, style, as_ts))
 
 
