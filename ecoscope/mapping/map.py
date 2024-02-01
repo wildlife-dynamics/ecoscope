@@ -18,6 +18,7 @@ import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
+from urllib.parse import urlparse
 
 import ecoscope
 from ecoscope.contrib.foliumap import Map
@@ -557,6 +558,11 @@ class EcoMap(EcoMapMixin, Map):
         as_ts : bool, optional, default False
             Must be set to True if the provided style string is to be interpreted as typescript
         """
+        parsed = urlparse(url)
+        if parsed.scheme in ("file", ""):
+            with open(parsed.path, "rb") as file:
+                url = "data:;base64," + base64.b64encode(file.read()).decode()
+
         self.add_child(ProtomapsElement(url, style, as_ts))
 
 
@@ -742,6 +748,7 @@ class ProtomapsElement(MacroElement):
     _template = Template(
         """
     {% macro html(this, kwargs) %}
+        <script src="https://unpkg.com/pmtiles@latest/dist/index.js"></script>
         <script src="https://unpkg.com/protomaps-leaflet@latest/dist/protomaps-leaflet.min.js"></script>
     {% endmacro %}
 
@@ -789,9 +796,26 @@ class ProtomapsElement(MacroElement):
             }            
            
         {% endif %}
-         
-        var {{ this.get_name() }} = protomapsL.leafletLayer({ url: "{{ this.path }}", paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
 
+        if(`{{this.path}}`.startsWith("data")){
+            var byteString = atob(`{{this.path}}`.split(',')[1]);
+
+            var arrayBuffer = new ArrayBuffer(byteString.length);
+            var dataView = new DataView(arrayBuffer);
+            for(var i = 0; i < byteString.length; i++) {
+                dataView.setUint8(i, byteString.charCodeAt(i));
+            }
+
+            var blob = new Blob([arrayBuffer]);
+            var source = new pmtiles.FileAPISource(blob);
+            var tiles = new pmtiles.PMTiles(source);
+
+            var {{ this.get_name() }} = protomapsL.leafletLayer({ url: tiles, paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
+        }
+        else{
+            var {{ this.get_name() }} = protomapsL.leafletLayer({ url: "{{ this.path }}", paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
+        }
+        
     {% endmacro %}
     """  # noqa
     )
