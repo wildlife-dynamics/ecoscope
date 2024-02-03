@@ -899,6 +899,7 @@ class GeoTIFFElement(MacroElement):
           parseGeoraster(arrayBuffer).then(georaster => {
             var layer = new GeoRasterLayer({
                 georaster: georaster,
+                opacity: 0.7
             });
             layer.addTo({{this._parent.get_name()}});
 
