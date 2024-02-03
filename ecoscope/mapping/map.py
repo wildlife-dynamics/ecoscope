@@ -13,12 +13,11 @@ import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import datashader as ds
 import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
-from rasterio.plot import reshape_as_raster
+from urllib.parse import urlparse
 
 import ecoscope
 from ecoscope.contrib.foliumap import Map
@@ -459,141 +458,50 @@ class EcoMap(EcoMapMixin, Map):
     def add_print_control(self):
         self.add_child(PrintControl())
 
-    def rasterize_gdf(
-        self,
-        gdf,
-        geom_type,
-        name=None,
-        width=600,
-        height=600,
-        cmap=["lightblue", "darkblue"],
-        ds_agg=None,
-        export_cog=False,
-        **kwargs,
-    ):
+    def add_cog(self, url, zoom=False, opacity=1, projection=None, resolution=256):
         """
-        Creates a raster of the given gdf using Datashader
+        Add a Cloud Optimized Geotiff
 
         Parameters
         ----------
-        gdf : geopandas.GeoDataFrame
-            GeoDataFrame used to create visualization (geometry must be projected to a CRS)
-        geom_type : str
-            The Datashader canvas() function to use valid values are 'polygon', 'line', 'point'
-        name : string
-            The name of the image layer to be displayed in Folium layer control
-        width : int
-            The canvas width in pixels, determines the resolution of the generated image
-        height : int
-            The canvas height in pixels, determines the resolution of the generated image
-        cmap : list of colors or matplotlib.colors.Colormap
-            The colormap to use for the generated image
-        ds_agg : datashader.reductions function
-            The Datashader reduction to use
-        kwargs
-            Additional kwargs passed to datashader.transfer_functions.shade
+        url : str
+            The local file or url of the PMTiles archive
+        zoom : bool, optional
+            Zoom to the added image, default is False
+        opacity : float, optional
+            Sets opacity of the Geotiff, default is 1
+        projection: str, optional
+            EPSG:xxxx or wkt, default is None
+        resolution: int, optional
+            How many samples across each tile to take, default is 256
         """
 
-        gdf = gdf.to_crs(epsg=4326)
-        # bounds = gdf.geometry.total_bounds
-        canvas = ds.Canvas(width, height)
+        parsed = urlparse(url)
+        if parsed.scheme in ("file", ""):
+            with open(parsed.path, "rb") as file:
+                url = "data:image/tiff;base64," + base64.b64encode(file.read()).decode()
+        self.add_child(GeoTIFFElement(url, zoom, opacity, projection, resolution))
 
-        if geom_type == "polygon":
-            func = canvas.polygons
-        elif geom_type == "line":
-            func = canvas.line
-        elif geom_type == "point":
-            func = canvas.points
-        else:
-            raise ValueError("geom_type must be 'polygon', 'line' or 'point'")
-
-        agg = func(gdf, geometry="geometry", agg=ds_agg)
-        img = ds.tf.shade(agg, cmap, **kwargs)
-
-        return img.to_pil()
-
-    def datashader_image_to_cog(image, filename, bounds):
-        data = np.array(image)
-        data = reshape_as_raster(data)
-
-        width = data.shape[2]
-        height = data.shape[1]
-        bands = data.shape[0]
-
-        transform = rasterio.transform.from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
-
-        ecoscope.io.raster.RasterPy.write(
-            ndarray=data,
-            fp=filename,
-            columns=width,
-            rows=height,
-            band_count=bands,
-            driver="COG",
-            dtype="uint8",
-            crs=rasterio.CRS.from_epsg(4326),
-            nodata=0,
-            transform=transform,
-            indexes=[i + 1 for i in range(bands)],
-        )
-
-    def add_datashader_gdf(
-        self,
-        gdf,
-        geom_type,
-        name=None,
-        width=600,
-        height=600,
-        cmap=["lightblue", "darkblue"],
-        ds_agg=None,
-        zoom=True,
-        opacity=1,
-        **kwargs,
-    ):
+    def add_pil_image(self, image, bounds, name=None, zoom=True, opacity=1):
         """
         Overlays a static visualization of the given gdf generated using Datashader
 
         Parameters
         ----------
-        gdf : geopandas.GeoDataFrame
-            GeoDataFrame used to create visualization (geometry must be projected to a CRS)
-        geom_type : str
-            The Datashader canvas() function to use valid values are 'polygon', 'line', 'point'
-        name : string
+        image : PIL.Image
+            The image to be overlaid
+        bounds: tuple
+            Tuple containing the EPSG:4326 (minx, miny, maxx, maxy) values bounding the given image
+        name : string, optional
             The name of the image layer to be displayed in Folium layer control
-        width : int
-            The canvas width in pixels, determines the resolution of the generated image
-        height : int
-            The canvas height in pixels, determines the resolution of the generated image
-        cmap : list of colors or matplotlib.colors.Colormap
-            The colormap to use for the generated image
-        ds_agg : datashader.reductions function
-            The Datashader reduction to use
-        zoom : bool
+        zoom : bool, optional
             Zoom to the generated image
-        opacity : float
+        opacity : float, optional
             Sets opacity of overlaid image
-        kwargs
-            Additional kwargs passed to datashader.transfer_functions.shade
         """
 
-        gdf = gdf.to_crs(epsg=4326)
-        bounds = gdf.geometry.total_bounds
-        canvas = ds.Canvas(width, height)
-
-        if geom_type == "polygon":
-            func = canvas.polygons
-        elif geom_type == "line":
-            func = canvas.line
-        elif geom_type == "point":
-            func = canvas.points
-        else:
-            raise ValueError("geom_type must be 'polygon', 'line' or 'point'")
-
-        agg = func(gdf, geometry="geometry", agg=ds_agg)
-        img = ds.tf.shade(agg, cmap, **kwargs)
-
         folium.raster_layers.ImageOverlay(
-            image=img.to_pil(),
+            image=image,
             bounds=[[bounds[1], bounds[0]], [bounds[3], bounds[2]]],
             opacity=opacity,
             mercator_project=True,
@@ -601,7 +509,7 @@ class EcoMap(EcoMapMixin, Map):
         ).add_to(self)
 
         if zoom:
-            self.zoom_to_gdf(gdf)
+            self.zoom_to_bounds(bounds)
 
 
 class ControlElement(MacroElement):

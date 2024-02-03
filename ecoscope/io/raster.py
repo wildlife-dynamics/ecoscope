@@ -10,6 +10,8 @@ import pyproj
 import rasterio as rio
 import rasterio.mask
 import tqdm.auto as tqdm
+import datashader as ds
+from rasterio.plot import reshape_as_raster
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +132,7 @@ class RasterPy:
             nodata=nodata,
             sharing=sharing,
             transform=transform,
+            **kwargs,
         ) as r:
             r.write(ndarray, indexes=indexes)
 
@@ -202,3 +205,85 @@ def raster_to_gdf(raster_path):
             ],
             crs=src.crs,
         )
+
+
+def datashade_gdf(gdf, geom_type, width=600, height=600, cmap=["lightblue", "darkblue"], ds_agg=None, **kwargs):
+    """
+    Creates a raster of the given gdf using Datashader
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        GeoDataFrame used to create visualization (geometry must be projected to a CRS)
+    geom_type : str
+        The Datashader canvas() function to use valid values are 'polygon', 'line', 'point'
+    width : int
+        The canvas width in pixels, determines the resolution of the generated image
+    height : int
+        The canvas height in pixels, determines the resolution of the generated image
+    cmap : list of colors or matplotlib.colors.Colormap
+        The colormap to use for the generated image
+    ds_agg : datashader.reductions function
+        The Datashader reduction to use
+    kwargs
+        Additional kwargs passed to datashader.transfer_functions.shade
+    """
+
+    gdf = gdf.to_crs(epsg=4326)
+    bounds = gdf.geometry.total_bounds
+    canvas = ds.Canvas(width, height)
+
+    if geom_type == "polygon":
+        func = canvas.polygons
+    elif geom_type == "line":
+        func = canvas.line
+    elif geom_type == "point":
+        func = canvas.points
+    else:
+        raise ValueError("geom_type must be 'polygon', 'line' or 'point'")
+
+    agg = func(gdf, geometry="geometry", agg=ds_agg)
+    img = ds.tf.shade(agg, cmap, **kwargs)
+
+    return img.to_pil(), bounds
+
+
+def export_pil_to_cog(image, bounds, filepath, **kwargs):
+    """
+    Exports a Pillow image to COG
+
+    Parameters
+    ----------
+    image : PIL.Image
+        The image to export
+    bounds: tuple
+        Tuple containing the EPSG:4326 (minx, miny, maxx, maxy) values bounding the given image
+    filepath : string
+        Path of file to be created
+    kwargs
+        Additional args passed through to rasterio.open()
+    """
+
+    data = np.array(image)
+    data = reshape_as_raster(data)
+
+    width = data.shape[2]
+    height = data.shape[1]
+    bands = data.shape[0]
+
+    transform = rasterio.transform.from_bounds(bounds[0], bounds[1], bounds[2], bounds[3], width, height)
+
+    RasterPy.write(
+        ndarray=data,
+        fp=filepath,
+        columns=width,
+        rows=height,
+        band_count=bands,
+        driver="COG",
+        dtype="uint8",
+        crs=rasterio.CRS.from_epsg(4326),
+        nodata=0,
+        transform=transform,
+        indexes=[i + 1 for i in range(bands)],
+        **kwargs,
+    )
