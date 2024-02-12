@@ -44,9 +44,10 @@ def export_pmtiles(gdf, filepath, layer_name="layer1", use_gdal=False, *args):
     else:
         raise FileNotFoundError("ogr2ogr was not found on path")
 
-    with Popen(args, stdout=PIPE) as proc:
+    with Popen(args, stdout=PIPE, stderr=PIPE) as proc:
         while proc.poll() is None:
             print(proc.stdout.read1().decode("utf-8"), end="", flush=True)
+            print(proc.stderr.read1().decode("utf-8"), end="", flush=True)
 
     os.remove(tempfile)
 
