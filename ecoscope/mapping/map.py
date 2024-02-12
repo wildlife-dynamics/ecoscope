@@ -526,7 +526,7 @@ class EcoMap(EcoMapMixin, Map):
         if zoom:
             self.zoom_to_gdf(gdf)
 
-    def add_pmtiles_layer(self, url, style="", as_ts=False):
+    def add_pmtiles_layer(self, url, style, as_ts=False):
         """
         Adds a local or remote PMTiles archive as an overlay, using the provided styling options
 
@@ -534,7 +534,7 @@ class EcoMap(EcoMapMixin, Map):
         ----------
         url : str
             The local file or url of the PMTiles archive
-        style : str, optional
+        style : str
             Either a json style definition or a typescript array implementing
             the underlying https://github.com/protomaps/protomaps-leaflet style rules
             json style options as follows:
@@ -748,7 +748,7 @@ class ProtomapsElement(MacroElement):
     _template = Template(
         """
     {% macro html(this, kwargs) %}
-        <script src="https://unpkg.com/pmtiles@latest/dist/index.js"></script>
+        <script src="https://unpkg.com/pmtiles@3.0.3/dist/pmtiles.js"></script>
         <script src="https://unpkg.com/protomaps-leaflet@latest/dist/protomaps-leaflet.min.js"></script>
     {% endmacro %}
 
@@ -807,7 +807,7 @@ class ProtomapsElement(MacroElement):
             }
 
             var blob = new Blob([arrayBuffer]);
-            var source = new pmtiles.FileAPISource(blob);
+            var source = new pmtiles.FileSource(blob);
             var tiles = new pmtiles.PMTiles(source);
 
             var {{ this.get_name() }} = protomapsL.leafletLayer({ url: tiles, paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
@@ -820,7 +820,7 @@ class ProtomapsElement(MacroElement):
     """  # noqa
     )
 
-    def __init__(self, path, style="", as_ts=False):
+    def __init__(self, path, style, as_ts=False):
         super().__init__()
         self.path = path
         self.style = style
