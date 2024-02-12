@@ -3,7 +3,7 @@ from shutil import which
 from subprocess import Popen, PIPE
 
 
-def export_pmtiles(gdf, filepath, layer_name="", use_gdal=False, *args):
+def export_pmtiles(gdf, filepath, layer_name="layer1", use_gdal=False, *args):
     """
     Exports a given gdf as a pmtiles archive using the local install of either tippecanoe or gdal
     Will search for tippecanoe on path and use that, falling back to gdal if it's not found
@@ -13,9 +13,9 @@ def export_pmtiles(gdf, filepath, layer_name="", use_gdal=False, *args):
     gdf : GeoDataFrame
         The gdf to export
     filepath : str
-        The output filepath
+        The output filepath, if using tippecanoe this must end with .pmtiles
     layer_name : str, optional
-        The layer name of the feature collection within the exported PMTiles
+        The layer name of the feature collection within the exported PMTiles, default is layer1
     use_gdal : bool, optional
         Force the use of gdal, default is False
     args :
