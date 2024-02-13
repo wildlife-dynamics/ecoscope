@@ -3,7 +3,7 @@ from shutil import which
 from subprocess import Popen, PIPE
 
 
-def export_pmtiles(gdf, filepath, layer_name="layer1", use_gdal=False, *args):
+def export_pmtiles(gdf, filepath, layer_name="layer1", use_gdal=False, args=[]):
     """
     Exports a given gdf as a pmtiles archive using the local install of either tippecanoe or gdal
     Will search for tippecanoe on path and use that, falling back to gdal if it's not found
