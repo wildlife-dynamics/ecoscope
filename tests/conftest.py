@@ -38,6 +38,7 @@ def pytest_configure(config):
         if not pytest.earthranger:
             warnings.warn(Warning("EarthRanger_IO can not be initialized. Skipping related tests..."))
     except ERClientNotFound:
+        pytest.earthranger = False
         warnings.warn(Warning("EarthRanger_IO can not be initialized. Skipping related tests..."))
 
 
