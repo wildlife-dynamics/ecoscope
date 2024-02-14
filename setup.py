@@ -29,6 +29,7 @@ dependencies = [
     "pyarrow",
     "pyproj",
     "pytest",
+    "pytest-cov",
     "pytest-mock",
     "pytest-reportlog",
     "rasterio",

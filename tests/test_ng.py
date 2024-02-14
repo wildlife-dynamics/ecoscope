@@ -1,8 +1,10 @@
 import sys
 import os
 
-sys.path.append("../ecoscope")
 from ecoscope.mapping.map import EcoMap
+
+sys.path.append("../ecoscope")
+
 
 m = EcoMap(draw_control=False)
 m.add_north_arrow(position="topleft", angle=0, scale=1.0)
