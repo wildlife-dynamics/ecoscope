@@ -7,6 +7,7 @@ dependencies:
   - git
   - jupyterlab
   - pip:
+    - kaleido
     - pre-commit>=3
     - coverage[toml]
     - ecoscope
