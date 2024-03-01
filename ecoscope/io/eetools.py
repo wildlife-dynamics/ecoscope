@@ -97,26 +97,42 @@ def label_gdf_with_img(gdf=None, img=None, region_reducer=None, scale=500.0):
 
 
 def _match_gdf_to_img_coll_ids(
-    gdf=None, time_col="", img_coll=None, output_col_name=None, stack_limit_before=1, stack_limit_after=1
+    gdf=None, time_col="", img_coll=None, output_col_name=None, n_before=1, n_after=1, n="days", index_method="nearest"
 ):
     """
     A function that will add a column to a gdf (output_col_name) that contains
-    the stack_limit_before -> stack_limit_after temporally closest image IDs from an image collection.
-    :param gdf:
-    :param time_col:
-    :param img_coll:
-    :param output_col_name:
-    :param stack_limit_before:
-    :param stack_limit_after:
-    :return: None
+    the n_before -> n_after temporally closest image IDs from an image collection.
+
+    Parameters
+    ----------
+    gdf : geopandas.GeoDataFrame
+        The GeoDataFrame to add image IDs to
+    time_col : str
+        The name of the column within the given gdf containing the relevant timestamps
+    img_coll : ee.ImageCollection
+        The image collection to lookup image IDs from
+    output_col_name : str
+        The name of the column to be added to the given gdf
+    n_before : int
+        The number of days/weeks/images before to grab image IDs for
+    n_after : int
+        The number of days/weeks/images after to grab image IDs for
+    n : str
+        One of: 'images', 'microseconds', 'milliseconds' 'seconds', 'minutes', 'hours', 'days' or 'weeks'
+        If n is 'images', this appends n_before IDs + the temporally closest ID + n_after IDs
+        Otherwise this appends image IDs between
+        timestamp-n_before to timestamp+n_after where timestamp is a given row from the input gdf
+    index_method: str
+        Only used when n='images', passed through to get_indexer(method),
+        determines how the closest index is found when no exact match exists
     """
 
     try:
         # Step 1: download the img_coll image times and ids to a dataframe
-        logger.info("Downloading Image Collection IDs and Dates")
+        print("Downloading Image Collection IDs and Dates")
 
-        if (stack_limit_before == 0) and (stack_limit_after == 0):
-            raise Exception("The stack limit before and after cannot both be zero")
+        if (n_before == 0) and (n_after == 0):
+            raise ValueError("n_before and n_after cannot both be zero")
 
         img_data = (
             img_coll.reduceColumns(ee.Reducer.toList(2), ["system:index", "system:time_start"]).get("list").getInfo()
@@ -132,35 +148,44 @@ def _match_gdf_to_img_coll_ids(
 
         # Step 2: determine the closest image IDs to a given feature date
         def determine_img_ids(row):
-            row_time = row.get(time_col, pd.Timestamp(0, tz="utc"))
+            row_time = row.get(
+                time_col,
+            )  # pd.Timestamp(0, tz="utc")
 
-            if stack_limit_before == 0:
-                nearest_index = img_data[img_data.index >= row_time].index.get_indexer(
-                    target=[row_time], method="nearest"
-                )
-            elif stack_limit_after == 0:
-                nearest_index = img_data[img_data.index <= row_time].index.get_indexer(
-                    target=[row_time], method="nearest"
-                )
+            if n == "images":
+                nearest_index = img_data.index.get_indexer(target=[pd.Timestamp(row_time)], method=index_method)[0]
+                start = nearest_index - n_before
+                # in this case the expected list size when,
+                # for example, n_before=2 and n_after=5 is 8 (n_before + 1 + n_after)
+                # therefore add 1 to the end index to correct for iloc returning start:end-1
+                end = nearest_index + n_after + 1
             else:
-                nearest_index = img_data.index.get_indexer(target=[row_time], method="nearest")
+                try:
+                    before_param = {n: n_before}
+                    after_param = {n: n_after}
+                    start = dt.timedelta(**before_param)
+                    end = dt.timedelta(**after_param)
+                except TypeError:
+                    raise TypeError(
+                        "n must be one of: 'images', 'microseconds', \
+                        'milliseconds' 'seconds', 'minutes', 'hours', 'days' or 'weeks'"
+                    )
 
-            lower = int(nearest_index - stack_limit_before)
-            if lower < 0:
-                lower = 0
-            upper = int(nearest_index + stack_limit_after)
-            if upper > len(img_data.index) - 1:
-                upper = len(img_data.index)
-            img_ids = img_data.iloc[
-                lower:upper,
-            ]["img_id"].to_list()
-            return img_ids
+            if n == "images":
+                selection = img_data.iloc[start:end]
+            else:
+                start = pd.Timestamp(row_time - start).to_datetime64()
+                end = pd.Timestamp(row_time + end).to_datetime64()
+                selection = img_data.loc[start:end]
 
-        logger.info("Matching Features to Image IDs")
+            return selection["img_id"].to_list()
+
+        print("Matching Features to Image IDs")
         gdf[output_col_name] = gdf.apply(determine_img_ids, axis=1)
 
+        return gdf
     except Exception as e:
-        logger.error(str(e))
+        print(str(e))
 
 
 @backoff.on_exception(
