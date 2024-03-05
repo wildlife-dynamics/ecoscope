@@ -110,3 +110,85 @@ def test_label_gdf_with_img(movbank_relocations):
     )
 
     assert results["list"].mean() > 0
+
+
+# a subset to ensure we're checking exact match and nearest cases
+# includes 3 timestamps, midnight, am, pm
+@pytest.fixture
+def movbank_relocations_fixed_subset(movbank_relocations):
+    return movbank_relocations.loc[329730794:329730795]._append(movbank_relocations.loc[329730810])
+
+
+@pytest.mark.parametrize(
+    "n_before, n_after, output_list",
+    [
+        (0, 0, [["2009_01_29"], ["2009_01_29"], ["2009_01_30"]]),
+        (1, 0, [["2009_01_28", "2009_01_29"], ["2009_01_29"], ["2009_01_29"]]),
+        (0, 1, [["2009_01_29", "2009_01_30"], ["2009_01_30"], ["2009_01_30"]]),
+        (
+            2,
+            2,
+            [
+                ["2009_01_27", "2009_01_28", "2009_01_29", "2009_01_30", "2009_01_31"],
+                ["2009_01_28", "2009_01_29", "2009_01_30", "2009_01_31"],
+                ["2009_01_28", "2009_01_29", "2009_01_30", "2009_01_31"],
+            ],
+        ),
+    ],
+)
+def test_match_gdf_to_img_coll_ids_by_image_count(movbank_relocations_fixed_subset, n_before, n_after, output_list):
+    results = ecoscope.io.eetools._match_gdf_to_img_coll_ids(
+        gdf=movbank_relocations_fixed_subset,
+        time_col="fixtime",
+        img_coll=ee.ImageCollection("MODIS/MCD43A4_006_NDVI").select("NDVI"),
+        output_col_name="img_ids",
+        n_before=n_before,
+        n_after=n_after,
+        n="images",
+    )["img_ids"].to_list()
+
+    # midnight - exact match case
+    assert results[0] == output_list[0]
+    # am
+    assert results[1] == output_list[1]
+    # pm
+    assert results[2] == output_list[2]
+
+
+@pytest.mark.parametrize(
+    "n_before, n_after, output_list",
+    [
+        (0, 0, [["2009_01_29"], [], []]),
+        (1, 0, [["2009_01_28", "2009_01_29"], ["2009_01_29"], ["2009_01_29"]]),
+        (0, 1, [["2009_01_29", "2009_01_30"], ["2009_01_30"], ["2009_01_30"]]),
+        (
+            2,
+            2,
+            [
+                ["2009_01_27", "2009_01_28", "2009_01_29", "2009_01_30", "2009_01_31"],
+                ["2009_01_28", "2009_01_29", "2009_01_30", "2009_01_31"],
+                ["2009_01_28", "2009_01_29", "2009_01_30", "2009_01_31"],
+            ],
+        ),
+    ],
+)
+def test_match_gdf_to_img_coll_ids_by_day(movbank_relocations_fixed_subset, n_before, n_after, output_list):
+    output = ecoscope.io.eetools._match_gdf_to_img_coll_ids(
+        gdf=movbank_relocations_fixed_subset,
+        time_col="fixtime",
+        img_coll=ee.ImageCollection("MODIS/MCD43A4_006_NDVI").select("NDVI"),
+        output_col_name="img_ids",
+        n_before=n_before,
+        n_after=n_after,
+        n="days",
+    )
+
+    print(output[["fixtime", "img_ids"]])
+    results = output["img_ids"].to_list()
+
+    # midnight - exact match case
+    assert results[0] == output_list[0]
+    # am
+    assert results[1] == output_list[1]
+    # pm
+    assert results[2] == output_list[2]
