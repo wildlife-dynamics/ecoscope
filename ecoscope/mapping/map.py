@@ -13,11 +13,11 @@ import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import datashader as ds
 import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
+from urllib.parse import urlparse
 
 import ecoscope
 from ecoscope.contrib.foliumap import Map
@@ -458,64 +458,50 @@ class EcoMap(EcoMapMixin, Map):
     def add_print_control(self):
         self.add_child(PrintControl())
 
-    def add_datashader_gdf(
-        self,
-        gdf,
-        geom_type,
-        name=None,
-        width=600,
-        height=600,
-        cmap=["lightblue", "darkblue"],
-        ds_agg=None,
-        zoom=True,
-        opacity=1,
-        **kwargs,
-    ):
+    def add_cog(self, url, zoom=False, opacity=1, projection=None, resolution=256):
+        """
+        Add a Cloud Optimized Geotiff
+
+        Parameters
+        ----------
+        url : str
+            The local file or url of the PMTiles archive
+        zoom : bool, optional
+            Zoom to the added image, default is False
+        opacity : float, optional
+            Sets opacity of the Geotiff, default is 1
+        projection: str, optional
+            EPSG:xxxx or wkt, default is None
+        resolution: int, optional
+            How many samples across each tile to take, default is 256
+        """
+
+        parsed = urlparse(url)
+        if parsed.scheme in ("file", ""):
+            with open(parsed.path, "rb") as file:
+                url = "data:image/tiff;base64," + base64.b64encode(file.read()).decode()
+        self.add_child(GeoTIFFElement(url, zoom, opacity, projection, resolution))
+
+    def add_pil_image(self, image, bounds, name=None, zoom=True, opacity=1):
         """
         Overlays a static visualization of the given gdf generated using Datashader
 
         Parameters
         ----------
-        gdf : geopandas.GeoDataFrame
-            GeoDataFrame used to create visualization (geometry must be projected to a CRS)
-        geom_type : str
-            The Datashader canvas() function to use valid values are 'polygon', 'line', 'point'
-        name : string
+        image : PIL.Image
+            The image to be overlaid
+        bounds: tuple
+            Tuple containing the EPSG:4326 (minx, miny, maxx, maxy) values bounding the given image
+        name : string, optional
             The name of the image layer to be displayed in Folium layer control
-        width : int
-            The canvas width in pixels, determines the resolution of the generated image
-        height : int
-            The canvas height in pixels, determines the resolution of the generated image
-        cmap : list of colors or matplotlib.colors.Colormap
-            The colormap to use for the generated image
-        ds_agg : datashader.reductions function
-            The Datashader reduction to use
-        zoom : bool
+        zoom : bool, optional
             Zoom to the generated image
-        opacity : float
+        opacity : float, optional
             Sets opacity of overlaid image
-        kwargs
-            Additional kwargs passed to datashader.transfer_functions.shade
         """
 
-        gdf = gdf.to_crs(epsg=4326)
-        bounds = gdf.geometry.total_bounds
-        canvas = ds.Canvas(width, height)
-
-        if geom_type == "polygon":
-            func = canvas.polygons
-        elif geom_type == "line":
-            func = canvas.line
-        elif geom_type == "point":
-            func = canvas.points
-        else:
-            raise ValueError("geom_type must be 'polygon', 'line' or 'point'")
-
-        agg = func(gdf, geometry="geometry", agg=ds_agg)
-        img = ds.tf.shade(agg, cmap, **kwargs)
-
         folium.raster_layers.ImageOverlay(
-            image=img.to_pil(),
+            image=image,
             bounds=[[bounds[1], bounds[0]], [bounds[3], bounds[2]]],
             opacity=opacity,
             mercator_project=True,
@@ -523,7 +509,7 @@ class EcoMap(EcoMapMixin, Map):
         ).add_to(self)
 
         if zoom:
-            self.zoom_to_gdf(gdf)
+            self.zoom_to_bounds(bounds)
 
 
 class ControlElement(MacroElement):
@@ -762,8 +748,10 @@ class GeoTIFFElement(MacroElement):
     _template = Template(
         """
     {% macro html(this, kwargs) %}
-        <script src="https://unpkg.com/georaster-layer-for-leaflet@3.8.0/dist/georaster-layer-for-leaflet.min.js"></script>
-        <script src="https://unpkg.com/georaster@1.5.6/dist/georaster.browser.bundle.min.js"></script>
+        <script src="https://unpkg.com/georaster@1.6.0/dist/georaster.browser.bundle.min.js"></script>
+        <script src="https://unpkg.com/georaster-layer-for-leaflet@3.10.0/dist/georaster-layer-for-leaflet.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.10.0/proj4.js" integrity="sha512-e3rsOu6v8lmVnZylXpOq3DO/UxrCgoEMqosQxGygrgHlves9HTwQzVQ/dLO+nwSbOSAecjRD7Y/c4onmiBVo6w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
     {% endmacro %}
 
     {% macro script(this, kwargs) %}
@@ -773,7 +761,13 @@ class GeoTIFFElement(MacroElement):
           parseGeoraster(arrayBuffer).then(georaster => {
             var layer = new GeoRasterLayer({
                 georaster: georaster,
-                opacity: 0.7
+                opacity: {{ this.opacity }},
+                resolution: {{ this.resolution }},
+                
+                {%- if this.projection != None %}
+                proj4: proj4(`{{ this.projection }}`),
+                {%- endif %}
+                
             });
             layer.addTo({{this._parent.get_name()}});
 
@@ -787,10 +781,13 @@ class GeoTIFFElement(MacroElement):
     """  # noqa
     )
 
-    def __init__(self, url, zoom=False):
+    def __init__(self, url, zoom=False, opacity=0.7, projection=None, resolution=64):
         super().__init__()
         self.url = url
         self.zoom = zoom
+        self.opacity = opacity
+        self.projection = projection
+        self.resolution = resolution
 
 
 class PrintControl(MacroElement):
