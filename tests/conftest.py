@@ -9,6 +9,8 @@ import pytest
 
 import ecoscope
 
+from erclient.client import ERClientNotFound
+
 os.environ["USE_PYGEOS"] = "0"
 
 
@@ -27,12 +29,16 @@ def pytest_configure(config):
         pytest.earthengine = False
         warnings.warn(Warning("Earth Engine can not be initialized. Skipping related tests..."))
 
-    pytest.earthranger = ecoscope.io.EarthRangerIO(
-        server=os.getenv("ER_SERVER", "https://mep-dev.pamdas.org"),
-        username=os.getenv("ER_USERNAME"),
-        password=os.getenv("ER_PASSWORD"),
-    ).login()
-    if not pytest.earthranger:
+    try:
+        pytest.earthranger = ecoscope.io.EarthRangerIO(
+            server=os.getenv("ER_SERVER", "https://mep-dev.pamdas.org"),
+            username=os.getenv("ER_USERNAME"),
+            password=os.getenv("ER_PASSWORD"),
+        ).login()
+        if not pytest.earthranger:
+            warnings.warn(Warning("EarthRanger_IO can not be initialized. Skipping related tests..."))
+    except ERClientNotFound:
+        pytest.earthranger = False
         warnings.warn(Warning("EarthRanger_IO can not be initialized. Skipping related tests..."))
 
 
