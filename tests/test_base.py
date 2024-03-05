@@ -26,6 +26,7 @@ def test_redundant_columns_in_trajectory(er_io):
     assert "extra___geometry" not in trajectory
 
 
+@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_relocs_speedfilter(er_io):
     relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
     relocs_speed_filter = ecoscope.base.RelocsSpeedFilter(max_speed_kmhr=8)
