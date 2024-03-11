@@ -210,8 +210,9 @@ def _match_gdf_to_img_coll_ids(gdf, time_col, img_coll, output_col_name="img_ids
 def label_gdf_with_temporal_image_collection_by_feature(
     gdf=None,
     time_col_name=None,
-    stack_limit_before=1,
-    stack_limit_after=1,
+    n_before=1,
+    n_after=1,
+    n="images",
     img_coll=None,
     region_reducer=None,
     scale=500.0,
@@ -223,8 +224,9 @@ def label_gdf_with_temporal_image_collection_by_feature(
         time_col=time_col_name,
         img_coll=img_coll,
         output_col_name="img_ids",
-        n_before=stack_limit_before,
-        n_after=stack_limit_after,
+        n_before=n_before,
+        n_after=n_after,
+        n=n,
     )
 
     in_fc = ee.FeatureCollection(gdf[["geometry", "img_ids"]].__geo_interface__)
