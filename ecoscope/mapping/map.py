@@ -749,7 +749,7 @@ class ProtomapsElement(MacroElement):
         """
     {% macro html(this, kwargs) %}
         <script src="https://unpkg.com/pmtiles@3.0.3/dist/pmtiles.js"></script>
-        <script src="https://unpkg.com/protomaps-leaflet@latest/dist/protomaps-leaflet.min.js"></script>
+        <script src="https://unpkg.com/protomaps-leaflet@1.24.2/dist/protomaps-leaflet.min.js"></script>
     {% endmacro %}
 
     {% macro script(this, kwargs) %}
@@ -797,7 +797,9 @@ class ProtomapsElement(MacroElement):
            
         {% endif %}
 
-        if(`{{this.path}}`.startsWith("data")){
+        var input = `{{this.path}}`
+
+        if(input.startsWith("data")){
             var byteString = atob(`{{this.path}}`.split(',')[1]);
 
             var arrayBuffer = new ArrayBuffer(byteString.length);
@@ -813,7 +815,7 @@ class ProtomapsElement(MacroElement):
             var {{ this.get_name() }} = protomapsL.leafletLayer({ url: tiles, paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
         }
         else{
-            var {{ this.get_name() }} = protomapsL.leafletLayer({ url: "{{ this.path }}", paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
+            var {{ this.get_name() }} = protomapsL.leafletLayer({ url: input, paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
         }
         
     {% endmacro %}
