@@ -7,6 +7,11 @@ def export_pmtiles(gdf, filepath, layer_name="layer1", use_gdal=False, args=[]):
     """
     Exports a given gdf as a pmtiles archive using the local install of either tippecanoe or gdal
     Will search for tippecanoe on path and use that, falling back to gdal if it's not found
+    This works by first dumping the given gdf as a FlatGeobuf to provide as input to the chosen tool
+
+    If args is not provided, the following defaults are used:
+        tippecanoe -zg --drop-densest-as-needed --extend-zooms-if-still-dropping -l <layer_name> -o <filepath> temp.fgb
+        ogr2ogr -progress -f  PMTiles -dsco MAXZOOM=20 -lco NAME=<layer_name> <filepath> temp.fgb
 
     Parameters
     ----------
@@ -18,31 +23,38 @@ def export_pmtiles(gdf, filepath, layer_name="layer1", use_gdal=False, args=[]):
         The layer name of the feature collection within the exported PMTiles, default is layer1
     use_gdal : bool, optional
         Force the use of gdal, default is False
-    args :
-        Override the default command line args for either executable, this will respect the provided filename
+    args : list, optional
+        Override the default command line args used, this will not override the provided filepath or layer_name
     """
 
     tempfile = "temp.fgb"
     gdf.to_file(tempfile, "FlatGeobuf")
-    filepath = filepath
+
+    default_args_tippecanoe = ["-zg", "--drop-densest-as-needed", "--extend-zooms-if-still-dropping"]
+    default_args_ogr = ["-progress", "-f", "PMTiles", "-dsco", "MAXZOOM=20"]
 
     if (cmd := which("tippecanoe")) and not use_gdal:
         if len(args) == 0:
-            args = [cmd, "-zg", "-o", filepath, "--drop-densest-as-needed", "--extend-zooms-if-still-dropping"]
-            if layer_name != "":
-                args.extend(["-l", layer_name])
-            args.extend([tempfile])
-        else:
-            args = [cmd] + args + ["-o", filepath, tempfile]
+            args = default_args_tippecanoe
+
+        if layer_name != "":
+            args.extend(["-l", layer_name])
+
+        args.extend(["-o", filepath, tempfile])
 
     elif cmd := which("ogr2ogr"):
-        args = [cmd, "-progress", "-f", "PMTiles", "-dsco", "MAXZOOM=20"]
+        if len(args) == 0:
+            args = default_args_ogr
+
         if layer_name != "":
-            args.extend(["-lco", "NAME=" + layer_name])
+            args = ["-lco", "NAME=" + layer_name] + args
+
         args.extend([filepath, tempfile])
 
     else:
-        raise FileNotFoundError("ogr2ogr was not found on path")
+        raise FileNotFoundError("no tippecanoe or ogr2ogr was found on system path")
+
+    args = [cmd] + args
 
     with Popen(args, stdout=PIPE, stderr=PIPE) as proc:
         while proc.poll() is None:
