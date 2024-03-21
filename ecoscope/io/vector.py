@@ -52,6 +52,7 @@ def export_pmtiles(gdf, filepath, layer_name="layer1", use_gdal=False, args=[]):
         args.extend([filepath, tempfile])
 
     else:
+        os.remove(tempfile)
         raise FileNotFoundError("no tippecanoe or ogr2ogr was found on system path")
 
     args = [cmd] + args
