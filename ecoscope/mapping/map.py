@@ -263,6 +263,9 @@ class EcoMap(EcoMapMixin, Map):
         self.add_child(FloatElement(title_html, top=0, left=0, right=0))
 
     def _repr_html_(self, **kwargs):
+        if kwargs.get("fill_container", False):
+            self._parent.width = "100%"
+            self._parent.height = "100%"
         return (
             super()
             ._repr_html_(**kwargs)
