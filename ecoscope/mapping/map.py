@@ -264,16 +264,25 @@ class EcoMap(EcoMapMixin, Map):
 
     def _repr_html_(self, **kwargs):
         if kwargs.get("fill_parent", False):
+            original_width = self._parent.width
+            original_height = self._parent.height
+
             self._parent.width = "100%"
             self._parent.height = "100%"
-        return (
+
+        html = (
             super()
             ._repr_html_(**kwargs)
-            .replace(
-                urllib.parse.quote("crs: L.CRS."),
-                urllib.parse.quote("attributionControl: false, crs: L.CRS."),
-            )
+            .replace(urllib.parse.quote("crs: L.CRS."), urllib.parse.quote("attributionControl: false, crs: L.CRS."))
         )
+
+        # this covers the (probably) rare case where someone in a Jupyter setting:
+        # creates a map, calls to_html(), continues changing the map, and then displays via _repr_html_()
+        if kwargs.get("fill_parent", False):
+            self._parent.width = original_width
+            self._parent.height = original_height
+
+        return html
 
     def to_html(self, outfile, fill_parent=True, **kwargs):
         """

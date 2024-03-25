@@ -32,6 +32,8 @@ def test_repr_html():
     assert soup.iframe.get("width") == "100%"
     assert soup.iframe.get("height") == "100%"
 
+    assert m._parent.width == 800 and m._parent.height == 600
+
 
 def test_add_legend():
     m = EcoMap()
