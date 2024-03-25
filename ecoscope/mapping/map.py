@@ -18,6 +18,7 @@ import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
+from urllib.parse import urlparse
 
 import ecoscope
 from ecoscope.contrib.foliumap import Map
@@ -525,6 +526,45 @@ class EcoMap(EcoMapMixin, Map):
         if zoom:
             self.zoom_to_gdf(gdf)
 
+    def add_pmtiles_layer(self, url, style, as_ts=False):
+        """
+        Adds a local or remote PMTiles archive as an overlay, using the provided styling options
+
+        Parameters
+        ----------
+        url : str
+            The local file or url of the PMTiles archive
+        style : str
+            Either a json style definition or a typescript array implementing
+            the underlying https://github.com/protomaps/protomaps-leaflet style rules
+            json style options as follows:
+
+            {
+                "layers": [
+                    {
+                        "source-layer": "<string>",
+                        "type": "circle" | "fill" | "line",
+                        "fill-color": "<string>",
+                        "stroke-color": "<string>",
+                        "stroke-width": "<number>",
+                        "line-color": "<string>",
+                        "line-width": "<number>",
+                        "radius": "<number>",
+                        "opacity": "<float>"
+                    },
+                ]
+            }
+
+        as_ts : bool, optional, default False
+            Must be set to True if the provided style string is to be interpreted as typescript
+        """
+        parsed = urlparse(url)
+        if parsed.scheme in ("file", ""):
+            with open(parsed.path, "rb") as file:
+                url = "data:;base64," + base64.b64encode(file.read()).decode()
+
+        self.add_child(ProtomapsElement(url, style, as_ts))
+
 
 class ControlElement(MacroElement):
     """
@@ -699,6 +739,94 @@ class ScaleElement(MacroElement):
         self.options = folium.utilities.parse_options(
             position=position, maxWidth=300, imperial=imperial, metric=not imperial
         )
+
+
+class ProtomapsElement(MacroElement):
+    # json style adapted from
+    # https://github.com/protomaps/protomaps-leaflet/blob/a08304417ef36fef03679976cd3e5a971fec19a2/src/compat/json_style.ts
+
+    _template = Template(
+        """
+    {% macro html(this, kwargs) %}
+        <script src="https://unpkg.com/pmtiles@3.0.3/dist/pmtiles.js"></script>
+        <script src="https://unpkg.com/protomaps-leaflet@1.24.2/dist/protomaps-leaflet.min.js"></script>
+    {% endmacro %}
+
+    {% macro script(this, kwargs) %}
+        
+        {% if this.as_ts %}
+            let {{ this.get_name() }}_paint_rules = {{this.style}};
+
+        {% else %}
+            let {{ this.get_name() }}_paint_rules = [];
+            for (layer of {{this.style|tojson}}.layers) {
+                if (layer.type === "fill") {
+                    {{ this.get_name() }}_paint_rules.push({
+                        dataLayer: layer["source-layer"],
+                        symbolizer: new protomapsL.PolygonSymbolizer({
+                            fill: layer["fill-color"],
+                            stroke: layer["stroke-color"],
+                            width: layer["stroke-width"],
+                            opacity: layer["opacity"]
+                        }),
+                    });
+                } 
+                else if (layer.type === "line") {
+                    {{ this.get_name() }}_paint_rules.push({
+                        dataLayer: layer["source-layer"],
+                        symbolizer: new protomapsL.LineSymbolizer({
+                            color: layer["line-color"],
+                            width: layer["line-width"],
+                            opacity: layer["opacity"]
+                        }),
+                    });
+                }
+                else if (layer.type === "circle") {
+                    {{ this.get_name() }}_paint_rules.push({
+                        dataLayer: layer["source-layer"],
+                        symbolizer: new protomapsL.CircleSymbolizer({
+                            radius: layer["radius"],
+                            fill: layer["fill-color"],
+                            stroke: layer["stroke-color"],
+                            width: layer["stroke-width"],
+                            opacity: layer["opacity"]
+                        }),
+                    });
+                }
+            }            
+           
+        {% endif %}
+
+        var input = `{{this.path}}`
+
+        if(input.startsWith("data")){
+            var byteString = atob(`{{this.path}}`.split(',')[1]);
+
+            var arrayBuffer = new ArrayBuffer(byteString.length);
+            var dataView = new DataView(arrayBuffer);
+            for(var i = 0; i < byteString.length; i++) {
+                dataView.setUint8(i, byteString.charCodeAt(i));
+            }
+
+            var blob = new Blob([arrayBuffer]);
+            var source = new pmtiles.FileSource(blob);
+            var tiles = new pmtiles.PMTiles(source);
+
+            var {{ this.get_name() }} = protomapsL.leafletLayer({ url: tiles, paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
+        }
+        else{
+            var {{ this.get_name() }} = protomapsL.leafletLayer({ url: input, paint_rules: {{ this.get_name() }}_paint_rules }).addTo({{this._parent.get_name()}});
+        }
+        
+    {% endmacro %}
+    """  # noqa
+    )
+
+    def __init__(self, path, style, as_ts=False):
+        super().__init__()
+        self.path = path
+        self.style = style
+        self.as_ts = as_ts
 
 
 class FloatElement(MacroElement):

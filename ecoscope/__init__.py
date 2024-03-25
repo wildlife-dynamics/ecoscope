@@ -75,10 +75,20 @@ def init(silent=False, selenium=False, force=False):
     pio.templates.default = "seaborn"
 
     import sys
+    from IPython import get_ipython
+    from contextlib import nullcontext
+    from IPython.utils import io
+
+    if "google.colab" in sys.modules:
+
+        with io.capture_output() if silent else nullcontext():
+            get_ipython().run_cell_magic("shell", "", "pip install -q condacolab")
+            import condacolab
+
+            condacolab.install()
+            get_ipython().run_cell_magic("shell", "", "conda install conda-forge::tippecanoe")
 
     if "google.colab" in sys.modules and selenium:
-        from IPython import get_ipython
-
         shell_text = """\
 cat > /etc/apt/sources.list.d/debian.list <<'EOF'
 deb [arch=amd64 signed-by=/usr/share/keyrings/debian-bookworm.gpg] http://deb.debian.org/debian bookworm main
@@ -119,8 +129,6 @@ pip install selenium
 """
 
         if silent:
-            from IPython.utils import io
-
             with io.capture_output():
                 get_ipython().run_cell_magic("shell", "", shell_text)
         else:
