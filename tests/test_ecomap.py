@@ -24,11 +24,11 @@ def test_ecomap_base():
 def test_repr_html():
     m = EcoMap(width=800, height=600)
 
-    soup = BeautifulSoup(m._repr_html_(preserve_dimensions=True), "html.parser")
+    soup = BeautifulSoup(m._repr_html_(), "html.parser")
     assert soup.iframe.get("width") == "800"
     assert soup.iframe.get("height") == "600"
 
-    soup = BeautifulSoup(m._repr_html_(), "html.parser")
+    soup = BeautifulSoup(m._repr_html_(fill_parent=True), "html.parser")
     assert soup.iframe.get("width") == "100%"
     assert soup.iframe.get("height") == "100%"
 

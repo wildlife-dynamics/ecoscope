@@ -263,7 +263,7 @@ class EcoMap(EcoMapMixin, Map):
         self.add_child(FloatElement(title_html, top=0, left=0, right=0))
 
     def _repr_html_(self, **kwargs):
-        if not kwargs.get("preserve_dimensions", False):
+        if kwargs.get("fill_parent", False):
             self._parent.width = "100%"
             self._parent.height = "100%"
         return (
@@ -275,7 +275,7 @@ class EcoMap(EcoMapMixin, Map):
             )
         )
 
-    def to_html(self, outfile, **kwargs):
+    def to_html(self, outfile, fill_parent=True, **kwargs):
         """
         Parameters
         ----------
@@ -284,7 +284,7 @@ class EcoMap(EcoMapMixin, Map):
 
         """
         with open(outfile, "w") as file:
-            file.write(self._repr_html_(**kwargs))
+            file.write(self._repr_html_(fill_parent=fill_parent, **kwargs))
 
     def to_png(self, outfile, sleep_time=5, **kwargs):
         """
