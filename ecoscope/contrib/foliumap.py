@@ -974,9 +974,9 @@ class Map(folium.Map):
         builtin_legend=None,
         opacity=1.0,
         title_styles:dict=None,
-        background_color:Union[str,tuple]=None,
+        background_color:Union[str,tuple]=(255,255,255,0.8),
         border_styles:Union[str, dict]="2px solid gray", 
-        box_position:dict=None,
+        box_position:dict={"bottom":"20px", "right":"20px"},
         **kwargs,
     ):
         """Adds a customized legend to the map. Reference: https://bit.ly/3oV6vnH
