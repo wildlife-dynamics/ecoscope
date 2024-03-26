@@ -263,16 +263,28 @@ class EcoMap(EcoMapMixin, Map):
         self.add_child(FloatElement(title_html, top=0, left=0, right=0))
 
     def _repr_html_(self, **kwargs):
-        return (
+        if kwargs.get("fill_parent", False):
+            original_width = self._parent.width
+            original_height = self._parent.height
+
+            self._parent.width = "100%"
+            self._parent.height = "100%"
+
+        html = (
             super()
             ._repr_html_(**kwargs)
-            .replace(
-                urllib.parse.quote("crs: L.CRS."),
-                urllib.parse.quote("attributionControl: false, crs: L.CRS."),
-            )
+            .replace(urllib.parse.quote("crs: L.CRS."), urllib.parse.quote("attributionControl: false, crs: L.CRS."))
         )
 
-    def to_html(self, outfile, **kwargs):
+        # this covers the (probably) rare case where someone in a Jupyter setting:
+        # creates a map, calls to_html(), continues changing the map, and then displays via _repr_html_()
+        if kwargs.get("fill_parent", False):
+            self._parent.width = original_width
+            self._parent.height = original_height
+
+        return html
+
+    def to_html(self, outfile, fill_parent=True, **kwargs):
         """
         Parameters
         ----------
@@ -281,7 +293,7 @@ class EcoMap(EcoMapMixin, Map):
 
         """
         with open(outfile, "w") as file:
-            file.write(self._repr_html_(**kwargs))
+            file.write(self._repr_html_(fill_parent=fill_parent, **kwargs))
 
     def to_png(self, outfile, sleep_time=5, **kwargs):
         """
