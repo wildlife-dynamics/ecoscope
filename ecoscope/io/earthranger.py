@@ -602,8 +602,8 @@ class EarthRangerIO(ERClient):
             )["geometry"]
             gdf.set_crs(4326, inplace=True)
 
-        df.sort_values("time", inplace=True)
-        return df.set_index("id")
+        gdf.sort_values("time", inplace=True)
+        return gdf.set_index("id")
 
     def get_patrol_types(self):
         df = pd.DataFrame(self._get("activity/patrols/types"))
