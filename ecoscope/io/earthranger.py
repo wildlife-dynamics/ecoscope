@@ -595,11 +595,12 @@ class EarthRangerIO(ERClient):
         assert not df.empty
         df["time"] = pd.to_datetime(df["time"])
 
-        df = gpd.GeoDataFrame(df)
-        df.loc[~df["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
-            df.loc[~df["geojson"].isna(), "geojson"]
-        )["geometry"]
-        df.set_crs(4326, inplace=True)
+        gdf = gpd.GeoDataFrame(df)
+        if gdf.loc[0, "location"] is not None:
+            gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
+                gdf.loc[~gdf["geojson"].isna(), "geojson"]
+            )["geometry"]
+            gdf.set_crs(4326, inplace=True)
 
         df.sort_values("time", inplace=True)
         return df.set_index("id")
