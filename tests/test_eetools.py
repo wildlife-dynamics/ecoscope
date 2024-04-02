@@ -50,8 +50,8 @@ def test_label_gdf_with_temporal_image_collection_by_features_aois(aoi_gdf):
 
     params = {
         "time_col_name": "time",
-        "stack_limit_before": 10,
-        "stack_limit_after": 10,
+        "n_before": 10,
+        "n_after": 10,
         "img_coll": img_coll,
         "region_reducer": "mean",
         "scale": 500.0,
@@ -75,8 +75,8 @@ def test_label_gdf_with_temporal_image_collection_by_features_relocations(movban
 
     params = {
         "time_col_name": "fixtime",
-        "stack_limit_before": 1,
-        "stack_limit_after": 1,
+        "n_before": 1,
+        "n_after": 1,
         "img_coll": img_coll,
         "region_reducer": "toList",
         "scale": 1.0,
