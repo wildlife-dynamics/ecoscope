@@ -13,11 +13,26 @@ from branca.element import MacroElement
 from branca.colormap import StepColormap
 from folium.raster_layers import TileLayer, ImageOverlay
 from folium.map import FitBounds
+from bs4 import BeautifulSoup
 
 
 def test_ecomap_base():
     m = EcoMap()
     assert len(m._children) == 7
+
+
+def test_repr_html():
+    m = EcoMap(width=800, height=600)
+
+    soup = BeautifulSoup(m._repr_html_(), "html.parser")
+    assert soup.iframe.get("width") == "800"
+    assert soup.iframe.get("height") == "600"
+
+    soup = BeautifulSoup(m._repr_html_(fill_parent=True), "html.parser")
+    assert soup.iframe.get("width") == "100%"
+    assert soup.iframe.get("height") == "100%"
+
+    assert m._parent.width == 800 and m._parent.height == 600
 
 
 def test_add_legend():
@@ -139,7 +154,7 @@ def test_add_print_control():
     assert "L.control.BigImage()" in m._repr_html_()
 
 
-@pytest.mark.paramaterize(
+@pytest.mark.parametrize(
     "file, geom_type",
     [
         ("tests/sample_data/vector/maec_4zones_UTM36S.gpkg", "tests/sample_data/vector/observations.geojson"),
