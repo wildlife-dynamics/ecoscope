@@ -169,7 +169,7 @@ def reduce_region(gdf, raster_path_list, reduce_func):
     for raster_path in tqdm.tqdm(raster_path_list):
         d[raster_path] = {}
         with rio.open(raster_path) as src:
-            for i, shp in gdf.geometry.to_crs(src.crs).iteritems():
+            for i, shp in gdf.geometry.to_crs(src.crs).items():
                 try:
                     d[raster_path][i] = reduce_func(rio.mask.mask(src, [shp], filled=False)[0].compressed())
                 except ValueError as e:
