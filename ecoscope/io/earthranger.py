@@ -54,7 +54,7 @@ class EarthRangerIO(ERClient):
     @staticmethod
     def _normalize_column(df, col):
         print(col)
-        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").iteritems():
+        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").items():
             df[k] = v.values
 
     @staticmethod
