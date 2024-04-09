@@ -50,10 +50,12 @@ def test_etd_range(movbank_relocations):
         os.unlink(file.name)
 
     expected_percentile_area = gpd.read_feather("tests/test_output/etd_percentile_area.feather")
-    gpd.testing.assert_geodataframe_equal(percentile_area, expected_percentile_area, check_less_precise=True)
+    gpd.testing.assert_geodataframe_equal(
+        percentile_area, expected_percentile_area, check_less_precise=True, normalize=True
+    )
 
 
-@pytest.mark.skip(reason="this has been failing since May 2022; will be fixed in a follow-up pull")
+# @pytest.mark.skip(reason="this has been failing since May 2022; will be fixed in a follow-up pull")
 def test_reduce_regions(aoi_gdf):
     raster_names = ["tests/sample_data/raster/mara_dem.tif"]
     result = ecoscope.io.raster.reduce_region(aoi_gdf, raster_names, np.mean)
