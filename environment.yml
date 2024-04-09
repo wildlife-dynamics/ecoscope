@@ -17,7 +17,3 @@ dependencies:
       - sphinx-autoapi
       - dask[dataframe]
       - fsspec
-      - requests
-      - aiohttp
-      - dropbox
-      - dropboxdrivefs
