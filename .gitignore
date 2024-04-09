@@ -160,3 +160,6 @@ tags
 Ecoscope-Outputs
 tests/test_output/new.html
 tests/test_output/movbank_data.csv
+tests/test_output/movbank_data.csv.zip
+tests/test_output/download_data.csv
+tests/test_output/config.json

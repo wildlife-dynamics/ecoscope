@@ -12,7 +12,31 @@ def test_download_file_github_csv():
     output_dir = "tests/test_output"
     ecoscope.io.download_file(
         f"{ECOSCOPE_RAW}/tests/sample_data/vector/movbank_data.csv",
-        os.path.join(output_dir, "movbank_data.csv"),
+        os.path.join(output_dir, "download_data.csv"),
+        overwrite_existing=True,
+    )
+
+    data = pd.read_csv(os.path.join(output_dir, "download_data.csv"))
+    assert len(data) > 0
+
+
+def test_download_file_gdrive():
+    output_dir = "tests/test_output"
+    ecoscope.io.download_file(
+        "https://drive.google.com/uc?export=download&id=1-AQ9_oacUCcAaiZ6SWU77hZWp1oArQw6",
+        os.path.join(output_dir, "download_data.csv"),
+        overwrite_existing=True,
+    )
+
+    data = pd.read_csv(os.path.join(output_dir, "download_data.csv"))
+    assert len(data) > 0
+
+
+def test_download_file_gdrive_zip():
+    output_dir = "tests/test_output"
+    ecoscope.io.download_file(
+        "https://drive.google.com/uc?export=download&id=1YNQ6FBtlTAxmo8vmK59oTPBhAltI3kfK",
+        output_dir,
         overwrite_existing=True,
     )
 

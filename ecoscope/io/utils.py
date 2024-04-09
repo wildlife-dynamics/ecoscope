@@ -1,10 +1,11 @@
+import email
 import os
 import typing
+import zipfile
 
-import fsspec
 import pandas as pd
-
-# import zipfile
+import requests
+from tqdm.auto import tqdm
 
 
 def to_hex(val, default="#ff0000"):
@@ -25,50 +26,32 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
     return dataframe
 
 
-def download_file(url, path, overwrite_existing=False, unzip=True):
+def download_file(url, path, overwrite_existing=False, chunk_size=1024, unzip=True, **request_kwargs):
     """
     Download a file from a URL to a local path. If the path is a directory, the filename will be inferred from
     the response header
     """
-    fs = fsspec.filesystem("http")
-    # fs = fsspec.filesystem("dropbox")
-    # todo: infer filename
-    # fs, fs_token, path = fsspec.core.url_to_fs(url)
+    r = requests.get(url, stream=True, **request_kwargs)
 
-    # If path is a directory, infer filename from URL
     if os.path.isdir(path):
-        filename = url.split("/")[-1]
+        m = email.message.Message()
+        m["content-type"] = r.headers["content-disposition"]
+        filename = m.get_param("filename")
+        if filename is None:
+            raise ValueError("URL has no RFC 6266 filename.")
         path = os.path.join(path, filename)
 
     if os.path.exists(path) and not overwrite_existing:
         print(f"{path} exists. Skipping...")
         return
 
-    with fs.open(url, "rb") as src:
-        with open(path, "wb") as dst:
-            dst.write(src.read())
+    with open(path, "wb") as f:
+        with tqdm.wrapattr(f, "write", total=int(r.headers["Content-Length"])) as fout:
+            for chunk in r.iter_content(chunk_size=chunk_size):
+                fout.write(chunk)
 
     # Check if the file is a zip file
-    # if zipfile.is_zipfile(path) and unzip:
-    #     # Unzip the file
-    #     with zipfile.ZipFile(path, 'r') as zip_ref:
-    #         zip_ref.extractall(os.path.dirname(path))
-
-    # r = requests.get(url, stream=True, **request_kwargs)
-
-    # if os.path.isdir(path):
-    #     m = email.message.Message()
-    #     m["content-type"] = r.headers["content-disposition"]
-    #     filename = m.get_param("filename")
-    #     if filename is None:
-    #         raise ValueError("URL has no RFC 6266 filename.")
-    #     path = os.path.join(path, filename)
-
-    # if os.path.exists(path) and not overwrite_existing:
-    #     print(f"{path} exists. Skipping...")
-    #     return
-
-    # with open(path, "wb") as f:
-    #     with tqdm.wrapattr(f, "write", total=int(r.headers["Content-Length"])) as fout:
-    #         for chunk in r.iter_content(chunk_size=chunk_size):
-    #             fout.write(chunk)
+    if zipfile.is_zipfile(path) and unzip:
+        # Unzip the file
+        with zipfile.ZipFile(path, "r") as zip_ref:
+            zip_ref.extractall(os.path.dirname(path))
