@@ -159,3 +159,4 @@ doc/source/notebooks
 tags
 Ecoscope-Outputs
 tests/test_output/new.html
+tests/test_output/movbank_data.csv

@@ -8,11 +8,16 @@ dependencies:
   - jupyterlab
   - beautifulsoup4
   - pip:
-    - kaleido
-    - pre-commit>=3
-    - coverage[toml]
-    - ecoscope
-    - nbsphinx
-    - nbsphinx-multilink
-    - sphinx-autoapi
-    
+      - kaleido
+      - pre-commit>=3
+      - coverage[toml]
+      - ecoscope
+      - nbsphinx
+      - nbsphinx-multilink
+      - sphinx-autoapi
+      - dask[dataframe]
+      - fsspec
+      - requests
+      - aiohttp
+      - dropbox
+      - dropboxdrivefs
