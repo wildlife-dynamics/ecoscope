@@ -19,7 +19,7 @@ dependencies = [
     "earthengine-api",
     "earthranger-client",
     "folium",
-    "geopandas",
+    "geopandas<=0.14.2",
     "igraph",
     "kaleido",
     "mapclassify",
