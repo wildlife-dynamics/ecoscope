@@ -1,0 +1,18 @@
+{
+  "devDependencies": {
+    "esbuild": "0.20.1"
+  },
+  "dependencies": {
+    "@anywidget/react": "^0.0.4",
+    "@anywidget/types": "^0.1.6",
+    "@deck.gl/core": "^9.0.3",
+    "@deck.gl/extensions": "^9.0.3",
+    "@deck.gl/geo-layers": "^9.0.3",
+    "@deck.gl/layers": "^9.0.3",
+    "@deck.gl/mesh-layers": "^9.0.3",
+    "@deck.gl/react": "^9.0.3",
+    "@deck.gl/widgets": "^9.0.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}

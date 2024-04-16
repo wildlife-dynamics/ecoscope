@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecomap"
+version = "0.0.1"
+dependencies = [
+  "anywidget",
+  "traitlets"
+]
+requires-python = ">=3.10"
+
+[tool.setuptools]
+packages = ["ecomap"]
+
+[tool.setuptools.package-data]
+static = ["*.js", "*.css"]
