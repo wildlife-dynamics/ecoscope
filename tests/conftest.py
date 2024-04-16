@@ -1,15 +1,13 @@
 import os
-
 import warnings
 
 import ee
 import geopandas as gpd
 import pandas as pd
 import pytest
+from erclient.client import ERClientNotFound
 
 import ecoscope
-
-from erclient.client import ERClientNotFound
 
 os.environ["USE_PYGEOS"] = "0"
 
@@ -25,7 +23,7 @@ def pytest_configure(config):
         else:
             ee.Initialize()
         pytest.earthengine = True
-    except ee.EEException:
+    except Exception:
         pytest.earthengine = False
         warnings.warn(Warning("Earth Engine can not be initialized. Skipping related tests..."))
 
