@@ -6,6 +6,7 @@ dependencies:
   - pip
   - git
   - jupyterlab
+  - geopandas<=0.14.2
   - beautifulsoup4
   - pip:
       - kaleido
