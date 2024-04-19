@@ -133,7 +133,7 @@ def _match_gdf_to_img_coll_ids(gdf, time_col, img_coll, output_col_name="img_ids
         pd.DataFrame(
             {
                 "img_id": img_data[:, 0],
-                "img_date": pd.to_datetime(img_data[:, 1].astype("int"), unit="ms").tz_localize("UTC"),
+                "img_date": pd.to_datetime(img_data[:, 1].astype("int64"), unit="ms").tz_localize("UTC"),
             }
         )
         .sort_values("img_date")
