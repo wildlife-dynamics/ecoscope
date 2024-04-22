@@ -203,11 +203,12 @@ def create_modis_interval_index(start, intervals, overlap=pd.Timedelta(0), close
 
     """
 
-    start = start + ModisBegin()
+    modis = ModisBegin()
+    start = modis.apply(start)
 
     left = [start]
     for i in range(1, intervals):
-        start = start + ModisBegin()
+        start = modis.apply(start)
         left.append(start - i * overlap)
     left = pd.DatetimeIndex(left)
 
