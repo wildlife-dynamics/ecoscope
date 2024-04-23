@@ -129,6 +129,7 @@ class EarthRangerIO(ERClient):
         id=None,
         updated_until=None,
         group_name=None,
+        max_ids_per_request=50,
         **addl_kwargs,
     ):
         """
@@ -178,11 +179,39 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = pd.DataFrame(
-            self.get_objects_multithreaded(
-                object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+        chunk_requests = False
+        if params.get("id") is not None:
+            subject_ids = params.get("id").split(",")
+
+            if len(subject_ids) > max_ids_per_request:
+                chunk_requests = True
+
+        if chunk_requests:
+            request_ids = [
+                subject_ids[i : i + max_ids_per_request] for i in range(0, len(subject_ids), max_ids_per_request)
+            ]
+            subjects = []
+
+            for chunked_ids in request_ids:
+                chunked_params = params.copy()
+                chunked_params["id"] = ",".join(chunked_ids)
+                subjects.append(
+                    pd.DataFrame(
+                        self.get_objects_multithreaded(
+                            object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **chunked_params
+                        )
+                    )
+                )
+
+            df = pd.concat(subjects, ignore_index=True)
+
+        else:
+            df = pd.DataFrame(
+                self.get_objects_multithreaded(
+                    object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                )
             )
-        )
+
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
