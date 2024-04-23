@@ -17,7 +17,7 @@ if not pytest.earthranger:
 
 def test_get_subject_observations(er_io):
     relocations = er_io.get_subject_observations(
-        subject_ids=er_io.SUBJECT_IDS,
+        subjects=er_io.SUBJECT_IDS,
         include_subject_details=True,
         include_source_details=True,
         include_subjectsource_details=True,

@@ -339,7 +339,7 @@ class EarthRangerIO(ERClient):
 
     def get_subject_observations(
         self,
-        subject_ids,
+        subjects,
         include_source_details=False,
         include_subject_details=False,
         include_subjectsource_details=False,
@@ -350,8 +350,8 @@ class EarthRangerIO(ERClient):
         Get observations for each listed subject and create a `Relocations` object.
         Parameters
         ----------
-        subject_ids : str or list[str]
-            List of subject UUIDs
+        subjects : str or list[str] or pd.DataFrame
+            List of subject UUIDs, or a DataFrame of subjects
         include_source_details : bool, optional
             Whether to merge source info into dataframe
         include_subject_details : bool, optional
@@ -367,8 +367,14 @@ class EarthRangerIO(ERClient):
             Observations in `Relocations` format
         """
 
-        if isinstance(subject_ids, str):
-            subject_ids = [subject_ids]
+        if isinstance(subjects, str):
+            subject_ids = [subjects]
+        elif isinstance(subjects, list):
+            subject_ids = subjects
+        elif isinstance(subjects, pd.DataFrame):
+            subject_ids = subjects.id.tolist()
+        else:
+            raise ValueError(f"subjects must be either a str or list[str] or pd.DataFrame, not {type(subjects)}")
 
         observations = self._get_observations(subject_ids=subject_ids, **kwargs)
 
@@ -382,11 +388,18 @@ class EarthRangerIO(ERClient):
                 right_on="source__id",
             )
         if include_subject_details:
-            observations = observations.merge(
-                self.get_subjects(id=",".join(subject_ids), include_inactive=True).add_prefix("subject__"),
-                left_on="subject_id",
-                right_on="subject__id",
-            )
+            if isinstance(subjects, pd.DataFrame):
+                observations = observations.merge(
+                    subjects.add_prefix("subject__"),
+                    left_on="subject_id",
+                    right_on="subject__id",
+                )
+            else:
+                observations = observations.merge(
+                    self.get_subjects(id=",".join(subject_ids), include_inactive=True).add_prefix("subject__"),
+                    left_on="subject_id",
+                    right_on="subject__id",
+                )
 
         if include_subjectsource_details:
             observations = observations.merge(
@@ -478,11 +491,11 @@ class EarthRangerIO(ERClient):
         assert (subject_group is None) != (group_name is None)
 
         if subject_group:
-            subject_ids = self.get_subjects(subject_group=subject_group, include_inactive=include_inactive).id.tolist()
+            subjects = self.get_subjects(subject_group=subject_group, include_inactive=include_inactive)
         else:
-            subject_ids = self.get_subjects(group_name=group_name, include_inactive=include_inactive).id.tolist()
+            subjects = self.get_subjects(group_name=group_name, include_inactive=include_inactive)
 
-        return self.get_subject_observations(subject_ids, **kwargs)
+        return self.get_subject_observations(subjects, **kwargs)
 
     def get_event_types(self, include_inactive=False, **addl_kwargs):
         params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
