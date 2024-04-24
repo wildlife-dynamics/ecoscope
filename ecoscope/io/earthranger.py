@@ -2,7 +2,9 @@ import datetime
 import pytz
 import json
 import typing
+import math
 
+import numpy as np
 import geopandas as gpd
 import pandas as pd
 import requests
@@ -179,31 +181,24 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        chunk_requests = False
         if params.get("id") is not None:
-            subject_ids = params.get("id").split(",")
+            params["id"] = params.get("id").split(",")
 
-            if len(subject_ids) > max_ids_per_request:
-                chunk_requests = True
-
-        if chunk_requests:
-            request_ids = [
-                subject_ids[i : i + max_ids_per_request] for i in range(0, len(subject_ids), max_ids_per_request)
-            ]
-            subjects = []
-
-            for chunked_ids in request_ids:
-                chunked_params = params.copy()
-                chunked_params["id"] = ",".join(chunked_ids)
-                subjects.append(
-                    pd.DataFrame(
-                        self.get_objects_multithreaded(
-                            object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **chunked_params
-                        )
+            def partial_subjects(subjects):
+                params["id"] = ",".join(subjects)
+                return pd.DataFrame(
+                    self.get_objects_multithreaded(
+                        object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
                     )
                 )
 
-            df = pd.concat(subjects, ignore_index=True)
+            df = pd.concat(
+                [
+                    partial_subjects(s)
+                    for s in np.array_split(params["id"], math.ceil(len(params["id"]) / max_ids_per_request))
+                ],
+                ignore_index=True,
+            )
 
         else:
             df = pd.DataFrame(
@@ -368,7 +363,7 @@ class EarthRangerIO(ERClient):
 
     def get_subject_observations(
         self,
-        subjects,
+        subject_ids,
         include_source_details=False,
         include_subject_details=False,
         include_subjectsource_details=False,
@@ -379,7 +374,7 @@ class EarthRangerIO(ERClient):
         Get observations for each listed subject and create a `Relocations` object.
         Parameters
         ----------
-        subjects : str or list[str] or pd.DataFrame
+        subject_ids : str or list[str] or pd.DataFrame
             List of subject UUIDs, or a DataFrame of subjects
         include_source_details : bool, optional
             Whether to merge source info into dataframe
@@ -396,14 +391,12 @@ class EarthRangerIO(ERClient):
             Observations in `Relocations` format
         """
 
-        if isinstance(subjects, str):
-            subject_ids = [subjects]
-        elif isinstance(subjects, list):
-            subject_ids = subjects
-        elif isinstance(subjects, pd.DataFrame):
-            subject_ids = subjects.id.tolist()
-        else:
-            raise ValueError(f"subjects must be either a str or list[str] or pd.DataFrame, not {type(subjects)}")
+        if isinstance(subject_ids, str):
+            subject_ids = [subject_ids]
+        elif isinstance(subject_ids, pd.DataFrame):
+            subject_ids = subject_ids.id.tolist()
+        elif not isinstance(subject_ids, list):
+            raise ValueError(f"subject_ids must be either a str or list[str] or pd.DataFrame, not {type(subject_ids)}")
 
         observations = self._get_observations(subject_ids=subject_ids, **kwargs)
 
@@ -417,9 +410,9 @@ class EarthRangerIO(ERClient):
                 right_on="source__id",
             )
         if include_subject_details:
-            if isinstance(subjects, pd.DataFrame):
+            if isinstance(subject_ids, pd.DataFrame):
                 observations = observations.merge(
-                    subjects.add_prefix("subject__"),
+                    subject_ids.add_prefix("subject__"),
                     left_on="subject_id",
                     right_on="subject__id",
                 )

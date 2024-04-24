@@ -17,7 +17,7 @@ if not pytest.earthranger:
 
 def test_get_subject_observations(er_io):
     relocations = er_io.get_subject_observations(
-        subjects=er_io.SUBJECT_IDS,
+        subject_ids=er_io.SUBJECT_IDS,
         include_subject_details=True,
         include_source_details=True,
         include_subjectsource_details=True,
@@ -222,8 +222,6 @@ def test_get_spatial_features_group(er_io):
 def test_get_subjects_chunking(er_io):
     subject_ids = ",".join(er_io.SUBJECT_IDS)
     single_request_result = er_io.get_subjects(id=subject_ids)
-    print(f"single {single_request_result}")
     chunked_request_result = er_io.get_subjects(id=subject_ids, max_ids_per_request=1)
-    print(f"chunk {chunked_request_result}")
 
     pd.testing.assert_frame_equal(single_request_result, chunked_request_result)
