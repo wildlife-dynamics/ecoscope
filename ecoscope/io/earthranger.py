@@ -491,13 +491,15 @@ class EarthRangerIO(ERClient):
         else:
             return observations
 
-    def get_subjectgroup_observations(self, subject_group=None, group_name=None, include_inactive=True, **kwargs):
+    def get_subjectgroup_observations(
+        self, subject_group_id=None, subject_group_name=None, include_inactive=True, **kwargs
+    ):
         """
         Parameters
         ----------
-        subject_group : str
+        subject_group_id : str
             UUID of subject group to filter by
-        group_name : str
+        subject_group_name : str
             Common name of subject group to filter by
         include_inactive : bool, optional
             Whether to get observations for Subjects marked inactive by EarthRanger
@@ -510,12 +512,12 @@ class EarthRangerIO(ERClient):
             Observations in `Relocations` format
         """
 
-        assert (subject_group is None) != (group_name is None)
+        assert (subject_group_id is None) != (subject_group_name is None)
 
-        if subject_group:
-            subjects = self.get_subjects(subject_group=subject_group, include_inactive=include_inactive)
+        if subject_group_id:
+            subjects = self.get_subjects(subject_group=subject_group_id, include_inactive=include_inactive)
         else:
-            subjects = self.get_subjects(group_name=group_name, include_inactive=include_inactive)
+            subjects = self.get_subjects(group_name=subject_group_name, include_inactive=include_inactive)
 
         return self.get_subject_observations(subjects, **kwargs)
 

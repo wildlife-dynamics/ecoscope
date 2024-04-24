@@ -11,7 +11,7 @@ import ecoscope
 @pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_trajectory_is_not_empty(er_io):
     # test there is actually data in trajectory
-    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
     assert not trajectory.empty
 
@@ -19,7 +19,7 @@ def test_trajectory_is_not_empty(er_io):
 @pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_redundant_columns_in_trajectory(er_io):
     # test there is no redundant column in trajectory
-    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
     assert "extra__fixtime" not in trajectory
     assert "extra___fixtime" not in trajectory
@@ -28,7 +28,7 @@ def test_redundant_columns_in_trajectory(er_io):
 
 @pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_relocs_speedfilter(er_io):
-    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     relocs_speed_filter = ecoscope.base.RelocsSpeedFilter(max_speed_kmhr=8)
     relocs_after_filter = relocations.apply_reloc_filter(relocs_speed_filter)
     relocs_after_filter.remove_filtered(inplace=True)
@@ -37,7 +37,7 @@ def test_relocs_speedfilter(er_io):
 
 @pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_relocs_distancefilter(er_io):
-    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     relocs_speed_filter = ecoscope.base.RelocsDistFilter(min_dist_km=1.0, max_dist_km=6.0)
     relocs_after_filter = relocations.apply_reloc_filter(relocs_speed_filter)
     relocs_after_filter.remove_filtered(inplace=True)
@@ -46,7 +46,7 @@ def test_relocs_distancefilter(er_io):
 
 @pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_relocations_from_gdf_preserve_fields(er_io):
-    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     gpd.testing.assert_geodataframe_equal(relocations, ecoscope.base.Relocations.from_gdf(relocations))
 
 
