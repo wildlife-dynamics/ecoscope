@@ -124,13 +124,13 @@ class EarthRangerIO(ERClient):
         self,
         include_inactive=None,
         bbox=None,
-        subject_group=None,
+        subject_group_id=None,
         name=None,
         updated_since=None,
         tracks=None,
         id=None,
         updated_until=None,
-        group_name=None,
+        subject_group_name=None,
         max_ids_per_request=50,
         **addl_kwargs,
     ):
@@ -140,13 +140,15 @@ class EarthRangerIO(ERClient):
         include_inactive: Include inactive subjects in list.
         bbox: Include subjects having track data within this bounding box defined by a 4-tuple of coordinates marking
             west, south, east, north.
-        subject_group: Indicate a subject group for which Subjects should be listed.
+        subject_group_id: Indicate a subject group id for which Subjects should be listed.
+            This is translated to the subject_group parameter in the ER backend
         name : Find subjects with the given name
         updated_since: Return Subject that have been updated since the given timestamp.
         tracks: Indicate whether to render each subject's recent tracks.
         id: A comma-delimited list of Subject IDs.
         updated_until
-        group_name
+        subject_group_name: A subject group name for which Subjects should be listed.
+            This is translated to the group_name parameter in the ER backend
         Returns
         -------
         subjects : pd.DataFrame
@@ -156,13 +158,13 @@ class EarthRangerIO(ERClient):
             addl_kwargs,
             include_inactive=include_inactive,
             bbox=bbox,
-            subject_group=subject_group,
+            subject_group=subject_group_id,
             name=name,
             updated_since=updated_since,
             tracks=tracks,
             id=id,
             updated_until=updated_until,
-            group_name=group_name,
+            group_name=subject_group_name,
         )
 
         assert params.get("subject_group") is None or params.get("group_name") is None
