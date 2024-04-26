@@ -68,6 +68,7 @@ def test_get_subjectsource_no_observations(er_io):
 def test_get_subjectgroup_observations(er_io):
     relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     assert "groupby_col" in relocations
+    assert len(relocations["extra__subject_id"].unique()) == 2
 
 
 def test_get_events(er_events_io):
