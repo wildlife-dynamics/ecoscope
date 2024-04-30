@@ -517,9 +517,9 @@ class EarthRangerIO(ERClient):
         assert (subject_group_id is None) != (subject_group_name is None)
 
         if subject_group_id:
-            subjects = self.get_subjects(subject_group=subject_group_id, include_inactive=include_inactive)
+            subjects = self.get_subjects(subject_group_id=subject_group_id, include_inactive=include_inactive)
         else:
-            subjects = self.get_subjects(group_name=subject_group_name, include_inactive=include_inactive)
+            subjects = self.get_subjects(subject_group_name=subject_group_name, include_inactive=include_inactive)
 
         return self.get_subject_observations(subjects, **kwargs)
 
