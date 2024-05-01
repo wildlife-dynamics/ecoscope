@@ -57,7 +57,7 @@ def test_displacement_property(movbank_relocations):
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
-        trajectory.groupby("groupby_col").apply(ecoscope.base.Trajectory.get_displacement),
+        trajectory.groupby("groupby_col")[trajectory.columns].apply(ecoscope.base.Trajectory.get_displacement),
         expected,
     )
 
@@ -69,7 +69,9 @@ def test_tortuosity(movbank_relocations):
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
-        trajectory.groupby("groupby_col").apply(ecoscope.base.Trajectory.get_tortuosity),
+        trajectory.groupby("groupby_col")[trajectory.columns].apply(
+            ecoscope.base.Trajectory.get_tortuosity, include_groups=False
+        ),
         expected,
     )
 
@@ -158,6 +160,8 @@ def test_daynight_ratio(movbank_relocations):
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
-        trajectory.groupby("groupby_col").apply(ecoscope.base.Trajectory.get_daynight_ratio),
+        trajectory.groupby("groupby_col")[trajectory.columns].apply(
+            ecoscope.base.Trajectory.get_daynight_ratio, include_groups=False
+        ),
         expected,
     )
