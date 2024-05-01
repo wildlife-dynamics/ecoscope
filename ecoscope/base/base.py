@@ -273,13 +273,13 @@ class Relocations(EcoDataFrame):
             frame.to_crs(4326)
             if isinstance(fix_filter, RelocsSpeedFilter):
                 frame._update_inplace(
-                    frame.groupby("groupby_col")
+                    frame.groupby("groupby_col")[frame.columns]
                     .apply(self._apply_speedfilter, fix_filter=fix_filter)
                     .droplevel(["groupby_col"])
                 )
             elif isinstance(fix_filter, RelocsDistFilter):
                 frame._update_inplace(
-                    frame.groupby("groupby_col")
+                    frame.groupby("groupby_col")[frame.columns]
                     .apply(self._apply_distfilter, fix_filter=fix_filter)
                     .droplevel(["groupby_col"])
                 )
@@ -354,7 +354,7 @@ class Trajectory(EcoDataFrame):
         gdf = EcoDataFrame(gdf)
         crs = gdf.crs
         gdf.to_crs(4326, inplace=True)
-        gdf = gdf.groupby("groupby_col").apply(cls._create_multitraj).droplevel(level=0)
+        gdf = gdf.groupby("groupby_col")[gdf.columns].apply(cls._create_multitraj).droplevel(level=0)
         gdf.to_crs(crs, inplace=True)
         gdf.sort_values("segment_start", inplace=True)
         return cls(gdf, *args, **kwargs)
@@ -527,7 +527,11 @@ class Trajectory(EcoDataFrame):
             return ((traj["heading"].diff() + 540) % 360 - 180)[traj["segment_end"].shift(1) == traj["segment_start"]]
 
         uniq = self.groupby_col.nunique()
-        angles = self.groupby("groupby_col").apply(turn_angle).droplevel(0) if uniq > 1 else turn_angle(self)
+        angles = (
+            self.groupby("groupby_col")[self.columns].apply(turn_angle, include_groups=False).droplevel(0)
+            if uniq > 1
+            else turn_angle(self)
+        )
 
         return angles.rename("turn_angle").reindex(self.index)
 
@@ -570,7 +574,9 @@ class Trajectory(EcoDataFrame):
                 crs=traj.crs,
             )
 
-        return Relocations.from_gdf(self.groupby("groupby_col").apply(f).reset_index(level=0))
+        return Relocations.from_gdf(
+            self.groupby("groupby_col")[self.columns].apply(f, include_groups=False).reset_index(level=0)
+        )
 
     def to_relocations(self):
         """
@@ -595,7 +601,9 @@ class Trajectory(EcoDataFrame):
                 .sort_values("fixtime")
             )
 
-        return Relocations.from_gdf(self.groupby("groupby_col").apply(f).reset_index(drop=True))
+        return Relocations.from_gdf(
+            self.groupby("groupby_col")[self.columns].apply(f, include_groups=False).reset_index(drop=True)
+        )
 
     def downsample(self, freq, tolerance="0S", interpolation=False):
         """
@@ -651,7 +659,8 @@ class Trajectory(EcoDataFrame):
                 relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
                 return relocs_ind
 
-            return Relocations(self.to_relocations().groupby("groupby_col").apply(f).reset_index(drop=True))
+            relocs = self.to_relocations()
+            return relocs.groupby("groupby_col")[relocs.columns].apply(f).reset_index(drop=True)
 
     @staticmethod
     def _straighttrack_properties(df: gpd.GeoDataFrame):
