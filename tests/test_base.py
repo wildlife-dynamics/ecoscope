@@ -106,7 +106,7 @@ def test_turn_angle(movbank_relocations):
 def test_sampling(movbank_relocations):
     relocs_1 = ecoscope.base.Relocations.from_gdf(
         gpd.GeoDataFrame(
-            {"fixtime": pd.date_range(0, periods=1000, freq="1S", tz="utc")},
+            {"fixtime": pd.date_range(0, periods=1000, freq="1s", tz="utc")},
             geometry=gpd.points_from_xy(x=np.zeros(1000), y=np.linspace(0, 1, 1000)),
             crs=4326,
         )
@@ -116,7 +116,7 @@ def test_sampling(movbank_relocations):
 
     relocs_2 = ecoscope.base.Relocations.from_gdf(
         gpd.GeoDataFrame(
-            {"fixtime": pd.date_range(0, periods=10000, freq="2S", tz="utc")},
+            {"fixtime": pd.date_range(0, periods=10000, freq="2s", tz="utc")},
             geometry=gpd.points_from_xy(x=np.zeros(10000), y=np.linspace(0, 1, 10000)),
             crs=4326,
         )
