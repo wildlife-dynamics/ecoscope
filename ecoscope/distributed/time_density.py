@@ -8,27 +8,10 @@ except ImportError:
     Field = dict
     BeforeValidator = tuple
 
+from ecoscope.distributed.types import InputDataframe, OutputDataframe
+
 # TODO: move "Magic" types into ecoscope.distributed.types
 # TODO: ENVIRONMENT + METAL
-
-PixelSize = Annotated[
-    float,
-    Field(default=250.0, description="Pixel size for raster profile."),
-    # Custom Deserializer ("Validator"),
-    # Custom Serializer,
-]
-
-def persist_dataframe(df: pd.DataFrame):
-    # persist dataframe here
-    url = ...
-    return url
-
-
-MaybePersistDataframe = Annotated[
-    pd.DataFrame,
-    AfterValidator(persist_dataframe)
-]
-
 # TODO: Resources, environment, result serialization
 
 # Backend database:
@@ -43,8 +26,11 @@ MaybePersistDataframe = Annotated[
 
 def calculate_time_density(
     # raster profile
-    input_table: MaybeFromSerializedDataframe,
-    pixel_size: PixelSize,
+    input_df: InputDataframe,
+    pixel_size: Annotated[
+        float,
+        Field(default=250.0, description="Pixel size for raster profile."),
+    ],
     crs: Annotated[str, Field(default="ESRI:102022")],
     nodata_value: Annotated[float, Field(default=float("nan"), allow_inf_nan=True)],
     band_count: Annotated[int, Field(default=1)],
@@ -52,7 +38,7 @@ def calculate_time_density(
     max_speed_factor: Annotated[float, Field()],
     expansion_factor: Annotated[float, Field],
     percentiles: Annotated[list[float], Field()],
-) -> MaybePersistDataframe:
+) -> OutputDataframe:
     # This is "exactly" what you would prototype in a notebook
     import geopandas as gpd
 
@@ -65,7 +51,7 @@ def calculate_time_density(
         nodata_value=nodata_value,
         band_count=band_count,
     )
-    return input_table.eco.calculate_time_density(
+    return input_df.eco.calculate_time_density(
         max_speed_factor=max_speed_factor,
         expansion_factor=expansion_factor,
         percentiles=percentiles,
