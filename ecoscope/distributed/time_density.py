@@ -1,14 +1,6 @@
 from typing import Annotated
 
-import pandas as pd  # FIXME
-try:
-    from pydantic import Field
-    from pydantic.functional_validators import AfterValidator, BeforeValidator
-except ImportError:
-    Field = dict
-    BeforeValidator = tuple
-
-from ecoscope.distributed.types import InputDataframe, OutputDataframe
+from ecoscope.distributed.types import Field, InputDataframe, OutputDataframe
 
 # TODO: move "Magic" types into ecoscope.distributed.types
 # TODO: ENVIRONMENT + METAL

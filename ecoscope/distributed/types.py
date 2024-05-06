@@ -3,7 +3,6 @@ from typing import Annotated
 import pandas as pd  # FIXME
 
 try:
-    ...
     from pydantic import Field
     from pydantic.functional_validators import AfterValidator, BeforeValidator
 except ImportError:
