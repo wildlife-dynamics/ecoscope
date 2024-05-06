@@ -1,0 +1,89 @@
+from typing import Annotated
+
+import pandas as pd  # FIXME
+try:
+    from pydantic import Field
+    from pydantic.functional_validators import AfterValidator, BeforeValidator
+except ImportError:
+    Field = dict
+    BeforeValidator = tuple
+
+# TODO: move "Magic" types into ecoscope.distributed.types
+# TODO: ENVIRONMENT + METAL
+
+PixelSize = Annotated[
+    float,
+    Field(default=250.0, description="Pixel size for raster profile."),
+    # Custom Deserializer ("Validator"),
+    # Custom Serializer,
+]
+
+def maybe_load_dataframe_from_url(url_or_table: pd.DataFrame | str):
+    import geopandas as gpd
+
+    return url_or_table if isinstance(url_or_table, pd.DataFrame) else gpd.read_parquet(url_or_table)
+
+MaybeFromSerializedDataframe = Annotated[
+    pd.DataFrame | str,
+    BeforeValidator(maybe_load_dataframe_from_url)
+]
+
+def persist_dataframe(df: pd.DataFrame):
+    # persist dataframe here
+    url = ...
+    return url
+
+
+MaybePersistDataframe = Annotated[
+    pd.DataFrame,
+    AfterValidator(persist_dataframe)
+]
+
+# TODO: Resources, environment, result serialization
+
+# Backend database:
+#   Workflows
+#     "Time Density":
+#         Tasks: [
+#             "ecoscope.distributed.calculate_time_density",
+#             "fifty_one_degrees.custom.func",
+#           ]
+# CANT EXPECT ANYTHING IN MEMORY AT CALL TIME
+
+
+def calculate_time_density(
+    # raster profile
+    input_table: MaybeFromSerializedDataframe,
+    pixel_size: PixelSize,
+    crs: Annotated[str, Field(default="ESRI:102022")],
+    nodata_value: Annotated[float, Field(default=float("nan"), allow_inf_nan=True)],
+    band_count: Annotated[int, Field(default=1)],
+    # time density
+    max_speed_factor: Annotated[float, Field()],
+    expansion_factor: Annotated[float, Field],
+    percentiles: Annotated[list[float], Field()],
+) -> MaybePersistDataframe:
+    # This is "exactly" what you would prototype in a notebook
+    import geopandas as gpd
+
+    import ecoscope
+    from ecoscope.io.raster import RasterProfile
+
+    raster_profile = RasterProfile(
+        pixel_size=pixel_size,
+        crs=crs,
+        nodata_value=nodata_value,
+        band_count=band_count,
+    )
+    return input_table.eco.calculate_time_density(
+        max_speed_factor=max_speed_factor,
+        expansion_factor=expansion_factor,
+        percentiles=percentiles,
+        raster_profile=raster_profile,
+    )
+
+
+# in airflow
+from pydantic import validate_call
+
+validate_call(calculate_time_density, validate_return=True)
