@@ -18,16 +18,6 @@ PixelSize = Annotated[
     # Custom Serializer,
 ]
 
-def maybe_load_dataframe_from_url(url_or_table: pd.DataFrame | str):
-    import geopandas as gpd
-
-    return url_or_table if isinstance(url_or_table, pd.DataFrame) else gpd.read_parquet(url_or_table)
-
-MaybeFromSerializedDataframe = Annotated[
-    pd.DataFrame | str,
-    BeforeValidator(maybe_load_dataframe_from_url)
-]
-
 def persist_dataframe(df: pd.DataFrame):
     # persist dataframe here
     url = ...
