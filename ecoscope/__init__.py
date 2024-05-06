@@ -1,4 +1,5 @@
-from ecoscope import analysis, base, contrib, io, mapping, plotting
+# FIXME: https://github.com/wildlife-dynamics/ecoscope/issues/142
+# from ecoscope import analysis, base, contrib, io, mapping, plotting
 
 ASCII = """\
  _____
