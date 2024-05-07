@@ -16,7 +16,7 @@ def df_with_parquet_path(tmp_path) -> tuple[pd.DataFrame, str, pa.DataFrameModel
     df = pd.DataFrame(data={'col1': [1, 2], 'col2': [3, 4]})
     df.to_parquet(path)
 
-    class Schema(edt.DataFrameModel):
+    class Schema(edt.JsonSerializableDataFrameModel):
         col1: PanderaSeries[int] = pa.Field(unique=True)
         col2: PanderaSeries[int] = pa.Field(unique=True)
 
@@ -63,7 +63,7 @@ def test_InputDataframe_schema_validation_passes(df_with_parquet_path):
 def test_InputDataframe_schema_validation_fails(df_with_parquet_path):
     _, parquet_path, _ = df_with_parquet_path
 
-    class IncorrectSchema(edt.DataFrameModel):
+    class IncorrectSchema(edt.JsonSerializableDataFrameModel):
         col1: PanderaSeries[str] = pa.Field(unique=True)
 
     def get_df(df: edt.InputDataframe[IncorrectSchema]):

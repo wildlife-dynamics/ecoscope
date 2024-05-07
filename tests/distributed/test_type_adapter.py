@@ -3,7 +3,7 @@ from typing import Annotated, get_args
 
 import numpy as np
 import pandera as pa
-from pandera.typing import DataFrame as PanderaDataFrame, Series as PanderaSeries
+from pandera.typing import Series as PanderaSeries
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import GenerateJsonSchema
@@ -54,37 +54,27 @@ class SurfacesDescriptionSchema(MatchingSchema):
 
 def test_DataFrameModel_generate_schema():
 
-    class Schema(edt.DataFrameModel):
+    class Schema(edt.JsonSerializableDataFrameModel):
         col1: PanderaSeries[int] = pa.Field(unique=True)
 
     schema = TypeAdapter(Schema).json_schema()
     assert schema == Schema.to_json_schema()
 
 
-def test_PanderaDataframe_generate_schema():
-
-    class Schema(edt.DataFrameModel):
-        col1: PanderaSeries[int] = pa.Field(unique=True)
-
-    P = PanderaDataFrame[Schema]
-    schema = TypeAdapter(P).json_schema()
-    assert schema
-
-
 def test_InputDataframe_generate_schema():
 
-    class Schema(edt.DataFrameModel):
+    class Schema(edt.JsonSerializableDataFrameModel):
         col1: PanderaSeries[int] = pa.Field(unique=True)
 
     Foo = edt.InputDataframe[Schema]
     schema = TypeAdapter(Foo).json_schema()
-    breakpoint()
-    assert schema
+    assert schema == {'type': 'ecoscope.distributed.types.InputDataframe'}
+
 
 def test_jsonschema_from_signature_nontrivial():
     config_dict = ConfigDict(arbitrary_types_allowed=True)
 
-    class Schema(edt.DataFrameModel):
+    class Schema(edt.JsonSerializableDataFrameModel):
         col1: PanderaSeries[int] = pa.Field(unique=True)
 
     class TimeDensityConfig(BaseModel):
