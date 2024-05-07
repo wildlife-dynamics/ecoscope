@@ -2,8 +2,10 @@ import pathlib
 from typing import Callable
 
 import pandas as pd
+import pandera as pa
 import pytest
-from pydantic import validate_call
+from pandera.typing import DataFrame as PanderaDataframe, Series as PanderaSeries
+from pydantic import ValidationError, validate_call
 
 import ecoscope.distributed.types as edt
 
@@ -39,9 +41,42 @@ def test_InputDataframe_coercion(df_with_parquet_path: tuple[pd.DataFrame, str])
     pd.testing.assert_frame_equal(df, df_from_path_with_coercion)
 
 
-# TODO: test BaseModel generation for frontend schema
-# TODO: Results model -> i.e. **validate/serialize return valies**
+def test_InputDataframe_schema_validation_passes(df_with_parquet_path):
+    
+    class Schema(pa.DataFrameModel):
+        col1: PanderaSeries[int] = pa.Field(unique=True)
+        col2: PanderaSeries[int] = pa.Field(unique=True)
+
+    def get_df(df: edt.InputDataframe[PanderaDataframe[Schema]]):
+        return df
+
+    df, parquet_path = df_with_parquet_path
+    get_df_with_coercion: Callable = validate_call(
+        get_df, config={"arbitrary_types_allowed": True},
+    )
+    df_from_path_with_coercion = get_df_with_coercion(parquet_path)
+    assert isinstance(df_from_path_with_coercion, pd.DataFrame)
+    pd.testing.assert_frame_equal(df, df_from_path_with_coercion)
+
+
+def test_InputDataframe_schema_validation_fails(df_with_parquet_path):
+
+    class Schema(pa.DataFrameModel):
+        col1: PanderaSeries[str] = pa.Field(unique=True)
+
+    def get_df(df: edt.InputDataframe[PanderaDataframe[Schema]]):
+        return df
+
+    _, parquet_path = df_with_parquet_path
+    get_df_with_coercion: Callable = validate_call(
+        get_df, config={"arbitrary_types_allowed": True},
+    )
+    with pytest.raises(ValidationError):
+        _ = get_df_with_coercion(parquet_path)
+
+
+# TODO: Results model -> i.e. **validate/serialize return values**
 # TODO: hardware/metal
-# TODO: pandera
 # TODO: importable with minimal dependencies
 # TODO: notebook example
+# TODO: double decorator for validate call? e.g. `@checkpoint/@cache`
