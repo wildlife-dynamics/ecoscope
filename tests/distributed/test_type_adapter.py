@@ -35,6 +35,7 @@ def test_jsonschema_from_signature_basic():
     assert from_func == from_model
 
 
+# Workaround for https://github.com/pydantic/pydantic/issues/9404
 class SurfacesDescriptionSchema(MatchingSchema):
     def generate(self, schema, mode='validation'):
         json_schema = super().generate(schema, mode=mode)
