@@ -1,7 +1,9 @@
-from typing import Annotated
+from inspect import signature
+from typing import Annotated, get_args
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic.fields import FieldInfo
 from pydantic.json_schema import GenerateJsonSchema
 
 import ecoscope.distributed.types as etd
@@ -33,6 +35,19 @@ def test_jsonschema_from_signature_basic():
     assert from_func == from_model
 
 
+class SurfacesDescriptionSchema(MatchingSchema):
+    def generate(self, schema, mode='validation'):
+        json_schema = super().generate(schema, mode=mode)
+        if "function" in schema:
+            for p in json_schema["properties"]:
+                annotation_args = get_args(signature(schema["function"]).parameters[p].annotation)
+                if any([isinstance(arg, FieldInfo) for arg in annotation_args]):
+                    Field: FieldInfo = [arg for arg in annotation_args if isinstance(arg, FieldInfo)][0]
+                    if Field.description:
+                        json_schema["properties"][p]["description"] = Field.description
+        return json_schema
+
+
 def test_jsonschema_from_signature_nontrivial():
     config_dict = ConfigDict(arbitrary_types_allowed=True)
 
@@ -42,7 +57,7 @@ def test_jsonschema_from_signature_nontrivial():
         input_df: etd.InputDataframe
         pixel_size: Annotated[
             float,
-            Field(default=250.0) # , description="Pixel size for raster profile."),
+            Field(default=250.0, description="Pixel size for raster profile."),
         ]
         crs: Annotated[str, Field(default="ESRI:102022")]
         nodata_value: Annotated[float, Field(default=float("nan"), allow_inf_nan=True)]
@@ -55,7 +70,7 @@ def test_jsonschema_from_signature_nontrivial():
         input_df: etd.InputDataframe,
         pixel_size: Annotated[
             float,
-            Field(default=250.0)  # , description="Pixel size for raster profile."),
+            Field(default=250.0, description="Pixel size for raster profile."),
         ],
         crs: Annotated[str, Field(default="ESRI:102022")],
         nodata_value: Annotated[float, Field(default=float("nan"), allow_inf_nan=True)],
@@ -65,7 +80,7 @@ def test_jsonschema_from_signature_nontrivial():
         percentiles: Annotated[list[float], Field(default=[50.0, 60.0, 70.0, 80.0, 90.0, 95.0])],
     ): ...
 
-    schema_kws = dict(schema_generator=MatchingSchema)
+    schema_kws = dict(schema_generator=SurfacesDescriptionSchema)
     from_func = TypeAdapter(
         calculate_time_density,
         config=config_dict,
