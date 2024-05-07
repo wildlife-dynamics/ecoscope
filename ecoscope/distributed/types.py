@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, TypeVar
 
 import pandas as pd  # FIXME
 
@@ -10,18 +10,16 @@ except ImportError:
     BeforeValidator = tuple
 
 
-def maybe_load_dataframe_from_parquet_url(url_or_table: pd.DataFrame | str):
-    return (
-        url_or_table
-        if isinstance(url_or_table, pd.DataFrame)
-        # TODO: geopandas read_parquet
-        else pd.read_parquet(url_or_table)
-    )
+def load_dataframe_from_parquet_url(url: str):
+    # TODO: geopandas read_parquet
+    return pd.read_parquet(url)
 
+
+DataframeSchemaPlaceholder = TypeVar("DataframeSchemaPlaceholder")
 
 InputDataframe = Annotated[
-    pd.DataFrame | str,
-    BeforeValidator(maybe_load_dataframe_from_parquet_url)
+    DataframeSchemaPlaceholder,
+    BeforeValidator(load_dataframe_from_parquet_url)
 ]
 
 
@@ -32,6 +30,6 @@ def persist_dataframe(df: pd.DataFrame):
 
 
 OutputDataframe = Annotated[
-    pd.DataFrame,
+    DataframeSchemaPlaceholder,
     AfterValidator(persist_dataframe)
 ]
