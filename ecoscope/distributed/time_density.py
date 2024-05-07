@@ -1,5 +1,8 @@
 from typing import Annotated
 
+import pandera as pa
+from pandera.typing import DataFrame as PanderaDataframe, Series as PanderaSeries
+
 from ecoscope.distributed.types import Field, InputDataframe, OutputDataframe
 
 # TODO: move "Magic" types into ecoscope.distributed.types
@@ -16,9 +19,13 @@ from ecoscope.distributed.types import Field, InputDataframe, OutputDataframe
 # CANT EXPECT ANYTHING IN MEMORY AT CALL TIME
 
 
+class Schema(pa.DataFrameModel):
+    col1: PanderaSeries[str] = pa.Field(unique=True)
+
+
 def calculate_time_density(
     # raster profile
-    input_df: InputDataframe,
+    input_df: InputDataframe[PanderaDataframe[Schema]],
     pixel_size: Annotated[
         float,
         Field(default=250.0, description="Pixel size for raster profile."),
