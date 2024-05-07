@@ -2,11 +2,14 @@ from inspect import signature
 from typing import Annotated, get_args
 
 import numpy as np
+import pandera as pa
+from pandera.typing import DataFrame as PanderaDataFrame, Series as PanderaSeries
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import GenerateJsonSchema
 
-import ecoscope.distributed.types as etd
+import ecoscope.distributed.types as edt
+
 
 class MatchingSchema(GenerateJsonSchema):
     def generate(self, schema, mode='validation'):
@@ -39,7 +42,7 @@ def test_jsonschema_from_signature_basic():
 class SurfacesDescriptionSchema(MatchingSchema):
     def generate(self, schema, mode='validation'):
         json_schema = super().generate(schema, mode=mode)
-        if "function" in schema:
+        if "function" in schema and "properties" in json_schema:
             for p in json_schema["properties"]:
                 annotation_args = get_args(signature(schema["function"]).parameters[p].annotation)
                 if any([isinstance(arg, FieldInfo) for arg in annotation_args]):
@@ -49,13 +52,45 @@ class SurfacesDescriptionSchema(MatchingSchema):
         return json_schema
 
 
+def test_DataFrameModel_generate_schema():
+
+    class Schema(edt.DataFrameModel):
+        col1: PanderaSeries[int] = pa.Field(unique=True)
+
+    schema = TypeAdapter(Schema).json_schema()
+    assert schema == Schema.to_json_schema()
+
+
+def test_PanderaDataframe_generate_schema():
+
+    class Schema(edt.DataFrameModel):
+        col1: PanderaSeries[int] = pa.Field(unique=True)
+
+    P = PanderaDataFrame[Schema]
+    schema = TypeAdapter(P).json_schema()
+    assert schema
+
+
+def test_InputDataframe_generate_schema():
+
+    class Schema(edt.DataFrameModel):
+        col1: PanderaSeries[int] = pa.Field(unique=True)
+
+    Foo = edt.InputDataframe[Schema]
+    schema = TypeAdapter(Foo).json_schema()
+    breakpoint()
+    assert schema
+
 def test_jsonschema_from_signature_nontrivial():
     config_dict = ConfigDict(arbitrary_types_allowed=True)
+
+    class Schema(edt.DataFrameModel):
+        col1: PanderaSeries[int] = pa.Field(unique=True)
 
     class TimeDensityConfig(BaseModel):
         model_config = config_dict
 
-        input_df: etd.InputDataframe
+        input_df: edt.InputDataframe[Schema]
         pixel_size: Annotated[
             float,
             Field(default=250.0, description="Pixel size for raster profile."),
@@ -68,7 +103,7 @@ def test_jsonschema_from_signature_nontrivial():
         percentiles: Annotated[list[float], Field(default=[50.0, 60.0, 70.0, 80.0, 90.0, 95.0])]
 
     def calculate_time_density(
-        input_df: etd.InputDataframe,
+        input_df: edt.InputDataframe[Schema],
         pixel_size: Annotated[
             float,
             Field(default=250.0, description="Pixel size for raster profile."),

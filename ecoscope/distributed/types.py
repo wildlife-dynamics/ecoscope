@@ -1,13 +1,29 @@
 from typing import Annotated, TypeVar
 
-import pandas as pd  # FIXME
+import pandas as pd
+import pandera as pa
+from pydantic_core import core_schema as cs
+from pandera.typing import DataFrame as PanderaDataFrame
+from pydantic import GetJsonSchemaHandler
+from pydantic.functional_validators import AfterValidator, BeforeValidator
+from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
 
-try:
-    from pydantic import Field
-    from pydantic.functional_validators import AfterValidator, BeforeValidator
-except ImportError:
-    Field = dict
-    BeforeValidator = tuple
+
+class DataFrameModel(pa.DataFrameModel):
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        return cls.to_json_schema()
+
+
+class Deserializer(BeforeValidator):
+    pass
+    # @classmethod
+    # def __get_pydantic_json_schema__(
+    #     cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler
+    # ) -> JsonSchemaValue:
+    #     return {}
 
 
 def load_dataframe_from_parquet_url(url: str):
@@ -15,11 +31,11 @@ def load_dataframe_from_parquet_url(url: str):
     return pd.read_parquet(url)
 
 
-DataframeSchemaPlaceholder = TypeVar("DataframeSchemaPlaceholder")
+DataframeSchema = TypeVar("DataframeSchema", bound=DataFrameModel)
 
 InputDataframe = Annotated[
-    DataframeSchemaPlaceholder,
-    BeforeValidator(load_dataframe_from_parquet_url)
+    PanderaDataFrame[DataframeSchema],
+    Deserializer(load_dataframe_from_parquet_url),
 ]
 
 
@@ -30,6 +46,6 @@ def persist_dataframe(df: pd.DataFrame):
 
 
 OutputDataframe = Annotated[
-    DataframeSchemaPlaceholder,
+    PanderaDataFrame[DataframeSchema],
     AfterValidator(persist_dataframe)
 ]

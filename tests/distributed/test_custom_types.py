@@ -4,24 +4,29 @@ from typing import Callable
 import pandas as pd
 import pandera as pa
 import pytest
-from pandera.typing import DataFrame as PanderaDataframe, Series as PanderaSeries
+from pandera.typing import Series as PanderaSeries
 from pydantic import ValidationError, validate_call
 
 import ecoscope.distributed.types as edt
 
 
 @pytest.fixture
-def df_with_parquet_path(tmp_path) -> tuple[pd.DataFrame, str]:
+def df_with_parquet_path(tmp_path) -> tuple[pd.DataFrame, str, pa.DataFrameModel]:
     path: pathlib.Path = tmp_path / "df.parquet"
     df = pd.DataFrame(data={'col1': [1, 2], 'col2': [3, 4]})
-    df.to_parquet(path)     
-    return df, path.as_posix()
+    df.to_parquet(path)
+
+    class Schema(edt.DataFrameModel):
+        col1: PanderaSeries[int] = pa.Field(unique=True)
+        col2: PanderaSeries[int] = pa.Field(unique=True)
+
+    return df, path.as_posix(), Schema
 
 
-def test_InputDataframe_coercion(df_with_parquet_path: tuple[pd.DataFrame, str]):
-    df, parquet_path = df_with_parquet_path
+def test_InputDataframe_coercion(df_with_parquet_path: tuple[pd.DataFrame, str, pa.DataFrameModel]):
+    df, parquet_path, Schema = df_with_parquet_path
 
-    def get_df(df: edt.InputDataframe):
+    def get_df(df: edt.InputDataframe[Schema]):  # type: ignore
         return df
 
     # without coercion: pass a df, get a df; pass a str, get a str
@@ -42,15 +47,11 @@ def test_InputDataframe_coercion(df_with_parquet_path: tuple[pd.DataFrame, str])
 
 
 def test_InputDataframe_schema_validation_passes(df_with_parquet_path):
-    
-    class Schema(pa.DataFrameModel):
-        col1: PanderaSeries[int] = pa.Field(unique=True)
-        col2: PanderaSeries[int] = pa.Field(unique=True)
+    df, parquet_path, Schema = df_with_parquet_path    
 
-    def get_df(df: edt.InputDataframe[PanderaDataframe[Schema]]):
+    def get_df(df: edt.InputDataframe[Schema]):  # type: ignore
         return df
 
-    df, parquet_path = df_with_parquet_path
     get_df_with_coercion: Callable = validate_call(
         get_df, config={"arbitrary_types_allowed": True},
     )
@@ -60,14 +61,14 @@ def test_InputDataframe_schema_validation_passes(df_with_parquet_path):
 
 
 def test_InputDataframe_schema_validation_fails(df_with_parquet_path):
+    _, parquet_path, _ = df_with_parquet_path
 
-    class Schema(pa.DataFrameModel):
+    class IncorrectSchema(edt.DataFrameModel):
         col1: PanderaSeries[str] = pa.Field(unique=True)
 
-    def get_df(df: edt.InputDataframe[PanderaDataframe[Schema]]):
+    def get_df(df: edt.InputDataframe[IncorrectSchema]):
         return df
 
-    _, parquet_path = df_with_parquet_path
     get_df_with_coercion: Callable = validate_call(
         get_df, config={"arbitrary_types_allowed": True},
     )
