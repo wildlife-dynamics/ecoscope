@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 import functools
@@ -12,6 +12,9 @@ class serde:
 
     def __post_init__(self):
         functools.update_wrapper(self, self.func)
+
+    def override(self, changes: dict):
+        return replace(self, changes)
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
