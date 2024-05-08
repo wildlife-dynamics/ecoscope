@@ -2,7 +2,6 @@ name: Tests
 on: [push, pull_request]
 jobs:
   Test:
-    environment: Testing
     name: ${{ matrix.os }}, ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     defaults:
