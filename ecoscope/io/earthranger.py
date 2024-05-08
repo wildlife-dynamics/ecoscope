@@ -574,7 +574,6 @@ class EarthRangerIO(ERClient):
             include_notes=include_notes,
             include_related_events=include_related_events,
             include_files=include_files,
-            exclude_subseconds=exclude_subseconds,
             max_results=max_results,
             oldest_update_date=oldest_update_date,
             exclude_contained=exclude_contained,
@@ -597,9 +596,8 @@ class EarthRangerIO(ERClient):
         )
 
         assert not df.empty
-        if exclude_subseconds:
-            df["time"] = df["time"].apply(lambda x: x.replace(microsecond=0) if x.microsecond > 0 else x)
-        df["time"] = pd.to_datetime(df["time"])
+
+        df["time"] = pd.to_datetime(df["time"], format="mixed")
 
         gdf = gpd.GeoDataFrame(df)
         if gdf.loc[0, "location"] is not None:
