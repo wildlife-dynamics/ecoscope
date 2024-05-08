@@ -8,6 +8,7 @@ import numpy as np
 import geopandas as gpd
 import pandas as pd
 import requests
+from dateutil import parser
 from erclient.client import ERClient, ERClientException, ERClientNotFound
 from tqdm.auto import tqdm
 
@@ -632,7 +633,11 @@ class EarthRangerIO(ERClient):
         )
 
         assert not df.empty
-        df["time"] = pd.to_datetime(df["time"])
+
+        def time_parse(time_to_parse):
+            return pd.to_datetime(parser.parse(time_to_parse))
+
+        df["time"] = df["time"].apply(time_parse)
 
         gdf = gpd.GeoDataFrame(df)
         if gdf.loc[0, "location"] is not None:
