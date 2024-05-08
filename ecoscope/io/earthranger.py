@@ -504,6 +504,7 @@ class EarthRangerIO(ERClient):
         include_notes=False,
         include_related_events=False,
         include_files=False,
+        exclude_subseconds=True,
         max_results=None,
         oldest_update_date=None,
         exclude_contained=None,
@@ -544,6 +545,8 @@ class EarthRangerIO(ERClient):
             Boolean value
         include_files
             Boolean value
+        exclude_subseconds
+            Boolean value. If True, values less than 1 second in the timestamp shall be zeroed out.
         max_results
         oldest_update_date
         exclude_contained
@@ -571,6 +574,7 @@ class EarthRangerIO(ERClient):
             include_notes=include_notes,
             include_related_events=include_related_events,
             include_files=include_files,
+            exclude_subseconds=exclude_subseconds,
             max_results=max_results,
             oldest_update_date=oldest_update_date,
             exclude_contained=exclude_contained,
@@ -593,7 +597,8 @@ class EarthRangerIO(ERClient):
         )
 
         assert not df.empty
-        df["time"] = df["time"].apply(lambda x: x.replace(microsecond=0) if x.microsecond > 0 else x)
+        if exclude_subseconds:
+            df["time"] = df["time"].apply(lambda x: x.replace(microsecond=0) if x.microsecond > 0 else x)
         df["time"] = pd.to_datetime(df["time"])
 
         gdf = gpd.GeoDataFrame(df)
