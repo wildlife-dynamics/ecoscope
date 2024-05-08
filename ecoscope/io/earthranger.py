@@ -593,7 +593,8 @@ class EarthRangerIO(ERClient):
         )
 
         assert not df.empty
-        df["time"] = pd.to_datetime(df["time"], format="mixed")
+        df["time"] = df["time"].apply(lambda x: x.replace(microsecond=0) if x.microsecond > 0 else x)
+        df["time"] = pd.to_datetime(df["time"])
 
         gdf = gpd.GeoDataFrame(df)
         if gdf.loc[0, "location"] is not None:
