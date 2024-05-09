@@ -3,6 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python==3.10.12 # Fixed to mirror version on Google Colab
+  - pandera
   - pip
   - git
   - jupyterlab
