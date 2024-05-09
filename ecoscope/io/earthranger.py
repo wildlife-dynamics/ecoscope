@@ -634,10 +634,7 @@ class EarthRangerIO(ERClient):
 
         assert not df.empty
 
-        def time_parse(time_to_parse):
-            return pd.to_datetime(parser.parse(time_to_parse))
-
-        df["time"] = df["time"].apply(time_parse)
+        df["time"] = df["time"].apply(lambda x: pd.to_datetime(parser.parse(x)))
 
         gdf = gpd.GeoDataFrame(df)
         if gdf.loc[0, "location"] is not None:
