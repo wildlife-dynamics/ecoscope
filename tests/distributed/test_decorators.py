@@ -1,4 +1,8 @@
-from ecoscope.distributed.decorators import distributed
+from typing import Annotated
+
+from pydantic.functional_validators import BeforeValidator
+
+from ecoscope.distributed.decorators import distributed, assign_arg_prevalidators
 
 
 def f(a: int, b: int) -> int:
@@ -22,3 +26,25 @@ def test_replace():
     # although we assigned arg_prevalidators, this is not
     # testing that they *work*, just that we can assign them
     assert d1(1, 2) == 3
+
+
+def test_assign_arg_prevalidators():
+    def initial_prevalidator(x):
+        return x
+
+    def f(a: Annotated[int, BeforeValidator(initial_prevalidator)]) -> int:
+        return a
+
+    f_meta: list[BeforeValidator] = f.__annotations__["a"].__metadata__
+    assert initial_prevalidator(1) == 1
+    assert f_meta[0].func(1) == 1
+
+    def new_prevalidator(x):
+        return x + 1
+
+    arg_prevalidators = {"a": new_prevalidator}
+    assign_arg_prevalidators(f, arg_prevalidators)
+
+    f_meta: list[BeforeValidator] = f.__annotations__["a"].__metadata__
+    assert new_prevalidator(1) == 2
+    assert f_meta[0].func(1) == 2
