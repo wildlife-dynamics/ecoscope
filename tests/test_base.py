@@ -50,8 +50,8 @@ def test_relocations_from_gdf_preserve_fields(er_io):
     gpd.testing.assert_geodataframe_equal(relocations, ecoscope.base.Relocations.from_gdf(relocations))
 
 
-def test_displacement_property(movbank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+def test_displacement_property(movebank_relocations):
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
         [2633.760505, 147749.545621],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
@@ -62,8 +62,8 @@ def test_displacement_property(movbank_relocations):
     )
 
 
-def test_tortuosity(movbank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+def test_tortuosity(movebank_relocations):
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
         [51.65388458528601, 75.96149479123005],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
@@ -76,8 +76,8 @@ def test_tortuosity(movbank_relocations):
     )
 
 
-def test_turn_angle(movbank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+def test_turn_angle(movebank_relocations):
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     trajectory = trajectory.loc[trajectory.groupby_col == "Habiba"].head(5)
     trajectory["heading"] = [0, 90, 120, 60, 300]
     turn_angle = trajectory.get_turn_angle()
@@ -103,7 +103,7 @@ def test_turn_angle(movbank_relocations):
     pandas.testing.assert_series_equal(turn_angle, expected)
 
 
-def test_sampling(movbank_relocations):
+def test_sampling(movebank_relocations):
     relocs_1 = ecoscope.base.Relocations.from_gdf(
         gpd.GeoDataFrame(
             {"fixtime": pd.date_range(0, periods=1000, freq="1s", tz="utc")},
@@ -131,9 +131,9 @@ def test_sampling(movbank_relocations):
         max_y=18,
         filter_point_coords=[[180, 90], [0, 0]],
     )
-    movbank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
-    movbank_relocations.remove_filtered(inplace=True)
-    trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+    movebank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
+    movebank_relocations.remove_filtered(inplace=True)
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     downsampled_relocs_noint = trajectory.downsample("10800S", tolerance="900S")
     downsampled_relocs_int = trajectory.downsample("10800S", interpolation=True)
 
@@ -150,8 +150,8 @@ def test_sampling(movbank_relocations):
 
 @pytest.mark.skip(reason="Intermittently fails. Need to fix in future PR")
 @pytest.mark.filterwarnings("ignore:Target with index", 'ignore: ERFA function "utctai"')
-def test_daynight_ratio(movbank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+def test_daynight_ratio(movebank_relocations):
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
         [
             2.212816,

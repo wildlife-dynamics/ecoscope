@@ -11,7 +11,7 @@ def test_download_file_github_csv():
     ECOSCOPE_RAW = "https://raw.githubusercontent.com/wildlife-dynamics/ecoscope/master"
     output_dir = "tests/test_output"
     ecoscope.io.download_file(
-        f"{ECOSCOPE_RAW}/tests/sample_data/vector/movbank_data.csv",
+        f"{ECOSCOPE_RAW}/tests/sample_data/vector/movebank_data.csv",
         os.path.join(output_dir, "download_data.csv"),
         overwrite_existing=True,
     )
@@ -52,7 +52,7 @@ def test_download_file_gdrive_zip():
         overwrite_existing=True,
     )
 
-    data = pd.read_csv(os.path.join(output_dir, "movbank_data.csv"))
+    data = pd.read_csv(os.path.join(output_dir, "movebank_data.csv"))
     assert len(data) > 0
 
 

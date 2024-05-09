@@ -75,8 +75,8 @@ def er_events_io():
 
 
 @pytest.fixture
-def movbank_relocations():
-    df = pd.read_feather("tests/sample_data/vector/movbank_data.feather")
+def movebank_relocations():
+    df = pd.read_feather("tests/sample_data/vector/movebank_data.feather")
     gdf = gpd.GeoDataFrame(
         df,
         geometry=gpd.points_from_xy(df.pop("location-long"), df.pop("location-lat")),

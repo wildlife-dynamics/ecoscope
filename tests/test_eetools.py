@@ -68,8 +68,8 @@ def test_label_gdf_with_temporal_image_collection_by_features_aois(aoi_gdf):
     assert results["NDVI"].explode().mean() > 0
 
 
-def test_label_gdf_with_temporal_image_collection_by_features_relocations(movbank_relocations):
-    tmp_gdf = movbank_relocations[["fixtime", "geometry"]].iloc[0:1000]
+def test_label_gdf_with_temporal_image_collection_by_features_relocations(movebank_relocations):
+    tmp_gdf = movebank_relocations[["fixtime", "geometry"]].iloc[0:1000]
 
     img_coll = ee.ImageCollection("MODIS/MCD43A4_006_NDVI").select("NDVI")  # Daily NDVI images
 
@@ -93,8 +93,8 @@ def test_label_gdf_with_temporal_image_collection_by_features_relocations(movban
     assert results["NDVI"].explode().mean() > 0
 
 
-def test_label_gdf_with_img(movbank_relocations):
-    tmp_gdf = movbank_relocations[["geometry"]]
+def test_label_gdf_with_img(movebank_relocations):
+    tmp_gdf = movebank_relocations[["geometry"]]
     tmp_gdf = tmp_gdf[0:1000]
 
     img = ee.Image("USGS/SRTMGL1_003").select("elevation")
@@ -115,8 +115,8 @@ def test_label_gdf_with_img(movbank_relocations):
 # a subset to ensure we're checking exact match and nearest cases
 # includes 3 timestamps, midnight, am, pm
 @pytest.fixture
-def movbank_relocations_fixed_subset(movbank_relocations):
-    return movbank_relocations.loc[329730794:329730795]._append(movbank_relocations.loc[329730810])
+def movebank_relocations_fixed_subset(movebank_relocations):
+    return movebank_relocations.loc[329730794:329730795]._append(movebank_relocations.loc[329730810])
 
 
 @pytest.mark.parametrize(
@@ -136,9 +136,9 @@ def movbank_relocations_fixed_subset(movbank_relocations):
         ),
     ],
 )
-def test_match_gdf_to_img_coll_ids_by_image_count(movbank_relocations_fixed_subset, n_before, n_after, output_list):
+def test_match_gdf_to_img_coll_ids_by_image_count(movebank_relocations_fixed_subset, n_before, n_after, output_list):
     results = ecoscope.io.eetools._match_gdf_to_img_coll_ids(
-        gdf=movbank_relocations_fixed_subset,
+        gdf=movebank_relocations_fixed_subset,
         time_col="fixtime",
         img_coll=ee.ImageCollection("MODIS/MCD43A4_006_NDVI").select("NDVI"),
         output_col_name="img_ids",
@@ -172,9 +172,9 @@ def test_match_gdf_to_img_coll_ids_by_image_count(movbank_relocations_fixed_subs
         ),
     ],
 )
-def test_match_gdf_to_img_coll_ids_by_day(movbank_relocations_fixed_subset, n_before, n_after, output_list):
+def test_match_gdf_to_img_coll_ids_by_day(movebank_relocations_fixed_subset, n_before, n_after, output_list):
     output = ecoscope.io.eetools._match_gdf_to_img_coll_ids(
-        gdf=movbank_relocations_fixed_subset,
+        gdf=movebank_relocations_fixed_subset,
         time_col="fixtime",
         img_coll=ee.ImageCollection("MODIS/MCD43A4_006_NDVI").select("NDVI"),
         output_col_name="img_ids",
