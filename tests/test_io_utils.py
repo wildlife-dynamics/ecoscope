@@ -50,9 +50,10 @@ def test_download_file_gdrive_zip():
         "https://drive.google.com/uc?export=download&id=1YNQ6FBtlTAxmo8vmK59oTPBhAltI3kfK",
         output_dir,
         overwrite_existing=True,
+        unzip=True,
     )
 
-    data = pd.read_csv(os.path.join(output_dir, "movebank_data.csv"))
+    data = pd.read_csv(os.path.join(output_dir, "movbank_data.csv"))
     assert len(data) > 0
 
 
