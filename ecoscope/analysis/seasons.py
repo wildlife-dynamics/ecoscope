@@ -19,11 +19,11 @@ def _min_max_scaler(x):
     return x_std
 
 
-def std_ndvi_vals(aoi=None, img_coll=None, band=None, img_scale=1, start=None, end=None):
+def std_ndvi_vals(aoi=None, img_coll=None, nir_band=None, red_band=None, img_scale=1, start=None, end=None):
 
     coll = (
         ee.ImageCollection(img_coll)
-        .select(band)
+        .select([nir_band, red_band])
         .filterDate(start, end)
         .map(lambda x: x.multiply(ee.Image(img_scale)).set("system:time_start", x.get("system:time_start")))
     )
@@ -35,7 +35,7 @@ def std_ndvi_vals(aoi=None, img_coll=None, band=None, img_scale=1, start=None, e
 
     img_dates = pandas.to_datetime(coll.aggregate_array("system:time_start").getInfo(), unit="ms", utc=True)
 
-    coll = coll.map(lambda x: x.normalizedDifference(band))
+    coll = coll.map(lambda x: x.normalizedDifference([nir_band, red_band]))
     ndvi_vals = coll.toBands().reduceRegion("mean", geo, bestEffort=True).values().getInfo()
 
     df = pandas.DataFrame(
