@@ -9,7 +9,7 @@ import ecoscope
 
 
 def test_etd_range(movebank_relocations):
-    # apply relocation coordinate filter to movbank data
+    # apply relocation coordinate filter to movebank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
         max_x=1,
