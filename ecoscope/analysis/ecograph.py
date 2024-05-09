@@ -75,10 +75,10 @@ class Ecograph:
         def compute(df):
             subject_name = df.name
             print(f"Computing EcoGraph for subject {subject_name}")
-            G = self._get_ecograph(self, df, subject_name, radius, cutoff, tortuosity_length)
+            G = self._get_ecograph(df, subject_name, radius, cutoff, tortuosity_length)
             self.graphs[subject_name] = G
 
-        self.trajectory.groupby("groupby_col").progress_apply(compute)
+        self.trajectory.groupby("groupby_col")[self.trajectory.columns].progress_apply(compute)
 
     def to_csv(self, output_path):
         """
@@ -122,13 +122,13 @@ class Ecograph:
 
         if feature in self.features:
             if individual == "all":
-                feature_ndarray = self._get_feature_mosaic(self, feature, interpolation)
+                feature_ndarray = self._get_feature_mosaic(feature, interpolation)
             elif individual in self.graphs.keys():
-                feature_ndarray = self._get_feature_map(self, feature, individual, interpolation)
+                feature_ndarray = self._get_feature_map(feature, individual, interpolation)
             else:
-                raise IndividualNameError("This individual is not in the dataset")
+                raise ValueError("This individual is not in the dataset")
         else:
-            raise FeatureNameError("This feature was not computed by EcoGraph")
+            raise ValueError("This feature was not computed by EcoGraph")
 
         if isinstance(transform, sklearn.base.TransformerMixin):
             nan_mask = ~np.isnan(feature_ndarray)
@@ -151,7 +151,6 @@ class Ecograph:
             **raster_profile,
         )
 
-    @staticmethod
     def _get_ecograph(self, trajectory_gdf, individual_name, radius, cutoff, tortuosity_length):
         G = nx.Graph()
         geom = trajectory_gdf["geometry"]
@@ -174,7 +173,7 @@ class Ecograph:
                 trajectory_gdf.iloc[i + (tortuosity_length - 1)]["segment_end"]
             ) - pd.to_datetime(t)
             time_delta = time_diff.total_seconds() / 3600.0
-            tortuosity_1, tortuosity_2 = self._get_tortuosities(self, lines, time_delta)
+            tortuosity_1, tortuosity_2 = self._get_tortuosities(lines, time_delta)
 
             attributes = {
                 "dot_product": self._get_dot_product(p1, p2, p3, p4),
@@ -202,7 +201,7 @@ class Ecograph:
                 else:
                     G.nodes[node][key] = np.nan
 
-        self._compute_network_metrics(self, G, radius, cutoff)
+        self._compute_network_metrics(G, radius, cutoff)
         return G
 
     @staticmethod
@@ -244,7 +243,6 @@ class Ecograph:
         else:
             return np.nan
 
-    @staticmethod
     def _get_tortuosities(self, lines, time_delta):
         point1, point2 = lines[0][0], lines[len(lines) - 1][1]
         beeline_dist = np.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
@@ -270,18 +268,16 @@ class Ecograph:
         else:
             return np.nan, np.nan
 
-    @staticmethod
     def _compute_network_metrics(self, G, radius, cutoff):
         self._compute_degree(G)
         self._compute_betweenness(G, cutoff)
-        self._compute_collective_influence(self, G, radius)
+        self._compute_collective_influence(G, radius)
 
     @staticmethod
     def _compute_degree(G):
         for node in G.nodes():
             G.nodes[node]["degree"] = G.degree[node]
 
-    @staticmethod
     def _compute_collective_influence(self, G, radius):
         for node in G.nodes():
             G.nodes[node]["collective_influence"] = self._get_collective_influence(G, node, radius)
@@ -303,11 +299,10 @@ class Ecograph:
             node = v["_nx_name"]
             G.nodes[node]["betweenness"] = btw_idx[v.index]
 
-    @staticmethod
     def _get_feature_mosaic(self, feature, interpolation=None):
         features = []
         for individual in self.graphs.keys():
-            features.append(self._get_feature_map(self, feature, individual, interpolation))
+            features.append(self._get_feature_map(feature, individual, interpolation))
         mosaic = np.full((self.n_cols, self.n_rows), np.nan)
         for i in range(self.n_cols):
             for j in range(self.n_rows):
@@ -322,23 +317,20 @@ class Ecograph:
                     mosaic[i][j] = values[0]
         return mosaic
 
-    @staticmethod
     def _get_feature_map(self, feature, individual, interpolation):
         if interpolation is not None:
-            return self._get_interpolated_feature_map(self, feature, individual, interpolation)
+            return self._get_interpolated_feature_map(feature, individual, interpolation)
         else:
-            return self._get_regular_feature_map(self, feature, individual)
+            return self._get_regular_feature_map(feature, individual)
 
-    @staticmethod
     def _get_regular_feature_map(self, feature, individual):
         feature_ndarray = np.full((self.n_cols, self.n_rows), np.nan)
         for node in self.graphs[individual].nodes():
             feature_ndarray[node[1]][node[0]] = (self.graphs[individual]).nodes[node][feature]
         return feature_ndarray
 
-    @staticmethod
     def _get_interpolated_feature_map(self, feature, individual, interpolation):
-        feature_ndarray = self._get_regular_feature_map(self, feature, individual)
+        feature_ndarray = self._get_regular_feature_map(feature, individual)
         individual_trajectory = self.trajectory[self.trajectory["groupby_col"] == individual]
         geom = individual_trajectory["geometry"]
         idxs_dict = {}
@@ -366,20 +358,8 @@ class Ecograph:
             elif interpolation == "min":
                 feature_ndarray[key[0], key[1]] = np.min(value)
             else:
-                raise InterpolationError("Interpolation type not supported by EcoGraph")
+                raise NotImplementedError("Interpolation type not supported by EcoGraph")
         return feature_ndarray
-
-
-class InterpolationError(Exception):
-    pass
-
-
-class IndividualNameError(Exception):
-    pass
-
-
-class FeatureNameError(Exception):
-    pass
 
 
 def get_feature_gdf(input_path):
