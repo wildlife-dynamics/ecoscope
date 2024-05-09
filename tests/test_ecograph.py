@@ -15,7 +15,7 @@ from ecoscope.analysis.ecograph import (
 )
 
 
-def test_ecograph(movbank_relocations):
+def test_ecograph(movebank_relocations):
     # apply relocation coordinate filter to movbank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
@@ -24,11 +24,11 @@ def test_ecograph(movbank_relocations):
         max_y=18,
         filter_point_coords=[[180, 90], [0, 0]],
     )
-    movbank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
-    movbank_relocations.remove_filtered(inplace=True)
+    movebank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
+    movebank_relocations.remove_filtered(inplace=True)
 
     # Create Trajectory
-    movebank_trajectory_gdf = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+    movebank_trajectory_gdf = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
 
     os.makedirs("tests/outputs", exist_ok=True)
 
