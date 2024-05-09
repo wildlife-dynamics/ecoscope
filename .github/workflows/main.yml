@@ -35,8 +35,8 @@ jobs:
         #   EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
         # run: |
         #   pytest -v -r s --color=yes --cov=ecoscope --cov-append --cov-report=xml
-          run: |
-            pytest --noconftest tests/distributed/ -vv
+        run: |
+          pytest --noconftest tests/distributed/ -vv
 
       - name: Codecov
         uses: codecov/codecov-action@v3
