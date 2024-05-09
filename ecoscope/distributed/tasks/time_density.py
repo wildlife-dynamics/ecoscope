@@ -4,7 +4,7 @@ import pandera as pa
 from pandera.typing import Series as PanderaSeries
 from pydantic import Field
 
-from ecoscope.distributed.serialization import serde
+from ecoscope.distributed.decorators import distributed
 from ecoscope.distributed.types import JsonSerializableDataFrameModel, InputDataframe, OutputDataframe
 
 # TODO: move "Magic" types into ecoscope.distributed.types
@@ -25,7 +25,7 @@ class Schema(JsonSerializableDataFrameModel):
     col1: PanderaSeries[str] = pa.Field(unique=True)
 
 
-@serde
+@distributed
 def calculate_time_density(
     # raster profile
     input_df: InputDataframe[Schema],

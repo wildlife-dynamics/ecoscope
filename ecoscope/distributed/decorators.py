@@ -5,7 +5,7 @@ import functools
 
 
 @dataclass
-class serde:
+class distributed:
     func: Callable
     serializer: Callable | None = None
     deserializer: Callable | None = None
