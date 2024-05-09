@@ -15,6 +15,8 @@ os.environ["USE_PYGEOS"] = "0"
 def pytest_configure(config):
     ecoscope.init()
 
+    os.makedirs("tests/outputs", exist_ok=True)
+
     try:
         EE_ACCOUNT = os.getenv("EE_ACCOUNT")
         EE_PRIVATE_KEY_DATA = os.getenv("EE_PRIVATE_KEY_DATA")
