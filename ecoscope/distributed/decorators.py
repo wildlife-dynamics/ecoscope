@@ -1,5 +1,6 @@
 import functools
 import types
+import warnings
 from dataclasses import FrozenInstanceError, dataclass, field, replace
 from typing import Callable, NewType
 
@@ -82,4 +83,10 @@ class distributed:
         return super().__setattr__(name, value)
 
     def __call__(self, *args, **kwargs):
+        if (self.arg_prevalidators or self.return_postvalidator) and not self.validate:
+            warnings.warn(
+                f"`@distributed`-decorated function has `{self.arg_prevalidators=}` "
+                f"and  `{self.return_postvalidator=}` but `{self.validate=}`. Pre- "
+                "and post- call behavior is only modified when `self.validate=True`."
+            )
         return self.func(*args, **kwargs)
