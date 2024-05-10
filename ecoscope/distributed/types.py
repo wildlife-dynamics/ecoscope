@@ -1,11 +1,9 @@
 from typing import Annotated, TypeVar
 
-import pandas as pd
 import pandera as pa
 from pydantic_core import core_schema as cs
 from pandera.typing import DataFrame as PanderaDataFrame
 from pydantic import GetJsonSchemaHandler
-from pydantic.functional_validators import AfterValidator, BeforeValidator
 from pydantic.json_schema import JsonSchemaValue, WithJsonSchema
 
 

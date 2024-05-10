@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import GenerateJsonSchema
 
-import ecoscope.distributed.types as edt
+from ecoscope.distributed.types import DataFrame, JsonSerializableDataFrameModel
 
 
 class MatchingSchema(GenerateJsonSchema):
@@ -54,7 +54,7 @@ class SurfacesDescriptionSchema(MatchingSchema):
 
 def test_DataFrameModel_generate_schema():
 
-    class Schema(edt.JsonSerializableDataFrameModel):
+    class Schema(JsonSerializableDataFrameModel):
         col1: PanderaSeries[int] = pa.Field(unique=True)
 
     schema = TypeAdapter(Schema).json_schema()
@@ -63,10 +63,10 @@ def test_DataFrameModel_generate_schema():
 
 def test_InputDataframe_generate_schema():
 
-    class Schema(edt.JsonSerializableDataFrameModel):
+    class Schema(JsonSerializableDataFrameModel):
         col1: PanderaSeries[int] = pa.Field(unique=True)
 
-    Foo = edt.InputDataframe[Schema]
+    Foo = DataFrame[Schema]
     schema = TypeAdapter(Foo).json_schema()
     assert schema == {'type': 'ecoscope.distributed.types.InputDataframe'}
 
@@ -74,13 +74,13 @@ def test_InputDataframe_generate_schema():
 def test_jsonschema_from_signature_nontrivial():
     config_dict = ConfigDict(arbitrary_types_allowed=True)
 
-    class Schema(edt.JsonSerializableDataFrameModel):
+    class Schema(JsonSerializableDataFrameModel):
         col1: PanderaSeries[int] = pa.Field(unique=True)
 
     class TimeDensityConfig(BaseModel):
         model_config = config_dict
 
-        input_df: edt.InputDataframe[Schema]
+        input_df: DataFrame[Schema]
         pixel_size: Annotated[
             float,
             Field(default=250.0, description="Pixel size for raster profile."),
@@ -93,7 +93,7 @@ def test_jsonschema_from_signature_nontrivial():
         percentiles: Annotated[list[float], Field(default=[50.0, 60.0, 70.0, 80.0, 90.0, 95.0])]
 
     def calculate_time_density(
-        input_df: edt.InputDataframe[Schema],
+        input_df: DataFrame[Schema],
         pixel_size: Annotated[
             float,
             Field(default=250.0, description="Pixel size for raster profile."),
