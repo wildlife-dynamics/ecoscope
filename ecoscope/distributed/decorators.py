@@ -89,4 +89,8 @@ class distributed:
                 f"and  `{self.return_postvalidator=}` but `{self.validate=}`. Pre- "
                 "and post- call behavior is only modified when `self.validate=True`."
             )
+        # TODO: If `ecoscope.distributed.types.DataFrame` is used as an arg or return type,
+        # and it is *not* subscripted with a pandera schema, we get a cryptic error from
+        # pydantic under validate=True contexts... make this error more descriptive or catch
+        # it somewhere in this decorator before making this call and confusing everyone.
         return self.func(*args, **kwargs)
