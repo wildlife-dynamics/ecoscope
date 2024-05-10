@@ -26,7 +26,7 @@ def df_with_parquet_path(tmp_path) -> tuple[pd.DataFrame, str, pa.DataFrameModel
 def test_InputDataframe_coercion(df_with_parquet_path: tuple[pd.DataFrame, str, pa.DataFrameModel]):
     df, parquet_path, Schema = df_with_parquet_path
 
-    def get_df(df: edt.InputDataframe[Schema]):  # type: ignore
+    def get_df(df: edt.DataFrame[Schema]):  # type: ignore
         return df
 
     # without coercion: pass a df, get a df; pass a str, get a str
@@ -49,7 +49,7 @@ def test_InputDataframe_coercion(df_with_parquet_path: tuple[pd.DataFrame, str, 
 def test_InputDataframe_schema_validation_passes(df_with_parquet_path):
     df, parquet_path, Schema = df_with_parquet_path    
 
-    def get_df(df: edt.InputDataframe[Schema]):  # type: ignore
+    def get_df(df: edt.DataFrame[Schema]):  # type: ignore
         return df
 
     get_df_with_coercion: Callable = validate_call(
@@ -66,7 +66,7 @@ def test_InputDataframe_schema_validation_fails(df_with_parquet_path):
     class IncorrectSchema(edt.JsonSerializableDataFrameModel):
         col1: PanderaSeries[str] = pa.Field(unique=True)
 
-    def get_df(df: edt.InputDataframe[IncorrectSchema]):
+    def get_df(df: edt.DataFrame[IncorrectSchema]):
         return df
 
     get_df_with_coercion: Callable = validate_call(

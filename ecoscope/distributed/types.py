@@ -19,15 +19,8 @@ class JsonSerializableDataFrameModel(pa.DataFrameModel):
 
 DataframeSchema = TypeVar("DataframeSchema", bound=JsonSerializableDataFrameModel)
 
-
-def load_dataframe_from_parquet_url(url: str):
-    # TODO: geopandas read_parquet
-    return pd.read_parquet(url)
-
-
-InputDataframe = Annotated[
+DataFrame = Annotated[
     PanderaDataFrame[DataframeSchema],
-    BeforeValidator(load_dataframe_from_parquet_url),
     # PanderaDataFrame is very hard to meaningfully serialize to JSON. Pandera itself does
     # not yet support this, see: https://github.com/unionai-oss/pandera/issues/421.
     # The "ideal" workaround I think involves overriding `__get_pydantic_json_schema__`,
@@ -41,16 +34,4 @@ InputDataframe = Annotated[
     # below, which will not contain any schema-specific information. This *will not* affect
     # validation behavior, only JSON Schema generation.
     WithJsonSchema({"type": "ecoscope.distributed.types.InputDataframe"})
-]
-
-
-def persist_dataframe(df: pd.DataFrame):
-    # persist dataframe here
-    url = ...
-    return url
-
-
-OutputDataframe = Annotated[
-    PanderaDataFrame[DataframeSchema],
-    AfterValidator(persist_dataframe)
 ]

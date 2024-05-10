@@ -1,34 +1,35 @@
 import tempfile
-from typing import Annotated
+from typing import Annotated, Any
 
 import pandera as pa
+import pandas as pd
 from pandera.typing import Series as PanderaSeries
 from pydantic import Field
 
 from ecoscope.distributed.decorators import distributed
-from ecoscope.distributed.types import JsonSerializableDataFrameModel, InputDataframe, OutputDataframe
-
-# TODO: move "Magic" types into ecoscope.distributed.types
-# TODO: ENVIRONMENT + METAL
-# TODO: Resources, environment, result serialization
-
-# Backend database:
-#   Workflows
-#     "Time Density":
-#         Tasks: [
-#             "ecoscope.distributed.calculate_time_density",
-#             "fifty_one_degrees.custom.func",
-#           ]
-# CANT EXPECT ANYTHING IN MEMORY AT CALL TIME
+from ecoscope.distributed.types import JsonSerializableDataFrameModel, DataFrame
 
 
-class Schema(JsonSerializableDataFrameModel):
-    col1: PanderaSeries[str] = pa.Field(unique=True)
+class TrajectoryGDFSchema(JsonSerializableDataFrameModel):
+    id: PanderaSeries[str] = pa.Field()
+    groupby_col: PanderaSeries[str] = pa.Field()
+    segment_start: PanderaSeries[pd.DatetimeTZDtype] = pa.Field(dtype_kwargs={"unit": "ns", "tz": "UTC"})
+    segment_end: PanderaSeries[pd.DatetimeTZDtype] = pa.Field(dtype_kwargs={"unit": "ns", "tz": "UTC"})
+    timespan_seconds: PanderaSeries[float] = pa.Field()
+    dist_meters: PanderaSeries[float] = pa.Field()
+    speed_kmhr: PanderaSeries[float] = pa.Field()
+    heading: PanderaSeries[float] = pa.Field()
+    junk_status: PanderaSeries[bool] = pa.Field()
+    # pandera does support geopandas types (https://pandera.readthedocs.io/en/stable/geopandas.html)
+    # but this would require this module depending on geopandas, which we are trying to avoid. so
+    # unless we come up with another solution, for now we are letting `geometry` contain anything.
+    geometry: PanderaSeries[Any] = pa.Field()
 
 
 @distributed
 def calculate_time_density(
-    trajectory_gdf: InputDataframe[Schema],
+    trajectory_gdf: DataFrame[TrajectoryGDFSchema],
+    /,
     # raster profile
     pixel_size: Annotated[
         float,
@@ -38,10 +39,10 @@ def calculate_time_density(
     nodata_value: Annotated[float, Field(default=float("nan"), allow_inf_nan=True)],
     band_count: Annotated[int, Field(default=1)],
     # time density
-    max_speed_factor: Annotated[float, Field()],
-    expansion_factor: Annotated[float, Field],
-    percentiles: Annotated[list[float], Field()],
-) -> OutputDataframe:
+    max_speed_factor: Annotated[float, Field(default=1.05)],
+    expansion_factor: Annotated[float, Field(default=1.3)],
+    percentiles: Annotated[list[float], Field(default=[50.0, 60.0, 70.0, 80.0, 90.0, 95.0])],
+) -> DataFrame:
     from ecoscope.analysis.percentile import get_percentile_area
     from ecoscope.analysis.UD import calculate_etd_range
     from ecoscope.io.raster import RasterProfile
