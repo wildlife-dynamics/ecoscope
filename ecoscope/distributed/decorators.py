@@ -9,6 +9,13 @@ from pydantic.functional_validators import AfterValidator, BeforeValidator
 ArgName = NewType("ArgName", str)
 
 
+def _get_annotation_metadata(func: types.FunctionType, arg_name: ArgName):
+    assert func.__annotations__, f"{func=} has no annotations."
+    assert arg_name in func.__annotations__, f""
+    assert hasattr(func.__annotations__[arg_name], "__metadata__")
+    return list(func.__annotations__[arg_name].__metadata__)
+
+
 def _get_validator_index(
     existing_meta: dict, validator_type: AfterValidator | BeforeValidator,
 ) -> int:
@@ -45,9 +52,7 @@ class distributed:
         # hinted with a return type, and for the return type of the callable to match
         # the input type of the matching arg on self.func
         for arg_name in self.arg_prevalidators:
-            # TODO: assumes there is an annotation and that is of type typing.Annotated,
-            # handle case of no annotation, or non-Annotated annotation.
-            arg_meta = list(self.func.__annotations__[arg_name].__metadata__)
+            arg_meta = _get_annotation_metadata(self.func, arg_name)
             bv_idx = _get_validator_index(arg_meta, validator_type=BeforeValidator)
             arg_meta[bv_idx] = BeforeValidator(func=self.arg_prevalidators[arg_name])
             self.func.__annotations__[arg_name].__metadata__ = tuple(arg_meta)
@@ -55,9 +60,7 @@ class distributed:
         # TODO: `strict=True` requires return_postvalidator to be type-hinted and for
         # the type of it's single argument to be the same as the return type of self.func
         if self.return_postvalidator:
-            # TODO: assumes there is an annotation and that is of type typing.Annotated,
-            # handle case of no annotation, or non-Annotated annotation.
-            return_meta = list(self.func.__annotations__["return"].__metadata__)
+            return_meta = _get_annotation_metadata(self.func, "return")
             av_idx = _get_validator_index(return_meta, validator_type=AfterValidator)
             return_meta[av_idx] = AfterValidator(func=self.return_postvalidator)
             self.func.__annotations__["return"].__metadata__ = tuple(return_meta)
