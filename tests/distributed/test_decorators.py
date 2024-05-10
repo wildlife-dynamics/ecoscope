@@ -29,7 +29,7 @@ def test_frozen_instance():
     assert f_new.validate == True
 
 
-def test_call_with_arg_prevalidators():
+def test_arg_prevalidators():
     @distributed
     def f(a: Annotated[int, "some metadata field"]) -> int:
         return a
@@ -49,3 +49,18 @@ def test_call_with_arg_prevalidators():
     assert f(1) == 1   # but without `validate=True` we still get normal behavior
     # only when we set validate=True do we finally see the prevalidator is invoked
     assert f.replace(validate=True)(1) == 2
+
+
+def test_return_postvalidator():
+    @distributed
+    def f(a) -> Annotated[int, "some metadata field"]:
+        return a
+
+    assert f(4) == 4
+
+    def postvalidator(x):
+        return x + 1
+    
+    # note that the postvalidator will not be invoked unless `validate=True`
+    f_new = f.replace(return_postvalidator=postvalidator, validate=True)
+    assert f_new(4) == 5

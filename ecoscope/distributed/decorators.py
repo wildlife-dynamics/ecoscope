@@ -4,7 +4,7 @@ from dataclasses import FrozenInstanceError, dataclass, field, replace
 from typing import Callable, NewType
 
 from pydantic import validate_call
-from pydantic.functional_validators import BeforeValidator
+from pydantic.functional_validators import AfterValidator, BeforeValidator
 
 ArgName = NewType("ArgName", str)
 
@@ -31,24 +31,38 @@ class distributed:
         # hinted with a return type, and for the return type of the callable to match
         # the input type of the matching arg on self.func
         for arg_name in self.arg_prevalidators:
-            # assumes there is an annotation and that is of type typing.Annotated
-            # TODO: handle case of no annotation, or non-Annotated annotation
-            meta = list(self.func.__annotations__[arg_name].__metadata__)
+            # TODO: assumes there is an annotation and that is of type typing.Annotated,
+            # handle case of no annotation, or non-Annotated annotation.
+            arg_meta = list(self.func.__annotations__[arg_name].__metadata__)
             # if there are is an existing BeforeValidator instance in the metadata,
             # we will overwrite it by re-assigning to its index. if not, we will just
             # add our new BeforeValidator to the end of the list (i.e., index it as -1)
-            bf_idx = (
+            bv_idx = (
                 -1
-                if not any([isinstance(m, BeforeValidator) for m in meta])
-                else [i for i, m in enumerate(meta) if isinstance(m, BeforeValidator)][0]
+                if not any([isinstance(m, BeforeValidator) for m in arg_meta])
+                else [i for i, m in enumerate(arg_meta) if isinstance(m, BeforeValidator)][0]
             )
-            meta[bf_idx] = BeforeValidator(func=self.arg_prevalidators[arg_name])
-            self.func.__annotations__[arg_name].__metadata__ = tuple(meta)
-        if self.validate:
-            self.func = validate_call(self.func, validate_return=True)
+            arg_meta[bv_idx] = BeforeValidator(func=self.arg_prevalidators[arg_name])
+            self.func.__annotations__[arg_name].__metadata__ = tuple(arg_meta)
         # TODO: make sure return_postvalidator is a single-argument callable
         # TODO: `strict=True` requires return_postvalidator to be type-hinted and for
         # the type of it's single argument to be the same as the return type of self.func
+        if self.return_postvalidator:
+            # TODO: assumes there is an annotation and that is of type typing.Annotated,
+            # handle case of no annotation, or non-Annotated annotation.
+            return_meta = list(self.func.__annotations__["return"].__metadata__)
+            # if there are is an existing AfterValidator instance in the metadata,
+            # we will overwrite it by re-assigning to its index. if not, we will just
+            # add our new AfterValidator to the end of the list (i.e., index it as -1)
+            av_idx = (
+                -1
+                if not any([isinstance(m, AfterValidator) for m in return_meta])
+                else [i for i, m in enumerate(return_meta) if isinstance(m, AfterValidator)][0]
+            )
+            return_meta[av_idx] = AfterValidator(func=self.return_postvalidator)
+            self.func.__annotations__["return"].__metadata__ = tuple(return_meta)
+        if self.validate:
+            self.func = validate_call(self.func, validate_return=True)
         functools.update_wrapper(self, self.func)
         self._initialized = True
 
