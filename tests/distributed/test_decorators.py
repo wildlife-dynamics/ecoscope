@@ -6,19 +6,12 @@ from ecoscope.distributed.decorators import distributed
 
 
 def test_call_simple():
-    def f(a: int, b: int) -> int:
-        return a + b
-
-    d = distributed(f)
-    assert f(1, 2) == 3
-    assert d(1, 2) == 3
-
     @distributed
     def f(a: int, b: int) -> int:
         return a + b
     
-    assert d.func(1, 2) == 3
-    assert d(1, 2) == 3
+    assert f.func(1, 2) == 3
+    assert f(1, 2) == 3
 
 
 def test_call_with_arg_prevalidators():
