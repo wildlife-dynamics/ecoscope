@@ -1,3 +1,4 @@
+import tempfile
 from typing import Annotated
 
 import pandera as pa
@@ -27,8 +28,8 @@ class Schema(JsonSerializableDataFrameModel):
 
 @distributed
 def calculate_time_density(
+    trajectory_gdf: InputDataframe[Schema],
     # raster profile
-    input_df: InputDataframe[Schema],
     pixel_size: Annotated[
         float,
         Field(default=250.0, description="Pixel size for raster profile."),
@@ -41,10 +42,8 @@ def calculate_time_density(
     expansion_factor: Annotated[float, Field],
     percentiles: Annotated[list[float], Field()],
 ) -> OutputDataframe:
-    # This is "exactly" what you would prototype in a notebook
-    import geopandas as gpd
-
-    import ecoscope
+    from ecoscope.analysis.percentile import get_percentile_area
+    from ecoscope.analysis.UD import calculate_etd_range
     from ecoscope.io.raster import RasterProfile
 
     raster_profile = RasterProfile(
@@ -53,15 +52,23 @@ def calculate_time_density(
         nodata_value=nodata_value,
         band_count=band_count,
     )
-    return input_df.eco.calculate_time_density(
-        max_speed_factor=max_speed_factor,
-        expansion_factor=expansion_factor,
-        percentiles=percentiles,
+    trajectory_gdf.sort_values("segment_start", inplace=True)
+
+    # FIXME: make `calculate_etd_range` return an in-memory raster which
+    # we can pass to `get_percentile_area`, so we don't need the filesystem.
+    tmp_tif_path = tempfile.NamedTemporaryFile(suffix=".tif")
+    calculate_etd_range(
+        trajectory_gdf=trajectory_gdf,
+        output_path=tmp_tif_path,
+        # Choose a value above the max recorded segment speed
+        max_speed_kmhr=max_speed_factor * trajectory_gdf["speed_kmhr"].max(),
         raster_profile=raster_profile,
+        expansion_factor=expansion_factor,
     )
-
-
-# in airflow
-from pydantic import validate_call
-
-validate_call(calculate_time_density, validate_return=True)
+    result = get_percentile_area(
+        percentile_levels=percentiles,
+        raster_path=tmp_tif_path,
+    )
+    result.drop(columns="subject_id", inplace=True)
+    result["area_sqkm"] = result.area / 1000000.0
+    return result
