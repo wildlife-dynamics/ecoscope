@@ -1,5 +1,7 @@
+from dataclasses import FrozenInstanceError
 from typing import Annotated
 
+import pytest
 from pydantic.functional_validators import BeforeValidator
 
 from ecoscope.distributed.decorators import distributed
@@ -12,6 +14,19 @@ def test_call_simple():
     
     assert f.func(1, 2) == 3
     assert f(1, 2) == 3
+
+
+def test_frozen_instance():
+    @distributed
+    def f(a: int) -> int:
+        return a
+
+    assert f.validate == False
+    with pytest.raises(FrozenInstanceError):
+        f.validate = True
+
+    f_new = f.replace(validate=True)
+    assert f_new.validate == True
 
 
 def test_call_with_arg_prevalidators():

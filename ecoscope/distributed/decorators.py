@@ -1,6 +1,6 @@
 import functools
 import types
-from dataclasses import dataclass, field, replace
+from dataclasses import FrozenInstanceError, dataclass, field, replace
 from typing import Callable, NewType
 
 from pydantic import validate_call
@@ -23,6 +23,7 @@ class distributed:
     arg_prevalidators: dict[ArgName, Callable] = field(default_factory=dict)
     return_postvalidator: Callable | None = None
     validate: bool = False
+    _initialized: bool = False
 
     def __post_init__(self):
         # TODO: make sure the keys of arg_prevalidators are all arg_names on self.func
@@ -49,11 +50,19 @@ class distributed:
         # TODO: `strict=True` requires return_postvalidator to be type-hinted and for
         # the type of it's single argument to be the same as the return type of self.func
         functools.update_wrapper(self, self.func)
-
-    # TODO: disable setters for arg_prevalidators and return_postvalidator
+        self._initialized = True
 
     def replace(self, /, **changes: dict) -> "distributed":
+        self._initialized = False
         return replace(self, **changes)
+
+    def __setattr__(self, name, value):
+        if self._initialized and name != "_initialized":
+            raise FrozenInstanceError(
+                "Re-assignment of attributes not permitted post-init. "
+                "Use `self.replace` to create a new instance instead."
+            )
+        return super().__setattr__(name, value)
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
