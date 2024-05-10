@@ -9,6 +9,20 @@ from pydantic.functional_validators import AfterValidator, BeforeValidator
 ArgName = NewType("ArgName", str)
 
 
+def _get_validator_index(
+    existing_meta: dict, validator_type: AfterValidator | BeforeValidator,
+) -> int:
+    """If there are is an existing validator instance of the specified type in the metadata,
+    we will overwrite it by re-assigning to its index. if not, we will just add our new
+    validator to the end of the list (i.e., index it as -1)
+    """
+    return (
+        -1
+        if not any([isinstance(m, validator_type) for m in existing_meta])
+        else [i for i, m in enumerate(existing_meta) if isinstance(m, validator_type)][0]
+    )
+
+
 @dataclass
 class distributed:
     """
@@ -34,14 +48,7 @@ class distributed:
             # TODO: assumes there is an annotation and that is of type typing.Annotated,
             # handle case of no annotation, or non-Annotated annotation.
             arg_meta = list(self.func.__annotations__[arg_name].__metadata__)
-            # if there are is an existing BeforeValidator instance in the metadata,
-            # we will overwrite it by re-assigning to its index. if not, we will just
-            # add our new BeforeValidator to the end of the list (i.e., index it as -1)
-            bv_idx = (
-                -1
-                if not any([isinstance(m, BeforeValidator) for m in arg_meta])
-                else [i for i, m in enumerate(arg_meta) if isinstance(m, BeforeValidator)][0]
-            )
+            bv_idx = _get_validator_index(arg_meta, validator_type=BeforeValidator)
             arg_meta[bv_idx] = BeforeValidator(func=self.arg_prevalidators[arg_name])
             self.func.__annotations__[arg_name].__metadata__ = tuple(arg_meta)
         # TODO: make sure return_postvalidator is a single-argument callable
@@ -51,14 +58,7 @@ class distributed:
             # TODO: assumes there is an annotation and that is of type typing.Annotated,
             # handle case of no annotation, or non-Annotated annotation.
             return_meta = list(self.func.__annotations__["return"].__metadata__)
-            # if there are is an existing AfterValidator instance in the metadata,
-            # we will overwrite it by re-assigning to its index. if not, we will just
-            # add our new AfterValidator to the end of the list (i.e., index it as -1)
-            av_idx = (
-                -1
-                if not any([isinstance(m, AfterValidator) for m in return_meta])
-                else [i for i, m in enumerate(return_meta) if isinstance(m, AfterValidator)][0]
-            )
+            av_idx = _get_validator_index(return_meta, validator_type=AfterValidator)
             return_meta[av_idx] = AfterValidator(func=self.return_postvalidator)
             self.func.__annotations__["return"].__metadata__ = tuple(return_meta)
         if self.validate:
