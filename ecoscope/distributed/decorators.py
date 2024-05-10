@@ -11,9 +11,12 @@ ArgName = NewType("ArgName", str)
 
 
 def _get_annotation_metadata(func: types.FunctionType, arg_name: ArgName):
-    assert func.__annotations__, f"{func=} has no annotations."
-    assert arg_name in func.__annotations__, f""
-    assert hasattr(func.__annotations__[arg_name], "__metadata__")
+    assert func.__annotations__, f"{func.__name__=} has no annotations."
+    assert arg_name in func.__annotations__, f"{arg_name=} on {func.__name__=} is not annotated."
+    assert (
+        hasattr(func.__annotations__[arg_name], "__metadata__"),
+        f"The annotation of {arg_name=} on {func.__name__=} is not of type `typing.Annotated`."
+    )
     return list(func.__annotations__[arg_name].__metadata__)
 
 

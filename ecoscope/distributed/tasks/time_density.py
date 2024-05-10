@@ -26,6 +26,12 @@ class TrajectoryGDFSchema(JsonSerializableDataFrameModel):
     geometry: PanderaSeries[Any] = pa.Field()
 
 
+class TimeDensityReturnGDFSchema(JsonSerializableDataFrameModel):
+    percentile: PanderaSeries[float] = pa.Field()
+    geometry: PanderaSeries[Any] = pa.Field()   # see note above re: geometry typing
+    area_sqkm: PanderaSeries[float] = pa.Field()
+
+
 @distributed
 def calculate_time_density(
     trajectory_gdf: DataFrame[TrajectoryGDFSchema],
@@ -42,7 +48,7 @@ def calculate_time_density(
     max_speed_factor: Annotated[float, Field(default=1.05)],
     expansion_factor: Annotated[float, Field(default=1.3)],
     percentiles: Annotated[list[float], Field(default=[50.0, 60.0, 70.0, 80.0, 90.0, 95.0])],
-):
+) -> DataFrame[TimeDensityReturnGDFSchema]:
     from ecoscope.analysis.percentile import get_percentile_area
     from ecoscope.analysis.UD import calculate_etd_range
     from ecoscope.io.raster import RasterProfile
