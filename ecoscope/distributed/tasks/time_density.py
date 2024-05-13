@@ -11,7 +11,7 @@ from ecoscope.distributed.types import JsonSerializableDataFrameModel, DataFrame
 
 
 class TrajectoryGDFSchema(JsonSerializableDataFrameModel):
-    id: PanderaSeries[str] = pa.Field()
+    id: pa.typing.Index[str] = pa.Field()
     groupby_col: PanderaSeries[str] = pa.Field()
     segment_start: PanderaSeries[pd.DatetimeTZDtype] = pa.Field(dtype_kwargs={"unit": "ns", "tz": "UTC"})
     segment_end: PanderaSeries[pd.DatetimeTZDtype] = pa.Field(dtype_kwargs={"unit": "ns", "tz": "UTC"})
