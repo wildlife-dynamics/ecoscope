@@ -4,10 +4,12 @@ from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
+import pytest
 
 from ecoscope.distributed.tasks.io import get_subjectgroup_observations
 
 
+@pytest.mark.io
 def test_subjectgroup_observations(tmp_path):
     kws = dict(
         server=os.environ["ER_SERVER"],
