@@ -41,7 +41,7 @@ def process_relocations(
 
 
 @distributed
-def trajectory_from_relocations(
+def relocations_to_trajectory(
     relocations: DataFrame[RelocationsGDFSchema],
     /,
     min_length_meters: Annotated[float, Field()],

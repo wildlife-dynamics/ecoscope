@@ -4,7 +4,7 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 
-from ecoscope.distributed.tasks.preprocessing import process_relocations, trajectory_from_relocations
+from ecoscope.distributed.tasks.preprocessing import process_relocations, relocations_to_trajectory
 
 TEST_DATA_DIR = Path(__file__).parent.parent / "data"
 
@@ -48,7 +48,7 @@ def relocations_parquet_path() -> str:
     return TEST_DATA_DIR / "relocations.parquet"
 
 
-def test_trajectory_from_relocations(relocations_parquet_path: str, tmp_path):
+def test_relocations_to_trajectory(relocations_parquet_path: str, tmp_path):
     relocations = gpd.read_parquet(relocations_parquet_path)
     kws = dict(
         min_length_meters=0.001,
@@ -58,7 +58,7 @@ def test_trajectory_from_relocations(relocations_parquet_path: str, tmp_path):
         min_speed_kmhr=0.0,
         max_speed_kmhr=120,
     )
-    in_memory = trajectory_from_relocations(relocations, **kws)
+    in_memory = relocations_to_trajectory(relocations, **kws)
 
     # compare to `distributed` calling style
     def serialize_result(gdf: gpd.GeoDataFrame) -> str:
@@ -71,7 +71,7 @@ def test_trajectory_from_relocations(relocations_parquet_path: str, tmp_path):
         return_postvalidator=serialize_result,
         validate=True,
     )
-    result_path = trajectory_from_relocations.replace(**distributed_kws)(relocations_parquet_path, **kws)
+    result_path = relocations_to_trajectory.replace(**distributed_kws)(relocations_parquet_path, **kws)
     distributed_result = gpd.read_parquet(result_path)
 
     pd.testing.assert_frame_equal(in_memory, distributed_result)
