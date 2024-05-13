@@ -7,6 +7,15 @@ import shapely
 import ecoscope.analysis.classifier as classifier
 import ecoscope.base
 
+default_speed_colors = [
+    "#1a9850",
+    "#91cf60",
+    "#d9ef8b",
+    "#fee08b",
+    "#fc8d59",
+    "#d73027",
+]
+
 
 class SpeedDataFrame(ecoscope.base.EcoDataFrame):
     @classmethod

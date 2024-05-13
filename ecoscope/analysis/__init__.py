@@ -1,5 +1,5 @@
 from ecoscope.analysis import UD, astronomy, seasons
-from ecoscope.analysis.classifier import apply_classification, set_label_index
+from ecoscope.analysis.classifier import apply_classification
 from ecoscope.analysis.ecograph import Ecograph, get_feature_gdf
 from ecoscope.analysis.percentile import get_percentile_area
 from ecoscope.analysis.speed import SpeedDataFrame
@@ -13,5 +13,4 @@ __all__ = [
     "get_percentile_area",
     "seasons",
     "apply_classification",
-    "set_label_index",
 ]
