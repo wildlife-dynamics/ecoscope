@@ -1,20 +1,11 @@
 import typing
 
 import geopandas as gpd
+import mapclassify
 import pandas as pd
 import shapely
 
-import ecoscope.analysis.classifier as classifier
 import ecoscope.base
-
-default_speed_colors = [
-    "#1a9850",
-    "#91cf60",
-    "#d9ef8b",
-    "#fee08b",
-    "#fc8d59",
-    "#d73027",
-]
 
 
 class SpeedDataFrame(ecoscope.base.EcoDataFrame):
@@ -28,10 +19,10 @@ class SpeedDataFrame(ecoscope.base.EcoDataFrame):
         speed_colors: typing.List = None,
     ):
         if not bins:
-            bins = classifier.apply_classification(trajectory.speed_kmhr, num_classes, cls_method=classification_method)
+            bins = apply_classification(trajectory.speed_kmhr, num_classes, cls_method=classification_method)
 
         if not speed_colors:
-            speed_colors = classifier.default_speed_colors
+            speed_colors = default_speed_colors
 
         speed_colors = speed_colors[: len(bins) - 1]
 
@@ -56,3 +47,47 @@ class SpeedDataFrame(ecoscope.base.EcoDataFrame):
 
 def _speedmap_labels(bins):
     return [f"{bins[i]:.1f} - {bins[i + 1]:.1f} km/hr" for i in range(len(bins) - 1)]
+
+
+def apply_classification(x, k, cls_method="natural_breaks", multiples=[-2, -1, 1, 2]):
+    """
+    Function to select which classifier to apply to the speed distributed data.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        The input array to be classified. Must be 1-dimensional
+    k : int
+        Number of classes required.
+    cls_method : str
+        Classification method
+    multiples : Listlike
+        The multiples of the standard deviation to add/subtract from the sample mean to define the bins. defaults=
+    """
+
+    classifier = classification_methods.get(cls_method)
+    if not classifier:
+        return
+
+    map_classifier = classifier(x, multiples) if cls_method == "std_mean" else classifier(x, k)
+    edges, _, _ = mapclassify.classifiers._format_intervals(map_classifier, fmt="{:.2f}")
+    return [float(i) for i in edges]
+
+
+default_speed_colors = [
+    "#1a9850",
+    "#91cf60",
+    "#d9ef8b",
+    "#fee08b",
+    "#fc8d59",
+    "#d73027",
+]
+
+classification_methods = {
+    "equal_interval": mapclassify.EqualInterval,
+    "natural_breaks": mapclassify.NaturalBreaks,
+    "quantile": mapclassify.Quantiles,
+    "std_mean": mapclassify.StdMean,
+    "max_breaks": mapclassify.MaximumBreaks,
+    "fisher_jenks": mapclassify.FisherJenks,
+}

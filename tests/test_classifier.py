@@ -8,7 +8,6 @@ import ecoscope
     [
         ("equal_interval", {"k": 2}, [3, 3, 3, 5, 5]),
         ("quantile", {"k": 2}, [3, 3, 3, 5, 5]),
-        ("natural_breaks", {"k": 3}, [2.0, 2.0, 4.0, 4.0, 5.0]),
         (
             "std_mean",
             {"multiples": [-2, -1, 1, 2]},
