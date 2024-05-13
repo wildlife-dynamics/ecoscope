@@ -1,4 +1,3 @@
-import os
 import tempfile
 from typing import Annotated, Any
 
@@ -31,56 +30,6 @@ class TimeDensityReturnGDFSchema(JsonSerializableDataFrameModel):
     percentile: PanderaSeries[float] = pa.Field()
     geometry: PanderaSeries[Any] = pa.Field()   # see note above re: geometry typing
     area_sqkm: PanderaSeries[float] = pa.Field()
-
-
-@distributed
-def get_trajectories_from_earthranger(
-    # client
-    server,
-    username,
-    tcp_limit,
-    sub_page_size,
-    # get_subjectgroup_observations
-    group_name,
-    include_inactive: bool,
-    since,
-    until,
-    # relocations filtering
-    relocs_filter_coords,
-    # trajectory filter
-    min_length_meters: float = 0.001,
-    max_length_meters: float = 10000,
-    max_time_secs: float = 3600,
-    min_time_secs: float = 1,
-    max_speed_kmhr: float = 120,
-    min_speed_kmhr: float = 0.0,    
-):
-    from ecoscope.base import RelocsCoordinateFilter, Relocations
-    from ecoscope.io import EarthRangerIO
-
-    earthranger_io = EarthRangerIO(
-        server=server,
-        username=username,
-        password=os.getenv("ER_PASSWORD"),
-        tcp_limit=tcp_limit,
-        sub_page_size=sub_page_size,
-    )
-    observations = earthranger_io.get_subjectgroup_observations(
-        group_name=group_name,
-        include_subject_details=True,
-        include_inactive=include_inactive,
-        since=since,
-        until=until,
-    )
-    # NOTE: Can possibly split this into separate task below this line, if client is no longer needed
-    # -----------------------------------------------------------------------------------------------
-    relocs = Relocations(observations)
-    relocs.apply_reloc_filter(
-        RelocsCoordinateFilter(filter_point_coords=relocs_filter_coords),
-        inplace=True,
-    )
-    relocs.remove_filtered(inplace=True)
-
 
 
 @distributed

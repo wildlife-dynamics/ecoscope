@@ -9,7 +9,7 @@ from ecoscope.distributed.tasks import calculate_time_density
 
 @pytest.fixture
 def trajectory_parquet_path() -> str:
-    return (Path(__file__).parent / "data" / "trajectory.parquet").as_posix()
+    return (Path(__file__).parent.parent / "data" / "trajectory.parquet").as_posix()
 
 
 @pytest.fixture
