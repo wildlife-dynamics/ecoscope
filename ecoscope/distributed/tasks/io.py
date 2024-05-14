@@ -16,8 +16,7 @@ class SubjectGroupObservationsGDFSchema(JsonSerializableDataFrameModel):
     # TODO: can we be any more specific about the `extra__` field expectations?
 
 
-@distributed
-def get_subjectgroup_observations(
+def _get_subjectgroup_observations(
     # client
     server = Annotated[str, Field()],
     username = Annotated[str, Field()],
@@ -46,3 +45,6 @@ def get_subjectgroup_observations(
         since=since,
         until=until,
     )
+
+
+get_subjectgroup_observations = distributed(_get_subjectgroup_observations)

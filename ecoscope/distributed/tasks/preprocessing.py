@@ -13,8 +13,7 @@ class RelocationsGDFSchema(SubjectGroupObservationsGDFSchema):
     pass
 
 
-@distributed
-def process_relocations(
+def _process_relocations(
     observations: DataFrame[SubjectGroupObservationsGDFSchema],
     /,
     filter_point_coords: Annotated[list[list[float]], Field()],   
@@ -40,8 +39,7 @@ def process_relocations(
     return relocs
 
 
-@distributed
-def relocations_to_trajectory(
+def _relocations_to_trajectory(
     relocations: DataFrame[RelocationsGDFSchema],
     /,
     min_length_meters: Annotated[float, Field()],
@@ -71,3 +69,7 @@ def relocations_to_trajectory(
     traj.remove_filtered(inplace=True)
 
     return traj
+
+
+process_relocations = distributed(_process_relocations)
+relocations_to_trajectory = distributed(_relocations_to_trajectory)
