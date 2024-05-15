@@ -6,6 +6,7 @@ from ecoscope.mapping import (
     GeoTIFFElement,
     PrintControl,
 )
+import os
 import ee
 import geopandas
 import pytest
@@ -33,6 +34,18 @@ def test_repr_html():
     assert soup.iframe.get("height") == "100%"
 
     assert m._parent.width == 800 and m._parent.height == 600
+
+
+def test_static_map():
+    m = EcoMap(width=800, height=600, static=True)
+    assert len(m._children) == 2
+
+
+def test_to_png():
+    output_path = "tests/outputs/ecomap.png"
+    m = EcoMap(width=800, height=600)
+    m.to_png(output_path)
+    assert os.path.exists(output_path)
 
 
 def test_add_legend():
@@ -157,11 +170,11 @@ def test_add_print_control():
 @pytest.mark.parametrize(
     "file, geom_type",
     [
-        ("tests/sample_data/vector/maec_4zones_UTM36S.gpkg", "tests/sample_data/vector/observations.geojson"),
-        ("polygon", "point"),
+        ("tests/sample_data/vector/maec_4zones_UTM36S.gpkg", "polygon"),
+        ("tests/sample_data/vector/observations.geojson", "point"),
     ],
 )
-def add_datashader_gdf(file, geom_type):
+def test_add_datashader_gdf(file, geom_type):
     m = EcoMap()
     gdf = geopandas.GeoDataFrame.from_file(file)
     m.add_datashader_gdf(gdf, geom_type, zoom=False)
@@ -170,7 +183,7 @@ def add_datashader_gdf(file, geom_type):
     assert "L.imageOverlay(" in m._repr_html_()
 
 
-def add_datashader_gdf_with_zoom():
+def test_add_datashader_gdf_with_zoom():
     m = EcoMap()
     gdf = geopandas.GeoDataFrame.from_file("tests/sample_data/vector/maec_4zones_UTM36S.gpkg")
     m.add_datashader_gdf(gdf, "polygon", zoom=True)
