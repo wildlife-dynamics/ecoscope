@@ -188,7 +188,7 @@ def nsd(relocations):
     relocations = relocations.to_crs(relocations.estimate_utm_crs())
 
     times = relocations["fixtime"]
-    distances = relocations.distance(relocations.geometry[0]) ** 2
+    distances = relocations.distance(relocations.geometry.iat[0]) ** 2
 
     fig = go.FigureWidget()
 
