@@ -18,7 +18,12 @@ def test_seasons():
 
     # Extract the standardized NDVI ndvi_vals within the AOI
     ndvi_vals = ecoscope.analysis.seasons.std_ndvi_vals(
-        aoi, img_coll="MODIS/061/MOD13A1", band="NDVI", start="2010-01-01", end="2021-01-01"
+        aoi,
+        img_coll="MODIS/061/MCD43A4",
+        nir_band="Nadir_Reflectance_Band2",
+        red_band="Nadir_Reflectance_Band1",
+        start="2010-01-01",
+        end="2021-01-01",
     )
 
     # Calculate the seasonal transition point
