@@ -124,6 +124,9 @@ venv.bak/
 #Jetbrains
 .idea/
 
+#vscode
+.vscode/
+
 # mypy
 .mypy_cache/
 .dmypy.json

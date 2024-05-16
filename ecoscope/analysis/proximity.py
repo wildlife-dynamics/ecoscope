@@ -59,5 +59,5 @@ class Proximity:
 
                 proximity_events.append(pr)
 
-        trajectory.groupby("groupby_col").apply(analysis)
+        trajectory.groupby("groupby_col")[trajectory.columns].apply(analysis, include_groups=False)
         return pd.concat(proximity_events).reset_index(drop=True)

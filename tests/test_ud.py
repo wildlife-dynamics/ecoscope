@@ -4,14 +4,12 @@ from tempfile import NamedTemporaryFile
 import geopandas as gpd
 import geopandas.testing
 import numpy as np
-import pytest
 
 import ecoscope
 
 
-@pytest.mark.skip(reason="this has been failing since May 2022; will be fixed in a follow-up pull")
-def test_etd_range(movbank_relocations):
-    # apply relocation coordinate filter to movbank data
+def test_etd_range(movebank_relocations):
+    # apply relocation coordinate filter to movebank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
         max_x=1,
@@ -19,11 +17,11 @@ def test_etd_range(movbank_relocations):
         max_y=18,
         filter_point_coords=[[180, 90], [0, 0]],
     )
-    movbank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
-    movbank_relocations.remove_filtered(inplace=True)
+    movebank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
+    movebank_relocations.remove_filtered(inplace=True)
 
     # Create Trajectory
-    movbank_trajectory_gdf = ecoscope.base.Trajectory.from_relocations(movbank_relocations)
+    movebank_trajectory_gdf = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
 
     raster_profile = ecoscope.io.raster.RasterProfile(
         pixel_size=250.0,
@@ -35,9 +33,9 @@ def test_etd_range(movbank_relocations):
     file = NamedTemporaryFile(delete=False)
     try:
         ecoscope.analysis.UD.calculate_etd_range(
-            trajectory_gdf=movbank_trajectory_gdf,
+            trajectory_gdf=movebank_trajectory_gdf,
             output_path=file.name,
-            max_speed_kmhr=1.05 * movbank_trajectory_gdf.speed_kmhr.max(),
+            max_speed_kmhr=1.05 * movebank_trajectory_gdf.speed_kmhr.max(),
             raster_profile=raster_profile,
             expansion_factor=1.3,
         )
@@ -50,10 +48,9 @@ def test_etd_range(movbank_relocations):
         os.unlink(file.name)
 
     expected_percentile_area = gpd.read_feather("tests/test_output/etd_percentile_area.feather")
-    gpd.testing.assert_geodataframe_equal(percentile_area, expected_percentile_area, check_less_precise=True)
+    gpd.testing.geom_almost_equals(percentile_area, expected_percentile_area)
 
 
-@pytest.mark.skip(reason="this has been failing since May 2022; will be fixed in a follow-up pull")
 def test_reduce_regions(aoi_gdf):
     raster_names = ["tests/sample_data/raster/mara_dem.tif"]
     result = ecoscope.io.raster.reduce_region(aoi_gdf, raster_names, np.mean)
