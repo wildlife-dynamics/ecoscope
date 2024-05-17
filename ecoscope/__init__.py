@@ -1,4 +1,4 @@
-from ecoscope import analysis, base, contrib, io, mapping, plotting
+from ecoscope import base, io, mapping, plotting, analysis
 
 ASCII = """\
  _____
