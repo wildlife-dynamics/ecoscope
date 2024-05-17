@@ -13,12 +13,13 @@ classification_methods = {
 # pass in a series and output the series
 def apply_classification(x, labels=None, scheme="natural_breaks", **kwargs):
     """
-    Classifies the data in a GeoDataFrame column using specified mapclassify scheme.
+    Classifies the data in a GeoDataFrame column using specified classification scheme.
 
     Args:
     y : An array containing the data to classify.
     labels (str): labels of bins, use bin edges if labels==None.
-    scheme (str): Classification scheme to use. Must be one of the supported schemes by mapclassify.
+    scheme (str): Classification scheme to use [equal_interval, natural_breaks, quantile, std_mean, max_breaks,
+    fisher_jenks]
 
     **kwargs: Additional keyword arguments specific to the classification scheme.
 
