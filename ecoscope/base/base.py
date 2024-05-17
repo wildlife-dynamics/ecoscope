@@ -416,6 +416,7 @@ class Trajectory(EcoDataFrame):
                 .sun_rise_time(
                     astropy.time.Time(night_day_df.segment_start),
                     n_grid_points=n_grid_points,
+                    which="next",
                 )
                 .datetime,
                 utc=True,
@@ -435,6 +436,7 @@ class Trajectory(EcoDataFrame):
                 .sun_set_time(
                     astropy.time.Time(day_night_df.segment_start),
                     n_grid_points=n_grid_points,
+                    which="next",
                 )
                 .datetime,
                 utc=True,
