@@ -8,7 +8,7 @@ import pandas as pd
 from pyproj import Geod
 import shapely
 
-from ecoscope.analysis import astronomy
+from ecoscope.base.utils import to_EarthLocation
 from ecoscope.base._dataclasses import (
     RelocsCoordinateFilter,
     RelocsDateRangeFilter,
@@ -395,7 +395,7 @@ class Trajectory(EcoDataFrame):
             Daynight ratio for each unique individual subject in the grouby_col column.
         """
 
-        locations = astronomy.to_EarthLocation(self.geometry.to_crs(crs=self.estimate_utm_crs()).centroid)
+        locations = to_EarthLocation(self.geometry.to_crs(crs=self.estimate_utm_crs()).centroid)
 
         observer = astroplan.Observer(location=locations)
         is_night_start = observer.is_night(self.segment_start)
