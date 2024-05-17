@@ -1,7 +1,6 @@
 import typing
 
 import geopandas as gpd
-import mapclassify
 import pandas as pd
 import shapely
 
@@ -65,12 +64,23 @@ def apply_classification(x, k, cls_method="natural_breaks", multiples=[-2, -1, 1
         The multiples of the standard deviation to add/subtract from the sample mean to define the bins. defaults=
     """
 
+    from mapclassify import classifiers
+
+    classification_methods = {
+        "equal_interval": classifiers.EqualInterval,
+        "natural_breaks": classifiers.NaturalBreaks,
+        "quantile": classifiers.Quantiles,
+        "std_mean": classifiers.StdMean,
+        "max_breaks": classifiers.MaximumBreaks,
+        "fisher_jenks": classifiers.FisherJenks,
+    }
+
     classifier = classification_methods.get(cls_method)
     if not classifier:
         return
 
     map_classifier = classifier(x, multiples) if cls_method == "std_mean" else classifier(x, k)
-    edges, _, _ = mapclassify.classifiers._format_intervals(map_classifier, fmt="{:.2f}")
+    edges, _, _ = classifiers._format_intervals(map_classifier, fmt="{:.2f}")
     return [float(i) for i in edges]
 
 
@@ -82,12 +92,3 @@ default_speed_colors = [
     "#fc8d59",
     "#d73027",
 ]
-
-classification_methods = {
-    "equal_interval": mapclassify.EqualInterval,
-    "natural_breaks": mapclassify.NaturalBreaks,
-    "quantile": mapclassify.Quantiles,
-    "std_mean": mapclassify.StdMean,
-    "max_breaks": mapclassify.MaximumBreaks,
-    "fisher_jenks": mapclassify.FisherJenks,
-}

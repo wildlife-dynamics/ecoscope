@@ -13,7 +13,6 @@ import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import datashader as ds
 import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
@@ -509,6 +508,7 @@ class EcoMap(EcoMapMixin, Map):
         kwargs
             Additional kwargs passed to datashader.transfer_functions.shade
         """
+        import datashader as ds
 
         gdf = gdf.to_crs(epsg=4326)
         bounds = gdf.geometry.total_bounds

@@ -1,6 +1,5 @@
 import warnings
 
-import astroplan
 import astropy
 import geopandas as gpd
 import numpy as np
@@ -394,6 +393,7 @@ class Trajectory(EcoDataFrame):
         pd.Series:
             Daynight ratio for each unique individual subject in the grouby_col column.
         """
+        import astroplan
 
         locations = to_EarthLocation(self.geometry.to_crs(crs=self.estimate_utm_crs()).centroid)
 

@@ -4,7 +4,6 @@ import ee
 import numpy as np
 import pandas
 import shapely
-import sklearn.mixture
 from scipy.stats import norm
 from sklearn.preprocessing import LabelEncoder
 
@@ -50,7 +49,9 @@ def std_ndvi_vals(aoi=None, img_coll=None, nir_band=None, red_band=None, img_sca
 
 
 def val_cuts(vals, num_seasons=2):
-    distr = sklearn.mixture.GaussianMixture(n_components=num_seasons, max_iter=500)
+    from sklearn.mixture import GaussianMixture
+
+    distr = GaussianMixture(n_components=num_seasons, max_iter=500)
     vals = vals["NDVI"].to_numpy().reshape(-1, 1)
     distr.fit(vals)
     mu_vars = np.array(

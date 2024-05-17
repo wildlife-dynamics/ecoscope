@@ -6,7 +6,6 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import rasterio
-import sklearn.base
 from affine import Affine
 from shapely.geometry import shape
 from skimage.draw import line
@@ -119,6 +118,7 @@ class Ecograph:
         transform : sklearn.base.TransformerMixin or None
             A feature transform method (Default : None)
         """
+        from sklearn.base import TransformerMixin
 
         if feature in self.features:
             if individual == "all":
@@ -130,7 +130,7 @@ class Ecograph:
         else:
             raise ValueError("This feature was not computed by EcoGraph")
 
-        if isinstance(transform, sklearn.base.TransformerMixin):
+        if isinstance(transform, TransformerMixin):
             nan_mask = ~np.isnan(feature_ndarray)
             feature_ndarray[nan_mask] = transform.fit_transform(feature_ndarray[nan_mask].reshape(-1, 1)).reshape(
                 feature_ndarray[nan_mask].shape

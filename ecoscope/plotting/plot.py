@@ -3,7 +3,6 @@ import pandas as pd
 import plotly.graph_objs as go
 import shapely
 from plotly.subplots import make_subplots
-from sklearn.neighbors import KernelDensity
 
 
 class EcoPlotData:
@@ -243,6 +242,8 @@ def speed(trajectory):
 
 
 def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
+    from sklearn.neighbors import KernelDensity
+
     x = ndvi_vals.sort_values().to_numpy().reshape(-1, 1)
     kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(x)
     dens = np.exp(kde.score_samples(x))
