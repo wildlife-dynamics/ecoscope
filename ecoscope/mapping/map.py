@@ -1,6 +1,5 @@
 import base64
 import os
-import tempfile
 import time
 import typing
 import urllib
@@ -306,19 +305,19 @@ class EcoMap(EcoMapMixin, Map):
             fully loaded but can also be decreased in most cases.
 
         """
-
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as tmp:
-            super().to_html(tmp.name, **kwargs)
-            chrome_options = selenium.webdriver.chrome.options.Options()
-            chrome_options.add_argument("--headless")
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            driver = selenium.webdriver.Chrome(options=chrome_options)
-            if self.px_width and self.px_height:
-                driver.set_window_size(width=self.px_width, height=self.px_height)
-            driver.get(f"file://{os.path.abspath(tmp.name)}")
-            time.sleep(sleep_time)
-            driver.save_screenshot(outfile)
+        tempfile = "tmp_to_png.html"
+        super().to_html(tempfile, **kwargs)
+        chrome_options = selenium.webdriver.chrome.options.Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        driver = selenium.webdriver.Chrome(options=chrome_options)
+        if self.px_width and self.px_height:
+            driver.set_window_size(width=self.px_width, height=self.px_height)
+        driver.get(f"file://{os.path.abspath(tempfile)}")
+        time.sleep(sleep_time)
+        driver.save_screenshot(outfile)
+        os.remove(tempfile)
 
     def add_ee_layer(self, ee_object, visualization_params, name) -> None:
         """
