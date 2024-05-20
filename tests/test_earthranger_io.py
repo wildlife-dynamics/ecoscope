@@ -66,8 +66,9 @@ def test_get_subjectsource_no_observations(er_io):
 
 
 def test_get_subjectgroup_observations(er_io):
-    relocations = er_io.get_subjectgroup_observations(group_name=er_io.GROUP_NAME)
+    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     assert "groupby_col" in relocations
+    assert len(relocations["extra__subject_id"].unique()) == 2
 
 
 def test_get_events(er_events_io):
@@ -216,3 +217,11 @@ def test_get_spatial_features_group(er_io):
         spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097"
     )
     assert not spatial_features.empty
+
+
+def test_get_subjects_chunking(er_io):
+    subject_ids = ",".join(er_io.SUBJECT_IDS)
+    single_request_result = er_io.get_subjects(id=subject_ids)
+    chunked_request_result = er_io.get_subjects(id=subject_ids, max_ids_per_request=1)
+
+    pd.testing.assert_frame_equal(single_request_result, chunked_request_result)

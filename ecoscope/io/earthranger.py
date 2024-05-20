@@ -2,10 +2,13 @@ import datetime
 import pytz
 import json
 import typing
+import math
 
+import numpy as np
 import geopandas as gpd
 import pandas as pd
 import requests
+from dateutil import parser
 from erclient.client import ERClient, ERClientException, ERClientNotFound
 from tqdm.auto import tqdm
 
@@ -122,13 +125,14 @@ class EarthRangerIO(ERClient):
         self,
         include_inactive=None,
         bbox=None,
-        subject_group=None,
+        subject_group_id=None,
         name=None,
         updated_since=None,
         tracks=None,
         id=None,
         updated_until=None,
-        group_name=None,
+        subject_group_name=None,
+        max_ids_per_request=50,
         **addl_kwargs,
     ):
         """
@@ -137,13 +141,15 @@ class EarthRangerIO(ERClient):
         include_inactive: Include inactive subjects in list.
         bbox: Include subjects having track data within this bounding box defined by a 4-tuple of coordinates marking
             west, south, east, north.
-        subject_group: Indicate a subject group for which Subjects should be listed.
+        subject_group_id: Indicate a subject group id for which Subjects should be listed.
+            This is translated to the subject_group parameter in the ER backend
         name : Find subjects with the given name
         updated_since: Return Subject that have been updated since the given timestamp.
         tracks: Indicate whether to render each subject's recent tracks.
         id: A comma-delimited list of Subject IDs.
         updated_until
-        group_name
+        subject_group_name: A subject group name for which Subjects should be listed.
+            This is translated to the group_name parameter in the ER backend
         Returns
         -------
         subjects : pd.DataFrame
@@ -153,13 +159,13 @@ class EarthRangerIO(ERClient):
             addl_kwargs,
             include_inactive=include_inactive,
             bbox=bbox,
-            subject_group=subject_group,
+            subject_group=subject_group_id,
             name=name,
             updated_since=updated_since,
             tracks=tracks,
             id=id,
             updated_until=updated_until,
-            group_name=group_name,
+            group_name=subject_group_name,
         )
 
         assert params.get("subject_group") is None or params.get("group_name") is None
@@ -178,11 +184,32 @@ class EarthRangerIO(ERClient):
             except IndexError:
                 raise KeyError("`group_name` not found")
 
-        df = pd.DataFrame(
-            self.get_objects_multithreaded(
-                object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+        if params.get("id") is not None:
+            params["id"] = params.get("id").split(",")
+
+            def partial_subjects(subjects):
+                params["id"] = ",".join(subjects)
+                return pd.DataFrame(
+                    self.get_objects_multithreaded(
+                        object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                    )
+                )
+
+            df = pd.concat(
+                [
+                    partial_subjects(s)
+                    for s in np.array_split(params["id"], math.ceil(len(params["id"]) / max_ids_per_request))
+                ],
+                ignore_index=True,
             )
-        )
+
+        else:
+            df = pd.DataFrame(
+                self.get_objects_multithreaded(
+                    object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                )
+            )
+
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
@@ -350,8 +377,8 @@ class EarthRangerIO(ERClient):
         Get observations for each listed subject and create a `Relocations` object.
         Parameters
         ----------
-        subject_ids : str or list[str]
-            List of subject UUIDs
+        subject_ids : str or list[str] or pd.DataFrame
+            List of subject UUIDs, or a DataFrame of subjects
         include_source_details : bool, optional
             Whether to merge source info into dataframe
         include_subject_details : bool, optional
@@ -369,6 +396,10 @@ class EarthRangerIO(ERClient):
 
         if isinstance(subject_ids, str):
             subject_ids = [subject_ids]
+        elif isinstance(subject_ids, pd.DataFrame):
+            subject_ids = subject_ids.id.tolist()
+        elif not isinstance(subject_ids, list):
+            raise ValueError(f"subject_ids must be either a str or list[str] or pd.DataFrame, not {type(subject_ids)}")
 
         observations = self._get_observations(subject_ids=subject_ids, **kwargs)
 
@@ -382,11 +413,18 @@ class EarthRangerIO(ERClient):
                 right_on="source__id",
             )
         if include_subject_details:
-            observations = observations.merge(
-                self.get_subjects(id=",".join(subject_ids), include_inactive=True).add_prefix("subject__"),
-                left_on="subject_id",
-                right_on="subject__id",
-            )
+            if isinstance(subject_ids, pd.DataFrame):
+                observations = observations.merge(
+                    subject_ids.add_prefix("subject__"),
+                    left_on="subject_id",
+                    right_on="subject__id",
+                )
+            else:
+                observations = observations.merge(
+                    self.get_subjects(id=",".join(subject_ids), include_inactive=True).add_prefix("subject__"),
+                    left_on="subject_id",
+                    right_on="subject__id",
+                )
 
         if include_subjectsource_details:
             observations = observations.merge(
@@ -456,13 +494,15 @@ class EarthRangerIO(ERClient):
         else:
             return observations
 
-    def get_subjectgroup_observations(self, subject_group=None, group_name=None, include_inactive=True, **kwargs):
+    def get_subjectgroup_observations(
+        self, subject_group_id=None, subject_group_name=None, include_inactive=True, **kwargs
+    ):
         """
         Parameters
         ----------
-        subject_group : str
+        subject_group_id : str
             UUID of subject group to filter by
-        group_name : str
+        subject_group_name : str
             Common name of subject group to filter by
         include_inactive : bool, optional
             Whether to get observations for Subjects marked inactive by EarthRanger
@@ -475,14 +515,14 @@ class EarthRangerIO(ERClient):
             Observations in `Relocations` format
         """
 
-        assert (subject_group is None) != (group_name is None)
+        assert (subject_group_id is None) != (subject_group_name is None)
 
-        if subject_group:
-            subject_ids = self.get_subjects(subject_group=subject_group, include_inactive=include_inactive).id.tolist()
+        if subject_group_id:
+            subjects = self.get_subjects(subject_group_id=subject_group_id, include_inactive=include_inactive)
         else:
-            subject_ids = self.get_subjects(group_name=group_name, include_inactive=include_inactive).id.tolist()
+            subjects = self.get_subjects(subject_group_name=subject_group_name, include_inactive=include_inactive)
 
-        return self.get_subject_observations(subject_ids, **kwargs)
+        return self.get_subject_observations(subjects, **kwargs)
 
     def get_event_types(self, include_inactive=False, **addl_kwargs):
         params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
@@ -593,7 +633,8 @@ class EarthRangerIO(ERClient):
         )
 
         assert not df.empty
-        df["time"] = pd.to_datetime(df["time"])
+
+        df["time"] = df["time"].apply(lambda x: pd.to_datetime(parser.parse(x)))
 
         gdf = gpd.GeoDataFrame(df)
         if gdf.loc[0, "location"] is not None:

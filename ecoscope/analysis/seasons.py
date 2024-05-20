@@ -19,11 +19,11 @@ def _min_max_scaler(x):
     return x_std
 
 
-def std_ndvi_vals(aoi=None, img_coll=None, band=None, img_scale=1, start=None, end=None):
+def std_ndvi_vals(aoi=None, img_coll=None, nir_band=None, red_band=None, img_scale=1, start=None, end=None):
 
     coll = (
         ee.ImageCollection(img_coll)
-        .select(band)
+        .select([nir_band, red_band])
         .filterDate(start, end)
         .map(lambda x: x.multiply(ee.Image(img_scale)).set("system:time_start", x.get("system:time_start")))
     )
@@ -33,11 +33,14 @@ def std_ndvi_vals(aoi=None, img_coll=None, band=None, img_scale=1, start=None, e
     else:
         geo = None
 
+    img_dates = pandas.to_datetime(coll.aggregate_array("system:time_start").getInfo(), unit="ms", utc=True)
+
+    coll = coll.map(lambda x: x.normalizedDifference([nir_band, red_band]))
     ndvi_vals = coll.toBands().reduceRegion("mean", geo, bestEffort=True).values().getInfo()
 
     df = pandas.DataFrame(
         {
-            "img_date": pandas.to_datetime(coll.aggregate_array("system:time_start").getInfo(), unit="ms", utc=True),
+            "img_date": img_dates,
             "NDVI": ndvi_vals,
         }
     ).dropna(axis=0)
@@ -110,13 +113,13 @@ def seasonal_windows(ndvi_vals, cuts, season_labels):
 
 
 def add_seasonal_index(
-    df, index_name, start_date, end_date, aoi_geom_filter=None, seasons=2, season_labels=["dry", "wet"]
+    df, index_name, start_date, end_date, time_col, aoi_geom_filter=None, seasons=2, season_labels=["dry", "wet"]
 ):
 
     aoi_ = None
     try:
         aoi_ = aoi_geom_filter.dissolve().iloc[0]["geometry"]
-    except:
+    except AttributeError:
         aoi_ = aoi_geom_filter
 
     if len(season_labels) != seasons:
@@ -124,7 +127,7 @@ def add_seasonal_index(
             f"Parameter value 'seasons' ({seasons}) must match the number of 'season_labels' elements ({season_labels})"
         )
     # extract the standardized NDVI ndvi_vals within the AOI
-    ndvi_vals = std_ndvi_vals(aoi_, start=since_filter.isoformat(), end=until_filter.isoformat())
+    ndvi_vals = std_ndvi_vals(aoi_, start=start_date.isoformat(), end=end_date.isoformat())
 
     # calculate the seasonal transition point
     cuts = val_cuts(ndvi_vals, seasons)
