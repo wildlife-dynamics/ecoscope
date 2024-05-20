@@ -1,7 +1,9 @@
+import pytest
 from ecoscope.analysis.proximity import SpatialFeature, Proximity, ProximityProfile
 from ecoscope.base import Trajectory
 
 
+@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_proximity(er_io):
     er_features = er_io.get_spatial_features_group(spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097")
 
