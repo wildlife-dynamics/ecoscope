@@ -15,6 +15,8 @@ os.environ["USE_PYGEOS"] = "0"
 def pytest_configure(config):
     ecoscope.init()
 
+    os.makedirs("tests/outputs", exist_ok=True)
+
     try:
         EE_ACCOUNT = os.getenv("EE_ACCOUNT")
         EE_PRIVATE_KEY_DATA = os.getenv("EE_PRIVATE_KEY_DATA")
@@ -75,8 +77,8 @@ def er_events_io():
 
 
 @pytest.fixture
-def movbank_relocations():
-    df = pd.read_feather("tests/sample_data/vector/movbank_data.feather")
+def movebank_relocations():
+    df = pd.read_feather("tests/sample_data/vector/movebank_data.feather")
     gdf = gpd.GeoDataFrame(
         df,
         geometry=gpd.points_from_xy(df.pop("location-long"), df.pop("location-lat")),

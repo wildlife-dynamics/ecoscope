@@ -8,6 +8,7 @@ dependencies:
   - jupyterlab
   - geopandas<=0.14.2
   - beautifulsoup4
+  - ipywidgets
   - pip:
       - kaleido
       - pre-commit>=3

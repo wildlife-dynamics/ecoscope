@@ -191,7 +191,6 @@ def test_patch_event(er_io):
     pd.testing.assert_frame_equal(result, updated_event)
 
 
-@pytest.mark.skip(reason="Known issue: https://github.com/wildlife-dynamics/ecoscope/issues/109")
 def test_get_patrol_observations(er_io):
     patrols = er_io.get_patrols()
     observations = er_io.get_patrol_observations(

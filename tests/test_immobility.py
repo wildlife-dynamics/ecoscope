@@ -4,13 +4,13 @@ import pytest
 from ecoscope.analysis import immobility
 
 
-def test_immobility(movbank_relocations):
-    movbank_relocations = movbank_relocations.loc[movbank_relocations.groupby_col == "Salif Keita"][:100]
+def test_immobility(movebank_relocations):
+    movebank_relocations = movebank_relocations.loc[movebank_relocations.groupby_col == "Salif Keita"][:100]
     immobility_profile = immobility.ImmobilityProfile(
         threshold_time=130, threshold_probability=0.5, threshold_radius=1000
     )
     result = immobility.Immobility.calculate_immobility(
-        immobility_profile=immobility_profile, relocs=movbank_relocations
+        immobility_profile=immobility_profile, relocs=movebank_relocations
     )
     expected_result = {
         "probability_value": 0.83,
