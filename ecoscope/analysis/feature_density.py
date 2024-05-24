@@ -1,20 +1,14 @@
-import geopandas as gpd
 import numpy as np
-from shapely.strtree import STRtree
 
 
 def calculate_feature_density(selection, grid, geometry_type="point"):
-    tree = STRtree(selection.geometry)
-
     def clip_density(cell):
-        result = tree.query(cell)
-        if len(result) == 0:
-            return 0
-        result_gdf = gpd.GeoDataFrame(geometry=selection.iloc[result].geometry, crs=selection.crs)
+        result = selection.clip_by_rect(*cell.bounds)
+        result = result[~result.is_empty]
         if geometry_type == "point":
-            return len(result_gdf)
+            return result.geometry.count()
         elif geometry_type == "line":
-            return result_gdf.length.sum() / 1000  # Convert to kilometers
+            return result.geometry.length.sum() / 1000
         else:
             raise ValueError("Unsupported geometry type")
 
