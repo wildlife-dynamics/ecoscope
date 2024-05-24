@@ -151,6 +151,9 @@ documents/
 *.backup
 docker-image/.Rhistory
 
+# tif
+*.aux.xml
+
 settings.json
 *.code-workspace
 ecoscope/_etd.c
@@ -166,3 +169,5 @@ tests/test_output/movbank_data.csv
 tests/test_output/movbank_data.csv.zip
 tests/test_output/download_data.csv
 tests/test_output/config.json
+tests/test_output/line_density.tif
+tests/test_output/point_density.tif
