@@ -11,6 +11,8 @@ import rasterio as rio
 import rasterio.mask
 import tqdm.auto as tqdm
 
+import ecoscope
+
 logger = logging.getLogger(__name__)
 
 
@@ -204,3 +206,34 @@ def raster_to_gdf(raster_path):
             ],
             crs=src.crs,
         )
+
+
+def grid_to_raster(grid=None, val_column="", out_dir="", raster_name="grid.tif", xlen=5000, ylen=5000, grid_crs=4326):
+    """
+    Save a GeoDataFrame grid to a raster.
+    Does not handle different xlen and ylen
+    """
+    bounds = grid["geometry"].total_bounds
+    nrows = int((bounds[3] - bounds[1]) / ylen)
+    ncols = int((bounds[2] - bounds[0]) / xlen)
+    if val_column:
+        vals = grid[val_column].to_numpy()
+    else:
+        vals = np.zeros(len(grid))
+    vals = np.flip(vals.reshape(nrows, ncols, order="F"), axis=0)
+
+    raster_profile = ecoscope.io.raster.RasterProfile(
+        pixel_size=xlen,
+        crs=grid_crs,
+        nodata_value=np.nan,
+        band_count=1,
+    )
+
+    raster_profile.raster_extent = ecoscope.io.raster.RasterExtent(
+        x_min=bounds[0], x_max=bounds[2], y_min=bounds[1], y_max=bounds[3]
+    )
+    ecoscope.io.raster.RasterPy.write(
+        ndarray=vals,
+        fp=os.path.join(out_dir, raster_name),
+        **raster_profile,
+    )
