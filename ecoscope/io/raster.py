@@ -10,7 +10,6 @@ import pyproj
 import rasterio as rio
 import rasterio.mask
 import tqdm.auto as tqdm
-from rasterio.features import rasterize
 
 logger = logging.getLogger(__name__)
 
@@ -205,32 +204,3 @@ def raster_to_gdf(raster_path):
             ],
             crs=src.crs,
         )
-
-
-def grid_to_raster(grid, val_column, out_dir, rast_name, pixel_size, grid_crs):
-    transform = rasterio.transform.from_origin(
-        west=grid.total_bounds[0], north=grid.total_bounds[3], xsize=pixel_size, ysize=pixel_size
-    )
-    out_shape = (
-        int((grid.total_bounds[3] - grid.total_bounds[1]) / pixel_size),
-        int((grid.total_bounds[2] - grid.total_bounds[0]) / pixel_size),
-    )
-    raster = rasterize(
-        [(geom, value) for geom, value in zip(grid.geometry, grid[val_column])],
-        out_shape=out_shape,
-        transform=transform,
-        fill=np.nan,
-        dtype="float32",
-    )
-    with rasterio.open(
-        f"{out_dir}/{rast_name}",
-        "w",
-        driver="GTiff",
-        height=raster.shape[0],
-        width=raster.shape[1],
-        count=1,
-        dtype=raster.dtype,
-        crs=grid_crs,
-        transform=transform,
-    ) as dst:
-        dst.write(raster, 1)
