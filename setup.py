@@ -22,6 +22,7 @@ dependencies = [
     "geopandas<=0.14.2",
     "igraph",
     "kaleido",
+    "lazy_loader",
     "mapclassify",
     "matplotlib",
     "networkx",
