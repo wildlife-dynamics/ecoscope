@@ -8,9 +8,12 @@ from ecoscope.mapping.map import (
     PrintControl,
 )
 
+from ecoscope.mapping.lonboard_map import EcoMap2
+
 __all__ = [
     "ControlElement",
     "EcoMap",
+    "EcoMap2",
     "FloatElement",
     "NorthArrowElement",
     "ScaleElement",

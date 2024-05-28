@@ -1,11 +1,14 @@
 import ee
 import geopandas as gpd
+from typing import List, Union
 from lonboard import Map
+from lonboard._geoarrow.ops.bbox import Bbox
+from lonboard._viewport import compute_view, bbox_to_zoom_level
 from lonboard._layer import BaseLayer, BaseArrowLayer, BitmapTileLayer
 from lonboard._deck_widget import BaseDeckWidget, NorthArrowWidget, ScaleWidget, LegendWidget, TitleWidget
 
 
-class EcoMap(Map):
+class EcoMap2(Map):
     def __init__(self, static=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -50,3 +53,24 @@ class EcoMap(Map):
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
 
         self.add_layer(ee_layer)
+
+    def zoom_to_bounds(self, feat: Union[List[BaseLayer], gpd.GeoDataFrame]):
+        if feat is None:
+            view_state = compute_view(self.layers)
+        elif isinstance(feat, List):
+            view_state = compute_view(feat)
+        else:
+            bounds = feat.to_crs(4326).total_bounds
+            bbox = Bbox(minx=bounds[0], miny=bounds[1], maxx=bounds[2], maxy=bounds[3])
+
+            centerLon = (bounds[0] + bounds[2]) / 2
+            centerLat = (bounds[1] + bounds[3]) / 2
+
+            view_state = {
+                "longitude": centerLon,
+                "latitude": centerLat,
+                "zoom": bbox_to_zoom_level(bbox),
+                "pitch": 0,
+                "bearing": 0,
+            }
+        self.set_view_state(**view_state)
