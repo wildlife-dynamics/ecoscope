@@ -1,4 +1,9 @@
-from ecoscope import base, io, mapping, plotting, analysis
+import lazy_loader as lazy
+
+__getattr__, __dir__, __all__ = lazy.attach(
+    __name__,
+    submodules=["base", "io", "mapping", "plotting", "analysis"],
+)
 
 ASCII = """\
  _____
@@ -49,6 +54,7 @@ def init(silent=False, selenium=False, force=False):
     warnings.filterwarnings("ignore", message=".*initial implementation of Parquet.*")
 
     import geopandas as gpd
+    from ecoscope.mapping.map import EcoMap
 
     def explore(data, *args, **kwargs):
         """
@@ -56,9 +62,9 @@ def init(silent=False, selenium=False, force=False):
         """
         initialized = "m" in kwargs
         if not initialized:
-            kwargs["m"] = mapping.EcoMap()
+            kwargs["m"] = EcoMap()
 
-        if isinstance(kwargs["m"], mapping.EcoMap):
+        if isinstance(kwargs["m"], EcoMap):
             m = kwargs.pop("m")
             m.add_gdf(data, *args, **kwargs)
             if not initialized:

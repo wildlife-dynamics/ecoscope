@@ -1,6 +1,13 @@
-from ecoscope.io import earthranger, eetools, raster, utils
-from ecoscope.io.earthranger import EarthRangerIO
-from ecoscope.io.utils import download_file
+import lazy_loader as lazy
+
+__getattr__, __dir__, __all__ = lazy.attach(
+    __name__,
+    submodules=["earthranger", "eetools", "raster", "utils"],
+    submod_attrs={
+        "earthranger": ["EarthRangerIO"],
+        "utils": ["download_file"],
+    },
+)
 
 __all__ = [
     "earthranger",

@@ -1,11 +1,18 @@
-from ecoscope.mapping.map import (
-    ControlElement,
-    EcoMap,
-    FloatElement,
-    NorthArrowElement,
-    ScaleElement,
-    GeoTIFFElement,
-    PrintControl,
+import lazy_loader as lazy
+
+__getattr__, __dir__, __all__ = lazy.attach(
+    __name__,
+    submod_attrs={
+        "map": [
+            "ControlElement",
+            "EcoMap",
+            "FloatElement",
+            "NorthArrowElement",
+            "ScaleElement",
+            "GeoTIFFElement",
+            "PrintControl",
+        ],
+    },
 )
 
 __all__ = [

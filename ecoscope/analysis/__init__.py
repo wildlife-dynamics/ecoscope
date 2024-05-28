@@ -1,7 +1,13 @@
-from ecoscope.analysis import UD, seasons
-from ecoscope.analysis.ecograph import Ecograph, get_feature_gdf
-from ecoscope.analysis.percentile import get_percentile_area
-from ecoscope.analysis.speed import SpeedDataFrame
+import lazy_loader as lazy
+
+__getattr__, __dir__, __all__ = lazy.attach(
+    __name__,
+    submodules=["UD", "seasons", "speed"],
+    submod_attrs={
+        "ecograph": ["Ecograph", "get_feature_gdf"],
+        "percentile": ["get_percentile_area"],
+    },
+)
 
 __all__ = [
     "Ecograph",
