@@ -2,6 +2,7 @@ from math import ceil, floor
 
 import geopandas as gpd
 import igraph
+import sklearn
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -10,7 +11,7 @@ from affine import Affine
 from shapely.geometry import shape
 from skimage.draw import line
 
-import ecoscope
+from ecoscope.io.raster import RasterExtent, RasterProfile, RasterPy
 
 
 class Ecograph:
@@ -118,7 +119,6 @@ class Ecograph:
         transform : sklearn.base.TransformerMixin or None
             A feature transform method (Default : None)
         """
-        from sklearn.base import TransformerMixin
 
         if feature in self.features:
             if individual == "all":
@@ -130,22 +130,20 @@ class Ecograph:
         else:
             raise ValueError("This feature was not computed by EcoGraph")
 
-        if isinstance(transform, TransformerMixin):
+        if isinstance(transform, sklearn.base.TransformerMixin):
             nan_mask = ~np.isnan(feature_ndarray)
             feature_ndarray[nan_mask] = transform.fit_transform(feature_ndarray[nan_mask].reshape(-1, 1)).reshape(
                 feature_ndarray[nan_mask].shape
             )
 
-        raster_profile = ecoscope.io.raster.RasterProfile(
+        raster_profile = RasterProfile(
             pixel_size=self.resolution,
             crs=self.utm_crs,
             nodata_value=np.nan,
             band_count=1,
         )
-        raster_profile.raster_extent = ecoscope.io.raster.RasterExtent(
-            x_min=self.xmin, x_max=self.xmax, y_min=self.ymin, y_max=self.ymax
-        )
-        ecoscope.io.raster.RasterPy.write(
+        raster_profile.raster_extent = RasterExtent(x_min=self.xmin, x_max=self.xmax, y_min=self.ymin, y_max=self.ymax)
+        RasterPy.write(
             ndarray=feature_ndarray,
             fp=output_path,
             **raster_profile,

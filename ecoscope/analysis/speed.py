@@ -5,6 +5,9 @@ import pandas as pd
 import shapely
 
 import ecoscope.base
+import lazy_loader as lazy
+
+mapclassify = lazy.load("mapclassify")
 
 
 class SpeedDataFrame(ecoscope.base.EcoDataFrame):
@@ -64,15 +67,13 @@ def apply_classification(x, k, cls_method="natural_breaks", multiples=[-2, -1, 1
         The multiples of the standard deviation to add/subtract from the sample mean to define the bins. defaults=
     """
 
-    from mapclassify import classifiers
-
     classification_methods = {
-        "equal_interval": classifiers.EqualInterval,
-        "natural_breaks": classifiers.NaturalBreaks,
-        "quantile": classifiers.Quantiles,
-        "std_mean": classifiers.StdMean,
-        "max_breaks": classifiers.MaximumBreaks,
-        "fisher_jenks": classifiers.FisherJenks,
+        "equal_interval": mapclassify.EqualInterval,
+        "natural_breaks": mapclassify.NaturalBreaks,
+        "quantile": mapclassify.Quantiles,
+        "std_mean": mapclassify.StdMean,
+        "max_breaks": mapclassify.MaximumBreaks,
+        "fisher_jenks": mapclassify.FisherJenks,
     }
 
     classifier = classification_methods.get(cls_method)
@@ -80,7 +81,7 @@ def apply_classification(x, k, cls_method="natural_breaks", multiples=[-2, -1, 1
         return
 
     map_classifier = classifier(x, multiples) if cls_method == "std_mean" else classifier(x, k)
-    edges, _, _ = classifiers._format_intervals(map_classifier, fmt="{:.2f}")
+    edges, _, _ = mapclassify.classifiers._format_intervals(map_classifier, fmt="{:.2f}")
     return [float(i) for i in edges]
 
 

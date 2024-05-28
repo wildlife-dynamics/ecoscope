@@ -17,6 +17,10 @@ from ecoscope.base._dataclasses import (
 )
 from ecoscope.base.utils import cachedproperty
 
+import lazy_loader as lazy
+
+astroplan = lazy.load("astroplan")
+
 
 class EcoDataFrame(gpd.GeoDataFrame):
     """
@@ -393,7 +397,6 @@ class Trajectory(EcoDataFrame):
         pd.Series:
             Daynight ratio for each unique individual subject in the grouby_col column.
         """
-        import astroplan
 
         locations = to_EarthLocation(self.geometry.to_crs(crs=self.estimate_utm_crs()).centroid)
 

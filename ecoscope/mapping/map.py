@@ -21,6 +21,10 @@ from branca.element import MacroElement, Template
 import ecoscope
 from ecoscope.contrib.foliumap import Map
 
+import lazy_loader as lazy
+
+ds = lazy.load("datashader")
+
 warnings.filterwarnings("ignore", "GeoSeries.isna", UserWarning)
 
 
@@ -508,7 +512,6 @@ class EcoMap(EcoMapMixin, Map):
         kwargs
             Additional kwargs passed to datashader.transfer_functions.shade
         """
-        import datashader as ds
 
         gdf = gdf.to_crs(epsg=4326)
         bounds = gdf.geometry.total_bounds
