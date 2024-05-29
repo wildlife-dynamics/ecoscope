@@ -163,3 +163,66 @@ def test_daynight_ratio(movebank_relocations):
         ),
         expected,
     )
+
+
+def test_edf_filter(movebank_relocations):
+    movebank_relocations["junk_status"] = True
+
+    empty = movebank_relocations.remove_filtered()
+    assert len(empty) == 0
+
+    reset = movebank_relocations.reset_filter().remove_filtered()
+    assert len(reset) > 0
+
+
+def test_relocs_from_gdf_with_warnings():
+    df = pd.read_feather("tests/sample_data/vector/movebank_data.feather")
+    geometry = gpd.points_from_xy(df.pop("location-long"), df.pop("location-lat"))
+
+    gdf = gpd.GeoDataFrame(df, geometry=geometry)
+
+    with pytest.warns(UserWarning, match="CRS was not set"):
+        ecoscope.base.Relocations.from_gdf(gdf, time_col="timestamp")
+
+    gdf = gpd.GeoDataFrame(df, geometry=geometry, crs=4326)
+    gdf["timestamp"] = pd.to_datetime(gdf["timestamp"])
+
+    with pytest.warns(UserWarning, match="timestamp is not timezone aware"):
+        ecoscope.base.Relocations.from_gdf(gdf, time_col="timestamp")
+
+    gdf["timestamp"] = "1/1/2000"
+
+    with pytest.warns(UserWarning, match="timestamp is not of type datetime64"):
+        ecoscope.base.Relocations.from_gdf(gdf, time_col="timestamp")
+
+
+def test_apply_traj_filter(movebank_relocations):
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+
+    min_length = 0.2
+    max_length = 6000
+    min_time = 100
+    max_time = 300000
+    min_speed = 0.1
+    max_speed = 5
+
+    traj_seg_filter = ecoscope.base.TrajSegFilter(
+        min_length_meters=min_length,
+        max_length_meters=max_length,
+        min_time_secs=min_time,
+        max_time_secs=max_time,
+        min_speed_kmhr=min_speed,
+        max_speed_kmhr=max_speed,
+    )
+
+    filtered = trajectory.apply_traj_filter(traj_seg_filter)
+    filtered.remove_filtered(inplace=True)
+
+    assert filtered["dist_meters"].min() >= min_length
+    assert filtered["dist_meters"].max() <= max_length
+
+    assert filtered["timespan_seconds"].min() >= min_time
+    assert filtered["timespan_seconds"].max() <= max_time
+
+    assert filtered["speed_kmhr"].min() >= min_speed
+    assert filtered["speed_kmhr"].max() <= max_speed

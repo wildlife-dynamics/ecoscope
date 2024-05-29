@@ -21,6 +21,7 @@ dependencies = [
     "folium",
     "geopandas<=0.14.2",
     "igraph",
+    "ipywidgets",
     "kaleido",
     "mapclassify",
     "matplotlib",
