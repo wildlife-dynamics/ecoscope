@@ -148,14 +148,12 @@ def test_sampling(movebank_relocations):
     gpd.testing.assert_geodataframe_equal(downsampled_relocs_int, expected_downsample_int, check_less_precise=True)
 
 
-@pytest.mark.skip(reason="Skipped pending rework https://github.com/wildlife-dynamics/ecoscope/issues/152")
-@pytest.mark.filterwarnings("ignore:Target with index", 'ignore: ERFA function "utctai"')
 def test_daynight_ratio(movebank_relocations):
     trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
         [
             2.212816,
-            0.638830,
+            0.656435,
         ],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
