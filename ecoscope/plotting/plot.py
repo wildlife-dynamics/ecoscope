@@ -39,7 +39,7 @@ def ecoplot(
             break
 
     n = len(groups)
-    fig_height = n * subplot_height + 2 * subplot_height
+    # fig_height = n * subplot_height + 2 * subplot_height
 
     fig = make_subplots(
         **{
@@ -110,10 +110,9 @@ def ecoplot(
             "xanchor": "center",
             "x": 0.5,
         },
-        height=fig_height,
     )
 
-    fig.update_layout(**{**dict(showlegend=False, autosize=False), **(layout_kwargs or {})})
+    fig.update_layout(**{**dict(showlegend=False), **(layout_kwargs or {})})
 
     if annotate_name_pos is not None:
         for i, name in enumerate(groups, 1):
