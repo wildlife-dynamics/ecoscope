@@ -17,8 +17,8 @@ import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
 
-import ecoscope
 from ecoscope.contrib.foliumap import Map
+from ecoscope.analysis.speed import SpeedDataFrame
 
 warnings.filterwarnings("ignore", "GeoSeries.isna", UserWarning)
 
@@ -34,7 +34,7 @@ class EcoMapMixin:
         legend: bool = True,
     ):
 
-        speed_df = ecoscope.analysis.SpeedDataFrame.from_trajectory(
+        speed_df = SpeedDataFrame.from_trajectory(
             trajectory=trajectory,
             classification_method=classification_method,
             num_classes=num_classes,

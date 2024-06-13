@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import numba as nb
 import numpy as np
 import scipy
-import sklearn
+from sklearn import neighbors
 from scipy.optimize import minimize
 from scipy.stats import weibull_min
 
@@ -164,7 +164,7 @@ def calculate_etd_range(
 
     centroids_coords = np.dot(grid_centroids, np.mgrid[1:2, :num_columns, :num_rows].T.reshape(-1, 3, 1))
 
-    tr = sklearn.neighbors.KDTree(centroids_coords.squeeze().T)
+    tr = neighbors.KDTree(centroids_coords.squeeze().T)
 
     del centroids_coords
 
