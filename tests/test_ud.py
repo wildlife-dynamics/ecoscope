@@ -7,6 +7,7 @@ import numpy as np
 
 import ecoscope
 from ecoscope.analysis import UD
+from ecoscope.analysis.percentile import get_percentile_area
 
 
 def test_etd_range(movebank_relocations):
@@ -41,7 +42,7 @@ def test_etd_range(movebank_relocations):
             expansion_factor=1.3,
         )
 
-        percentile_area = ecoscope.analysis.get_percentile_area(
+        percentile_area = get_percentile_area(
             percentile_levels=[99.9], raster_path=file.name, subject_id="Salif_Keita"
         ).to_crs(4326)
     finally:

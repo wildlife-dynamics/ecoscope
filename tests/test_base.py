@@ -148,23 +148,6 @@ def test_sampling(movebank_relocations):
     gpd.testing.assert_geodataframe_equal(downsampled_relocs_int, expected_downsample_int, check_less_precise=True)
 
 
-def test_daynight_ratio(movebank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
-    expected = pd.Series(
-        [
-            2.212816,
-            0.656435,
-        ],
-        index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
-    )
-    pd.testing.assert_series_equal(
-        trajectory.groupby("groupby_col")[trajectory.columns].apply(
-            ecoscope.base.Trajectory.get_daynight_ratio, include_groups=False
-        ),
-        expected,
-    )
-
-
 def test_edf_filter(movebank_relocations):
     movebank_relocations["junk_status"] = True
 

@@ -1,4 +1,6 @@
 import pyproj
+import pandas as pd
+from ecoscope.base import Trajectory
 from ecoscope.analysis import astronomy
 
 
@@ -28,3 +30,18 @@ def test_is_night(movebank_relocations):
     subset["is_night"] = astronomy.is_night(subset.geometry, subset.fixtime)
 
     assert subset["is_night"].values.tolist() == [True, True, False]
+
+
+def test_daynight_ratio(movebank_relocations):
+    trajectory = Trajectory.from_relocations(movebank_relocations)
+    expected = pd.Series(
+        [
+            2.212816,
+            0.656435,
+        ],
+        index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
+    )
+    pd.testing.assert_series_equal(
+        trajectory.groupby("groupby_col")[trajectory.columns].apply(astronomy.get_daynight_ratio, include_groups=False),
+        expected,
+    )

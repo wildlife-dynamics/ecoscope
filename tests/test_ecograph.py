@@ -6,6 +6,7 @@ import pytest
 import sklearn.preprocessing
 
 import ecoscope
+from ecoscope.analysis.ecograph import Ecograph, get_feature_gdf
 
 
 @pytest.fixture
@@ -28,7 +29,7 @@ def movebank_trajectory_gdf(movebank_relocations):
 @pytest.fixture
 def movebank_ecograph(movebank_trajectory_gdf):
     mean_step_length = np.mean(np.abs(movebank_trajectory_gdf["dist_meters"]))
-    return ecoscope.analysis.Ecograph(movebank_trajectory_gdf, resolution=mean_step_length)
+    return Ecograph(movebank_trajectory_gdf, resolution=mean_step_length)
 
 
 @pytest.mark.parametrize(
@@ -57,7 +58,7 @@ def test_ecograph_to_geotiff(movebank_ecograph, feature, interpolation, transfor
         interpolation=interpolation,
         transform=transform,
     )
-    gdf_from_tiff = ecoscope.analysis.ecograph.get_feature_gdf(f"tests/outputs/{output_file}")
+    gdf_from_tiff = get_feature_gdf(f"tests/outputs/{output_file}")
 
     # expected_gdf = gpd.read_feather(f"tests/test_output/{validation_File}")
     expected_gdf = gpd.read_feather(f"tests/reference_data/{validation_file}")
