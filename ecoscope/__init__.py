@@ -1,4 +1,4 @@
-from ecoscope import analysis, base, contrib, io, mapping, plotting
+from ecoscope import base, io
 
 ASCII = """\
  _____
@@ -54,6 +54,8 @@ def init(silent=False, selenium=False, force=False):
         """
         Monkey-patched `geopandas.explore._explore` to use EcoMap instead.
         """
+        from ecoscope import mapping
+
         initialized = "m" in kwargs
         if not initialized:
             kwargs["m"] = mapping.EcoMap()

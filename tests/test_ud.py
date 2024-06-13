@@ -6,6 +6,7 @@ import geopandas.testing
 import numpy as np
 
 import ecoscope
+from ecoscope.analysis import UD
 
 
 def test_etd_range(movebank_relocations):
@@ -32,7 +33,7 @@ def test_etd_range(movebank_relocations):
 
     file = NamedTemporaryFile(delete=False)
     try:
-        ecoscope.analysis.UD.calculate_etd_range(
+        UD.calculate_etd_range(
             trajectory_gdf=movebank_trajectory_gdf,
             output_path=file.name,
             max_speed_kmhr=1.05 * movebank_trajectory_gdf.speed_kmhr.max(),

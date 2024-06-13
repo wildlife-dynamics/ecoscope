@@ -2,6 +2,7 @@ import geopandas as gpd
 import pytest
 
 import ecoscope
+from ecoscope import plotting
 
 if not pytest.earthengine:
     pytest.skip(
@@ -32,6 +33,6 @@ def test_seasons():
     # Determine the seasonal time windows
     windows = ecoscope.analysis.seasons.seasonal_windows(ndvi_vals, cuts, season_labels=["dry", "wet"])
 
-    ecoscope.plotting.plot_seasonal_dist(ndvi_vals["NDVI"], cuts)
+    plotting.plot_seasonal_dist(ndvi_vals["NDVI"], cuts)
 
     assert len(windows) > 0
