@@ -14,6 +14,7 @@ from branca.element import MacroElement
 from branca.colormap import StepColormap
 from folium.raster_layers import TileLayer, ImageOverlay
 from folium.map import FitBounds
+from ecoscope.analysis.geospatial import datashade_gdf
 from bs4 import BeautifulSoup
 
 
@@ -177,7 +178,8 @@ def test_add_print_control():
 def test_add_datashader_gdf(file, geom_type):
     m = EcoMap()
     gdf = geopandas.GeoDataFrame.from_file(file)
-    m.add_datashader_gdf(gdf, geom_type, zoom=False)
+    img, bounds = datashade_gdf(gdf, geom_type)
+    m.add_pil_image(img, bounds, zoom=False)
     assert len(m._children) == 8
     assert isinstance(list(m._children.values())[7], ImageOverlay)
     assert "L.imageOverlay(" in m._repr_html_()
@@ -186,7 +188,8 @@ def test_add_datashader_gdf(file, geom_type):
 def test_add_datashader_gdf_with_zoom():
     m = EcoMap()
     gdf = geopandas.GeoDataFrame.from_file("tests/sample_data/vector/maec_4zones_UTM36S.gpkg")
-    m.add_datashader_gdf(gdf, "polygon", zoom=True)
+    img, bounds = datashade_gdf(gdf, "polygon")
+    m.add_pil_image(img, bounds)
     assert len(m._children) == 9
     assert isinstance(list(m._children.values())[7], ImageOverlay)
     assert isinstance(list(m._children.values())[8], FitBounds)
