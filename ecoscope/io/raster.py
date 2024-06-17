@@ -211,7 +211,6 @@ def raster_to_gdf(raster_path):
 def grid_to_raster(grid=None, val_column="", out_dir="", raster_name="grid.tif", xlen=5000, ylen=5000, grid_crs=4326):
     """
     Save a GeoDataFrame grid to a raster.
-    Does not handle different xlen and ylen
     """
     bounds = grid["geometry"].total_bounds
     nrows = int((bounds[3] - bounds[1]) / ylen)
