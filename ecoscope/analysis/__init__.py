@@ -10,4 +10,6 @@ __all__ = [
     "percentile",
     "proximity",
     "seasons",
+    "apply_classification",
+    "calculate_feature_density",
 ]
