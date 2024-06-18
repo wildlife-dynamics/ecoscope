@@ -1,10 +1,13 @@
 __all__ = [
-    "Ecograph",
-    "SpeedDataFrame",
+    "ecograph",
+    "speed",
     "UD",
     "astronomy",
-    "get_feature_gdf",
-    "get_percentile_area",
+    "classifier",
+    "geofence",
+    "geospatial",
+    "immobility",
+    "percentile",
+    "proximity",
     "seasons",
-    "apply_classification",
 ]
