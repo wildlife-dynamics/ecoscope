@@ -1,11 +1,22 @@
 import ee
+import base64
+import rasterio
 import geopandas as gpd
+import matplotlib as mpl
+import numpy as np
 from typing import List, Union
 from lonboard import Map
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
-from lonboard._layer import BaseLayer, BaseArrowLayer, BitmapTileLayer
-from lonboard._deck_widget import BaseDeckWidget, NorthArrowWidget, ScaleWidget, LegendWidget, TitleWidget
+from lonboard._layer import BaseLayer, BaseArrowLayer, BitmapLayer, BitmapTileLayer
+from lonboard._deck_widget import (
+    BaseDeckWidget,
+    NorthArrowWidget,
+    ScaleWidget,
+    LegendWidget,
+    TitleWidget,
+    SaveImageWidget,
+)
 
 
 class EcoMap2(Map):
@@ -32,6 +43,9 @@ class EcoMap2(Map):
 
     def add_title(self, **kwargs):
         self.add_widget(TitleWidget(**kwargs))
+
+    def add_save_image(self, **kwargs):
+        self.add_widget(SaveImageWidget(**kwargs))
 
     def add_ee_layer(self, ee_object, visualization_params, **kwargs):
         if isinstance(ee_object, ee.image.Image):
@@ -74,3 +88,65 @@ class EcoMap2(Map):
                 "bearing": 0,
             }
         self.set_view_state(**view_state)
+
+    def add_geotiff(
+        self,
+        path: str,
+        zoom: bool = False,
+        cmap: Union[str, mpl.colors.Colormap] = None,
+        colorbar: bool = True,
+        opacity: float = 0.7,
+    ):
+        with rasterio.open(path) as src:
+            transform, width, height = rasterio.warp.calculate_default_transform(
+                src.crs, "EPSG:4326", src.width, src.height, *src.bounds
+            )
+            rio_kwargs = src.meta.copy()
+            rio_kwargs.update({"crs": "EPSG:4326", "transform": transform, "width": width, "height": height})
+
+            # new
+            bounds = rasterio.warp.transform_bounds(src.crs, "EPSG:4326", *src.bounds)
+
+            if cmap is None:
+                im = [rasterio.band(src, i + 1) for i in range(src.count)]
+            else:
+                cmap = mpl.cm.get_cmap(cmap)
+                rio_kwargs["count"] = 4
+                im = rasterio.band(src, 1)[0].read()[0]
+                im_min, im_max = np.nanmin(im), np.nanmax(im)
+                im = np.rollaxis(cmap((im - im_min) / (im_max - im_min), bytes=True), -1)
+                # if colorbar:
+                #     if isinstance(im_min, np.integer) and im_max - im_min < 256:
+                #         self.add_child(
+                #             StepColormap(
+                #                 [mpl.colors.rgb2hex(color) for color in cmap(np.linspace(0, 1, 1 + im_max - im_min))],
+                #                 index=np.arange(1 + im_max - im_min),
+                #                 vmin=im_min,
+                #                 vmax=im_max + 1,
+                #             )
+                #         )
+                #     else:
+                #         self.add_child(
+                #             StepColormap(
+                #                 [mpl.colors.rgb2hex(color) for color in cmap(np.linspace(0, 1, 256))],
+                #                 vmin=im_min,
+                #                 vmax=im_max,
+                #             )
+                #         )
+
+            with rasterio.io.MemoryFile() as memfile:
+                with memfile.open(**rio_kwargs) as dst:
+                    for i in range(rio_kwargs["count"]):
+                        rasterio.warp.reproject(
+                            source=im[i],
+                            destination=rasterio.band(dst, i + 1),
+                            src_transform=src.transform,
+                            src_crs=src.crs,
+                            dst_transform=transform,
+                            dst_crs="EPSG:4326",
+                            resampling=rasterio.warp.Resampling.nearest,
+                        )
+                    dst.bounds
+                url = "data:image/tiff;base64," + base64.b64encode(memfile.read()).decode("utf-8")
+
+                self.add_layer(BitmapLayer(image=url, bounds=bounds, opacity=opacity))
