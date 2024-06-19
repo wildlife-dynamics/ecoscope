@@ -12,14 +12,13 @@ import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import datashader as ds
 import rasterio
 import selenium.webdriver
 from branca.colormap import StepColormap
 from branca.element import MacroElement, Template
 
-import ecoscope
 from ecoscope.contrib.foliumap import Map
+from ecoscope.analysis.speed import SpeedDataFrame
 
 warnings.filterwarnings("ignore", "GeoSeries.isna", UserWarning)
 
@@ -35,7 +34,7 @@ class EcoMapMixin:
         legend: bool = True,
     ):
 
-        speed_df = ecoscope.analysis.SpeedDataFrame.from_trajectory(
+        speed_df = SpeedDataFrame.from_trajectory(
             trajectory=trajectory,
             classification_method=classification_method,
             num_classes=num_classes,
@@ -469,64 +468,26 @@ class EcoMap(EcoMapMixin, Map):
     def add_print_control(self):
         self.add_child(PrintControl())
 
-    def add_datashader_gdf(
-        self,
-        gdf,
-        geom_type,
-        name=None,
-        width=600,
-        height=600,
-        cmap=["lightblue", "darkblue"],
-        ds_agg=None,
-        zoom=True,
-        opacity=1,
-        **kwargs,
-    ):
+    def add_pil_image(self, image, bounds, name=None, zoom=True, opacity=1):
         """
-        Overlays a static visualization of the given gdf generated using Datashader
+        Overlays a PIL.Image onto the Ecomap
 
         Parameters
         ----------
-        gdf : geopandas.GeoDataFrame
-            GeoDataFrame used to create visualization (geometry must be projected to a CRS)
-        geom_type : str
-            The Datashader canvas() function to use valid values are 'polygon', 'line', 'point'
-        name : string
+        image : PIL.Image
+            The image to be overlaid
+        bounds: tuple
+            Tuple containing the EPSG:4326 (minx, miny, maxx, maxy) values bounding the given image
+        name : string, optional
             The name of the image layer to be displayed in Folium layer control
-        width : int
-            The canvas width in pixels, determines the resolution of the generated image
-        height : int
-            The canvas height in pixels, determines the resolution of the generated image
-        cmap : list of colors or matplotlib.colors.Colormap
-            The colormap to use for the generated image
-        ds_agg : datashader.reductions function
-            The Datashader reduction to use
-        zoom : bool
+        zoom : bool, optional
             Zoom to the generated image
-        opacity : float
+        opacity : float, optional
             Sets opacity of overlaid image
-        kwargs
-            Additional kwargs passed to datashader.transfer_functions.shade
         """
 
-        gdf = gdf.to_crs(epsg=4326)
-        bounds = gdf.geometry.total_bounds
-        canvas = ds.Canvas(width, height)
-
-        if geom_type == "polygon":
-            func = canvas.polygons
-        elif geom_type == "line":
-            func = canvas.line
-        elif geom_type == "point":
-            func = canvas.points
-        else:
-            raise ValueError("geom_type must be 'polygon', 'line' or 'point'")
-
-        agg = func(gdf, geometry="geometry", agg=ds_agg)
-        img = ds.tf.shade(agg, cmap, **kwargs)
-
         folium.raster_layers.ImageOverlay(
-            image=img.to_pil(),
+            image=image,
             bounds=[[bounds[1], bounds[0]], [bounds[3], bounds[2]]],
             opacity=opacity,
             mercator_project=True,
@@ -534,7 +495,7 @@ class EcoMap(EcoMapMixin, Map):
         ).add_to(self)
 
         if zoom:
-            self.zoom_to_gdf(gdf)
+            self.zoom_to_bounds(bounds)
 
 
 class ControlElement(MacroElement):
