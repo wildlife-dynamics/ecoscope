@@ -68,12 +68,10 @@ class EcoMap2(Map):
 
         self.add_layer(ee_layer)
 
-    def zoom_to_bounds(self, feat: Union[List[BaseLayer], gpd.GeoDataFrame]):
+    def zoom_to_bounds(self, feat: Union[BaseLayer, List[BaseLayer], gpd.GeoDataFrame]):
         if feat is None:
             view_state = compute_view(self.layers)
-        elif isinstance(feat, List):
-            view_state = compute_view(feat)
-        else:
+        elif isinstance(feat, gpd.GeoDataFrame):
             bounds = feat.to_crs(4326).total_bounds
             bbox = Bbox(minx=bounds[0], miny=bounds[1], maxx=bounds[2], maxy=bounds[3])
 
@@ -87,6 +85,9 @@ class EcoMap2(Map):
                 "pitch": 0,
                 "bearing": 0,
             }
+        else:
+            view_state = compute_view(feat)
+
         self.set_view_state(**view_state)
 
     def add_geotiff(
