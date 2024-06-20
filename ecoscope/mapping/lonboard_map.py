@@ -24,10 +24,14 @@ class EcoMap2(Map):
         super().__init__(*args, **kwargs)
 
     def add_layer(self, layer: BaseLayer):
-        self.layers = self.layers.copy().append(layer)
+        update = self.layers.copy()
+        update.append(layer)
+        self.layers = update
 
     def add_widget(self, widget: BaseDeckWidget):
-        self.deck_widgets = self.deck_widgets.copy().append(widget)
+        update = self.deck_widgets.copy()
+        update.append(widget)
+        self.deck_widgets = update
 
     def add_gdf(self, gdf: gpd.GeoDataFrame, **kwargs):
         self.add_layer(BaseArrowLayer.from_geopandas(gdf=gdf, **kwargs))
@@ -147,7 +151,25 @@ class EcoMap2(Map):
                             dst_crs="EPSG:4326",
                             resampling=rasterio.warp.Resampling.nearest,
                         )
-                    dst.bounds
-                url = "data:image/tiff;base64," + base64.b64encode(memfile.read()).decode("utf-8")
+                    height = dst.height
+                    width = dst.width
 
-                self.add_layer(BitmapLayer(image=url, bounds=bounds, opacity=opacity))
+                    data = dst.read(
+                        out_dtype=rasterio.uint8,
+                        out_shape=(rio_kwargs["count"], int(height), int(width)),
+                        resampling=rasterio.enums.Resampling.bilinear,
+                    )
+
+                    with rasterio.io.MemoryFile() as outfile:
+                        with outfile.open(
+                            driver="PNG",
+                            height=data.shape[1],
+                            width=data.shape[2],
+                            count=rio_kwargs["count"],
+                            dtype=data.dtype,
+                        ) as mempng:
+                            mempng.write(data)
+                        url = "data:image/png;base64," + base64.b64encode(outfile.read()).decode("utf-8")
+
+                        layer = BitmapLayer(image=url, bounds=bounds, opacity=opacity)
+                        self.add_layer(layer)
