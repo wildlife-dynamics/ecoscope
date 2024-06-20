@@ -60,7 +60,12 @@ jobs:
     - build
     - install
     runs-on: ubuntu-latest
+    environment:
+      name: release
     if: startsWith(github.ref, 'refs/tags/')
+
+    permissions:
+      id-token: write
       
     steps:
       - name: Grab the previously stored build
@@ -71,8 +76,7 @@ jobs:
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          repository-url: https://upload.pypi.org/legacy/
+          repository-url: https://pypi.org/p/${{ env.PACKAGE }}
 
   github-release:
     name: Create release on GH
