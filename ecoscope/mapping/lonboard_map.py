@@ -1,6 +1,7 @@
 import ee
 import base64
 import rasterio
+import json
 import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
@@ -62,7 +63,8 @@ class EcoMap2(Map):
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
 
         elif isinstance(ee_object, ee.geometry.Geometry):
-            gdf = gpd.GeoDataFrame([ee_object.toGeoJSON()])
+            geojson = ee_object.toGeoJSON()
+            gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
             ee_layer = BaseArrowLayer.from_geopandas(gdf=gdf, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
