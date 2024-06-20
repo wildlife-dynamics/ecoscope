@@ -8,7 +8,7 @@ def calculate_feature_density(selection, grid, geometry_type="point"):
         if geometry_type == "point":
             return result.geometry.count()
         elif geometry_type == "line":
-            return result.geometry.length.sum() / 1000
+            return result.geometry.length.sum()
         else:
             raise ValueError("Unsupported geometry type")
 
