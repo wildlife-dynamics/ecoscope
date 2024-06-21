@@ -53,8 +53,8 @@ def test_feature_density_line():
 
     density_grid = calculate_feature_density(lines, grid, geometry_type="line")
 
-    assert math.isclose(density_grid["density"].sum(), 183.66716408789358)
-    assert math.isclose(density_grid["density"].max(), 6.209056409759374)
+    assert math.isclose(density_grid["density"].sum(), 183667.16408789358)
+    assert math.isclose(density_grid["density"].max(), 6209.056409759374)
     ecoscope.io.raster.grid_to_raster(
         density_grid, val_column="density", out_dir="tests/test_output", raster_name="line_density.tif"
     )
