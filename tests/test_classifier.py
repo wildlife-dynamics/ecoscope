@@ -1,6 +1,6 @@
 import pytest
 
-import ecoscope
+from ecoscope.analysis.classifier import apply_classification
 
 
 @pytest.mark.parametrize(
@@ -19,23 +19,23 @@ import ecoscope
 )
 def test_classify_data(scheme, kwargs, expected):
     y = [1, 2, 3, 4, 5]
-    result = ecoscope.analysis.apply_classification(y, scheme=scheme, **kwargs)
+    result = apply_classification(y, scheme=scheme, **kwargs)
     assert result == expected, f"Failed on scheme {scheme}"
 
 
 def test_classify_with_labels():
     y = [1, 2, 3, 4, 5]
-    result = ecoscope.analysis.apply_classification(y, labels=["1", "2"], scheme="equal_interval", k=2)
+    result = apply_classification(y, labels=["1", "2"], scheme="equal_interval", k=2)
     assert result == ["1", "1", "1", "2", "2"]
 
 
 def test_classify_with_invalid_labels():
     y = [1, 2, 3, 4, 5]
     with pytest.raises(AssertionError):
-        ecoscope.analysis.apply_classification(y, labels=[0], scheme="std_mean")
+        apply_classification(y, labels=[0], scheme="std_mean")
 
 
 def test_classify_with_invalid_scheme():
     y = [1, 2, 3, 4, 5]
     with pytest.raises(ValueError):
-        ecoscope.analysis.apply_classification(y, scheme="InvalidScheme")
+        apply_classification(y, scheme="InvalidScheme")

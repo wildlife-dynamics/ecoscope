@@ -1,7 +1,8 @@
 import geopandas as gpd
 import pytest
 
-import ecoscope
+from ecoscope import plotting
+from ecoscope.analysis import seasons
 
 if not pytest.earthengine:
     pytest.skip(
@@ -17,7 +18,7 @@ def test_seasons():
     aoi = gdf.geometry.iat[0]
 
     # Extract the standardized NDVI ndvi_vals within the AOI
-    ndvi_vals = ecoscope.analysis.seasons.std_ndvi_vals(
+    ndvi_vals = seasons.std_ndvi_vals(
         aoi,
         img_coll="MODIS/061/MCD43A4",
         nir_band="Nadir_Reflectance_Band2",
@@ -27,11 +28,11 @@ def test_seasons():
     )
 
     # Calculate the seasonal transition point
-    cuts = ecoscope.analysis.seasons.val_cuts(ndvi_vals, 2)
+    cuts = seasons.val_cuts(ndvi_vals, 2)
 
     # Determine the seasonal time windows
-    windows = ecoscope.analysis.seasons.seasonal_windows(ndvi_vals, cuts, season_labels=["dry", "wet"])
+    windows = seasons.seasonal_windows(ndvi_vals, cuts, season_labels=["dry", "wet"])
 
-    ecoscope.plotting.plot_seasonal_dist(ndvi_vals["NDVI"], cuts)
+    plotting.plot_seasonal_dist(ndvi_vals["NDVI"], cuts)
 
     assert len(windows) > 0

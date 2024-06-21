@@ -6,6 +6,8 @@ import geopandas.testing
 import numpy as np
 
 import ecoscope
+from ecoscope.analysis import UD
+from ecoscope.analysis.percentile import get_percentile_area
 
 
 def test_etd_range(movebank_relocations):
@@ -32,7 +34,7 @@ def test_etd_range(movebank_relocations):
 
     file = NamedTemporaryFile(delete=False)
     try:
-        ecoscope.analysis.UD.calculate_etd_range(
+        UD.calculate_etd_range(
             trajectory_gdf=movebank_trajectory_gdf,
             output_path=file.name,
             max_speed_kmhr=1.05 * movebank_trajectory_gdf.speed_kmhr.max(),
@@ -40,7 +42,7 @@ def test_etd_range(movebank_relocations):
             expansion_factor=1.3,
         )
 
-        percentile_area = ecoscope.analysis.get_percentile_area(
+        percentile_area = get_percentile_area(
             percentile_levels=[99.9], raster_path=file.name, subject_id="Salif_Keita"
         ).to_crs(4326)
     finally:
