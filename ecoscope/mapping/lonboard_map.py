@@ -22,6 +22,13 @@ from lonboard._deck_widget import (
 
 class EcoMap2(Map):
     def __init__(self, static=False, *args, **kwargs):
+
+        kwargs["height"] = kwargs.get("height", 600)
+        kwargs["width"] = kwargs.get("width", 800)
+
+        if static:
+            kwargs["controller"] = False
+
         super().__init__(*args, **kwargs)
 
     def add_layer(self, layer: BaseLayer):
@@ -101,7 +108,6 @@ class EcoMap2(Map):
         path: str,
         zoom: bool = False,
         cmap: Union[str, mpl.colors.Colormap] = None,
-        colorbar: bool = True,
         opacity: float = 0.7,
     ):
         with rasterio.open(path) as src:
@@ -122,24 +128,7 @@ class EcoMap2(Map):
                 im = rasterio.band(src, 1)[0].read()[0]
                 im_min, im_max = np.nanmin(im), np.nanmax(im)
                 im = np.rollaxis(cmap((im - im_min) / (im_max - im_min), bytes=True), -1)
-                # if colorbar:
-                #     if isinstance(im_min, np.integer) and im_max - im_min < 256:
-                #         self.add_child(
-                #             StepColormap(
-                #                 [mpl.colors.rgb2hex(color) for color in cmap(np.linspace(0, 1, 1 + im_max - im_min))],
-                #                 index=np.arange(1 + im_max - im_min),
-                #                 vmin=im_min,
-                #                 vmax=im_max + 1,
-                #             )
-                #         )
-                #     else:
-                #         self.add_child(
-                #             StepColormap(
-                #                 [mpl.colors.rgb2hex(color) for color in cmap(np.linspace(0, 1, 256))],
-                #                 vmin=im_min,
-                #                 vmax=im_max,
-                #             )
-                #         )
+                # TODO Handle Colorbar widget
 
             with rasterio.io.MemoryFile() as memfile:
                 with memfile.open(**rio_kwargs) as dst:
