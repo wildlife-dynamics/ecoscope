@@ -5,11 +5,12 @@ import json
 import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
-from typing import List, Union
+from typing import Dict, List, Union
 from lonboard import Map
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
-from lonboard._layer import BaseLayer, BaseArrowLayer, BitmapLayer, BitmapTileLayer
+from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer
+from lonboard._viz import create_layers_from_data_input
 from lonboard._deck_widget import (
     BaseDeckWidget,
     NorthArrowWidget,
@@ -31,9 +32,11 @@ class EcoMap2(Map):
 
         super().__init__(*args, **kwargs)
 
-    def add_layer(self, layer: BaseLayer):
+    def add_layer(self, layer: Union[BaseLayer, List[BaseLayer]]):
         update = self.layers.copy()
-        update.append(layer)
+        if not isinstance(layer, list):
+            layer = [layer]
+        update.extend(layer)
         self.layers = update
 
     def add_widget(self, widget: BaseDeckWidget):
@@ -42,7 +45,7 @@ class EcoMap2(Map):
         self.deck_widgets = update
 
     def add_gdf(self, gdf: gpd.GeoDataFrame, **kwargs):
-        self.add_layer(BaseArrowLayer.from_geopandas(gdf=gdf, **kwargs))
+        self.add_layer(create_layers_from_data_input(data=gdf, **kwargs))
 
     def add_legend(self, **kwargs):
         self.add_widget(LegendWidget(**kwargs))
@@ -59,7 +62,12 @@ class EcoMap2(Map):
     def add_save_image(self, **kwargs):
         self.add_widget(SaveImageWidget(**kwargs))
 
-    def add_ee_layer(self, ee_object, visualization_params, **kwargs):
+    def add_ee_layer(
+        self,
+        ee_object: Union[ee.Image, ee.ImageCollection, ee.Geometry, ee.FeatureCollection],
+        visualization_params: Dict,
+        **kwargs
+    ):
         if isinstance(ee_object, ee.image.Image):
             map_id_dict = ee.Image(ee_object).getMapId(visualization_params)
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
@@ -72,7 +80,8 @@ class EcoMap2(Map):
         elif isinstance(ee_object, ee.geometry.Geometry):
             geojson = ee_object.toGeoJSON()
             gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
-            ee_layer = BaseArrowLayer.from_geopandas(gdf=gdf, **kwargs)
+            color = kwargs.pop("color", "#00FFFF")
+            ee_layer = create_layers_from_data_input(data=gdf, _viz_color=color, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
             ee_object_new = ee.Image().paint(ee_object, 0, 2)
