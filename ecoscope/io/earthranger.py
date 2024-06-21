@@ -1,12 +1,12 @@
 import datetime
-import pytz
 import json
-import typing
 import math
+import typing
 
-import numpy as np
 import geopandas as gpd
+import numpy as np
 import pandas as pd
+import pytz
 import requests
 from dateutil import parser
 from erclient.client import ERClient, ERClientException, ERClientNotFound
@@ -744,13 +744,13 @@ class EarthRangerIO(ERClient):
         """
 
         observations = []
+        df_pt = self.get_patrol_types()
         for _, patrol in patrols_df.iterrows():
             for patrol_segment in patrol["patrol_segments"]:
                 subject_id = (patrol_segment.get("leader") or {}).get("id")
                 patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
                 patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
-                df_pt = self.get_patrol_types()
                 patrol_type = df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
 
                 if None in {subject_id, patrol_start_time}:
@@ -769,7 +769,7 @@ class EarthRangerIO(ERClient):
                         observation = (
                             observation.reset_index()
                             .merge(
-                                pd.DataFrame(self.get_patrol_types()).add_prefix("patrol_type__"),
+                                pd.DataFrame(df_pt).add_prefix("patrol_type__"),
                                 left_on="patrol_type",
                                 right_on="id",
                             )
