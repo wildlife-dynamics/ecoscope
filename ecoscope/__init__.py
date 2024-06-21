@@ -36,6 +36,9 @@ def init(silent=False, selenium=False, force=False):
 
     pd.options.plotting.backend = "plotly"
 
+    # Enable copy-on-write for pandas. It will be the default in pandas 3.0.
+    pd.options.mode.copy_on_write = True
+
     from tqdm.auto import tqdm
 
     tqdm.pandas()
