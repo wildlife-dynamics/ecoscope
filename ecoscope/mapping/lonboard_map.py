@@ -11,6 +11,7 @@ from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
 from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer
 from lonboard._viz import create_layers_from_data_input
+from ecoscope.contrib.basemaps import xyz_tiles
 from lonboard._deck_widget import (
     BaseDeckWidget,
     NorthArrowWidget,
@@ -26,6 +27,8 @@ class EcoMap2(Map):
 
         kwargs["height"] = kwargs.get("height", 600)
         kwargs["width"] = kwargs.get("width", 800)
+
+        kwargs["layers"] = kwargs.get("layers", [self.get_named_tile_layer("HYBRID")])
 
         if static:
             kwargs["controller"] = False
@@ -173,3 +176,15 @@ class EcoMap2(Map):
 
                         layer = BitmapLayer(image=url, bounds=bounds, opacity=opacity)
                         self.add_layer(layer)
+
+    @staticmethod
+    def get_named_tile_layer(layer: str = "HYBRID") -> BitmapTileLayer:
+        layer = xyz_tiles.get(layer)
+        if not layer:
+            raise ValueError("string layer name must be in  {}".format(", ".join(xyz_tiles.keys())))
+        return BitmapTileLayer(
+            data=layer.get("url"),
+            tile_size=layer.get("tile_size", 128),
+            max_zoom=layer.get("max_zoom", None),
+            min_zoom=layer.get("min_zoom", None),
+        )
