@@ -1,4 +1,4 @@
-from ecoscope import analysis, base, contrib, io, mapping, plotting
+from ecoscope import base, io
 
 ASCII = """\
  _____
@@ -36,6 +36,9 @@ def init(silent=False, selenium=False, force=False):
 
     pd.options.plotting.backend = "plotly"
 
+    # Enable copy-on-write for pandas. It will be the default in pandas 3.0.
+    pd.options.mode.copy_on_write = True
+
     from tqdm.auto import tqdm
 
     tqdm.pandas()
@@ -54,6 +57,8 @@ def init(silent=False, selenium=False, force=False):
         """
         Monkey-patched `geopandas.explore._explore` to use EcoMap instead.
         """
+        from ecoscope import mapping
+
         initialized = "m" in kwargs
         if not initialized:
             kwargs["m"] = mapping.EcoMap()
