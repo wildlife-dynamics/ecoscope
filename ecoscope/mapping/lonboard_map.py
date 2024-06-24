@@ -76,19 +76,45 @@ class EcoMap2(EcoMapMixin, Map):
 
         super().__init__(*args, **kwargs)
 
-    def add_layer(self, layer: Union[BaseLayer, List[BaseLayer]]):
+    def add_layer(self, layer: Union[BaseLayer, List[BaseLayer]], zoom: bool = False):
+        """
+        Adds a layer or list of layers to the map
+        Parameters
+        ----------
+        layer : lonboard.BaseLayer or list[lonboard.BaseLayer]
+        zoom: bool
+            Whether to zoom the map to the new layer
+        """
         update = self.layers.copy()
         if not isinstance(layer, list):
             layer = [layer]
         update.extend(layer)
         self.layers = update
+        if zoom:
+            self.zoom_to_bounds(layer)
 
     def add_widget(self, widget: BaseDeckWidget):
+        """
+        Adds a deck widget to the map
+        Parameters
+        ----------
+        widget : lonboard.BaseDeckWidget or list[lonboard.BaseDeckWidget]
+        """
         update = self.deck_widgets.copy()
         update.append(widget)
         self.deck_widgets = update
 
     def add_gdf(self, data: Union[gpd.GeoDataFrame, gpd.GeoSeries], zoom: bool = True, **kwargs):
+        """
+        Visualize a gdf on the map, results in one or more layers being added
+        Parameters
+        ----------
+        data : lonboard.BaseDeckWidget or list[lonboard.BaseDeckWidget]
+        zoom : bool
+            Whether or not to zoom the map to the bounds of the data
+        kwargs:
+            Additional kwargs passed to lonboard.viz_layer
+        """
         data = data.copy()
         data = data.to_crs(4326)
         data = data.loc[(~data.geometry.isna()) & (~data.geometry.is_empty)]
@@ -104,21 +130,77 @@ class EcoMap2(EcoMapMixin, Map):
             self.zoom_to_bounds(data)
 
     def add_legend(self, **kwargs):
+        """
+        Adds a legend to the map
+        Parameters
+        ----------
+        placement: str
+            One of "top-left", "top-right", "bottom-left", "bottom-right" or "fill"
+            Where to place the widget within the map
+        title: str
+            A title displayed on the widget
+        labels: list[str]
+            A list of labels
+        colors: list[str]
+            A list of colors as hex values
+        style: dict
+            Additional style params
+        """
         self.add_widget(LegendWidget(**kwargs))
 
     def add_north_arrow(self, **kwargs):
+        """
+        Adds a north arrow to the map
+        Parameters
+        ----------
+        placement: str, one of "top-left", "top-right", "bottom-left", "bottom-right" or "fill"
+            Where to place the widget within the map
+        style: dict
+            Additional style params
+        """
         self.add_widget(NorthArrowWidget(**kwargs))
 
     def add_scale_bar(self, **kwargs):
+        """
+        Adds a scale bar to the map
+        Parameters
+        ----------
+        placement: str, one of "top-left", "top-right", "bottom-left", "bottom-right" or "fill"
+            Where to place the widget within the map
+        use_imperial: bool
+            If true, show scale in miles/ft, rather than m/km
+        style: dict
+            Additional style params
+        """
         self.add_widget(ScaleWidget(**kwargs))
 
     def add_title(self, **kwargs):
+        """
+        Adds a title to the map
+        Parameters
+        ----------
+        placement: str, one of "top-left", "top-right", "bottom-left", "bottom-right" or "fill"
+            Where to place the widget within the map
+        title: str
+            The map title
+        style: dict
+            Additional style params
+        """
         kwargs["placement"] = kwargs.get("placement", "fill")
         kwargs["style"] = kwargs.get("style", {"position": "relative", "margin": "0 auto", "width": "35%"})
 
         self.add_widget(TitleWidget(**kwargs))
 
     def add_save_image(self, **kwargs):
+        """
+        Adds a button to save the map as a png
+        Parameters
+        ----------
+        placement: str, one of "top-left", "top-right", "bottom-left", "bottom-right" or "fill"
+            Where to place the widget within the map
+        style: dict
+            Additional style params
+        """
         self.add_widget(SaveImageWidget(**kwargs))
 
     def add_ee_layer(
@@ -127,6 +209,27 @@ class EcoMap2(EcoMapMixin, Map):
         visualization_params: Dict,
         **kwargs
     ):
+        """
+        Adds a provided Earth Engine object to the map.
+        If an EE.Image/EE.ImageCollection or EE.FeatureCollection is provided,
+        this results in a BitmapTileLayer being added
+
+        For EE.Geometry objects, a list of ScatterplotLayer,PathLayer and PolygonLayer will be added
+        based on the geometry itself (defers to lonboard.viz)
+
+        Parameters
+        ----------
+        ee_object: ee.Image, ee.ImageCollection, ee.Geometry, ee.FeatureCollection]
+            The ee object to represent as a layer
+        visualization_params: dict
+            Visualization params passed to EarthEngine
+        kwargs
+            Additional params passed to either lonboard.BitmapTileLayer or lonboard.viz
+
+        Returns
+        -------
+        None
+        """
         if isinstance(ee_object, ee.image.Image):
             map_id_dict = ee.Image(ee_object).getMapId(visualization_params)
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
@@ -149,6 +252,14 @@ class EcoMap2(EcoMapMixin, Map):
         self.add_layer(ee_layer)
 
     def zoom_to_bounds(self, feat: Union[BaseLayer, List[BaseLayer], gpd.GeoDataFrame]):
+        """
+        Zooms the map to the bounds of a dataframe or layer.
+
+        Parameters
+        ----------
+        feat : BaseLayer, List[lonboard.BaseLayer], gpd.GeoDataFrame
+            The feature to zoom to
+        """
         if feat is None:
             view_state = compute_view(self.layers)
         elif isinstance(feat, gpd.GeoDataFrame):
@@ -177,6 +288,22 @@ class EcoMap2(EcoMapMixin, Map):
         cmap: Union[str, mpl.colors.Colormap] = None,
         opacity: float = 0.7,
     ):
+        """
+        Adds a local geotiff to the map
+        Note that since deck.gl tiff support is limited, this extracts the CRS/Bounds from the tiff
+        and converts the image data in-memory to PNG
+
+        Parameters
+        ----------
+        path : str
+            The path to the local tiff
+        zoom : bool
+            Whether to zoom the map to the bounds of the tiff
+        cmap: str or matplotlib.colors.Colormap
+            The colormap to apply to the raster
+        opacity: float
+            The opacity of the overlay
+        """
         with rasterio.open(path) as src:
             transform, width, height = rasterio.warp.calculate_default_transform(
                 src.crs, "EPSG:4326", src.width, src.height, *src.bounds
@@ -195,7 +322,7 @@ class EcoMap2(EcoMapMixin, Map):
                 im = rasterio.band(src, 1)[0].read()[0]
                 im_min, im_max = np.nanmin(im), np.nanmax(im)
                 im = np.rollaxis(cmap((im - im_min) / (im_max - im_min), bytes=True), -1)
-                # TODO Handle Colorbar widget
+                # TODO Handle Colorbar
 
             with rasterio.io.MemoryFile() as memfile:
                 with memfile.open(**rio_kwargs) as dst:
@@ -230,11 +357,10 @@ class EcoMap2(EcoMapMixin, Map):
                         url = "data:image/png;base64," + base64.b64encode(outfile.read()).decode("utf-8")
 
                         layer = BitmapLayer(image=url, bounds=bounds, opacity=opacity)
-                        self.add_layer(layer)
+                        self.add_layer(layer, zoom=zoom)
 
     @staticmethod
     def get_named_tile_layer(layer: str) -> BitmapTileLayer:
-
         # From Leafmap
         # https://github.com/opengeos/leafmap/blob/master/leafmap/basemaps.py
         xyz_tiles = {
