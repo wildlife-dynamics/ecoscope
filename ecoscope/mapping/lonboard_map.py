@@ -7,11 +7,13 @@ import matplotlib as mpl
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Union
+from ecoscope.analysis.speed import SpeedDataFrame
 from lonboard import Map
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
 from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer
 from lonboard._viz import viz_layer
+from lonboard.colormap import apply_categorical_cmap
 from lonboard._deck_widget import (
     BaseDeckWidget,
     NorthArrowWidget,
@@ -23,7 +25,42 @@ from lonboard._deck_widget import (
 )
 
 
-class EcoMap2(Map):
+class EcoMapMixin:
+    def add_speedmap(
+        self,
+        trajectory: gpd.GeoDataFrame,
+        classification_method: str = "equal_interval",
+        num_classes: int = 6,
+        speed_colors: List = None,
+        bins: List = None,
+        legend: bool = True,
+    ):
+
+        speed_df = SpeedDataFrame.from_trajectory(
+            trajectory=trajectory,
+            classification_method=classification_method,
+            num_classes=num_classes,
+            speed_colors=speed_colors,
+            bins=bins,
+        )
+
+        colors = speed_df["speed_colour"].to_list()
+        rgb = []
+        for i, color in enumerate(colors):
+            color = color.strip("#")
+            rgb.append(list(int(color[i : i + 2], 16) for i in (0, 2, 4)))
+
+        cmap = apply_categorical_cmap(values=speed_df.index.to_series(), cmap=rgb)
+        path_kwargs = {"get_color": cmap, "pickable": False}
+        self.add_gdf(speed_df, path_kwargs=path_kwargs)
+
+        if legend:
+            self.add_legend(labels=speed_df.label.to_list(), colors=speed_df.speed_colour.to_list())
+
+        return speed_df
+
+
+class EcoMap2(EcoMapMixin, Map):
     def __init__(self, static=False, default_widgets=True, *args, **kwargs):
 
         kwargs["height"] = kwargs.get("height", 600)
@@ -76,6 +113,9 @@ class EcoMap2(Map):
         self.add_widget(ScaleWidget(**kwargs))
 
     def add_title(self, **kwargs):
+        kwargs["placement"] = kwargs.get("placement", "fill")
+        kwargs["style"] = kwargs.get("style", {"position": "relative", "margin": "0 auto", "width": "35%"})
+
         self.add_widget(TitleWidget(**kwargs))
 
     def add_save_image(self, **kwargs):
