@@ -59,17 +59,11 @@ def init(silent=False, selenium=False, force=False):
         """
         from ecoscope import mapping
 
-        initialized = "m" in kwargs
-        if not initialized:
-            kwargs["m"] = mapping.EcoMap()
-
-        if isinstance(kwargs["m"], mapping.EcoMap):
-            m = kwargs.pop("m")
+        try:
+            m = mapping.EcoMap2()
             m.add_gdf(data, *args, **kwargs)
-            if not initialized:
-                m.zoom_to_bounds(data.geometry.to_crs(4326).total_bounds)
             return m
-        else:
+        except Exception:
             return gpd.explore._explore(data, *args, **kwargs)
 
     gpd.GeoDataFrame.explore = explore

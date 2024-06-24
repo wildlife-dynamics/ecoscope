@@ -5,6 +5,7 @@ import json
 import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
+import pandas as pd
 from typing import Dict, List, Union
 from lonboard import Map
 from lonboard._geoarrow.ops.bbox import Bbox
@@ -47,8 +48,20 @@ class EcoMap2(Map):
         update.append(widget)
         self.deck_widgets = update
 
-    def add_gdf(self, gdf: gpd.GeoDataFrame, **kwargs):
-        self.add_layer(viz_layer(data=gdf, **kwargs))
+    def add_gdf(self, data: Union[gpd.GeoDataFrame, gpd.GeoSeries], zoom: bool = True, **kwargs):
+        data = data.copy()
+        data = data.to_crs(4326)
+        data = data.loc[(~data.geometry.isna()) & (~data.geometry.is_empty)]
+
+        if isinstance(data, gpd.GeoDataFrame):
+            for col in data:
+                if pd.api.types.is_datetime64_any_dtype(data[col]):
+                    data[col] = data[col].astype("string")
+
+        self.add_layer(viz_layer(data=data, **kwargs))
+
+        if zoom:
+            self.zoom_to_bounds(data)
 
     def add_legend(self, **kwargs):
         self.add_widget(LegendWidget(**kwargs))
