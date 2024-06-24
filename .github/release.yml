@@ -1,0 +1,14 @@
+changelog:
+  exclude:
+    labels:
+      - changelog-ignore
+  categories:
+    - title: Breaking Changes
+      labels:
+        - changelog-breaking
+    - title: New Features
+      labels:
+        - changelog-enhancement
+    - title: Other Changes
+      labels:
+        - "*"
