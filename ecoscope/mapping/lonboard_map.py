@@ -10,7 +10,7 @@ from lonboard import Map
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
 from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer
-from lonboard._viz import create_layers_from_data_input
+from lonboard._viz import viz_layer
 from ecoscope.contrib.basemaps import xyz_tiles
 from lonboard._deck_widget import (
     BaseDeckWidget,
@@ -48,7 +48,7 @@ class EcoMap2(Map):
         self.deck_widgets = update
 
     def add_gdf(self, gdf: gpd.GeoDataFrame, **kwargs):
-        self.add_layer(create_layers_from_data_input(data=gdf, **kwargs))
+        self.add_layer(viz_layer(data=gdf, **kwargs))
 
     def add_legend(self, **kwargs):
         self.add_widget(LegendWidget(**kwargs))
@@ -83,8 +83,7 @@ class EcoMap2(Map):
         elif isinstance(ee_object, ee.geometry.Geometry):
             geojson = ee_object.toGeoJSON()
             gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
-            color = kwargs.pop("color", "#00FFFF")
-            ee_layer = create_layers_from_data_input(data=gdf, _viz_color=color, **kwargs)
+            ee_layer = viz_layer(data=gdf, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
             ee_object_new = ee.Image().paint(ee_object, 0, 2)
