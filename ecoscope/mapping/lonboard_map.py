@@ -12,7 +12,6 @@ from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
 from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer
 from lonboard._viz import viz_layer
-from ecoscope.contrib.basemaps import xyz_tiles
 from lonboard._deck_widget import (
     BaseDeckWidget,
     NorthArrowWidget,
@@ -20,19 +19,23 @@ from lonboard._deck_widget import (
     LegendWidget,
     TitleWidget,
     SaveImageWidget,
+    FullscreenWidget,
 )
 
 
 class EcoMap2(Map):
-    def __init__(self, static=False, *args, **kwargs):
+    def __init__(self, static=False, default_widgets=True, *args, **kwargs):
 
         kwargs["height"] = kwargs.get("height", 600)
         kwargs["width"] = kwargs.get("width", 800)
 
-        kwargs["layers"] = kwargs.get("layers", [self.get_named_tile_layer("HYBRID")])
+        kwargs["layers"] = kwargs.get("layers", [self.get_named_tile_layer("OpenStreetMap")])
 
         if static:
             kwargs["controller"] = False
+
+        if kwargs.get("deck_widgets") is None and default_widgets:
+            kwargs["deck_widgets"] = [FullscreenWidget(), ScaleWidget(), SaveImageWidget()]
 
         super().__init__(*args, **kwargs)
 
@@ -190,7 +193,39 @@ class EcoMap2(Map):
                         self.add_layer(layer)
 
     @staticmethod
-    def get_named_tile_layer(layer: str = "HYBRID") -> BitmapTileLayer:
+    def get_named_tile_layer(layer: str) -> BitmapTileLayer:
+
+        # From Leafmap
+        # https://github.com/opengeos/leafmap/blob/master/leafmap/basemaps.py
+        xyz_tiles = {
+            "OpenStreetMap": {
+                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "attribution": "OpenStreetMap",
+                "name": "OpenStreetMap",
+                "max_requests": -1,
+            },
+            "ROADMAP": {
+                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",  # noqa
+                "attribution": "Esri",
+                "name": "Esri.WorldStreetMap",
+            },
+            "SATELLITE": {
+                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                "attribution": "Esri",
+                "name": "Esri.WorldImagery",
+            },
+            "TERRAIN": {
+                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+                "attribution": "Esri",
+                "name": "Esri.WorldTopoMap",
+            },
+            "HYBRID": {
+                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                "attribution": "Esri",
+                "name": "Esri.WorldImagery",
+            },
+        }
+
         layer = xyz_tiles.get(layer)
         if not layer:
             raise ValueError("string layer name must be in  {}".format(", ".join(xyz_tiles.keys())))
@@ -199,4 +234,5 @@ class EcoMap2(Map):
             tile_size=layer.get("tile_size", 128),
             max_zoom=layer.get("max_zoom", None),
             min_zoom=layer.get("min_zoom", None),
+            max_requests=layer.get("max_requests", None),
         )
