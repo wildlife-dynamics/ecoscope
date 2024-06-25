@@ -120,7 +120,7 @@ class EcoMap(EcoMapMixin, Map):
         Visualize a gdf on the map, results in one or more layers being added
         Parameters
         ----------
-        data : lonboard.BaseDeckWidget or list[lonboard.BaseDeckWidget]
+        gdf : gpd.GeoDataFrame or gpd.GeoSeries
         column : str
             a column in the dataframe to apply a cmap to
         cmap : str or mpl.colors.Colormap
