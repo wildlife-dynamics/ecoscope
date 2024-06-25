@@ -320,7 +320,7 @@ class EcoMap2(EcoMapMixin, Map):
             if cmap is None:
                 im = [rasterio.band(src, i + 1) for i in range(src.count)]
             else:
-                cmap = mpl.cm.get_cmap(cmap)
+                cmap = mpl.colormaps[cmap]
                 rio_kwargs["count"] = 4
                 im = rasterio.band(src, 1)[0].read()[0]
                 im_min, im_max = np.nanmin(im), np.nanmax(im)
