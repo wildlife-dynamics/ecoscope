@@ -6,6 +6,7 @@ import geopandas as gpd
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
+from io import BytesIO
 from typing import Dict, List, Union
 from ecoscope.analysis.speed import SpeedDataFrame
 from lonboard import Map
@@ -68,11 +69,14 @@ class EcoMap2(EcoMapMixin, Map):
 
         kwargs["layers"] = kwargs.get("layers", [self.get_named_tile_layer("OpenStreetMap")])
 
+        if kwargs.get("deck_widgets") is None and default_widgets:
+            if static:
+                kwargs["deck_widgets"] = [ScaleWidget()]
+            else:
+                kwargs["deck_widgets"] = [FullscreenWidget(), ScaleWidget(), SaveImageWidget()]
+
         if static:
             kwargs["controller"] = False
-
-        if kwargs.get("deck_widgets") is None and default_widgets:
-            kwargs["deck_widgets"] = [FullscreenWidget(), ScaleWidget(), SaveImageWidget()]
 
         super().__init__(*args, **kwargs)
 
@@ -174,18 +178,17 @@ class EcoMap2(EcoMapMixin, Map):
         """
         self.add_widget(ScaleWidget(**kwargs))
 
-    def add_title(self, **kwargs):
+    def add_title(self, title: str, **kwargs):
         """
         Adds a title to the map
         Parameters
         ----------
-        placement: str, one of "top-left", "top-right", "bottom-left", "bottom-right" or "fill"
-            Where to place the widget within the map
         title: str
             The map title
         style: dict
             Additional style params
         """
+        kwargs["title"] = title
         kwargs["placement"] = kwargs.get("placement", "fill")
         kwargs["style"] = kwargs.get("style", {"position": "relative", "margin": "0 auto", "width": "35%"})
 
@@ -358,6 +361,29 @@ class EcoMap2(EcoMapMixin, Map):
 
                         layer = BitmapLayer(image=url, bounds=bounds, opacity=opacity)
                         self.add_layer(layer, zoom=zoom)
+
+    def add_pil_image(self, image, bounds, zoom=True, opacity=1):
+        """
+        Overlays a PIL.Image onto the Ecomap
+
+        Parameters
+        ----------
+        image : PIL.Image
+            The image to be overlaid
+        bounds: tuple
+            Tuple containing the EPSG:4326 (minx, miny, maxx, maxy) values bounding the given image
+        zoom : bool, optional
+            Zoom to the generated image
+        opacity : float, optional
+            Sets opacity of overlaid image
+        """
+
+        data = BytesIO()
+        image.save(data, "PNG")
+
+        url = "data:image/png;base64," + base64.b64encode(data.getvalue()).decode("utf-8")
+        layer = BitmapLayer(image=url, bounds=bounds.tolist(), opacity=opacity)
+        self.add_layer(layer, zoom=zoom)
 
     @staticmethod
     def get_named_tile_layer(layer: str) -> BitmapTileLayer:
