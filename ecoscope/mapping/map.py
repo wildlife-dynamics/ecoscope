@@ -14,7 +14,7 @@ from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
 from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer
 from lonboard._viz import viz_layer
-from lonboard.colormap import apply_categorical_cmap
+from lonboard.colormap import apply_categorical_cmap, apply_continuous_cmap
 from lonboard._deck_widget import (
     BaseDeckWidget,
     NorthArrowWidget,
@@ -108,12 +108,23 @@ class EcoMap(EcoMapMixin, Map):
         update.append(widget)
         self.deck_widgets = update
 
-    def add_gdf(self, data: Union[gpd.GeoDataFrame, gpd.GeoSeries], zoom: bool = True, **kwargs):
+    def add_gdf(
+        self,
+        data: Union[gpd.GeoDataFrame, gpd.GeoSeries],
+        column: str = None,
+        cmap: Union[str, mpl.colors.Colormap] = None,
+        zoom: bool = True,
+        **kwargs
+    ):
         """
         Visualize a gdf on the map, results in one or more layers being added
         Parameters
         ----------
         data : lonboard.BaseDeckWidget or list[lonboard.BaseDeckWidget]
+        column : str
+            a column in the dataframe to apply a cmap to
+        cmap : str or mpl.colors.Colormap
+            a colormap to apply to the named column
         zoom : bool
             Whether or not to zoom the map to the bounds of the data
         kwargs:
@@ -123,13 +134,34 @@ class EcoMap(EcoMapMixin, Map):
         data = data.to_crs(4326)
         data = data.loc[(~data.geometry.isna()) & (~data.geometry.is_empty)]
 
+        polygon_kwargs = scatterplot_kwargs = path_kwargs = {}
+
         if isinstance(data, gpd.GeoDataFrame):
             for col in data:
                 if pd.api.types.is_datetime64_any_dtype(data[col]):
                     data[col] = data[col].astype("string")
 
-        self.add_layer(viz_layer(data=data, **kwargs))
+            if column is not None and cmap is not None:
+                col = data[column]
+                normalized = (col - col.min()) / (col.max() - col.min())
 
+                if isinstance(cmap, str):
+                    cmap = mpl.colormaps[cmap]
+
+                colormap = apply_continuous_cmap(normalized, cmap)
+
+                polygon_kwargs = scatterplot_kwargs = {"get_fill_color": colormap}
+                path_kwargs = {"get_color": colormap}
+
+        self.add_layer(
+            viz_layer(
+                data=data,
+                polygon_kwargs=polygon_kwargs,
+                scatterplot_kwargs=scatterplot_kwargs,
+                path_kwargs=path_kwargs,
+                **kwargs
+            )
+        )
         if zoom:
             self.zoom_to_bounds(data)
 
