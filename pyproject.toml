@@ -1,19 +1,15 @@
 [build-system]
-requires = ["setuptools", "wheel", "cython"]
+requires = ["setuptools"]
 
 [project]
 name="ecoscope"
-dynamic = ["version", "readme"]
+version = "1.7.3"
 description="Standard Analytical Reporting Framework for Conservation"
-url="http://github.com/wildlife-dynamics/ecoscope"
+readme = "README.rst"
 authors = [
   { name = "Jake Wall", email = "walljcg@gmail.com" }
 ]
-license="MIT"
 license = {file = "LICENSE"}
-platforms="Posix; MacOS X; Windows",
-install_requires=dependencies,
-zip_safe=False,
 classifiers=[
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python",
@@ -25,8 +21,47 @@ classifiers=[
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
-],
-include_package_data=True
+]
+dependencies = [
+    "affine",
+    "astroplan",
+    "backoff",
+    "datashader",
+    "earthengine-api",
+    "earthranger-client",
+    "folium",
+    "geopandas<=0.14.2",
+    "igraph",
+    "ipywidgets",
+    "kaleido",
+    "mapclassify",
+    "matplotlib",
+    "networkx",
+    "numba",
+    "plotly",
+    "pyarrow",
+    "pyproj",
+    "rasterio",
+    "scipy",
+    "scikit-image",
+    "scikit-learn",
+    "selenium",
+    "tqdm",
+    "xyzservices",
+]
+
+[project.urls]
+Homepage = "https://ecoscope.io"
+Repository = "https://github.com/wildlife-dynamics/ecoscope"
+Tracker = "https://github.com/wildlife-dynamics/ecoscope/issues"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-reportlog",
+]
 
 [tool.pytest.ini_options]
 testpaths = "tests"
@@ -59,6 +94,14 @@ exclude = '''
 source = ['ecoscope']
 omit = ['ecoscope/contrib/*']
 
-[tool.setuptools.dynamic]
-version = {attr = "ecoscope.version"}
-readme = {file = "README.rst"}
+[tool.setuptools]
+packages=[
+        "ecoscope",
+        "ecoscope.analysis",
+        "ecoscope.analysis.UD",
+        "ecoscope.base",
+        "ecoscope.contrib",
+        "ecoscope.io",
+        "ecoscope.mapping",
+        "ecoscope.plotting",
+    ]
