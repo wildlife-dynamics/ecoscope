@@ -1,6 +1,33 @@
 [build-system]
 requires = ["setuptools", "wheel", "cython"]
 
+[project]
+name="ecoscope"
+dynamic = ["version", "readme"]
+description="Standard Analytical Reporting Framework for Conservation"
+url="http://github.com/wildlife-dynamics/ecoscope"
+authors = [
+  { name = "Jake Wall", email = "walljcg@gmail.com" }
+]
+license="MIT"
+license = {file = "LICENSE"}
+platforms="Posix; MacOS X; Windows",
+install_requires=dependencies,
+zip_safe=False,
+classifiers=[
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.4",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+],
+include_package_data=True
+
 [tool.pytest.ini_options]
 testpaths = "tests"
 filterwarnings = [
@@ -31,3 +58,7 @@ exclude = '''
 [tool.coverage.run]
 source = ['ecoscope']
 omit = ['ecoscope/contrib/*']
+
+[tool.setuptools.dynamic]
+version = {attr = "ecoscope.version"}
+readme = {file = "README.rst"}
