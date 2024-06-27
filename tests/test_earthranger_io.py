@@ -76,6 +76,17 @@ def test_get_events(er_events_io):
     assert not events.empty
 
 
+def test_get_event_types(er_io):
+    events = er_io.get_event_types()
+    assert not events.empty
+    assert len(events.columns) == 15
+
+
+def test_get_event_display_name(er_io):
+    assert er_io.get_event_display_name("mep_distance_count") == "MEP Distance Count"
+    assert er_io.get_event_display_name("cameratrap_rep") == "Camera Trap"
+
+
 def test_das_client_method(er_io):
     er_io.pulse()
     er_io.get_me()

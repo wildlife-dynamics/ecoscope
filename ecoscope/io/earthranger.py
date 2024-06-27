@@ -29,6 +29,7 @@ class EarthRangerIO(ERClient):
 
         self.sub_page_size = sub_page_size
         self.tcp_limit = tcp_limit
+        self._display_map = None
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
         try:
@@ -867,6 +868,16 @@ class EarthRangerIO(ERClient):
         object = f"spatialfeature/{spatial_feature_id}/"
         spatial_feature = self._get(object, **params)
         return gpd.GeoDataFrame.from_features(spatial_feature["features"])
+
+    def get_event_display_name(self, key):
+        if self._display_map is None:
+            self._get_display_names()
+
+        return self._display_map.get(key)
+
+    def _get_display_names(self):
+        event_types = self.get_event_types()
+        self._display_map = dict([(row["value"], row["display"]) for _, row in event_types.iterrows()])
 
     """
     POST Functions
