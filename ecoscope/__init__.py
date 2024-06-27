@@ -51,24 +51,6 @@ def init(silent=False, selenium=False, force=False):
     warnings.filterwarnings(action="ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", message=".*initial implementation of Parquet.*")
 
-    import geopandas as gpd
-
-    def explore(data, *args, **kwargs):
-        """
-        Monkey-patched `geopandas.explore._explore` to use EcoMap instead.
-        """
-        from ecoscope import mapping
-
-        try:
-            m = mapping.EcoMap2()
-            m.add_gdf(data, *args, **kwargs)
-            return m
-        except Exception:
-            return gpd.explore._explore(data, *args, **kwargs)
-
-    gpd.GeoDataFrame.explore = explore
-    gpd.GeoSeries.explore = explore
-
     import plotly.io as pio
 
     pio.templates.default = "seaborn"
