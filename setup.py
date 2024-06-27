@@ -39,7 +39,6 @@ dependencies = [
     "scipy",
     "scikit-image",
     "scikit-learn",
-    "selenium",
     "tqdm",
     "xyzservices",
 ]
