@@ -39,7 +39,6 @@ def ecoplot(
             break
 
     n = len(groups)
-    # fig_height = n * subplot_height + 2 * subplot_height
 
     fig = make_subplots(
         **{
