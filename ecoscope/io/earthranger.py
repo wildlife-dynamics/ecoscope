@@ -869,15 +869,24 @@ class EarthRangerIO(ERClient):
         spatial_feature = self._get(object, **params)
         return gpd.GeoDataFrame.from_features(spatial_feature["features"])
 
-    def get_event_display_name(self, key):
+    def get_event_display_name(self, key, event_type=None):
         if self._display_map is None:
             self._get_display_names()
+
+        if event_type is not None:
+            return self._display_map.get(event_type).get(key)
 
         return self._display_map.get(key)
 
     def _get_display_names(self):
         event_types = self.get_event_types()
-        self._display_map = dict([(row["value"], row["display"]) for _, row in event_types.iterrows()])
+        self._display_map = dict([(row["value"], {"display": row["display"]}) for _, row in event_types.iterrows()])
+
+        # should probably split this out into _get_event_type_fields(key) and add a flag here to not call by default
+        for k, _ in self._display_map.items():
+            schema = self.get_event_type(k)
+            schema_props = schema["schema"]["properties"]
+            self._display_map.get(k)["properties"] = dict([(k, v["title"]) for k, v in schema_props.items()])
 
     """
     POST Functions
