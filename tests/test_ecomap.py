@@ -88,7 +88,7 @@ def test_add_ee_layer_image_collection():
     assert isinstance(m.layers[1], BitmapTileLayer)
 
 
-@pytest.mark.skipif(not pytest.earthengine, reason="No onnection to EarthEngine.")
+@pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
 def test_add_ee_layer_feature_collection():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
