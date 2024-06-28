@@ -12,9 +12,16 @@ from ecoscope.analysis.speed import SpeedDataFrame
 from lonboard import Map
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
-from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer
 from lonboard._viz import viz_layer
 from lonboard.colormap import apply_categorical_cmap, apply_continuous_cmap
+from lonboard._layer import (
+    BaseLayer,
+    BitmapLayer,
+    BitmapTileLayer,
+    PathLayer,
+    PolygonLayer,
+    ScatterplotLayer,
+)
 from lonboard._deck_widget import (
     BaseDeckWidget,
     NorthArrowWidget,
@@ -164,6 +171,15 @@ class EcoMap(EcoMapMixin, Map):
         )
         if zoom:
             self.zoom_to_bounds(data)
+
+    def add_path_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
+        self.add_layer(PathLayer.from_geopandas(gdf, **kwargs), zoom)
+
+    def add_polygon_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
+        self.add_layer(PolygonLayer.from_geopandas(gdf, **kwargs), zoom)
+
+    def add_scatterplot_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
+        self.add_layer(ScatterplotLayer.from_geopandas(gdf, **kwargs), zoom)
 
     def add_legend(self, **kwargs):
         """
@@ -460,3 +476,8 @@ class EcoMap(EcoMapMixin, Map):
             min_zoom=layer.get("min_zoom", None),
             max_requests=layer.get("max_requests", None),
         )
+
+    @staticmethod
+    def hex_to_rgb(hex: str) -> list:
+        hex = hex.strip("#")
+        return list(int(hex[i : i + 2], 16) for i in (0, 2, 4))
