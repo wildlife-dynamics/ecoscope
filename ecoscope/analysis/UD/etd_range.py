@@ -76,6 +76,42 @@ class Weibull3Parameter(WeibullPDF):
     c: float = 1.0
 
 
+@nb.jit(
+    nb.float64[:](
+        nb.int32,
+        nb.int32,
+        nb.types.Tuple((nb.float64[:], nb.float64[:])),
+        nb.types.Tuple((nb.float64[:], nb.float64[:])),
+        nb.float64[:],
+        nb.float64,
+        nb.float64[:],
+        nb.float64[:],
+    )
+)
+def intersect1d_numba(
+    num_rows,
+    num_columns,
+    start,
+    end,
+    time,
+    maxspeed,
+    y,
+    x,
+):
+    raster_ndarray = np.zeros(num_rows * num_columns, dtype=np.float64)
+
+    for k in range(len(start[0])):
+        a, b, c = np.intersect1d(start[0][k], end[0][k], return_indices=True)
+        speeds = (start[1][k][b] + end[1][k][c]) * 0.001 / time[k]
+        i = speeds < maxspeed
+
+        vals = y[np.digitize(speeds[i], x[:-1])] / time[k]
+
+        raster_ndarray[a[i]] += vals / vals.sum() / time[k]
+    
+    return raster_ndarray
+
+
 def calculate_etd_range(
     trajectory_gdf: Trajectory,
     output_path: typing.Union[str, bytes, os.PathLike],
@@ -186,16 +222,16 @@ def calculate_etd_range(
         [scipy.integrate.quad(_etd, m, maxspeed, args=(shape, scale, m))[0] for m in x]
     )
 
-    raster_ndarray = np.zeros(num_rows * num_columns, dtype=np.float64)
-
-    for k in range(len(start[0])):
-        a, b, c = np.intersect1d(start[0][k], end[0][k], return_indices=True)
-        speeds = (start[1][k][b] + end[1][k][c]) * 0.001 / time[k]
-        i = speeds < maxspeed
-
-        vals = y[np.digitize(speeds[i], x[:-1])] / time[k]
-
-        raster_ndarray[a[i]] += vals / vals.sum() / time[k]
+    raster_ndarray = intersect1d_numba(
+        num_rows=num_rows,
+        num_columns=num_columns,
+        start=start,
+        end=end,
+        time=time,
+        maxspeed=maxspeed,
+        y=y,
+        x=x,
+    )
 
     # Normalize the grid values
     raster_ndarray = raster_ndarray / raster_ndarray.sum()
