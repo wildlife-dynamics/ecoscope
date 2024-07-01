@@ -23,6 +23,7 @@ dependencies = [
     "igraph",
     "ipywidgets",
     "kaleido",
+    "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@77c56d30a9c2dd96fd863e910bf62952cfa36da8",
     "mapclassify",
     "matplotlib",
     "networkx",
@@ -38,7 +39,6 @@ dependencies = [
     "scipy",
     "scikit-image",
     "scikit-learn",
-    "selenium",
     "tqdm",
     "xyzservices",
 ]
