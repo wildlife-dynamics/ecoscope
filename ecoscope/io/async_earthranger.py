@@ -352,6 +352,9 @@ class AsyncEarthRangerIO(AsyncERClient):
                         observations_by_subject.append(obs)
 
                     observations_by_subject = pd.DataFrame(observations_by_subject)
+
+                    if observations_by_subject.empty:
+                        continue
                     observations_by_subject["subject_id"] = subject_id
                     observations_by_subject["created_at"] = pd.to_datetime(
                         observations_by_subject["created_at"],
