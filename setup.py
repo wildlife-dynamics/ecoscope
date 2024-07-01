@@ -17,7 +17,7 @@ dependencies = [
     "backoff",
     "datashader",
     "earthengine-api",
-    "earthranger-client",
+    "earthranger-client @ git+https://github.com/PADAS/er-client.git@v1.2.3",
     "folium",
     "geopandas<=0.14.2",
     "igraph",
