@@ -3,7 +3,7 @@ requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
 
 [project]
 name="ecoscope"
-version = "1.7.3"
+dynamic = ["version"]
 description="Standard Analytical Reporting Framework for Conservation"
 readme = "README.rst"
 authors = [
