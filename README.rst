@@ -29,7 +29,7 @@ Ecoscope is an open-source analysis module for tracking, environmental and conse
 
 Development & Testing
 =====================
-Development dependencies are included in `environment.yml`. You will also need to configure the selenium driver following these instructions (note that this is not needed if running ecoscope within Google Colab as selenium is already configured): https://www.selenium.dev/documentation/webdriver/getting_started/install_drivers/
+Development dependencies are included in `environment.yml`.
 
 Please configure code-quality git hooks with:
 
