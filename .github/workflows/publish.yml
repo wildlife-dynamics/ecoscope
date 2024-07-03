@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-rc"
     branches:
       - "master"
 
@@ -75,8 +76,6 @@ jobs:
           path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://pypi.org/p/${{ env.PACKAGE }}
 
   github-release:
     name: Create release on GH
