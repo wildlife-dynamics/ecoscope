@@ -180,6 +180,29 @@ class AsyncEarthRangerIO(AsyncERClient):
     def get_subjects(self, **kwargs):
         return asyncio.get_event_loop().run_until_complete(self._get_subjects_dataframe(**kwargs))
 
+    async def _get_subjectsources_generator(self, subjects=None, sources=None, **addl_kwargs):
+        """
+        Parameters
+        ----------
+        subjects: A comma-delimited list of Subject IDs.
+        sources: A comma-delimited list of Source IDs.
+        Returns
+        -------
+        subjectsources : pd.DataFrame
+        """
+        params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
+
+        async for subjectsource in self._get_data("subjectsources/", params=params):
+            yield subjectsource
+
+    async def _get_subjectsources_dataframe(self, **kwargs):
+        subject_sources = []
+        async for subject_source in self._get_subjectsources_generator(**kwargs):
+            subject_sources.append(subject_source)
+
+        df = pd.DataFrame(subject_sources)
+        return df
+
     async def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
         """
         Parameters
