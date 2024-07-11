@@ -3,6 +3,7 @@ import geopandas as gpd
 import pandas as pd
 import asyncio
 from erclient.client import AsyncERClient
+from ecoscope.io.utils import to_hex
 
 import ecoscope
 
@@ -98,6 +99,86 @@ class AsyncEarthRangerIO(AsyncERClient):
 
     def get_sources(self, **kwargs):
         return asyncio.get_event_loop().run_until_complete(self._get_sources_dataframe(**kwargs))
+
+    async def _get_subjects_generator(
+        self,
+        include_inactive=None,
+        bbox=None,
+        subject_group_id=None,
+        name=None,
+        updated_since=None,
+        tracks=None,
+        id=None,
+        updated_until=None,
+        subject_group_name=None,
+        **addl_kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        include_inactive: Include inactive subjects in list.
+        bbox: Include subjects having track data within this bounding box defined by a 4-tuple of coordinates marking
+            west, south, east, north.
+        subject_group_id: Indicate a subject group id for which Subjects should be listed.
+            This is translated to the subject_group parameter in the ER backend
+        name : Find subjects with the given name
+        updated_since: Return Subject that have been updated since the given timestamp.
+        tracks: Indicate whether to render each subject's recent tracks.
+        id: A comma-delimited list of Subject IDs.
+        updated_until
+        subject_group_name: A subject group name for which Subjects should be listed.
+            This is translated to the group_name parameter in the ER backend
+        Returns
+        -------
+        subjects : pd.DataFrame
+        """
+
+        params = self._clean_kwargs(
+            addl_kwargs,
+            include_inactive=include_inactive,
+            bbox=bbox,
+            subject_group=subject_group_id,
+            name=name,
+            updated_since=updated_since,
+            tracks=tracks,
+            id=id,
+            updated_until=updated_until,
+            group_name=subject_group_name,
+            page_size=4000,
+        )
+
+        assert params.get("subject_group") is None or params.get("group_name") is None
+
+        if params.get("group_name") is not None:
+            try:
+                params["subject_group"] = await self._get_data(
+                    "subjectgroups/",
+                    params={
+                        "group_name": params.pop("group_name"),
+                        "include_inactive": True,
+                        "include_hidden": True,
+                        "flat": True,
+                    },
+                )[0]["id"]
+            except IndexError:
+                raise KeyError("`group_name` not found")
+
+        async for source in self._get_data("subjects/", params=params):
+            yield source
+
+    async def _get_subjects_dataframe(self, **kwargs):
+        subjects = []
+        async for subject in self._get_subjects_generator(**kwargs):
+            subjects.append(subject)
+
+        df = pd.DataFrame(subjects)
+        assert not df.empty
+        df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
+
+        return df
+
+    def get_subjects(self, **kwargs):
+        return asyncio.get_event_loop().run_until_complete(self._get_subjects_dataframe(**kwargs))
 
     async def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
         """
