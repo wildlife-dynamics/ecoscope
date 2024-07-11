@@ -56,6 +56,49 @@ class AsyncEarthRangerIO(AsyncERClient):
             crs=4326,
         )
 
+    async def _get_sources_generator(
+        self,
+        manufacturer_id=None,
+        provider_key=None,
+        provider=None,
+        id=None,
+        **addl_kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        manufacturer_id
+        provider_key
+        providers
+        id
+        Returns
+        -------
+        sources : pd.DataFrame
+            DataFrame of queried sources
+        """
+
+        params = self._clean_kwargs(
+            addl_kwargs,
+            manufacturer_id=manufacturer_id,
+            provider_key=provider_key,
+            provider=provider,
+            id=id,
+            page_size=4000,
+        )
+
+        async for source in self._get_data("sources/", params=params):
+            yield source
+
+    async def _get_sources_dataframe(self, **kwargs):
+        sources = []
+        async for source in self._get_sources_generator(**kwargs):
+            sources.append(source)
+
+        return pd.DataFrame(sources)
+
+    def get_sources(self, **kwargs):
+        return asyncio.get_event_loop().run_until_complete(self._get_sources_dataframe(**kwargs))
+
     async def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
         """
         Parameters
