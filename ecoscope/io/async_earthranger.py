@@ -241,7 +241,93 @@ class AsyncEarthRangerIO(AsyncERClient):
         async for patrol in self._get_data("activity/patrols", params=params):
             yield patrol
 
-    async def get_patrol_observations(
+    async def _get_observations_generator(
+        self,
+        source_ids=None,
+        subject_ids=None,
+        subjectsource_ids=None,
+        tz="UTC",
+        since=None,
+        until=None,
+        filter=None,
+        include_details=None,
+        created_after=None,
+        **addl_kwargs,
+    ):
+        """
+        Return observations matching queries. If `subject_id`, `source_id`, or `subjectsource_id` is specified, the
+        index is set to the provided value.
+        Parameters
+        ----------
+        subject_ids: filter to a single subject
+        source_ids: filter to a single source
+        subjectsource_ids: filter to a subjectsource_id, rather than source_id + time range
+        since: get observations after this ISO8061 date, include timezone
+        until:get observations up to this ISO8061 date, include timezone
+        filter
+            filter using exclusion_flags for an observation.
+            filter=None returns everything
+            filter=0  filters out everything but rows with exclusion flag 0 (i.e, passes back clean data)
+            filter=1  filters out everything but rows with exclusion flag 1 (i.e, passes back manually filtered data)
+            filter=2, filters out everything but rows with exclusion flag 2 (i.e., passes back automatically filtered
+            data)
+            filter=3, filters out everything but rows with exclusion flag 2 or 1 (i.e., passes back both manual and
+            automatically filtered data)
+        include_details: one of [true,false], default is false. This brings back the observation additional field
+        created_after: get observations created (saved in EarthRanger) after this ISO8061 date, include timezone
+        Returns
+        -------
+        observations : gpd.GeoDataFrame
+        """
+        assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
+
+        params = self._clean_kwargs(
+            addl_kwargs,
+            since=since,
+            until=until,
+            filter=filter,
+            include_details=include_details,
+            created_after=created_after,
+            page_size=4000,
+        )
+
+        if source_ids:
+            id_name, ids = "source_id", source_ids
+        elif subject_ids:
+            id_name, ids = "subject_id", subject_ids
+        else:
+            id_name, ids = "subjectsource_id", subjectsource_ids
+
+        params[id_name] = ids
+        async for observation in self._get_data(object="observations/", **params):
+            yield observation
+
+    async def _get_observations_gdf(self, **kwargs):
+        observations = []
+        async for observation in self._get_observations_generator(**kwargs):
+            observations.append(observation)
+
+        observations = pd.DataFrame(observation)
+
+        if observations.empty:
+            return gpd.GeoDataFrame()
+
+        observations["created_at"] = pd.to_datetime(
+            observations["created_at"],
+            errors="coerce",
+            utc=True,
+        ).dt.tz_convert(kwargs.get("tz"))
+
+        observations["recorded_at"] = pd.to_datetime(
+            observations["recorded_at"],
+            errors="coerce",
+            utc=True,
+        ).dt.tz_convert(kwargs.get("tz"))
+
+        observations.sort_values("recorded_at", inplace=True)
+        return AsyncEarthRangerIO._to_gdf(observations)
+
+    async def get_patrol_observations_with_patrol_filter(
         self,
         since=None,
         until=None,
@@ -287,7 +373,7 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         tasks = []
         async for patrol in self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status):
-            task = asyncio.create_task(self._get_observations(patrol, relocations, tz, **kwargs))
+            task = asyncio.create_task(self._get_observations_by_patrol(patrol, relocations, tz, **kwargs))
             tasks.append(task)
 
         observations = await asyncio.gather(*tasks)
@@ -296,7 +382,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         #     return df.set_index("id")
         return observations
 
-    async def _get_observations(self, patrol, relocations=True, tz="UTC", **kwargs):
+    async def _get_observations_by_patrol(self, patrol, relocations=True, tz="UTC", **kwargs):
 
         observations = ecoscope.base.Relocations()
         for patrol_segment in patrol["patrol_segments"]:
@@ -334,7 +420,7 @@ class AsyncEarthRangerIO(AsyncERClient):
                     utc=True,
                 ).dt.tz_convert(tz)
                 observations_by_subject.sort_values("recorded_at", inplace=True)
-                observations_by_subject = self._to_gdf(observations_by_subject)
+                observations_by_subject = AsyncEarthRangerIO._to_gdf(observations_by_subject)
 
                 # TODO - handle include flag requests
                 #  include_source_details
