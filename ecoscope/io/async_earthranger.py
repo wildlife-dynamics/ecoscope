@@ -209,17 +209,11 @@ class AsyncEarthRangerIO(AsyncERClient):
         return df
 
     async def get_patrol_types_dataframe(self):
-        patrol_types = []
         response = await self._get("activity/patrols/types", params={})
-        for patrol_type in response:
-            patrol_types.append(patrol_type)
 
-        df = pd.DataFrame(patrol_types)
+        df = pd.DataFrame(response)
         df.set_index("id", inplace=True)
         return df
-
-    def get_patrol_types(self, **kwargs):
-        return asyncio.get_event_loop().run_until_complete(self.get_patrol_types_dataframe())
 
     async def _get_patrols_generator(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
         """
@@ -373,12 +367,16 @@ class AsyncEarthRangerIO(AsyncERClient):
         relocations : ecoscope.base.Relocations
         """
         observations = ecoscope.base.Relocations()
-        # patrol_types = await self._get_data("activity/patrols/types", params={})
+        df_pt = None
+
+        if include_patrol_details:
+            df_pt = await self.get_patrol_types_dataframe()
+
         tasks = []
         async for patrol in self._get_patrols_generator(
             since=since, until=until, patrol_type=patrol_type, status=status
         ):
-            task = asyncio.create_task(self._get_observations_by_patrol(patrol, relocations, tz, **kwargs))
+            task = asyncio.create_task(self._get_observations_by_patrol(patrol, relocations, tz, df_pt, **kwargs))
             tasks.append(task)
 
         observations = await asyncio.gather(*tasks)
@@ -386,16 +384,13 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         return observations
 
-    async def _get_observations_by_patrol(self, patrol, relocations=True, tz="UTC", **kwargs):
+    async def _get_observations_by_patrol(self, patrol, relocations=True, tz="UTC", patrol_types=None, **kwargs):
 
         observations = ecoscope.base.Relocations()
         for patrol_segment in patrol["patrol_segments"]:
             subject_id = (patrol_segment.get("leader") or {}).get("id")
             patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
             patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
-
-            # ignoring patrol types for now
-            # patrol_type = df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
 
             if None in {subject_id, patrol_start_time}:
                 continue
@@ -439,7 +434,32 @@ class AsyncEarthRangerIO(AsyncERClient):
                         time_col="recorded_at",
                     )
 
-                # TODO re-add handling for patrol details
+                if patrol_types is not None:
+                    patrol_type = patrol_types[
+                        patrol_types["value"] == patrol_segment.get("patrol_type")
+                    ].reset_index()["id"][0]
+                    observations_by_subject["patrol_id"] = patrol["id"]
+                    observations_by_subject["patrol_serial_number"] = patrol["serial_number"]
+                    observations_by_subject["patrol_start_time"] = patrol_start_time
+                    observations_by_subject["patrol_end_time"] = patrol_end_time
+                    observations_by_subject["patrol_type"] = patrol_type
+                    observations_by_subject = (
+                        observations_by_subject.reset_index()
+                        .merge(
+                            patrol_types.add_prefix("patrol_type__"),
+                            left_on="patrol_type",
+                            right_on="id",
+                        )
+                        .drop(
+                            columns=[
+                                "patrol_type__ordernum",
+                                "patrol_type__icon_id",
+                                "patrol_type__default_priority",
+                                "patrol_type__is_active",
+                            ]
+                        )
+                    )
+                    observations_by_subject.set_index("id", inplace=True)
 
                 if len(observations_by_subject) > 0:
                     observations = pd.concat([observations, observations_by_subject])
