@@ -14,7 +14,7 @@ def fatal_status_code(e):
 
 
 class AsyncEarthRangerIO(AsyncERClient):
-    def __init__(self, sub_page_size=4000, tcp_limit=5, prefetch_display_names=False, **kwargs):
+    def __init__(self, sub_page_size=4000, tcp_limit=5, **kwargs):
         if "server" in kwargs:
             server = kwargs.pop("server")
             kwargs["service_root"] = f"{server}/api/v1.0"
@@ -26,9 +26,6 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
-
-        if prefetch_display_names:
-            asyncio.get_event_loop().run_until_complete(self._get_display_map())
 
     @staticmethod
     def _clean_kwargs(addl_kwargs={}, **kwargs):
@@ -340,7 +337,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         observations.sort_values("recorded_at", inplace=True)
         return AsyncEarthRangerIO._to_gdf(observations)
 
-    async def get_patrol_observations_with_patrol_filter(
+    async def _get_patrol_observations_with_patrol_filter(
         self,
         since=None,
         until=None,
@@ -384,6 +381,9 @@ class AsyncEarthRangerIO(AsyncERClient):
         observations = pd.concat(observations)
 
         return observations
+
+    def get_patrol_observations_with_patrol_filter(self, **kwargs):
+        return asyncio.get_event_loop().run_until_complete(self._get_patrol_observations_with_patrol_filter(**kwargs))
 
     async def _get_observations_by_patrol(self, patrol, relocations=True, tz="UTC", patrol_types=None, **kwargs):
 
@@ -596,7 +596,8 @@ class AsyncEarthRangerIO(AsyncERClient):
     async def get_event_schema(self, event_type_name):
         return await self._get(f"activity/events/schema/eventtype/{event_type_name}", params={})
 
-    async def _get_display_map(self):
+    async def _load_display_map(self):
+        # display_map = {}
         async def _store_event_props(event_type_name):
             schema = await self.get_event_schema(event_type_name)
             self.event_type_display_values.get(event_type_name)["properties"] = dict(
@@ -609,3 +610,16 @@ class AsyncEarthRangerIO(AsyncERClient):
             task = asyncio.create_task(_store_event_props(event_type_name=event_type["value"]))
             tasks.append(task)
         await asyncio.gather(*tasks)
+        # return display_map
+
+    def load_display_map(self):
+        return asyncio.get_event_loop().run_until_complete(self._load_display_map())
+
+    def get_event_type_display_name(self, key, event_type=None):
+        if self.event_type_display_values is None:
+            self.load_display_map()
+
+        if event_type is not None:
+            return self.event_type_display_values.get(event_type).get("properties").get(key)
+
+        return self.event_type_display_values.get(key).get("display")
