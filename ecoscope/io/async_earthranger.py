@@ -13,7 +13,7 @@ def fatal_status_code(e):
 
 
 class AsyncEarthRangerIO(AsyncERClient):
-    def __init__(self, sub_page_size=4000, tcp_limit=5, prefetch=False, **kwargs):
+    def __init__(self, sub_page_size=4000, tcp_limit=5, prefetch_display_names=False, **kwargs):
         if "server" in kwargs:
             server = kwargs.pop("server")
             kwargs["service_root"] = f"{server}/api/v1.0"
@@ -23,11 +23,11 @@ class AsyncEarthRangerIO(AsyncERClient):
         self.tcp_limit = tcp_limit
         self.event_type_display_values = {}
 
-        if prefetch:
-            asyncio.get_event_loop().run_until_complete(self._get_display_map())
-
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
+
+        if prefetch_display_names:
+            asyncio.get_event_loop().run_until_complete(self._get_display_map())
 
     @staticmethod
     def _clean_kwargs(addl_kwargs={}, **kwargs):
@@ -208,6 +208,19 @@ class AsyncEarthRangerIO(AsyncERClient):
         df = pd.DataFrame(subject_sources)
         return df
 
+    async def get_patrol_types_dataframe(self):
+        patrol_types = []
+        response = await self._get("activity/patrols/types", params={})
+        for patrol_type in response:
+            patrol_types.append(patrol_type)
+
+        df = pd.DataFrame(patrol_types)
+        df.set_index("id", inplace=True)
+        return df
+
+    def get_patrol_types(self, **kwargs):
+        return asyncio.get_event_loop().run_until_complete(self.get_patrol_types_dataframe())
+
     async def _get_patrols_generator(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
         """
         Parameters
@@ -359,23 +372,8 @@ class AsyncEarthRangerIO(AsyncERClient):
         -------
         relocations : ecoscope.base.Relocations
         """
-
-        """patrols struct
-        {'id': 'ea2b9c29-a9f1-4a32-9634-962690d96618',
-         'priority': 0,
-         'state': 'done',
-         'objective': None,
-         'serial_number': 14150,
-         'title': 'End of foot patrol starting motorbike back to camp',
-         'files': [],
-         'notes': [],
-         'patrol_segments': [{'id': '751a5d54-42dc-4c8b-9416-68d77577d32a', 'patrol_type': 'mwaluganje_routine_motorbike_patrol', 'leader': {'content_type': 'observations.subject', 'id': 'e146c97b-912b-430c-95b2-4e9c3a2186c6', 'name': 'Suleiman Kibo', 'subject_type': 'person', 'subject_subtype': 'ranger', 'common_name': None, 'additional': {'rgb': '200, 70, 146', 'sex': '', 'region': 'Rangers-MEP', 'country': 'Kenya', 'external_id': '', 'tm_animal_id': '', 'external_name': ''}, 'created_at': '2024-01-23T10:38:53.337249+03:00', 'updated_at': '2024-06-30T10:50:30.734207+03:00', 'is_active': True, 'user': {'id': '0b6a95fa-3295-4e78-9b3a-9aee19ae5a48'}, 'region': 'Rangers-MEP', 'country': 'Kenya', 'sex': '', 'tracks_available': False, 'image_url': '/static/ranger-black.svg'}, 'scheduled_start': None, 'scheduled_end': None, 'time_range': {'start_time': '2024-05-24T11:01:06+03:00', 'end_time': '2024-05-24T11:33:00+03:00'}, 'start_location': {'latitude': -4.0904833, 'longitude': 39.465905}, 'end_location': {'latitude': -4.074973, 'longitude': 39.4845189}, 'events': [], 'image_url': 'https://mep.pamdas.org/static/sprite-src/traffic_rep.svg', 'icon_id': 'traffic_rep', 'updates': [{'message': 'Updated fields: End Time', 'time': '2024-05-25T12:51:12.164228+00:00', 'user': {'username': 'ckagume', 'first_name': 'Caroline', 'last_name': 'Mumbi', 'id': '06c5ea42-5041-4cf1-9360-d556dddca3e2', 'content_type': 'accounts.user'}, 'type': 'update_segment'}, {'message': 'Updated fields: End Time, End Location', 'time': '2024-05-24T08:39:09.737928+00:00', 'user': {'username': 'karani', 'first_name': 'Suleiman', 'last_name': 'Kibo', 'id': '0b6a95fa-3295-4e78-9b3a-9aee19ae5a48', 'content_type': 'accounts.user'}, 'type': 'update_segment'}]}], 'updates': [{'message': 'Updated fields: State is done', 'time': '2024-05-24T08:39:09.757917+00:00', 'user': {'username': 'karani', 'first_name': 'Suleiman', 'last_name': 'Kibo', 'id': '0b6a95fa-3295-4e78-9b3a-9aee19ae5a48', 'content_type': 'accounts.user'}, 'type': 'update_patrol_state'}, {'message': 'Patrol Added', 'time': '2024-05-24T08:01:28.516621+00:00', 'user': {'username': 'karani', 'first_name': 'Suleiman', 'last_name': 'Kibo', 'id': '0b6a95fa-3295-4e78-9b3a-9aee19ae5a48', 'content_type': 'accounts.user'}, 'type': 'add_patrol'}]}
-        """  # noqa
-
         observations = ecoscope.base.Relocations()
-        # ignoring patrol types for now
         # patrol_types = await self._get_data("activity/patrols/types", params={})
-
         tasks = []
         async for patrol in self._get_patrols_generator(
             since=since, until=until, patrol_type=patrol_type, status=status
@@ -385,8 +383,7 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         observations = await asyncio.gather(*tasks)
         observations = pd.concat(observations)
-        # if include_patrol_details:
-        #     return df.set_index("id")
+
         return observations
 
     async def _get_observations_by_patrol(self, patrol, relocations=True, tz="UTC", **kwargs):
