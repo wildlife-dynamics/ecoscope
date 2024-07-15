@@ -2,6 +2,7 @@ import json
 import geopandas as gpd
 import pandas as pd
 import asyncio
+from dateutil import parser
 from erclient.client import AsyncERClient
 from ecoscope.io.utils import to_hex
 
@@ -470,6 +471,120 @@ class AsyncEarthRangerIO(AsyncERClient):
                     f"end_time={patrol_end_time} failed for: {e}"
                 )
         return observations
+
+    async def get_events_dataframe(
+        self,
+        is_collection=None,
+        updated_size=None,
+        event_ids=None,
+        bbox=None,
+        sort_by=None,
+        patrol_segment=None,
+        state=None,
+        event_type=None,
+        include_updates=False,
+        include_details=False,
+        include_notes=False,
+        include_related_events=False,
+        include_files=False,
+        max_results=None,
+        oldest_update_date=None,
+        exclude_contained=None,
+        updated_since=None,
+        event_category=None,
+        since=None,
+        until=None,
+        **addl_kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        is_collection
+            true/false whether to filter on is_collection
+        updated_since
+            date-string to limit on updated_at
+        event_ids : array[string]
+            Event IDs, comma-separated
+        bbox
+            bounding box including four coordinate values, comma-separated. Ex. bbox=-122.4,48.4,-122.95,49.0
+            (west, south, east, north).
+        sort_by
+            Sort by (use 'event_time', 'updated_at', 'created_at', 'serial_number') with optional minus ('-') prefix to
+            reverse order.
+        patrol_segment
+            ID of patrol segment to filter on
+        state
+            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+        event_type
+            Comma-separated list of event type uuids
+        include_updates
+            Boolean value
+        include_details
+            Boolean value
+        include_notes
+            Boolean value
+        include_related_events
+            Boolean value
+        include_files
+            Boolean value
+        max_results
+        oldest_update_date
+        exclude_contained
+        event_category
+        since
+        until
+        Returns
+        -------
+        events : gpd.GeoDataFrame
+            GeoDataFrame of queried events
+        """
+
+        params = self._clean_kwargs(
+            addl_kwargs,
+            is_collection=is_collection,
+            updated_size=updated_size,
+            event_ids=event_ids,
+            bbox=bbox,
+            sort_by=sort_by,
+            patrol_segment=patrol_segment,
+            state=state,
+            event_type=event_type,
+            include_updates=include_updates,
+            include_details=include_details,
+            include_notes=include_notes,
+            include_related_events=include_related_events,
+            include_files=include_files,
+            max_results=max_results,
+            oldest_update_date=oldest_update_date,
+            exclude_contained=exclude_contained,
+            updated_since=updated_since,
+            event_category=event_category,
+        )
+
+        filter = {"date_range": {}}
+        if since is not None:
+            filter["date_range"]["lower"] = since
+            params["filter"] = json.dumps(filter)
+        if until is not None:
+            filter["date_range"]["upper"] = until
+            params["filter"] = json.dumps(filter)
+
+        events = []
+        async for event in self.get_events(**params):
+            events.append(event)
+
+        df = pd.DataFrame(events)
+        df["time"] = df["time"].apply(lambda x: pd.to_datetime(parser.parse(x)))
+        gdf = gpd.GeoDataFrame(df)
+        if gdf.loc[0, "location"] is not None:
+            gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
+                gdf.loc[~gdf["geojson"].isna(), "geojson"]
+            )["geometry"]
+            gdf.set_crs(4326, inplace=True)
+
+        gdf.sort_values("time", inplace=True)
+        gdf.set_index("id", inplace=True)
+        return gdf
 
     async def _get_event_types_generator(self, include_inactive=False, **addl_kwargs):
         params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
