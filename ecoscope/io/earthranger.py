@@ -641,8 +641,8 @@ class EarthRangerIO(ERClient):
             gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
                 gdf.loc[~gdf["geojson"].isna(), "geojson"]
             )["geometry"]
+            gdf.set_geometry("geometry", inplace=True)
             gdf.set_crs(4326, inplace=True)
-
         gdf.sort_values("time", inplace=True)
         return gdf.set_index("id")
 
