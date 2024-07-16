@@ -17,6 +17,7 @@ import json
 import os
 import shutil
 import sys
+import subprocess
 from pathlib import Path
 
 sys.path.insert(0, os.path.abspath("../.."))  # Necessary for viewcode
@@ -106,12 +107,13 @@ html_theme_options = {
     "pygment_dark_style": "dracula",
 }
 
-nbsphinx_prolog = """
+commit_id = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("ascii")
+nbsphinx_prolog = f"""
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
-  :target: {{ "https://githubtocolab.com/wildlife-dynamics/ecoscope/blob/master/" + env.docname|urlencode + ".ipynb" }}
+  :target: {{{{ "https://githubtocolab.com/wildlife-dynamics/ecoscope/blob/{commit_id}/" + env.docname|urlencode + ".ipynb" }}}}
 
 ----
-"""
+"""  # noqa
 
 SRC_NOTEBOOK_DIR = Path("../../notebooks/").resolve()
 DST_NOTEBOOK_DIR = Path("./notebooks/").resolve()
