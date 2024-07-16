@@ -3,8 +3,8 @@ import warnings
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from pyproj import Geod
 import shapely
+from pyproj import Geod
 
 from ecoscope.base._dataclasses import (
     RelocsCoordinateFilter,
@@ -26,6 +26,7 @@ class EcoDataFrame(gpd.GeoDataFrame):
         return type(self)
 
     def __init__(self, data=None, *args, **kwargs):
+        # test
         if kwargs.get("geometry") is None:
             # Load geometry from data if not specified in kwargs
             if hasattr(data, "geometry"):
