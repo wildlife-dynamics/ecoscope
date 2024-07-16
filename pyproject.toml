@@ -63,6 +63,9 @@ test = [
     "pytest-mock",
     "pytest-reportlog",
 ]
+docs =[
+    "pydata_sphinx_theme"
+]
 
 [tool.pytest.ini_options]
 testpaths = "tests"

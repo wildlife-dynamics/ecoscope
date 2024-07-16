@@ -8,8 +8,10 @@ sphinx:
   configuration: doc/source/conf.py
 python:
   install:
-  - method: setuptools
-    path: .
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
 conda:
   environment: environment.yml
 formats: []
