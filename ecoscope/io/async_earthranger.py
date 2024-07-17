@@ -87,7 +87,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             provider_key=provider_key,
             provider=provider,
             id=id,
-            page_size=4000,
+            page_size=addl_kwargs.pop("page_size", self.sub_page_size),
         )
 
         async for source in self._get_data("sources/", params=params):
@@ -147,7 +147,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             id=id,
             updated_until=updated_until,
             group_name=subject_group_name,
-            page_size=4000,
+            page_size=addl_kwargs.pop("page_size", self.sub_page_size),
         )
 
         assert params.get("subject_group") is None or params.get("group_name") is None
@@ -298,7 +298,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             filter=filter,
             include_details=include_details,
             created_after=created_after,
-            page_size=4000,
+            page_size=addl_kwargs.pop("page_size", self.sub_page_size),
         )
 
         if source_ids:
@@ -559,8 +559,8 @@ class AsyncEarthRangerIO(AsyncERClient):
             exclude_contained=exclude_contained,
             updated_since=updated_since,
             event_category=event_category,
+            page_size=addl_kwargs.pop("page_size", 100),
         )
-
         filter = {"date_range": {}}
         if since is not None:
             filter["date_range"]["lower"] = since
@@ -580,6 +580,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
                 gdf.loc[~gdf["geojson"].isna(), "geojson"]
             )["geometry"]
+            gdf.set_geometry("geometry", inplace=True)
             gdf.set_crs(4326, inplace=True)
 
         gdf.sort_values("time", inplace=True)
