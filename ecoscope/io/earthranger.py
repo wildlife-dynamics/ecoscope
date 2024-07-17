@@ -1011,10 +1011,8 @@ class EarthRangerIO(ERClient):
                 results = super(EarthRangerIO, self).post_observation(post_data)
             except ERClientException as exc:
                 self.logger.error(exc)
-                print(exc)
             except requests.exceptions.RequestException as exc:
                 self.logger.error(exc)
-                print(exc)
             else:
                 return pd.DataFrame(results)
 

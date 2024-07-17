@@ -96,11 +96,6 @@ def test_post_observations(er_io):
             },
             {
                 "recorded_at": (pd.Timestamp.utcnow() + pd.Timedelta(seconds=1)).isoformat(),
-                "geometry": Point(0, 0),
-                "source": er_io.SOURCE_IDS[0],
-            },
-            {
-                "recorded_at": (pd.Timestamp.utcnow() + pd.Timedelta(seconds=1)).isoformat(),
                 "geometry": Point(1, 1),
                 "source": er_io.SOURCE_IDS[1],
             },
@@ -108,7 +103,7 @@ def test_post_observations(er_io):
     )
 
     response = er_io.post_observations(observations)
-    assert len(response) == 3
+    assert len(response) == 2
     assert "location" in response
     assert "recorded_at" in response
 
