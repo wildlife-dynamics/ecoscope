@@ -587,6 +587,9 @@ class AsyncEarthRangerIO(AsyncERClient):
         gdf.set_index("id", inplace=True)
         return gdf
 
+    def get_events(self, **kwargs):
+        return asyncio.get_event_loop().run_until_complete(self.get_events_dataframe(**kwargs))
+
     async def _get_event_types_generator(self, include_inactive=False, **addl_kwargs):
         params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
 
