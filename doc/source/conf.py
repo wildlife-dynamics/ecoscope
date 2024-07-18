@@ -13,12 +13,9 @@
 
 # -- Project information -----------------------------------------------------
 
-import json
 import os
-import shutil
 import sys
 import subprocess
-from pathlib import Path
 
 sys.path.insert(0, os.path.abspath("../.."))  # Necessary for viewcode
 sys.path.insert(0, os.path.abspath(".."))
@@ -41,7 +38,6 @@ source_suffix = {
 extensions = [
     "autoapi.extension",
     "nbsphinx",
-    "nbsphinx_multilink",
     "pydata_sphinx_theme",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
@@ -114,35 +110,3 @@ nbsphinx_prolog = f"""
 
 ----
 """  # noqa
-
-SRC_NOTEBOOK_DIR = Path("../../notebooks/").resolve()
-DST_NOTEBOOK_DIR = Path("./notebooks/").resolve()
-
-shutil.rmtree(DST_NOTEBOOK_DIR, ignore_errors=True)
-DST_NOTEBOOK_DIR.mkdir()
-
-for file in SRC_NOTEBOOK_DIR.rglob("*.ipynb"):
-    if ".ipynb_checkpoints" in str(file):
-        continue
-
-    DST_NOTEBOOK_DIR.joinpath(file.relative_to(SRC_NOTEBOOK_DIR).parent).mkdir(exist_ok=True)
-
-    with open(DST_NOTEBOOK_DIR.joinpath(file.relative_to(SRC_NOTEBOOK_DIR).with_suffix(".nblink")), "w") as fp:
-        json.dump({"path": str("../" + os.path.relpath(file, DST_NOTEBOOK_DIR))}, fp, indent=2)
-
-for folder in DST_NOTEBOOK_DIR.iterdir():
-    if folder.is_dir():
-        with (folder.parent / (folder.name + ".rst")).open("w") as file:
-            file.write(
-                f"""\
-{'='*len(folder.name)}
-{folder.name}
-{'='*len(folder.name)}
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-
-   {folder.name}/*
-"""
-            )
