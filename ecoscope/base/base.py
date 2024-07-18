@@ -3,8 +3,8 @@ import warnings
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from pyproj import Geod
 import shapely
+from pyproj import Geod
 
 from ecoscope.base._dataclasses import (
     RelocsCoordinateFilter,
