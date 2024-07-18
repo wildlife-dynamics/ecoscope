@@ -64,7 +64,12 @@ test = [
     "pytest-reportlog",
 ]
 docs =[
-    "pydata_sphinx_theme"
+    "myst-parser",
+    "nbsphinx",
+    "nbsphinx-multilink",
+    "pydata-sphinx-theme",
+    "sphinx",
+    "sphinx-autoapi",
 ]
 
 [tool.pytest.ini_options]
