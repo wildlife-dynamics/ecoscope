@@ -73,8 +73,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         id
         Returns
         -------
-        sources : pd.DataFrame
-            DataFrame of queried sources
+        An async generator to iterate over sources.
         """
 
         params = self._clean_kwargs(
@@ -89,9 +88,28 @@ class AsyncEarthRangerIO(AsyncERClient):
         async for source in self._get_data("sources/", params=params):
             yield source
 
-    async def get_sources_dataframe(self, **kwargs):
+    async def get_sources_dataframe(
+        self,
+        manufacturer_id=None,
+        provider_key=None,
+        provider=None,
+        id=None,
+        **addl_kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        manufacturer_id
+        provider_key
+        providers
+        id
+        Returns
+        -------
+        sources : pd.DataFrame
+            DataFrame of queried sources
+        """
         sources = []
-        async for source in self.get_sources(**kwargs):
+        async for source in self.get_sources(**addl_kwargs):
             sources.append(source)
 
         return pd.DataFrame(sources)
@@ -126,7 +144,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             This is translated to the group_name parameter in the ER backend
         Returns
         -------
-        subjects : pd.DataFrame
+        An async generator to iterate over subjects
         """
 
         params = self._clean_kwargs(
@@ -163,9 +181,40 @@ class AsyncEarthRangerIO(AsyncERClient):
         async for source in self._get_data("subjects/", params=params):
             yield source
 
-    async def get_subjects_dataframe(self, **kwargs):
+    async def get_subjects_dataframe(
+        self,
+        include_inactive=None,
+        bbox=None,
+        subject_group_id=None,
+        name=None,
+        updated_since=None,
+        tracks=None,
+        id=None,
+        updated_until=None,
+        subject_group_name=None,
+        **addl_kwargs,
+    ):
+        """
+        Parameters
+        ----------
+        include_inactive: Include inactive subjects in list.
+        bbox: Include subjects having track data within this bounding box defined by a 4-tuple of coordinates marking
+            west, south, east, north.
+        subject_group_id: Indicate a subject group id for which Subjects should be listed.
+            This is translated to the subject_group parameter in the ER backend
+        name : Find subjects with the given name
+        updated_since: Return Subject that have been updated since the given timestamp.
+        tracks: Indicate whether to render each subject's recent tracks.
+        id: A comma-delimited list of Subject IDs.
+        updated_until
+        subject_group_name: A subject group name for which Subjects should be listed.
+            This is translated to the group_name parameter in the ER backend
+        Returns
+        -------
+        subjects : pd.DataFrame
+        """
         subjects = []
-        async for subject in self.get_subjects(**kwargs):
+        async for subject in self.get_subjects(**addl_kwargs):
             subjects.append(subject)
 
         df = pd.DataFrame(subjects)
@@ -182,16 +231,25 @@ class AsyncEarthRangerIO(AsyncERClient):
         sources: A comma-delimited list of Source IDs.
         Returns
         -------
-        subjectsources : pd.DataFrame
+        An async generator to iterate over subjectsources
         """
         params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
 
         async for subjectsource in self._get_data("subjectsources/", params=params):
             yield subjectsource
 
-    async def get_subjectsources_dataframe(self, **kwargs):
+    async def get_subjectsources_dataframe(self, subjects=None, sources=None, **addl_kwargs):
+        """
+        Parameters
+        ----------
+        subjects: A comma-delimited list of Subject IDs.
+        sources: A comma-delimited list of Source IDs.
+        Returns
+        -------
+        subjectsources : pd.DataFrame
+        """
         subject_sources = []
-        async for subject_source in self.get_subjectsources(**kwargs):
+        async for subject_source in self.get_subjectsources(**addl_kwargs):
             subject_sources.append(subject_source)
 
         df = pd.DataFrame(subject_sources)
@@ -348,17 +406,21 @@ class AsyncEarthRangerIO(AsyncERClient):
         **kwargs,
     ):
         """
-        Download observations for provided `patrols_df`.
-
+        Download observations for patrols with provided filters.
         Parameters
         ----------
-        patrols_df : pd.DataFrame
-           Data returned from a call to `get_patrols`.
+        since:
+            lower date range
+        until:
+            upper date range
+        patrol_type:
+            Comma-separated list of type of patrol UUID
+        status
+            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
         include_patrol_details : bool, optional
-           Whether to merge patrol details into dataframe
+            Whether to merge patrol details into dataframe
         kwargs
-           Additional parameters to pass to `get_subject_observations`.
-
+            Additional parameters to pass to `_get_observations_by_patrol`.
         Returns
         -------
         relocations : ecoscope.base.Relocations
@@ -371,7 +433,7 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         tasks = []
         async for patrol in self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status):
-            task = asyncio.create_task(self.get_observations_by_patrol(patrol, relocations, tz, df_pt, **kwargs))
+            task = asyncio.create_task(self._get_observations_by_patrol(patrol, relocations, tz, df_pt, **kwargs))
             tasks.append(task)
 
         observations = await asyncio.gather(*tasks)
@@ -379,8 +441,25 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         return observations
 
-    async def get_observations_by_patrol(self, patrol, relocations=True, tz="UTC", patrol_types=None, **kwargs):
-
+    async def _get_observations_by_patrol(self, patrol, relocations=True, tz="UTC", patrol_types=None, **kwargs):
+        """
+        Download observations by patrol.
+        Parameters
+        ----------
+        patrol:
+            The patrol to download observations for
+        relocations:
+            If true, returns a ecoscope.base.Relocations object instead of a GeoDataFrame
+        tz:
+            The timezeone to return observation times in
+        patrol_types:
+            Comma-separated list of type of patrol UUID
+        kwargs:
+            Additional parameters to pass to `get_observations`.
+        Returns
+        -------
+        relocations : ecoscope.base.Relocations
+        """
         observations = ecoscope.base.Relocations()
         for patrol_segment in patrol["patrol_segments"]:
             subject_id = (patrol_segment.get("leader") or {}).get("id")
@@ -577,6 +656,15 @@ class AsyncEarthRangerIO(AsyncERClient):
         return gdf
 
     async def get_event_types(self, include_inactive=False, **addl_kwargs):
+        """
+        Parameters
+        ----------
+        include_inactive: Include inactive subjects in list.
+        **addl_kwargs: Additional query params
+        Returns
+        -------
+        An async generator to iterate over event types
+        """
         params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
 
         response = await self._get("activity/events/eventtypes", params=params)
@@ -584,9 +672,20 @@ class AsyncEarthRangerIO(AsyncERClient):
             yield obj
 
     async def get_event_schema(self, event_type_name):
+        """
+        Parameters
+        ----------
+        event_type_name: The event type to fetch
+        Returns
+        -------
+        The event type schema json
+        """
         return await self._get(f"activity/events/schema/eventtype/{event_type_name}", params={})
 
     async def load_display_map(self):
+        """
+        Loads event type display values into event_type_display_values
+        """
         self.event_type_display_values = {}
 
         async def _store_event_props(event_type_name):
@@ -602,11 +701,19 @@ class AsyncEarthRangerIO(AsyncERClient):
             tasks.append(task)
         await asyncio.gather(*tasks)
 
-    async def get_event_type_display_name(self, key, event_type=None):
+    async def get_event_type_display_name(self, event_type, event_property=None):
+        """
+        Parameters
+        ----------
+        event_type: The event type name to fetch the display value of
+        event_property: If provided, returns the display name of the provided event property
+        Returns
+        -------
+        """
         if self.event_type_display_values is None:
             await self.load_display_map()
 
-        if event_type is not None:
-            return self.event_type_display_values.get(event_type).get("properties").get(key)
+        if event_property is not None:
+            return self.event_type_display_values.get(event_type).get("properties").get(event_property)
 
-        return self.event_type_display_values.get(key).get("display")
+        return self.event_type_display_values.get(event_type).get("display")

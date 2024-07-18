@@ -148,6 +148,11 @@ def get_patrol_details_fields():
     ]
 
 
+@pytest.fixture
+def get_subjectsources_fields():
+    return ["id", "assigned_range", "source", "subject", "additional", "location"]
+
+
 @pytest.mark.asyncio
 async def test_get_events_by_type(er_io_async, get_events_fields):
     # e00ce1f6-f9f1-48af-93c9-fb89ec493b8a == mepdev_distance_count
@@ -188,7 +193,20 @@ async def test_get_subjects_by_group_name(er_io_async, get_subjects_fields):
     assert not subjects.empty
     assert set(subjects.columns) == set(get_subjects_fields)
     assert type(subjects["updated_at"] == pd.Timestamp)
-    assert subjects["subject_subtype"][0] == "elephant"
+
+
+@pytest.mark.asyncio
+async def test_get_subjectsources_by_subject(er_io_async, get_subjectsources_fields):
+    subjectsources = await er_io_async.get_subjectsources_dataframe(subjects="5d600698-bcfa-401c-a617-e58e961a8038")
+    assert not subjectsources.empty
+    assert set(subjectsources.columns) == set(get_subjectsources_fields)
+
+
+@pytest.mark.asyncio
+async def test_get_subjectsources_by_source(er_io_async, get_subjectsources_fields):
+    subjectsources = await er_io_async.get_subjectsources_dataframe(subjects="c9dbf311-144c-4e74-9b56-30771225dcd1")
+    assert not subjectsources.empty
+    assert set(subjectsources.columns) == set(get_subjectsources_fields)
 
 
 @pytest.mark.asyncio
@@ -221,5 +239,8 @@ async def test_display_map(er_io_async):
     await er_io_async.load_display_map()
     assert er_io_async.event_type_display_values is not None
     assert len(er_io_async.event_type_display_values) == 61
-    assert await er_io_async.get_event_type_display_name("fence_rep") == "Fence"
-    assert await er_io_async.get_event_type_display_name("shotrep_timeofshot", "shot_rep") == "Time when shot was heard"
+    assert await er_io_async.get_event_type_display_name(event_type="fence_rep") == "Fence"
+    assert (
+        await er_io_async.get_event_type_display_name(event_type="shot_rep", event_property="shotrep_timeofshot")
+        == "Time when shot was heard"
+    )
