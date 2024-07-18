@@ -1,13 +1,14 @@
-import datetime
-import uuid
 import os
 
-import geopandas as gpd
 import pandas as pd
 import pytest
-from shapely.geometry import Point
-
 import ecoscope
+
+if not pytest.earthranger:
+    pytest.skip(
+        "Skipping tests because connection to EarthRanger is not available.",
+        allow_module_level=True,
+    )
 
 
 @pytest.fixture
@@ -15,218 +16,210 @@ def er_io_async():
     ER_SERVER = "https://mep-dev.pamdas.org"
     ER_USERNAME = os.getenv("ER_USERNAME")
     ER_PASSWORD = os.getenv("ER_PASSWORD")
-    er_io = ecoscope.io.EarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
+    er_io = ecoscope.io.AsyncEarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
 
     return er_io
 
 
-def test_get_subject_observations(er_io_async):
-    relocations = er_io_async.get_subject_observations(
-        subject_ids=er_io_async.SUBJECT_IDS,
-        include_subject_details=True,
-        include_source_details=True,
-        include_subjectsource_details=True,
-    )
-    assert not relocations.empty
-    assert isinstance(relocations, ecoscope.base.Relocations)
-    assert "groupby_col" in relocations
-    assert "fixtime" in relocations
-    assert "extra__source" in relocations
+@pytest.fixture
+def get_events_fields():
+    return [
+        "location",
+        "time",
+        "end_time",
+        "message",
+        "provenance",
+        "event_type",
+        "priority",
+        "priority_label",
+        "attributes",
+        "comment",
+        "title",
+        "reported_by",
+        "state",
+        "is_contained_in",
+        "sort_at",
+        "patrol_segments",
+        "geometry",
+        "updated_at",
+        "created_at",
+        "icon_id",
+        "serial_number",
+        "event_details",
+        "files",
+        "related_subjects",
+        "event_category",
+        "url",
+        "image_url",
+        "geojson",
+        "is_collection",
+        "patrols",
+    ]
 
 
-def test_get_source_observations(er_io_async):
-    relocations = er_io_async.get_source_observations(
-        source_ids=er_io_async.SOURCE_IDS,
-        include_source_details=True,
-    )
-    assert isinstance(relocations, ecoscope.base.Relocations)
-    assert "fixtime" in relocations
-    assert "groupby_col" in relocations
+@pytest.fixture
+def get_source_fields():
+    return [
+        "id",
+        "source_type",
+        "manufacturer_id",
+        "model_name",
+        "additional",
+        "provider",
+        "content_type",
+        "created_at",
+        "updated_at",
+        "url",
+    ]
 
 
-def test_get_source_no_observations(er_io_async):
-    relocations = er_io_async.get_source_observations(
-        source_ids=str(uuid.uuid4()),
-        include_source_details=True,
-    )
-    assert relocations.empty
+@pytest.fixture
+def get_subjects_fields():
+    return [
+        "content_type",
+        "id",
+        "name",
+        "subject_type",
+        "subject_subtype",
+        "common_name",
+        "additional",
+        "created_at",
+        "updated_at",
+        "is_active",
+        "user",
+        "tracks_available",
+        "image_url",
+        "last_position_status",
+        "device_status_properties",
+        "url",
+        "last_position_date",
+        "last_position",
+        "region",
+        "country",
+        "sex",
+        "hex",
+    ]
 
 
-def test_get_subjectsource_observations(er_io_async):
-    relocations = er_io_async.get_subjectsource_observations(
-        subjectsource_ids=er_io_async.SUBJECTSOURCE_IDS,
-        include_source_details=True,
-    )
-    assert isinstance(relocations, ecoscope.base.Relocations)
-    assert "fixtime" in relocations
-    assert "groupby_col" in relocations
+@pytest.fixture
+def get_patrols_fields():
+    return [
+        "id",
+        "priority",
+        "state",
+        "objective",
+        "serial_number",
+        "title",
+        "files",
+        "notes",
+        "patrol_segments",
+        "updates",
+    ]
 
 
-def test_get_subjectsource_no_observations(er_io_async):
-    relocations = er_io_async.get_subjectsource_observations(
-        subjectsource_ids=str(uuid.uuid4()),
-        include_source_details=True,
-    )
-    assert relocations.empty
+@pytest.fixture
+def get_patrol_observations_fields():
+    return [
+        "extra__id",
+        "extra__location",
+        "extra__recorded_at",
+        "extra__created_at",
+        "extra__exclusion_flags",
+        "extra__das_tenant_id",
+        "extra__source",
+        "extra__subject_id",
+        "geometry",
+        "groupby_col",
+        "fixtime",
+        "junk_status",
+    ]
 
 
-def test_get_subjectgroup_observations(er_io_async):
-    relocations = er_io_async.get_subjectgroup_observations(subject_group_name=er_io_async.GROUP_NAME)
-    assert "groupby_col" in relocations
-    assert len(relocations["extra__subject_id"].unique()) == 2
+@pytest.fixture
+def get_patrol_details_fields():
+    return [
+        "patrol_id",
+        "patrol_serial_number",
+        "patrol_start_time",
+        "patrol_end_time",
+        "patrol_type",
+        "patrol_type__value",
+        "patrol_type__display",
+    ]
 
 
-def test_get_events(er_events_io):
-    events = er_events_io.get_events(event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"])
+@pytest.mark.asyncio
+async def test_get_events_by_type(er_io_async, get_events_fields):
+    # e00ce1f6-f9f1-48af-93c9-fb89ec493b8a == mepdev_distance_count
+    events = await er_io_async.get_events_dataframe(event_type="e00ce1f6-f9f1-48af-93c9-fb89ec493b8a")
     assert not events.empty
+    assert set(events.columns) == set(get_events_fields)
+    assert type(events["time"] == pd.Timestamp)
+    assert events["event_type"][0] == "mepdev_distance_count"
 
 
-def test_das_client_method(er_io_async):
-    er_io_async.pulse()
-    er_io_async.get_me()
+@pytest.mark.asyncio
+async def test_get_events(er_io_async, get_events_fields):
+    events = await er_io_async.get_events_dataframe(event_ids=["71a03681-3d45-44ea-9b63-ca2ac278d8ec"])
+    assert len(events) == 1
+    assert set(events.columns) == set(get_events_fields)
+    assert type(events["time"] == pd.Timestamp)
 
 
-def test_get_patrols(er_io_async):
-    patrols = er_io_async.get_patrols()
-    assert len(patrols) > 0
+@pytest.mark.asyncio
+async def test_get_sources(er_io_async, get_source_fields):
+    sources = await er_io_async.get_sources_dataframe()
+    assert not sources.empty
+    assert set(sources.columns) == set(get_source_fields)
+    assert type(sources["updated_at"] == pd.Timestamp)
 
 
-def test_post_observations(er_io_async):
-    observations = gpd.GeoDataFrame.from_dict(
-        [
-            {
-                "recorded_at": pd.Timestamp.utcnow().isoformat(),
-                "geometry": Point(0, 0),
-                "source": er_io_async.SOURCE_IDS[0],
-            },
-            {
-                "recorded_at": (pd.Timestamp.utcnow() + pd.Timedelta(seconds=1)).isoformat(),
-                "geometry": Point(0, 0),
-                "source": er_io_async.SOURCE_IDS[0],
-            },
-            {
-                "recorded_at": pd.Timestamp.utcnow().isoformat(),
-                "geometry": Point(1, 1),
-                "source": er_io_async.SOURCE_IDS[1],
-            },
-        ]
-    )
-
-    response = er_io_async.post_observations(observations)
-    assert len(response) == 3
-    assert "location" in response
-    assert "recorded_at" in response
+@pytest.mark.asyncio
+async def test_get_subjects(er_io_async, get_subjects_fields):
+    subjects = await er_io_async.get_subjects_dataframe()
+    assert not subjects.empty
+    assert set(subjects.columns) == set(get_subjects_fields)
+    assert type(subjects["updated_at"] == pd.Timestamp)
 
 
-def test_post_events(er_io_async):
-    events = [
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Accident",
-            "event_type": "accident_rep",
-            "time": pd.Timestamp.utcnow(),
-            "location": {"latitude": -2.9553841592697982, "longitude": 38.033294677734375},
-            "priority": 200,
-            "state": "new",
-            "event_details": {"type_accident": "head-on collision", "number_people_involved": 3, "animals_involved": 1},
-            "is_collection": False,
-            "icon_id": "accident_rep",
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Accident",
-            "event_type": "accident_rep",
-            "time": pd.Timestamp.utcnow(),
-            "location": {"latitude": -3.0321834919139206, "longitude": 38.4906005859375},
-            "priority": 300,
-            "state": "active",
-            "event_details": {
-                "type_accident": "side-impact collision",
-                "number_people_involved": 2,
-                "animals_involved": 1,
-            },
-            "is_collection": False,
-            "icon_id": "accident_rep",
-        },
-    ]
-    results = er_io_async.post_event(events)
-    results["time"] = pd.to_datetime(results["time"], utc=True)
-
-    expected = pd.DataFrame(events)
-    results = results[expected.columns]
-    pd.testing.assert_frame_equal(results, expected)
+@pytest.mark.asyncio
+async def test_get_subjects_by_group_name(er_io_async, get_subjects_fields):
+    subjects = await er_io_async.get_subjects_dataframe(subject_group_name="Elephants")
+    assert not subjects.empty
+    assert set(subjects.columns) == set(get_subjects_fields)
+    assert type(subjects["updated_at"] == pd.Timestamp)
+    assert subjects["subject_subtype"][0] == "elephant"
 
 
-def test_patch_event(er_io_async):
-    event = [
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Arrest",
-            "event_type": "arrest_rep",
-            "time": pd.Timestamp.utcnow(),
-            "location": {"latitude": -3.4017015747197306, "longitude": 38.11809539794921},
-            "priority": 200,
-            "state": "new",
-            "event_details": {
-                "arrestrep_dateofbirth": "1985-01-1T13:00:00.000Z",
-                "arrestrep_nationality": "other",
-                "arrestrep_timeofarrest": datetime.datetime.utcnow().isoformat(),
-                "arrestrep_reaonforarrest": "firearm",
-                "arrestrep_arrestingranger": "catherine's cellphone",
-            },
-            "is_collection": False,
-            "icon_id": "arrest_rep",
-        }
-    ]
-    er_io_async.post_event(event)
-    event_id = event[0]["id"]
-
-    updated_event = pd.DataFrame(
-        [
-            {
-                "priority": 300,
-                "state": "active",
-                "location": {"latitude": -4.135503657998179, "longitude": 38.4576416015625},
-            }
-        ]
-    )
-
-    result = er_io_async.patch_event(event_id=event_id, events=updated_event)
-    result = result[["priority", "state", "location"]]
-    pd.testing.assert_frame_equal(result, updated_event)
+@pytest.mark.asyncio
+async def test_get_patrols(er_io_async, get_patrols_fields):
+    patrols = await er_io_async.get_patrols_dataframe()
+    assert not patrols.empty
+    assert set(patrols.columns) == set(get_patrols_fields)
 
 
-def test_get_patrol_observations(er_io_async):
-    patrols = er_io_async.get_patrols()
-    observations = er_io_async.get_patrol_observations(
-        patrols,
-        include_source_details=False,
-        include_subject_details=False,
-        include_subjectsource_details=False,
-    )
+@pytest.mark.asyncio
+async def test_get_patrol_observations(er_io_async, get_patrol_observations_fields):
+    observations = await er_io_async.get_patrol_observations_with_patrol_filter()
     assert not observations.empty
+    assert set(observations.columns) == set(get_patrol_observations_fields)
+    assert type(observations["fixtime"] == pd.Timestamp)
 
 
-def test_users(er_io_async):
-    users = pd.DataFrame(er_io_async.get_users())
-    assert not users.empty
+@pytest.mark.asyncio
+async def test_get_patrol_observations_with_patrol_details(
+    er_io_async, get_patrol_observations_fields, get_patrol_details_fields
+):
+    observations = await er_io_async.get_patrol_observations_with_patrol_filter(include_patrol_details=True)
+    assert not observations.empty
+    assert set(observations.columns) == set(get_patrol_observations_fields).union(get_patrol_details_fields)
+    assert type(observations["fixtime"] == pd.Timestamp)
 
 
-def test_get_spatial_feature(er_io_async):
-    spatial_feature = er_io_async.get_spatial_feature(spatial_feature_id="8868718f-0154-45bf-a74d-a66706ef958f")
-    assert not spatial_feature.empty
-
-
-def test_get_spatial_features_group(er_io_async):
-    spatial_features = er_io_async.get_spatial_features_group(
-        spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097"
-    )
-    assert not spatial_features.empty
-
-
-def test_get_subjects_chunking(er_io_async):
-    subject_ids = ",".join(er_io_async.SUBJECT_IDS)
-    single_request_result = er_io_async.get_subjects(id=subject_ids)
-    chunked_request_result = er_io_async.get_subjects(id=subject_ids, max_ids_per_request=1)
-
-    pd.testing.assert_frame_equal(single_request_result, chunked_request_result)
+@pytest.mark.asyncio
+async def test_display_map(er_io_async):
+    await er_io_async.load_display_map()
+    assert er_io_async.event_type_display_values is not None
+    assert len(er_io_async.event_type_display_values) == 61
+    assert await er_io_async.get_event_type_display_name("fence_rep") == "Fence"
+    assert await er_io_async.get_event_type_display_name("shotrep_timeofshot", "shot_rep") == "Time when shot was heard"

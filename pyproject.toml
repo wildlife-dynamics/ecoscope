@@ -59,6 +59,7 @@ Tracker = "https://github.com/wildlife-dynamics/ecoscope/issues"
 [project.optional-dependencies]
 test = [
     "pytest",
+    "pytest-asyncio",
     "pytest-cov",
     "pytest-mock",
     "pytest-reportlog",
