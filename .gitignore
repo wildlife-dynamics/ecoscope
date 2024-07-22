@@ -162,7 +162,6 @@ ecoscope/_etd.html
 .DS_Store
 doc/_build/
 doc/source/_autosummary
-doc/source/notebooks
 tags
 Ecoscope-Outputs
 tests/test_output/new.html

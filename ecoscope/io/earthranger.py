@@ -641,8 +641,8 @@ class EarthRangerIO(ERClient):
             gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
                 gdf.loc[~gdf["geojson"].isna(), "geojson"]
             )["geometry"]
+            gdf.set_geometry("geometry", inplace=True)
             gdf.set_crs(4326, inplace=True)
-
         gdf.sort_values("time", inplace=True)
         return gdf.set_index("id")
 
@@ -724,6 +724,35 @@ class EarthRangerIO(ERClient):
         return pd.DataFrame(
             self.get_objects_multithreaded(object=object, threads=self.tcp_limit, page_size=self.sub_page_size)
         )
+
+    def get_patrol_observations_with_patrol_filter(
+        self, since=None, until=None, patrol_type=None, status=None, include_patrol_details=False, **kwargs
+    ):
+        """
+        Download observations for patrols with provided filters.
+
+        Parameters
+        ----------
+        since:
+            lower date range
+        until:
+            upper date range
+        patrol_type:
+            Comma-separated list of type of patrol UUID
+        status
+            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+        include_patrol_details : bool, optional
+            Whether to merge patrol details into dataframe
+        kwargs
+            Additional parameters to pass to `get_subject_observations`.
+
+        Returns
+        -------
+        relocations : ecoscope.base.Relocations
+        """
+
+        patrols_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **kwargs)
+        return self.get_patrol_observations(patrols_df, include_patrol_details=include_patrol_details, **kwargs)
 
     def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
         """
