@@ -55,32 +55,11 @@ jobs:
       - name: Test package
         run: python -c "import $PACKAGE"  
 
-  publish-to-pypi:
-    name: Publish to PyPI
-    needs:
-    - build
-    - install
-    runs-on: ubuntu-latest
-    environment:
-      name: release
-    if: startsWith(github.ref, 'refs/tags/')
-
-    permissions:
-      id-token: write
-      
-    steps:
-      - name: Grab the previously stored build
-        uses: actions/download-artifact@v4
-        with:
-          name: pip-dist
-          path: dist/
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
   github-release:
     name: Create release on GH
     needs:
-    - publish-to-pypi
+    - build
+    - install
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -115,3 +94,25 @@ jobs:
         gh release upload
         '${{ github.ref_name }}' dist/**
         --repo '${{ github.repository }}'
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs:
+    - build
+    - install
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+    if: false
+
+    permissions:
+      id-token: write
+      
+    steps:
+      - name: Grab the previously stored build
+        uses: actions/download-artifact@v4
+        with:
+          name: pip-dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
