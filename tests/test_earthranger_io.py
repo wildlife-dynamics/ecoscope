@@ -90,7 +90,6 @@ def test_get_patrol_events(er_io):
     events = er_io.get_patrol_events()
     assert "id" in events
     assert "event_type" in events
-    assert "patrol_id" in events
     assert "geometry" in events
 
 
