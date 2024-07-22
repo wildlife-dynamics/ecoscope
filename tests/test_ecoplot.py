@@ -1,5 +1,6 @@
 import numpy as np
-from ecoscope.plotting.plot import EcoPlotData, ecoplot, mcp, nsd, speed
+import pandas as pd
+from ecoscope.plotting.plot import EcoPlotData, ecoplot, mcp, nsd, speed, stacked_bar_chart
 from ecoscope.base import Trajectory
 
 
@@ -45,3 +46,26 @@ def test_speed(movebank_relocations):
     assert len(figure.data) == 1
     len(figure.data[0].x) == len(traj) * 4
     len(figure.data[0].y) == len(traj) * 4
+
+
+def test_stacked_bar_chart():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "category": ["A", "B", "B", "B"],
+            "time": ["2024-07-22", "2024-07-22", "2024-07-22", "2024-07-21"],
+        }
+    )
+    df.set_index("id", inplace=True)
+
+    gb = df.groupby(["time", "category"])
+    epd = EcoPlotData(gb, "time", "category")
+    chart = stacked_bar_chart(epd)
+
+    # we should have 2 categorical buckets
+    assert len(chart.data) == 2
+    assert chart.data[0].name == "A"
+    assert chart.data[1].name == "B"
+    # Should be the count of A and B for our 2 dates
+    assert chart.data[0].y == (0, 1)
+    assert chart.data[1].y == (1, 2)

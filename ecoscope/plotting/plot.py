@@ -268,3 +268,36 @@ def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
     if output_file:
         fig.write_image(output_file)
     return fig
+
+
+def stacked_bar_chart(data):
+    """
+    Creates a stacked bar chart from the provided EcoPlotData object
+    Parameters
+    ----------
+    data: ecoscope.Plotting.EcoPlotData
+        The data to plot, counts categorical data.y_col values for data.x_col
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly bar chart
+    """
+    fig = go.Figure()
+
+    x_axis_name = data.x_col
+    y_axis_name = data.y_col
+
+    agg = data.grouped[y_axis_name].count().to_frame("count").unstack(fill_value=0).stack().reset_index()
+
+    x = agg[x_axis_name].unique()
+    for category in agg[y_axis_name].unique():
+        fig.add_trace(
+            go.Bar(
+                x=x,
+                y=list(agg[agg[y_axis_name] == category]["count"]),
+                name=str(category),
+            )
+        )
+        agg.loc[agg[y_axis_name] == category]
+    fig.update_layout(barmode="stack")
+    return fig
