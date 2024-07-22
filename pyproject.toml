@@ -63,6 +63,13 @@ test = [
     "pytest-mock",
     "pytest-reportlog",
 ]
+docs =[
+    "myst-parser",
+    "nbsphinx",
+    "pydata-sphinx-theme",
+    "sphinx",
+    "sphinx-autoapi",
+]
 
 [tool.pytest.ini_options]
 testpaths = "tests"
