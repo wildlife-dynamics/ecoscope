@@ -471,7 +471,7 @@ class EcoMap(EcoMapMixin, Map):
             raise ValueError("string layer name must be in  {}".format(", ".join(xyz_tiles.keys())))
         return BitmapTileLayer(
             data=layer.get("url"),
-            tile_size=layer.get("tile_size", 128),
+            tile_size=layer.get("tile_size", 256),
             max_zoom=layer.get("max_zoom", None),
             min_zoom=layer.get("min_zoom", None),
             max_requests=layer.get("max_requests", None),
