@@ -12,7 +12,7 @@ from ecoscope.analysis.speed import SpeedDataFrame
 from lonboard import Map
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
-from lonboard._viz import viz_layer
+from lonboard._viz import create_layers_from_data_input
 from lonboard.colormap import apply_categorical_cmap, apply_continuous_cmap
 from lonboard._layer import (
     BaseLayer,
@@ -135,7 +135,7 @@ class EcoMap(EcoMapMixin, Map):
         zoom : bool
             Whether or not to zoom the map to the bounds of the data
         kwargs:
-            Additional kwargs passed to lonboard.viz_layer
+            Additional kwargs passed to lonboard.create_layers_from_data_input
         """
         data = data.copy()
         data = data.to_crs(4326)
@@ -161,16 +161,15 @@ class EcoMap(EcoMapMixin, Map):
                 path_kwargs = {"get_color": colormap}
 
         self.add_layer(
-            viz_layer(
+            create_layers_from_data_input(
                 data=data,
                 polygon_kwargs=polygon_kwargs,
                 scatterplot_kwargs=scatterplot_kwargs,
                 path_kwargs=path_kwargs,
                 **kwargs
-            )
+            ),
+            zoom=zoom,
         )
-        if zoom:
-            self.zoom_to_bounds(data)
 
     def add_path_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
         self.add_layer(PathLayer.from_geopandas(gdf, **kwargs), zoom)
@@ -266,7 +265,7 @@ class EcoMap(EcoMapMixin, Map):
         this results in a BitmapTileLayer being added
 
         For EE.Geometry objects, a list of ScatterplotLayer,PathLayer and PolygonLayer will be added
-        based on the geometry itself (defers to lonboard.viz)
+        based on the geometry itself (see add_gdf)
 
         Parameters
         ----------
@@ -275,7 +274,7 @@ class EcoMap(EcoMapMixin, Map):
         visualization_params: dict
             Visualization params passed to EarthEngine
         kwargs
-            Additional params passed to either lonboard.BitmapTileLayer or lonboard.viz
+            Additional params passed to either lonboard.BitmapTileLayer or add_gdf
 
         Returns
         -------
@@ -293,7 +292,7 @@ class EcoMap(EcoMapMixin, Map):
         elif isinstance(ee_object, ee.geometry.Geometry):
             geojson = ee_object.toGeoJSON()
             gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
-            ee_layer = viz_layer(data=gdf, **kwargs)
+            ee_layer = self.add_gdf(data=gdf, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
             ee_object_new = ee.Image().paint(ee_object, 0, 2)
