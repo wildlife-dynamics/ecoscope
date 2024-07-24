@@ -719,6 +719,8 @@ class EarthRangerIO(ERClient):
             if row["patrol_segments"]:
                 for segment in row["patrol_segments"]:
                     for event in segment.get("events", []):
+                        event["patrol_id"] = row.get("id")
+                        event["patrol_segment_id"] = segment.get("id")
                         events.append(event)
         events_df = pd.DataFrame(events)
 
