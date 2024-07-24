@@ -171,13 +171,13 @@ class EcoMap(EcoMapMixin, Map):
             zoom=zoom,
         )
 
-    def add_path_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
+    def add_polyline_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
         self.add_layer(PathLayer.from_geopandas(gdf, **kwargs), zoom)
 
     def add_polygon_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
         self.add_layer(PolygonLayer.from_geopandas(gdf, **kwargs), zoom)
 
-    def add_scatterplot_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
+    def add_point_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
         self.add_layer(ScatterplotLayer.from_geopandas(gdf, **kwargs), zoom)
 
     def add_legend(self, **kwargs):
