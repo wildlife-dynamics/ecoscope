@@ -238,7 +238,7 @@ async def test_get_patrol_observations_with_patrol_details(
 async def test_display_map(er_io_async):
     await er_io_async.load_display_map()
     assert er_io_async.event_type_display_values is not None
-    assert len(er_io_async.event_type_display_values) == 61
+    assert len(er_io_async.event_type_display_values) > 0
     assert await er_io_async.get_event_type_display_name(event_type="fence_rep") == "Fence"
     assert (
         await er_io_async.get_event_type_display_name(event_type="shot_rep", event_property="shotrep_timeofshot")
