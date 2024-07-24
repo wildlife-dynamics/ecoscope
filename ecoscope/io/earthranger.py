@@ -18,10 +18,6 @@ from ecoscope.io.utils import pack_columns, to_hex
 from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf
 
 
-def fatal_status_code(e):
-    return 400 <= e.response.status_code < 500
-
-
 class EarthRangerIO(ERClient):
     def __init__(self, sub_page_size=4000, tcp_limit=5, **kwargs):
         if "server" in kwargs:
