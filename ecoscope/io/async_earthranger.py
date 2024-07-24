@@ -5,6 +5,7 @@ import asyncio
 from dateutil import parser
 from erclient.client import AsyncERClient
 from ecoscope.io.utils import to_hex
+from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf
 
 import ecoscope
 
@@ -22,39 +23,6 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
-
-    @staticmethod
-    def _clean_kwargs(addl_kwargs={}, **kwargs):
-        for k in addl_kwargs.keys():
-            print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
-        return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
-
-    @staticmethod
-    def _normalize_column(df, col):
-        print(col)
-        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").items():
-            df[k] = v.values
-
-    @staticmethod
-    def _dataframe_to_dict(events):
-        if isinstance(events, gpd.GeoDataFrame):
-            events["location"] = pd.DataFrame({"longitude": events.geometry.x, "latitude": events.geometry.y}).to_dict(
-                "records"
-            )
-            del events["geometry"]
-
-        if isinstance(events, pd.DataFrame):
-            events = events.to_dict("records")
-        return events
-
-    @staticmethod
-    def _to_gdf(df):
-        longitude, latitude = (0, 1) if isinstance(df["location"].iat[0], list) else ("longitude", "latitude")
-        return gpd.GeoDataFrame(
-            df,
-            geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
-            crs=4326,
-        )
 
     async def get_sources(
         self,
@@ -76,7 +44,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         An async generator to iterate over sources.
         """
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             manufacturer_id=manufacturer_id,
             provider_key=provider_key,
@@ -147,7 +115,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         An async generator to iterate over subjects
         """
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             include_inactive=include_inactive,
             bbox=bbox,
@@ -233,7 +201,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         -------
         An async generator to iterate over subjectsources
         """
-        params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
+        params = clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
 
         async for subjectsource in self._get_data("subjectsources/", params=params):
             yield subjectsource
@@ -280,7 +248,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             DataFrame of queried patrols
         """
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             status=status,
             patrol_type=[patrol_type] if isinstance(patrol_type, str) else patrol_type,
@@ -348,7 +316,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         """
         assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             since=since,
             until=until,
@@ -392,7 +360,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         ).dt.tz_convert(kwargs.get("tz"))
 
         observations.sort_values("recorded_at", inplace=True)
-        return AsyncEarthRangerIO._to_gdf(observations)
+        return to_gdf(observations)
 
     async def get_patrol_observations_with_patrol_filter(
         self,
@@ -493,7 +461,7 @@ class AsyncEarthRangerIO(AsyncERClient):
                     utc=True,
                 ).dt.tz_convert(tz)
                 observations_by_subject.sort_values("recorded_at", inplace=True)
-                observations_by_subject = AsyncEarthRangerIO._to_gdf(observations_by_subject)
+                observations_by_subject = to_gdf(observations_by_subject)
 
                 if relocations:
                     observations_by_subject = ecoscope.base.Relocations.from_gdf(
@@ -607,7 +575,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             GeoDataFrame of queried events
         """
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             is_collection=is_collection,
             updated_size=updated_size,
@@ -665,7 +633,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         -------
         An async generator to iterate over event types
         """
-        params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
+        params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
 
         response = await self._get("activity/events/eventtypes", params=params)
         for obj in response:

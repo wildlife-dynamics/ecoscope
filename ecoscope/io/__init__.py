@@ -8,6 +8,7 @@ __all__ = [
     "EarthRangerIO",
     "AsyncEarthRangerIO",
     "download_file",
+    "earthranger_utils",
     "eetools",
     "raster",
     "utils",
