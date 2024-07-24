@@ -10,6 +10,7 @@ import pytz
 import requests
 from dateutil import parser
 from erclient.client import ERClient, ERClientException, ERClientNotFound
+from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
@@ -693,6 +694,38 @@ class EarthRangerIO(ERClient):
         if "serial_number" in df.columns:
             df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
+
+    def get_patrol_events(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
+        """
+        Parameters
+        ----------
+        since:
+            lower date range
+        until:
+            upper date range
+        patrol_type:
+            Comma-separated list of type of patrol UUID
+        status
+            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+        Returns
+        -------
+        events : pd.DataFrame
+            DataFrame of queried patrols
+        """
+        patrol_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **addl_kwargs)
+
+        events = []
+        for _, row in patrol_df.iterrows():
+            if row["patrol_segments"]:
+                for segment in row["patrol_segments"]:
+                    for event in segment.get("events", []):
+                        event["patrol_id"] = row.get("id")
+                        event["patrol_segment_id"] = segment.get("id")
+                        events.append(event)
+        events_df = pd.DataFrame(events)
+
+        events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
+        return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
 
     def get_patrol_segments_from_patrol_id(self, patrol_id, **addl_kwargs):
         """

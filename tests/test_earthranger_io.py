@@ -86,6 +86,15 @@ def test_get_patrols(er_io):
     assert len(patrols) > 0
 
 
+def test_get_patrol_events(er_io):
+    events = er_io.get_patrol_events()
+    assert "id" in events
+    assert "event_type" in events
+    assert "geometry" in events
+    assert "patrol_id" in events
+    assert "patrol_segment_id" in events
+
+
 def test_post_observations(er_io):
     observations = gpd.GeoDataFrame.from_dict(
         [
