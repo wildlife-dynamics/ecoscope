@@ -161,6 +161,30 @@ def test_add_polygon(poly_gdf):
     assert m.view_state.latitude != 0
 
 
+def test_layers_from_gdf(poly_gdf, line_gdf, point_gdf):
+    joint_kwargs = {
+        "get_width": 130,
+        "get_line_width": 35,
+        "get_radius": 200,
+        "get_fill_color": [25, 100, 25, 100],
+        "get_bananas": 2134,
+    }
+
+    poly_gdf.to_crs(4326, inplace=True)
+    point_gdf.to_crs(4326, inplace=True)
+
+    together = gpd.GeoDataFrame(pd.concat([poly_gdf.geometry, line_gdf.geometry, point_gdf.geometry]))
+    layers = EcoMap.layers_from_gdf(gdf=together, **joint_kwargs)
+
+    m = EcoMap(layers=layers)
+    assert len(m.layers) == 3
+    assert m.layers[0].get_fill_color == [25, 100, 25, 100]
+    assert m.layers[0].get_line_width == 35
+    assert m.layers[1].get_width == 130
+    assert m.layers[2].get_radius == 200
+    assert m.layers[2].get_fill_color == [25, 100, 25, 100]
+
+
 def test_zoom_to_gdf():
     m = EcoMap()
     x1 = 34.683838
