@@ -10,6 +10,7 @@ from io import BytesIO
 from typing import Dict, List, Union
 from ecoscope.analysis.speed import SpeedDataFrame
 from lonboard import Map
+from lonboard.types.layer import PathLayerKwargs, PolygonLayerKwargs, ScatterplotLayerKwargs
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
 from lonboard._viz import create_layers_from_data_input
@@ -115,6 +116,7 @@ class EcoMap(EcoMapMixin, Map):
         update.append(widget)
         self.deck_widgets = update
 
+    @staticmethod
     def layers_from_gdf(
         self, gdf: gpd.GeoDataFrame, **kwargs
     ) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
@@ -127,10 +129,16 @@ class EcoMap(EcoMapMixin, Map):
             The data to be cleaned
         kwargs: Additional kwargs passed to lonboard
         """
-        gdf = self._clean_gdf(gdf)
+        gdf = EcoMap._clean_gdf(gdf)
+
+        # Take from **kwargs the valid kwargs for each underlying layer
+        # Allows a param set to be passed for a potentially multi-geometry GDF
+        polygon_kwargs = {key: kwargs[key] for key in PolygonLayerKwargs.__optional_keys__ if key in kwargs}
+        scatterplot_kwargs = {key: kwargs[key] for key in ScatterplotLayerKwargs.__optional_keys__ if key in kwargs}
+        path_kwargs = {key: kwargs[key] for key in PathLayerKwargs.__optional_keys__ if key in kwargs}
 
         return create_layers_from_data_input(
-            data=gdf, polygon_kwargs=kwargs, scatterplot_kwargs=kwargs, path_kwargs=kwargs
+            data=gdf, polygon_kwargs=polygon_kwargs, scatterplot_kwargs=scatterplot_kwargs, path_kwargs=path_kwargs
         )
 
     @staticmethod
