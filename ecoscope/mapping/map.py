@@ -13,7 +13,7 @@ from lonboard import Map
 from lonboard.types.layer import PathLayerKwargs, PolygonLayerKwargs, ScatterplotLayerKwargs
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
-from lonboard._viz import create_layers_from_data_input
+from lonboard._viz import viz_layer
 from lonboard.colormap import apply_categorical_cmap
 from lonboard._layer import (
     BaseLayer,
@@ -142,7 +142,7 @@ class EcoMap(EcoMapMixin, Map):
             if key in PathLayerKwargs.__optional_keys__:
                 path_kwargs[key] = kwargs[key]
 
-        return create_layers_from_data_input(
+        return viz_layer(
             data=gdf, polygon_kwargs=polygon_kwargs, scatterplot_kwargs=scatterplot_kwargs, path_kwargs=path_kwargs
         )
 

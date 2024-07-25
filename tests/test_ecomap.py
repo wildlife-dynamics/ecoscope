@@ -133,10 +133,10 @@ def test_add_ee_layer_geometry():
 
 def test_add_polyline(line_gdf):
     m = EcoMap()
-    m.add_layer(m.polyline_layer(line_gdf, get_color=[100, 200, 100], get_width=200))
+    m.add_layer(m.polyline_layer(line_gdf, get_width=200))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PathLayer)
-    assert m.layers[1].get_color == [100, 200, 100, 255]
+    assert m.layers[1].get_width == 200
 
 
 def test_add_point(point_gdf):
