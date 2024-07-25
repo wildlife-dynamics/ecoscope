@@ -117,9 +117,7 @@ class EcoMap(EcoMapMixin, Map):
         self.deck_widgets = update
 
     @staticmethod
-    def layers_from_gdf(
-        self, gdf: gpd.GeoDataFrame, **kwargs
-    ) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
+    def layers_from_gdf(gdf: gpd.GeoDataFrame, **kwargs) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
         """
         Creates map layers from the provided gdf, returns multiple layers when geometry is mixed
         Style kwargs are provided to all created layers
@@ -318,7 +316,7 @@ class EcoMap(EcoMapMixin, Map):
         elif isinstance(ee_object, ee.geometry.Geometry):
             geojson = ee_object.toGeoJSON()
             gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
-            ee_layer = self.add_gdf(data=gdf, **kwargs)
+            ee_layer = self.layers_from_gdf(gdf=gdf, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
             ee_object_new = ee.Image().paint(ee_object, 0, 2)
