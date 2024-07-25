@@ -13,7 +13,7 @@ from lonboard import Map
 from lonboard._geoarrow.ops.bbox import Bbox
 from lonboard._viewport import compute_view, bbox_to_zoom_level
 from lonboard._viz import create_layers_from_data_input
-from lonboard.colormap import apply_categorical_cmap, apply_continuous_cmap
+from lonboard.colormap import apply_categorical_cmap
 from lonboard._layer import (
     BaseLayer,
     BitmapLayer,
@@ -115,70 +115,85 @@ class EcoMap(EcoMapMixin, Map):
         update.append(widget)
         self.deck_widgets = update
 
-    def add_gdf(
-        self,
-        data: Union[gpd.GeoDataFrame, gpd.GeoSeries],
-        column: str = None,
-        cmap: Union[str, mpl.colors.Colormap] = None,
-        zoom: bool = True,
-        **kwargs
-    ):
+    def layers_from_gdf(
+        self, gdf: gpd.GeoDataFrame, **kwargs
+    ) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
         """
-        Visualize a gdf on the map, results in one or more layers being added
+        Creates map layers from the provided gdf, returns multiple layers when geometry is mixed
+        Style kwargs are provided to all created layers
         Parameters
         ----------
-        gdf : gpd.GeoDataFrame or gpd.GeoSeries
-        column : str
-            a column in the dataframe to apply a cmap to
-        cmap : str or mpl.colors.Colormap
-            a colormap to apply to the named column
-        zoom : bool
-            Whether or not to zoom the map to the bounds of the data
-        kwargs:
-            Additional kwargs passed to lonboard.create_layers_from_data_input
+        gdf : gpd.GeoDataFrame
+            The data to be cleaned
+        kwargs: Additional kwargs passed to lonboard
         """
-        data = data.copy()
-        data = data.to_crs(4326)
-        data = data.loc[(~data.geometry.isna()) & (~data.geometry.is_empty)]
+        gdf = self._clean_gdf(gdf)
 
-        polygon_kwargs = scatterplot_kwargs = path_kwargs = {}
-
-        if isinstance(data, gpd.GeoDataFrame):
-            for col in data:
-                if pd.api.types.is_datetime64_any_dtype(data[col]):
-                    data[col] = data[col].astype("string")
-
-            if column is not None and cmap is not None:
-                col = data[column]
-                normalized = (col - col.min()) / (col.max() - col.min())
-
-                if isinstance(cmap, str):
-                    cmap = mpl.colormaps[cmap]
-
-                colormap = apply_continuous_cmap(normalized, cmap)
-
-                polygon_kwargs = scatterplot_kwargs = {"get_fill_color": colormap}
-                path_kwargs = {"get_color": colormap}
-
-        self.add_layer(
-            create_layers_from_data_input(
-                data=data,
-                polygon_kwargs=polygon_kwargs,
-                scatterplot_kwargs=scatterplot_kwargs,
-                path_kwargs=path_kwargs,
-                **kwargs
-            ),
-            zoom=zoom,
+        return create_layers_from_data_input(
+            data=gdf, polygon_kwargs=kwargs, scatterplot_kwargs=kwargs, path_kwargs=kwargs
         )
 
-    def add_polyline_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
-        self.add_layer(PathLayer.from_geopandas(gdf, **kwargs), zoom)
+    @staticmethod
+    def _clean_gdf(gdf: gpd.GeoDataFrame) -> gpd.geodataframe:
+        """
+        Cleans a gdf for use in a map layer, ensures EPSG:4326 and removes any empty geometry
+        Parameters
+        ----------
+        gdf : gpd.GeoDataFrame
+            The data to be cleaned
+        """
+        gdf.to_crs(4326, inplace=True)
+        gdf = gdf.loc[(~gdf.geometry.isna()) & (~gdf.geometry.is_empty)]
 
-    def add_polygon_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
-        self.add_layer(PolygonLayer.from_geopandas(gdf, **kwargs), zoom)
+        for col in gdf:
+            if pd.api.types.is_datetime64_any_dtype(gdf[col]):
+                gdf[col] = gdf[col].astype("string")
+        return gdf
 
-    def add_point_layer(self, gdf: gpd.GeoDataFrame, zoom: bool = False, **kwargs):
-        self.add_layer(ScatterplotLayer.from_geopandas(gdf, **kwargs), zoom)
+    @staticmethod
+    def polyline_layer(gdf: gpd.GeoDataFrame, **kwargs) -> PathLayer:
+        """
+        Creates a polyline layer to add to a map
+        Parameters
+        ----------
+        gdf : gpd.GeoDataFrame
+            The data used to create the visualization layer
+        kwargs:
+            Additional kwargs passed to lonboard.PathLayer:
+            http://developmentseed.org/lonboard/latest/api/layers/path-layer/
+        """
+        gdf = EcoMap._clean_gdf(gdf)
+        return PathLayer.from_geopandas(gdf, **kwargs)
+
+    @staticmethod
+    def polygon_layer(gdf: gpd.GeoDataFrame, **kwargs) -> PolygonLayer:
+        """
+        Creates a polygon layer to add to a map
+        Parameters
+        ----------
+        gdf : gpd.GeoDataFrame
+            The data used to create the visualization layer
+        kwargs:
+            Additional kwargs passed to lonboard.PathLayer:
+            http://developmentseed.org/lonboard/latest/api/layers/polygon-layer/
+        """
+        gdf = EcoMap._clean_gdf(gdf)
+        return PolygonLayer.from_geopandas(gdf, **kwargs)
+
+    @staticmethod
+    def point_layer(gdf: gpd.GeoDataFrame, **kwargs) -> ScatterplotLayer:
+        """
+        Creates a polygon layer to add to a map
+        Parameters
+        ----------
+        gdf : gpd.GeoDataFrame
+            The data used to create the visualization layer
+        kwargs:
+            Additional kwargs passed to lonboard.ScatterplotLayer:
+            http://developmentseed.org/lonboard/latest/api/layers/scatterplot-layer/
+        """
+        gdf = EcoMap._clean_gdf(gdf)
+        return ScatterplotLayer.from_geopandas(gdf, **kwargs)
 
     def add_legend(self, **kwargs):
         """
@@ -275,10 +290,6 @@ class EcoMap(EcoMapMixin, Map):
             Visualization params passed to EarthEngine
         kwargs
             Additional params passed to either lonboard.BitmapTileLayer or add_gdf
-
-        Returns
-        -------
-        None
         """
         if isinstance(ee_object, ee.image.Image):
             map_id_dict = ee.Image(ee_object).getMapId(visualization_params)
