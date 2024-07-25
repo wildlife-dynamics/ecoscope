@@ -24,7 +24,7 @@ def poly_gdf():
 
 @pytest.fixture
 def line_gdf():
-    gdf = pd.read_csv("/home/alex/Code/ecoscope/tests/sample_data/vector/KDB025Z.csv", index_col="id")
+    gdf = pd.read_csv("tests/sample_data/vector/KDB025Z.csv", index_col="id")
     gdf["geometry"] = gdf["geometry"].apply(lambda x: shapely.wkt.loads(x))
     gdf = ecoscope.base.Relocations.from_gdf(gpd.GeoDataFrame(gdf, crs=4326))
     gdf = ecoscope.base.Trajectory.from_relocations(gdf)
