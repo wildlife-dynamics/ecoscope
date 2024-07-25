@@ -133,9 +133,16 @@ class EcoMap(EcoMapMixin, Map):
 
         # Take from **kwargs the valid kwargs for each underlying layer
         # Allows a param set to be passed for a potentially multi-geometry GDF
-        polygon_kwargs = {key: kwargs[key] for key in PolygonLayerKwargs.__optional_keys__ if key in kwargs}
-        scatterplot_kwargs = {key: kwargs[key] for key in ScatterplotLayerKwargs.__optional_keys__ if key in kwargs}
-        path_kwargs = {key: kwargs[key] for key in PathLayerKwargs.__optional_keys__ if key in kwargs}
+        polygon_kwargs = {}
+        scatterplot_kwargs = {}
+        path_kwargs = {}
+        for key in kwargs:
+            if key in PolygonLayerKwargs.__optional_keys__:
+                polygon_kwargs[key] = kwargs[key]
+            if key in ScatterplotLayerKwargs.__optional_keys__:
+                scatterplot_kwargs[key] = kwargs[key]
+            if key in PathLayerKwargs.__optional_keys__:
+                path_kwargs[key] = kwargs[key]
 
         return create_layers_from_data_input(
             data=gdf, polygon_kwargs=polygon_kwargs, scatterplot_kwargs=scatterplot_kwargs, path_kwargs=path_kwargs
