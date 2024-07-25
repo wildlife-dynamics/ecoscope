@@ -304,6 +304,7 @@ class EcoMap(EcoMapMixin, Map):
         kwargs
             Additional params passed to either lonboard.BitmapTileLayer or add_gdf
         """
+        kwargs["tile_size"] = kwargs.get("tile_size", 256)
         if isinstance(ee_object, ee.image.Image):
             map_id_dict = ee.Image(ee_object).getMapId(visualization_params)
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)

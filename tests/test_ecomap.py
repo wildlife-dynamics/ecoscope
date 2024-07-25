@@ -110,6 +110,7 @@ def test_add_ee_layer_image_collection():
     m.add_ee_layer(ee_object, vis_params)
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
+    assert m.layers[1].tile_size == 256
 
 
 @pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
