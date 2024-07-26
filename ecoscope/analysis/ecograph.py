@@ -5,13 +5,13 @@ import numpy as np
 import pandas as pd
 import rasterio
 from shapely.geometry import shape
+from affine import Affine
 
 import ecoscope
 
 try:
     import igraph
     import networkx as nx
-    from affine import Affine
     import sklearn.base
     from skimage.draw import line
 except ModuleNotFoundError():
