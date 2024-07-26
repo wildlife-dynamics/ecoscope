@@ -6,7 +6,7 @@ try:
     from sklearn.neighbors import KernelDensity
     import plotly.graph_objs as go
     from plotly.subplots import make_subplots
-except ModuleNotFoundError():
+except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
          Please run pip install ecocsope["plotting"]'

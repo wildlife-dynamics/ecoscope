@@ -9,7 +9,7 @@ try:
     import sklearn.mixture
     from scipy.stats import norm
     from sklearn.preprocessing import LabelEncoder
-except ModuleNotFoundError():
+except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
          Please run pip install ecocsope["analysis"]'

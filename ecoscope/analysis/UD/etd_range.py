@@ -13,7 +13,7 @@ try:
     from sklearn import neighbors
     from scipy.optimize import minimize
     from scipy.stats import weibull_min
-except ModuleNotFoundError():
+except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
          Please run pip install ecocsope["analysis"]'

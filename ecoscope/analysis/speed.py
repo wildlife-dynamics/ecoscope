@@ -8,7 +8,7 @@ import ecoscope.base
 
 try:
     import mapclassify
-except ModuleNotFoundError():
+except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
          Please run pip install ecocsope["analysis"]'
