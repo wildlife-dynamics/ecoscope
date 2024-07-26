@@ -67,12 +67,15 @@ test = [
     "pytest-mock",
     "pytest-reportlog",
 ]
-docs =[
+docs = [
     "myst-parser",
     "nbsphinx",
     "pydata-sphinx-theme",
     "sphinx",
     "sphinx-autoapi",
+]
+all = [
+    "ecoscope[analysis,mapping,plotting,test,docs]",
 ]
 
 [tool.pytest.ini_options]
