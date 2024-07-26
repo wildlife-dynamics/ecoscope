@@ -3,15 +3,21 @@ import os
 import typing
 from dataclasses import dataclass
 
-import numba as nb
 import numpy as np
-import scipy
-from sklearn import neighbors
-from scipy.optimize import minimize
-from scipy.stats import weibull_min
-
 from ecoscope.base import Trajectory
 from ecoscope.io import raster
+
+try:
+    import numba as nb
+    import scipy
+    from sklearn import neighbors
+    from scipy.optimize import minimize
+    from scipy.stats import weibull_min
+except ModuleNotFoundError():
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecocsope["analysis"]'
+    )
 
 
 @nb.cfunc("double(intc, CPointer(double))")
