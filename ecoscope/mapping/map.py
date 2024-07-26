@@ -38,7 +38,7 @@ try:
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
-         Please run pip install ecocsope["mapping"]'
+         Please run pip install ecoscope["mapping"]'
     )
 
 
