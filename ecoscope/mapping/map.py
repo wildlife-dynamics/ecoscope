@@ -3,34 +3,43 @@ import base64
 import rasterio
 import json
 import geopandas as gpd
-import matplotlib as mpl
+
 import numpy as np
 import pandas as pd
 from io import BytesIO
 from typing import Dict, List, Union
-from ecoscope.analysis.speed import SpeedDataFrame
-from lonboard import Map
-from lonboard._geoarrow.ops.bbox import Bbox
-from lonboard._viewport import compute_view, bbox_to_zoom_level
-from lonboard._viz import viz_layer
-from lonboard.colormap import apply_categorical_cmap, apply_continuous_cmap
-from lonboard._layer import (
-    BaseLayer,
-    BitmapLayer,
-    BitmapTileLayer,
-    PathLayer,
-    PolygonLayer,
-    ScatterplotLayer,
-)
-from lonboard._deck_widget import (
-    BaseDeckWidget,
-    NorthArrowWidget,
-    ScaleWidget,
-    LegendWidget,
-    TitleWidget,
-    SaveImageWidget,
-    FullscreenWidget,
-)
+
+try:
+    import matplotlib as mpl
+    from ecoscope.analysis.speed import SpeedDataFrame
+    from lonboard import Map
+    from lonboard._geoarrow.ops.bbox import Bbox
+    from lonboard._viewport import compute_view, bbox_to_zoom_level
+    from lonboard._viz import viz_layer
+    from lonboard.colormap import apply_categorical_cmap, apply_continuous_cmap
+    from lonboard._layer import (
+        BaseLayer,
+        BitmapLayer,
+        BitmapTileLayer,
+        PathLayer,
+        PolygonLayer,
+        ScatterplotLayer,
+    )
+    from lonboard._deck_widget import (
+        BaseDeckWidget,
+        NorthArrowWidget,
+        ScaleWidget,
+        LegendWidget,
+        TitleWidget,
+        SaveImageWidget,
+        FullscreenWidget,
+    )
+
+except ModuleNotFoundError():
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecocsope["mapping"]'
+    )
 
 
 class EcoMapMixin:

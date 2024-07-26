@@ -1,17 +1,24 @@
 from math import ceil, floor
 
 import geopandas as gpd
-import igraph
-import networkx as nx
 import numpy as np
 import pandas as pd
 import rasterio
-import sklearn.base
-from affine import Affine
 from shapely.geometry import shape
-from skimage.draw import line
 
 import ecoscope
+
+try:
+    import igraph
+    import networkx as nx
+    from affine import Affine
+    import sklearn.base
+    from skimage.draw import line
+except ModuleNotFoundError():
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecocsope["analysis"]'
+    )
 
 
 class Ecograph:
