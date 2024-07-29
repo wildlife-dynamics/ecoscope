@@ -59,13 +59,12 @@ def test_stacked_bar_chart():
     df.set_index("id", inplace=True)
 
     groupby_style = {"A": {"marker_color": "red"}, "B": {"marker_color": "blue"}}
-    style = {"marker_line_color": "black", "xperiodalignment": "middle", "xperiod": 86400000}
-    layout_kwargs = {"plot_bgcolor": "gray"}
+    style = {"marker_line_color": "black", "xperiodalignment": "middle"}
+    layout_kwargs = {"plot_bgcolor": "gray", "xaxis_dtick": 86400000}
 
     gb = df.groupby(["time", "category"])
     epd = EcoPlotData(gb, "time", "category", groupby_style=groupby_style, **style)
     chart = stacked_bar_chart(epd, layout_kwargs=layout_kwargs)
-    chart.write_html("maybe.html")
 
     # we should have 2 categorical buckets
     assert len(chart.data) == 2
