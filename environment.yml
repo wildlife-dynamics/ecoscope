@@ -19,3 +19,4 @@ dependencies:
       - sphinx-autoapi
       - dask[dataframe]
       - fsspec
+      - pytest-asyncio
