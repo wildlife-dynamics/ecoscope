@@ -277,6 +277,8 @@ def stacked_bar_chart(data, layout_kwargs=None):
     ----------
     data: ecoscope.Plotting.EcoPlotData
         The data to plot, counts categorical data.y_col values for data.x_col
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
     Returns
     -------
     fig : plotly.graph_objects.Figure
