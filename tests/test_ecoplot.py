@@ -58,9 +58,14 @@ def test_stacked_bar_chart():
     )
     df.set_index("id", inplace=True)
 
+    groupby_style = {"A": {"marker_color": "red"}, "B": {"marker_color": "blue"}}
+    style = {"marker_line_color": "black", "xperiodalignment": "middle", "xperiod": 86400000}
+    layout_kwargs = {"plot_bgcolor": "gray"}
+
     gb = df.groupby(["time", "category"])
-    epd = EcoPlotData(gb, "time", "category")
-    chart = stacked_bar_chart(epd)
+    epd = EcoPlotData(gb, "time", "category", groupby_style=groupby_style, **style)
+    chart = stacked_bar_chart(epd, layout_kwargs=layout_kwargs)
+    chart.write_html("maybe.html")
 
     # we should have 2 categorical buckets
     assert len(chart.data) == 2
@@ -69,3 +74,10 @@ def test_stacked_bar_chart():
     # Should be the count of A and B for our 2 dates
     assert chart.data[0].y == (0, 1)
     assert chart.data[1].y == (1, 2)
+
+    # validate style kwargs
+    assert chart.layout.plot_bgcolor == "gray"
+    assert chart.data[0].xperiodalignment == chart.data[1].xperiodalignment == "middle"
+    assert chart.data[0].marker.line.color == chart.data[1].marker.line.color == "black"
+    assert chart.data[0].marker.color == "red"
+    assert chart.data[1].marker.color == "blue"

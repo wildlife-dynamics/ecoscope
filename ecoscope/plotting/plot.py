@@ -270,7 +270,7 @@ def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
     return fig
 
 
-def stacked_bar_chart(data):
+def stacked_bar_chart(data, layout_kwargs=None):
     """
     Creates a stacked bar chart from the provided EcoPlotData object
     Parameters
@@ -282,7 +282,10 @@ def stacked_bar_chart(data):
     fig : plotly.graph_objects.Figure
         The plotly bar chart
     """
-    fig = go.Figure()
+    # TODO cleanup EPD defaults
+    data.style.pop("mode")
+
+    fig = go.Figure(layout=layout_kwargs)
 
     x_axis_name = data.x_col
     y_axis_name = data.y_col
@@ -296,8 +299,8 @@ def stacked_bar_chart(data):
                 x=x,
                 y=list(agg[agg[y_axis_name] == category]["count"]),
                 name=str(category),
+                **{**data.style, **data.groupby_style[category]},
             )
         )
-        agg.loc[agg[y_axis_name] == category]
     fig.update_layout(barmode="stack")
     return fig
