@@ -12,10 +12,10 @@ dependencies:
       - kaleido
       - pre-commit>=3
       - coverage[toml]
+      - earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3
       - ecoscope
       - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@77c56d30a9c2dd96fd863e910bf62952cfa36da8
       - nbsphinx
-      - nbsphinx-multilink
       - sphinx-autoapi
       - dask[dataframe]
       - fsspec

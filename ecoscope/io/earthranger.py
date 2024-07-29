@@ -10,14 +10,12 @@ import pytz
 import requests
 from dateutil import parser
 from erclient.client import ERClient, ERClientException, ERClientNotFound
+from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
 from ecoscope.io.utils import pack_columns, to_hex
-
-
-def fatal_status_code(e):
-    return 400 <= e.response.status_code < 500
+from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf
 
 
 class EarthRangerIO(ERClient):
@@ -48,39 +46,6 @@ class EarthRangerIO(ERClient):
         self.auth_expires = pytz.utc.localize(datetime.datetime.min)
         raise ERClientNotFound(json.loads(response.text)["error_description"])
 
-    @staticmethod
-    def _clean_kwargs(addl_kwargs={}, **kwargs):
-        for k in addl_kwargs.keys():
-            print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
-        return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
-
-    @staticmethod
-    def _normalize_column(df, col):
-        print(col)
-        for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").items():
-            df[k] = v.values
-
-    @staticmethod
-    def _dataframe_to_dict(events):
-        if isinstance(events, gpd.GeoDataFrame):
-            events["location"] = pd.DataFrame({"longitude": events.geometry.x, "latitude": events.geometry.y}).to_dict(
-                "records"
-            )
-            del events["geometry"]
-
-        if isinstance(events, pd.DataFrame):
-            events = events.to_dict("records")
-        return events
-
-    @staticmethod
-    def _to_gdf(df):
-        longitude, latitude = (0, 1) if isinstance(df["location"].iat[0], list) else ("longitude", "latitude")
-        return gpd.GeoDataFrame(
-            df,
-            geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
-            crs=4326,
-        )
-
     """
     GET Functions
     """
@@ -106,7 +71,7 @@ class EarthRangerIO(ERClient):
             DataFrame of queried sources
         """
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             manufacturer_id=manufacturer_id,
             provider_key=provider_key,
@@ -155,7 +120,7 @@ class EarthRangerIO(ERClient):
         subjects : pd.DataFrame
         """
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             include_inactive=include_inactive,
             bbox=bbox,
@@ -226,7 +191,7 @@ class EarthRangerIO(ERClient):
         -------
         subjectsources : pd.DataFrame
         """
-        params = self._clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
+        params = clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
         return pd.DataFrame(
             self.get_objects_multithreaded(
                 object="subjectsources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
@@ -273,7 +238,7 @@ class EarthRangerIO(ERClient):
         """
         assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             since=since,
             until=until,
@@ -320,7 +285,7 @@ class EarthRangerIO(ERClient):
         ).dt.tz_convert(tz)
 
         observations.sort_values("recorded_at", inplace=True)
-        return EarthRangerIO._to_gdf(observations)
+        return to_gdf(observations)
 
     def get_source_observations(self, source_ids, include_source_details=False, relocations=True, **kwargs):
         """
@@ -525,7 +490,7 @@ class EarthRangerIO(ERClient):
         return self.get_subject_observations(subjects, **kwargs)
 
     def get_event_types(self, include_inactive=False, **addl_kwargs):
-        params = self._clean_kwargs(addl_kwargs, include_inactive=include_inactive)
+        params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
 
         return pd.DataFrame(self._get("activity/events/eventtypes", **params))
 
@@ -596,7 +561,7 @@ class EarthRangerIO(ERClient):
             GeoDataFrame of queried events
         """
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             is_collection=is_collection,
             updated_size=updated_size,
@@ -668,7 +633,7 @@ class EarthRangerIO(ERClient):
             DataFrame of queried patrols
         """
 
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             status=status,
             patrol_type=[patrol_type] if isinstance(patrol_type, str) else patrol_type,
@@ -694,6 +659,38 @@ class EarthRangerIO(ERClient):
             df = df.sort_values(by="serial_number").reset_index(drop=True)
         return df
 
+    def get_patrol_events(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
+        """
+        Parameters
+        ----------
+        since:
+            lower date range
+        until:
+            upper date range
+        patrol_type:
+            Comma-separated list of type of patrol UUID
+        status
+            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+        Returns
+        -------
+        events : pd.DataFrame
+            DataFrame of queried patrols
+        """
+        patrol_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **addl_kwargs)
+
+        events = []
+        for _, row in patrol_df.iterrows():
+            if row["patrol_segments"]:
+                for segment in row["patrol_segments"]:
+                    for event in segment.get("events", []):
+                        event["patrol_id"] = row.get("id")
+                        event["patrol_segment_id"] = segment.get("id")
+                        events.append(event)
+        events_df = pd.DataFrame(events)
+
+        events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
+        return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
+
     def get_patrol_segments_from_patrol_id(self, patrol_id, **addl_kwargs):
         """
         Download patrols for a given `patrol id`.
@@ -710,7 +707,7 @@ class EarthRangerIO(ERClient):
         dataframe : Dataframe of patrols.
         """
 
-        params = self._clean_kwargs(addl_kwargs)
+        params = clean_kwargs(addl_kwargs)
 
         object = f"activity/patrols/{patrol_id}/"
         df = self._get(object, **params)
@@ -833,7 +830,7 @@ class EarthRangerIO(ERClient):
         include_notes=False,
         **addl_kwargs,
     ):
-        params = self._clean_kwargs(
+        params = clean_kwargs(
             addl_kwargs,
             patrol_segment_id=patrol_segment_id,
             include_details=include_details,
@@ -864,7 +861,7 @@ class EarthRangerIO(ERClient):
         -------
         dataframe : GeoDataFrame of spatial features in a spatial features group.
         """
-        params = self._clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
+        params = clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
 
         object = f"spatialfeaturegroup/{spatial_features_group_id}/"
         spatial_features_group = self._get(object, **params)
@@ -891,7 +888,7 @@ class EarthRangerIO(ERClient):
         dataframe : GeoDataFrame of spatial feature.
         """
 
-        params = self._clean_kwargs(addl_kwargs, spatial_feature_id=spatial_feature_id)
+        params = clean_kwargs(addl_kwargs, spatial_feature_id=spatial_feature_id)
 
         object = f"spatialfeature/{spatial_feature_id}/"
         spatial_feature = self._get(object, **params)
@@ -1062,7 +1059,7 @@ class EarthRangerIO(ERClient):
             New events created in EarthRanger.
         """
 
-        events = self._dataframe_to_dict(events)
+        events = dataframe_to_dict(events)
         results = super().post_event(event=events)
         results = results if isinstance(results, list) else [results]
         return pd.DataFrame(results)
@@ -1200,7 +1197,7 @@ class EarthRangerIO(ERClient):
             Updated events in EarthRanger.
         """
 
-        events = self._dataframe_to_dict(events)
+        events = dataframe_to_dict(events)
         if isinstance(events, list):
             results = [self._patch(f"activity/event/{event_id}", payload=event) for event in events]
         else:
