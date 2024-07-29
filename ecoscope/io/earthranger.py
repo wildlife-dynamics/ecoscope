@@ -8,14 +8,13 @@ import numpy as np
 import pandas as pd
 import pytz
 import requests
-from dateutil import parser
 from erclient.client import ERClient, ERClientException, ERClientNotFound
 from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
 from ecoscope.io.utils import pack_columns, to_hex
-from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf
+from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf, clean_time_cols
 
 
 class EarthRangerIO(ERClient):
@@ -599,9 +598,7 @@ class EarthRangerIO(ERClient):
 
         assert not df.empty
 
-        time_cols = ["time", "created_at", "updated_at", "end_time"]
-        for col in time_cols:
-            df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x)))
+        df = clean_time_cols(df)
 
         gdf = gpd.GeoDataFrame(df)
         if gdf.loc[0, "location"] is not None:

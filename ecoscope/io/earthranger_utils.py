@@ -1,5 +1,6 @@
 import geopandas as gpd
 import pandas as pd
+from dateutil import parser
 
 
 def clean_kwargs(addl_kwargs={}, **kwargs):
@@ -33,3 +34,11 @@ def to_gdf(df):
         geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
         crs=4326,
     )
+
+
+def clean_time_cols(df):
+    time_cols = ["time", "created_at", "updated_at", "end_time"]
+    for col in time_cols:
+        if col in df.columns:
+            df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x)) if x is not None else None)
+    return df
