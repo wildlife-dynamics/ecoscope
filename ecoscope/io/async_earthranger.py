@@ -2,10 +2,9 @@ import json
 import geopandas as gpd
 import pandas as pd
 import asyncio
-from dateutil import parser
 from erclient.client import AsyncERClient
 from ecoscope.io.utils import to_hex
-from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf
+from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf, clean_time_cols
 
 import ecoscope
 
@@ -80,7 +79,9 @@ class AsyncEarthRangerIO(AsyncERClient):
         async for source in self.get_sources(**addl_kwargs):
             sources.append(source)
 
-        return pd.DataFrame(sources)
+        df = pd.DataFrame(sources)
+        df = clean_time_cols(df)
+        return df
 
     async def get_subjects(
         self,
@@ -189,6 +190,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         assert not df.empty
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
 
+        df = clean_time_cols(df)
         return df
 
     async def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
@@ -221,6 +223,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             subject_sources.append(subject_source)
 
         df = pd.DataFrame(subject_sources)
+        df = clean_time_cols(df)
         return df
 
     async def get_patrol_types_dataframe(self):
@@ -274,6 +277,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             patrols.append(patrol)
 
         df = pd.DataFrame(patrols)
+        df = clean_time_cols(df)
         return df
 
     async def get_observations(
@@ -346,18 +350,9 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         if observations.empty:
             return gpd.GeoDataFrame()
-
-        observations["created_at"] = pd.to_datetime(
-            observations["created_at"],
-            errors="coerce",
-            utc=True,
-        ).dt.tz_convert(kwargs.get("tz"))
-
-        observations["recorded_at"] = pd.to_datetime(
-            observations["recorded_at"],
-            errors="coerce",
-            utc=True,
-        ).dt.tz_convert(kwargs.get("tz"))
+        observations = clean_time_cols(observations)
+        observations["created_at"] = observations["created_at"].dt.tz_convert(kwargs.get("tz"))
+        observations["recorded_at"] = observations["recorded_at"].dt.tz_convert(kwargs.get("tz"))
 
         observations.sort_values("recorded_at", inplace=True)
         return to_gdf(observations)
@@ -449,18 +444,10 @@ class AsyncEarthRangerIO(AsyncERClient):
                     continue
 
                 observations_by_subject["subject_id"] = subject_id
-                observations_by_subject["created_at"] = pd.to_datetime(
-                    observations_by_subject["created_at"],
-                    errors="coerce",
-                    utc=True,
-                ).dt.tz_convert(tz)
 
-                observations_by_subject["recorded_at"] = pd.to_datetime(
-                    observations_by_subject["recorded_at"],
-                    errors="coerce",
-                    utc=True,
-                ).dt.tz_convert(tz)
-                observations_by_subject.sort_values("recorded_at", inplace=True)
+                observations_by_subject = clean_time_cols(observations_by_subject)
+                observations_by_subject["created_at"] = observations_by_subject["created_at"].dt.tz_convert(tz)
+                observations_by_subject["recorded_at"] = observations_by_subject["recorded_at"].dt.tz_convert(tz)
                 observations_by_subject = to_gdf(observations_by_subject)
 
                 if relocations:
@@ -496,6 +483,7 @@ class AsyncEarthRangerIO(AsyncERClient):
                             ]
                         )
                     )
+                    observations_by_subject = clean_time_cols(observations_by_subject)
                     observations_by_subject.set_index("id", inplace=True)
 
                 if len(observations_by_subject) > 0:
@@ -610,7 +598,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             events.append(event)
 
         df = pd.DataFrame(events)
-        df["time"] = df["time"].apply(lambda x: pd.to_datetime(parser.parse(x)))
+        df = clean_time_cols(df)
         gdf = gpd.GeoDataFrame(df)
         if gdf.loc[0, "location"] is not None:
             gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
