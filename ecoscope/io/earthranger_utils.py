@@ -37,7 +37,7 @@ def to_gdf(df):
 
 
 def clean_time_cols(df):
-    time_cols = ["time", "created_at", "updated_at", "end_time"]
+    time_cols = ["time", "created_at", "updated_at", "end_time", "last_position_date"]
     for col in time_cols:
         if col in df.columns:
             df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x)) if x is not None else None)
