@@ -318,3 +318,11 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
 
     fig.update_layout(barmode="stack")
     return fig
+
+
+def pie_chart(data: pd.DataFrame, column: str, layout_kwargs=None):
+    labels = data.column.unique()
+    values = data.column.value_counts()
+
+    fig = go.Figure(data=go.Pie(labels=labels, values=values))
+    fig.show()
