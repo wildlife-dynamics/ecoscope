@@ -270,7 +270,7 @@ def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
     return fig
 
 
-def stacked_bar_chart(data: EcoPlotData, layout_kwargs: dict = None):
+def stacked_bar_chart(data: EcoPlotData, agg: str = None, layout_kwargs: dict = None):
     """
     Creates a stacked bar chart from the provided EcoPlotData object
     Parameters
@@ -292,17 +292,30 @@ def stacked_bar_chart(data: EcoPlotData, layout_kwargs: dict = None):
     x_axis_name = data.x_col
     y_axis_name = data.y_col
 
-    agg = data.grouped[y_axis_name].count().to_frame("count").unstack(fill_value=0).stack().reset_index()
+    if agg == "count":
+        agg = data.grouped[y_axis_name].count().to_frame("count").unstack(fill_value=0).stack().reset_index()
 
-    x = agg[x_axis_name].unique()
-    for category in agg[y_axis_name].unique():
-        fig.add_trace(
-            go.Bar(
-                x=x,
-                y=list(agg[agg[y_axis_name] == category]["count"]),
-                name=str(category),
-                **{**data.style, **data.groupby_style[category]},
+        x = agg[x_axis_name].unique()
+        for category in agg[y_axis_name].unique():
+            fig.add_trace(
+                go.Bar(
+                    x=x,
+                    y=list(agg[agg[y_axis_name] == category]["count"]),
+                    name=str(category),
+                    **{**data.style, **data.groupby_style[category]},
+                )
             )
-        )
+    else:
+        agg = data.grouped.apply(agg)
+        for row in agg.iterrows():
+            fig.add_trace(
+                go.Bar(
+                    x=[row[0][0]],
+                    y=[row[1].value],
+                    name=row[0][1],
+                    **{**data.style, **data.groupby_style[row[0][1]]},
+                )
+            )
+
     fig.update_layout(barmode="stack")
     return fig
