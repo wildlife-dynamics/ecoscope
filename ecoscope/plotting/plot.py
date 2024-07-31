@@ -270,7 +270,7 @@ def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
     return fig
 
 
-def stacked_bar_chart(data, layout_kwargs=None):
+def stacked_bar_chart(data: EcoPlotData, layout_kwargs: dict = None):
     """
     Creates a stacked bar chart from the provided EcoPlotData object
     Parameters
