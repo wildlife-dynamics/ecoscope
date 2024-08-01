@@ -28,8 +28,8 @@ the [Downloads](#Downloads) section.
 | OS      | CPU architecture       | Free Disk Space | Notes                                                         |
 |---------|------------------------|-----------------|---------------------------------------------------------------|
 | Windows | 64-bit                 | at least 1.5 GB | We've tested the software on Windows 11                       |
-| MacOS   | Apple Silicon (64-bit) | at least 500 MB | We've tested the software on MacOS Monterey and MacOS Ventura |
-| MacOS   | Intel (64-bit)         | at least 1.5 GB | We've tested the software on MacOS Monterey and MacOS Ventura |
+| MacOS   | Apple Silicon (64-bit) | at least 500 MB | We've tested the software on MacOS Monterey, MacOS Ventura, and MacOS Sonoma |
+| MacOS   | Intel (64-bit)         | at least 1.5 GB | We've tested the software on MacOS Monterey, MacOS Ventura, and MacOS Sonoma |
 | Linux   | 64-bit                 | at least 1.5 GB | We've tested the software on Ubuntu 22.04                     |
 
 ## Downloads
@@ -62,14 +62,14 @@ Please make sure to review the instructions **before starting your download**.
 #### Instructions
 
 1. Download the `.exe` file from the link below
-2. Double-click on the downloaded `.exe` file
+2. Right-click on the downloaded `.exe` file and choose `Run as Administrator`
 3. Follow the prompts until the installation succeeds
 4. You will now have shortcuts on your Windows desktop and in the Windows start menu to start the program or to
    uninstall it
 
 | Link                                                                          | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
 |-------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| [Download](https://drive.google.com/file/d/1ONvvioykgeDivrQKxoovP88dBQ4EbRyP) | 200 MB                      | 930 MB                     | `fafc1b19e58cc25dbd98c5baaeec7e78fb54606e30a9b14c5a5d3768acb83891` |
+| [Download](https://drive.google.com/file/d/1Pgnbvpv-_B3kyXpKAEPWhHmIP17VIyNQ) | 200 MB                      | 930 MB                     | `2bd107ce2e2d6ff7544f52a659622b813b84291bcc66688ffd0f167eac26d8ad` |
 
 -----------
 
@@ -99,8 +99,8 @@ xattr -dr com.apple.quarantine '/Users/your_macos_username/Downloads/Ecoscope GU
 
 | Link                                                                                              | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
 |---------------------------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| (**Apple Silicon**) [Download](https://drive.google.com/file/d/1xFlUTQVbjlCsSiq-zHoqdP7pRV5mrlMg) | 170 MB                      | 470 MB                     | `2e5c254604f3c93e30320bc82f64b2e5a5fcca60b9be4942e2435398fbe3902c` |
-| (**Intel**) [Download](https://drive.google.com/file/d/1RYuUf42ocs3GHwRYw3DD4SaPF9DIVAsG)         | 410 MB                      | 1.35 GB                    | `5cc7071c9cf6e28fb2ccbbf0f7e8c46327451bdffe68a94f185712cf89b8c60f` |
+| (**Apple Silicon**) [Download](https://drive.google.com/file/d/1phXHa6V1m20_ZWJlNm8LGG8GWXC7IrRm) | 170 MB                      | 470 MB                     | `62de33715266c30c2b873a989547c17d2e92858d9ad4c0becc118fd68a124bcc` |
+| (**Intel**) [Download](https://drive.google.com/file/d/1EWh-V7iM6CYMNLa5fHm9a0Rj-OCCIXiU)         | 410 MB                      | 1.35 GB                    | `3edd0d5578f744eb415b26634a71a1bbea1a7c898991dfdfa67ca311e169a968` |
 
 :::{attention}
 Step 3 above is mandatory. If you skip it, you will not be able to open the program by
@@ -137,7 +137,7 @@ Please make sure to review the instructions **before starting your download**.
 
 | Link                                                                          | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
 |-------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| [Download](https://drive.google.com/file/d/1jmBJKXLvCcg0gcXHV0siM_Hgsmjs1DWt) | 566 MB                      | 1.7 GB                     | `a23ad9d60523eb37f251059712c46613f277fb2e6d4be2d531cecc4abfdc6116` |
+| [Download](https://drive.google.com/file/d/14dWdXmR5EsOiLmIR3PJFtZVZQUSE410K) | 566 MB                      | 1.7 GB                     | `e8d7b352d3276d8a325105bc6fbe6d3ebfa156f3d3d0a09b900b6aa18a96e8fd` |
 
 ## Screenshots
 
