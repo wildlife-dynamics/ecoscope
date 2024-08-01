@@ -320,9 +320,19 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
     return fig
 
 
-def pie_chart(data: pd.DataFrame, column: str, style_kwargs: dict = {}, layout_kwargs: dict = None):
-    labels = data[column].unique()
-    values = data[column].value_counts()
+def pie_chart(
+    data: pd.DataFrame, value_column: str, label_column: str = None, style_kwargs: dict = {}, layout_kwargs: dict = None
+):
+
+    if pd.api.types.is_numeric_dtype(data[value_column]):
+        if label_column is not None:
+            labels = data[label_column]
+            values = data[value_column]
+        else:
+            raise ValueError("numerical values require a label column to")
+    else:  # assume categorical
+        labels = data[value_column].unique()
+        values = data[value_column].value_counts()
 
     fig = go.Figure(data=go.Pie(labels=labels, values=values, **style_kwargs), layout=layout_kwargs)
     return fig

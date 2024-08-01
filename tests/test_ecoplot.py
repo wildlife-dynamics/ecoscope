@@ -11,6 +11,7 @@ def chart_df():
         {
             "id": [1, 2, 3, 4],
             "category": ["A", "B", "B", "B"],
+            "type": ["A", "B", "C", "D"],
             "value": [25, 40, 65, 150],
             "time": ["2024-07-22", "2024-07-22", "2024-07-22", "2024-07-21"],
         }
@@ -110,13 +111,25 @@ def test_stacked_bar_chart_numerical(chart_df):
     assert chart.data[1].marker.color == "green"
 
 
-def test_pie_chart(chart_df):
+def test_pie_chart_categorical(chart_df):
     layout = {"piecolorway": ["red", "green", "blue"]}
-    style = {"marker_line_color": "#000000", "marker_line_width": 2}
-    chart = pie_chart(chart_df, column="category", style_kwargs=style, layout_kwargs=layout)
+    style = {"marker_line_color": "#000000", "marker_line_width": 2, "textinfo": "value"}
+    chart = pie_chart(chart_df, value_column="category", style_kwargs=style, layout_kwargs=layout)
 
     assert chart.layout["piecolorway"] == ("red", "green", "blue")
     assert set(chart.data[0].labels) == set(["A", "B"])
     assert set(chart.data[0].values) == set([1, 3])
+    assert chart.data[0].marker.line.color == "#000000"
+    assert chart.data[0].marker.line.width == 2
+
+
+def test_pie_chart_numerical(chart_df):
+    layout = {"piecolorway": ["red", "green", "blue"]}
+    style = {"marker_line_color": "#000000", "marker_line_width": 2, "textinfo": "value"}
+    chart = pie_chart(chart_df, value_column="value", label_column="type", style_kwargs=style, layout_kwargs=layout)
+
+    assert chart.layout["piecolorway"] == ("red", "green", "blue")
+    assert set(chart.data[0].labels) == set(chart_df.type)
+    assert set(chart.data[0].values) == set(chart_df.value)
     assert chart.data[0].marker.line.color == "#000000"
     assert chart.data[0].marker.line.width == 2
