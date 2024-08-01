@@ -1,9 +1,16 @@
 import numpy as np
 import pandas as pd
-import plotly.graph_objs as go
 import shapely
-from plotly.subplots import make_subplots
-from sklearn.neighbors import KernelDensity
+
+try:
+    from sklearn.neighbors import KernelDensity
+    import plotly.graph_objs as go
+    from plotly.subplots import make_subplots
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecoscope["plotting"]'
+    )
 
 
 class EcoPlotData:

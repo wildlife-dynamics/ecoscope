@@ -1,4 +1,11 @@
-import mapclassify
+try:
+    import mapclassify
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecoscope["analysis"]'
+    )
+
 
 classification_methods = {
     "equal_interval": mapclassify.EqualInterval,
