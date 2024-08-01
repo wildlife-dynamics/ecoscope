@@ -1,11 +1,17 @@
 import warnings
-
-import astroplan
-import astropy.coordinates
-import astropy.time
 import numpy as np
 import pyproj
 import pandas as pd
+
+try:
+    import astroplan
+    import astropy.coordinates
+    import astropy.time
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecoscope["analysis"]'
+    )
 
 
 def to_EarthLocation(geometry):
