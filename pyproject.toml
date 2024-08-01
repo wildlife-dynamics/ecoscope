@@ -28,7 +28,7 @@ dependencies = [
     "backoff",
     "datashader",
     "earthengine-api",
-    "earthranger-client",
+    "earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3",
     "folium",
     "geopandas<=0.14.2",
     "igraph",
@@ -59,6 +59,7 @@ Tracker = "https://github.com/wildlife-dynamics/ecoscope/issues"
 [project.optional-dependencies]
 test = [
     "pytest",
+    "pytest-asyncio",
     "pytest-cov",
     "pytest-mock",
     "pytest-reportlog",
