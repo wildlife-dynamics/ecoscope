@@ -268,3 +268,53 @@ def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
     if output_file:
         fig.write_image(output_file)
     return fig
+
+
+def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, layout_kwargs: dict = None):
+    """
+    Creates a stacked bar chart from the provided EcoPlotData object
+    Parameters
+    ----------
+    data: ecoscope.Plotting.EcoPlotData
+        The data to plot, counts categorical data.y_col values for data.x_col
+    agg_function: str
+        The pandas.Dataframe.aggregate() function to run ie; 'count', 'sum'
+    stack_column: str
+        The name of the column in the data to build stacks from, should be categorical
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly bar chart
+    """
+    # TODO cleanup EPD defaults
+    data.style.pop("mode")
+
+    fig = go.Figure(layout=layout_kwargs)
+
+    x_axis_name = data.x_col
+    y_axis_name = data.y_col
+
+    agg = (
+        data.grouped[y_axis_name]
+        .agg(agg_function)
+        .to_frame(agg_function)
+        .unstack(fill_value=0)
+        .stack(future_stack=True)
+        .reset_index()
+    )
+
+    x = agg[x_axis_name].unique()
+    for category in agg[stack_column].unique():
+        fig.add_trace(
+            go.Bar(
+                x=x,
+                y=list(agg[agg[stack_column] == category][agg_function]),
+                name=str(category),
+                **{**data.style, **data.groupby_style[category]},
+            )
+        )
+
+    fig.update_layout(barmode="stack")
+    return fig
