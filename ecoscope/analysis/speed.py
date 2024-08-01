@@ -1,11 +1,18 @@
 import typing
 
 import geopandas as gpd
-import mapclassify
 import pandas as pd
 import shapely
 
 import ecoscope.base
+
+try:
+    import mapclassify
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecoscope["analysis"]'
+    )
 
 
 class SpeedDataFrame(ecoscope.base.EcoDataFrame):
