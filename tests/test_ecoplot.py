@@ -1,7 +1,21 @@
+import pytest
 import numpy as np
 import pandas as pd
-from ecoscope.plotting.plot import EcoPlotData, ecoplot, mcp, nsd, speed, stacked_bar_chart
+from ecoscope.plotting.plot import EcoPlotData, ecoplot, mcp, nsd, speed, stacked_bar_chart, pie_chart
 from ecoscope.base import Trajectory
+
+
+@pytest.fixture
+def categorical_df():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "category": ["A", "B", "B", "B"],
+            "time": ["2024-07-22", "2024-07-22", "2024-07-22", "2024-07-21"],
+        }
+    )
+    df.set_index("id", inplace=True)
+    return df
 
 
 def test_ecoplot(movebank_relocations):
@@ -48,21 +62,12 @@ def test_speed(movebank_relocations):
     len(figure.data[0].y) == len(traj) * 4
 
 
-def test_stacked_bar_chart_categorical():
-    df = pd.DataFrame(
-        {
-            "id": [1, 2, 3, 4],
-            "category": ["A", "B", "B", "B"],
-            "time": ["2024-07-22", "2024-07-22", "2024-07-22", "2024-07-21"],
-        }
-    )
-    df.set_index("id", inplace=True)
-
+def test_stacked_bar_chart(categorical_df):
     groupby_style = {"A": {"marker_color": "red"}, "B": {"marker_color": "blue"}}
     style = {"marker_line_color": "black", "xperiodalignment": "middle"}
     layout_kwargs = {"plot_bgcolor": "gray", "xaxis_dtick": 86400000}
 
-    gb = df.groupby(["time", "category"])
+    gb = categorical_df.groupby(["time", "category"])
     epd = EcoPlotData(gb, "time", "category", groupby_style=groupby_style, **style)
     chart = stacked_bar_chart(epd, agg_function="count", stack_column="category", layout_kwargs=layout_kwargs)
 
@@ -112,3 +117,15 @@ def test_stacked_bar_chart_numerical():
     assert chart.data[0].xperiodalignment == chart.data[1].xperiodalignment == "middle"
     assert chart.data[0].marker.line.color == chart.data[1].marker.line.color == "black"
     assert chart.data[1].marker.color == "green"
+
+
+def test_pie_chart(categorical_df):
+    layout = {"piecolorway": ["red", "green", "blue"]}
+    style = {"marker_line_color": "#000000", "marker_line_width": 2}
+    chart = pie_chart(categorical_df, column="category", style_kwargs=style, layout_kwargs=layout)
+
+    assert chart.layout["piecolorway"] == ("red", "green", "blue")
+    assert set(chart.data[0].labels) == set(["A", "B"])
+    assert set(chart.data[0].values) == set([1, 3])
+    assert chart.data[0].marker.line.color == "#000000"
+    assert chart.data[0].marker.line.width == 2
