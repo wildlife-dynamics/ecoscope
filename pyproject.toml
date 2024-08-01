@@ -34,7 +34,7 @@ dependencies = [
     "igraph",
     "ipywidgets",
     "kaleido",
-    "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@77c56d30a9c2dd96fd863e910bf62952cfa36da8",
+    "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@6ca285300125d89d055a4e76ff4566d560fd799e",
     "mapclassify",
     "matplotlib",
     "networkx",
