@@ -6,11 +6,12 @@ from ecoscope.base import Trajectory
 
 
 @pytest.fixture
-def categorical_df():
+def chart_df():
     df = pd.DataFrame(
         {
             "id": [1, 2, 3, 4],
             "category": ["A", "B", "B", "B"],
+            "value": [25, 40, 65, 150],
             "time": ["2024-07-22", "2024-07-22", "2024-07-22", "2024-07-21"],
         }
     )
@@ -62,12 +63,12 @@ def test_speed(movebank_relocations):
     len(figure.data[0].y) == len(traj) * 4
 
 
-def test_stacked_bar_chart(categorical_df):
+def test_stacked_bar_chart_categorical(chart_df):
     groupby_style = {"A": {"marker_color": "red"}, "B": {"marker_color": "blue"}}
     style = {"marker_line_color": "black", "xperiodalignment": "middle"}
     layout_kwargs = {"plot_bgcolor": "gray", "xaxis_dtick": 86400000}
 
-    gb = categorical_df.groupby(["time", "category"])
+    gb = chart_df.groupby(["time", "category"])
     epd = EcoPlotData(gb, "time", "category", groupby_style=groupby_style, **style)
     chart = stacked_bar_chart(epd, agg_function="count", stack_column="category", layout_kwargs=layout_kwargs)
 
@@ -86,22 +87,12 @@ def test_stacked_bar_chart(categorical_df):
     assert chart.data[1].marker.color == "blue"
 
 
-def test_stacked_bar_chart_numerical():
-    df = pd.DataFrame(
-        {
-            "id": [1, 2, 3, 4],
-            "category": ["A", "B", "B", "B"],
-            "value": [25, 40, 65, 150],
-            "time": ["2024-07-22", "2024-07-22", "2024-07-22", "2024-07-21"],
-        }
-    )
-    df.set_index("id", inplace=True)
-
+def test_stacked_bar_chart_numerical(chart_df):
     groupby_style = {"A": {"marker_color": "yellow"}, "B": {"marker_color": "green"}}
     style = {"marker_line_color": "black", "xperiodalignment": "middle"}
     layout_kwargs = {"plot_bgcolor": "gray", "xaxis_dtick": 86400000}
 
-    gb = df.groupby(["time", "category"])
+    gb = chart_df.groupby(["time", "category"])
     epd = EcoPlotData(gb, "time", "value", groupby_style=groupby_style, **style)
     chart = stacked_bar_chart(epd, agg_function="sum", stack_column="category", layout_kwargs=layout_kwargs)
 
@@ -119,10 +110,10 @@ def test_stacked_bar_chart_numerical():
     assert chart.data[1].marker.color == "green"
 
 
-def test_pie_chart(categorical_df):
+def test_pie_chart(chart_df):
     layout = {"piecolorway": ["red", "green", "blue"]}
     style = {"marker_line_color": "#000000", "marker_line_width": 2}
-    chart = pie_chart(categorical_df, column="category", style_kwargs=style, layout_kwargs=layout)
+    chart = pie_chart(chart_df, column="category", style_kwargs=style, layout_kwargs=layout)
 
     assert chart.layout["piecolorway"] == ("red", "green", "blue")
     assert set(chart.data[0].labels) == set(["A", "B"])
