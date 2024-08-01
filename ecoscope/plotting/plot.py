@@ -277,6 +277,10 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
     ----------
     data: ecoscope.Plotting.EcoPlotData
         The data to plot, counts categorical data.y_col values for data.x_col
+    agg_function: str
+        The pandas.Dataframe.aggregate() function to run ie; 'count', 'sum'
+    stack_column: str
+        The name of the column in the data to build stacks from, should be categorical
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)
     Returns
