@@ -194,10 +194,10 @@ class AsyncEarthRangerIO(AsyncERClient):
             subjects.append(subject)
 
         df = pd.DataFrame(subjects)
-        assert not df.empty
-        df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
 
-        df = clean_time_cols(df)
+        if not df.empty:
+            df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
+            df = clean_time_cols(df)
         return df
 
     async def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
