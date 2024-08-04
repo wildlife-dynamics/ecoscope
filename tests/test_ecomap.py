@@ -1,9 +1,12 @@
 import ee
 import geopandas as gpd
+import pandas as pd
 import pytest
+import ecoscope
+import shapely
 from ecoscope.mapping import EcoMap
 from ecoscope.analysis.geospatial import datashade_gdf
-from lonboard._layer import BitmapLayer, BitmapTileLayer, PolygonLayer
+from lonboard._layer import BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
 from lonboard._deck_widget import (
     NorthArrowWidget,
     ScaleWidget,
@@ -11,6 +14,27 @@ from lonboard._deck_widget import (
     SaveImageWidget,
     FullscreenWidget,
 )
+
+
+@pytest.fixture
+def poly_gdf():
+    gdf = gpd.GeoDataFrame.from_file("tests/sample_data/vector/maec_4zones_UTM36S.gpkg")
+    return gdf
+
+
+@pytest.fixture
+def line_gdf():
+    gdf = pd.read_csv("tests/sample_data/vector/KDB025Z.csv", index_col="id")
+    gdf["geometry"] = gdf["geometry"].apply(lambda x: shapely.wkt.loads(x))
+    gdf = ecoscope.base.Relocations.from_gdf(gpd.GeoDataFrame(gdf, crs=4326))
+    gdf = ecoscope.base.Trajectory.from_relocations(gdf)
+    return gdf
+
+
+@pytest.fixture
+def point_gdf():
+    gdf = gpd.GeoDataFrame.from_file("tests/sample_data/vector/observations.geojson")
+    return gdf
 
 
 def test_ecomap_base():
@@ -86,6 +110,7 @@ def test_add_ee_layer_image_collection():
     m.add_ee_layer(ee_object, vis_params)
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
+    assert m.layers[1].tile_size == 256
 
 
 @pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
@@ -105,6 +130,59 @@ def test_add_ee_layer_geometry():
     m.add_ee_layer(rectangle, None)
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PolygonLayer)
+
+
+def test_add_polyline(line_gdf):
+    m = EcoMap()
+    m.add_layer(m.polyline_layer(line_gdf, get_width=200))
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], PathLayer)
+    assert m.layers[1].get_width == 200
+
+
+def test_add_point(point_gdf):
+    m = EcoMap()
+    m.add_layer(m.point_layer(point_gdf, get_fill_color=[25, 100, 25, 100]))
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], ScatterplotLayer)
+    # default color
+    assert m.layers[1].get_fill_color == [25, 100, 25, 100]
+
+
+def test_add_polygon(poly_gdf):
+    m = EcoMap()
+    m.add_layer(m.polygon_layer(poly_gdf, extruded=True, get_line_width=35), zoom=True)
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], PolygonLayer)
+    assert m.layers[1].extruded
+    assert m.layers[1].get_line_width == 35
+    # validating zoom param by checking view state is non-default
+    assert m.view_state.longitude != 10
+    assert m.view_state.latitude != 0
+
+
+def test_layers_from_gdf(poly_gdf, line_gdf, point_gdf):
+    joint_kwargs = {
+        "get_width": 130,
+        "get_line_width": 35,
+        "get_radius": 200,
+        "get_fill_color": [25, 100, 25, 100],
+        "get_bananas": 2134,
+    }
+
+    poly_gdf.to_crs(4326, inplace=True)
+    point_gdf.to_crs(4326, inplace=True)
+
+    together = gpd.GeoDataFrame(pd.concat([poly_gdf.geometry, line_gdf.geometry, point_gdf.geometry]))
+    layers = EcoMap.layers_from_gdf(gdf=together, **joint_kwargs)
+
+    m = EcoMap(layers=layers)
+    assert len(m.layers) == 3
+    assert m.layers[0].get_fill_color == [25, 100, 25, 100]
+    assert m.layers[0].get_line_width == 35
+    assert m.layers[1].get_width == 130
+    assert m.layers[2].get_radius == 200
+    assert m.layers[2].get_fill_color == [25, 100, 25, 100]
 
 
 def test_zoom_to_gdf():
@@ -137,26 +215,17 @@ def test_add_geotiff_with_cmap():
     assert isinstance(m.layers[1], BitmapLayer)
 
 
-@pytest.mark.parametrize(
-    "file, geom_type",
-    [
-        ("tests/sample_data/vector/maec_4zones_UTM36S.gpkg", "polygon"),
-        ("tests/sample_data/vector/observations.geojson", "point"),
-    ],
-)
-def test_add_datashader_gdf(file, geom_type):
+def test_add_datashader_gdf(point_gdf):
     m = EcoMap()
-    gdf = gpd.GeoDataFrame.from_file(file)
-    img, bounds = datashade_gdf(gdf, geom_type)
+    img, bounds = datashade_gdf(point_gdf, "point")
     m.add_pil_image(img, bounds, zoom=False)
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
 
-def test_add_datashader_gdf_with_zoom():
+def test_add_datashader_gdf_with_zoom(poly_gdf):
     m = EcoMap()
-    gdf = gpd.GeoDataFrame.from_file("tests/sample_data/vector/maec_4zones_UTM36S.gpkg")
-    img, bounds = datashade_gdf(gdf, "polygon")
+    img, bounds = datashade_gdf(poly_gdf, "polygon")
     m.add_pil_image(img, bounds)
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)

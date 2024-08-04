@@ -1,4 +1,10 @@
-import datashader as ds
+try:
+    import datashader as ds
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecoscope["analysis"]'
+    )
 
 
 def datashade_gdf(gdf, geom_type, width=600, height=600, cmap=["lightblue", "darkblue"], ds_agg=None, **kwargs):
