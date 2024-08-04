@@ -15,15 +15,6 @@ __all__ = [
 try:
     from ecoscope.io.async_earthranger import AsyncEarthRangerIO
 
-    __all__ = [
-        "earthranger",
-        "EarthRangerIO",
-        "AsyncEarthRangerIO",
-        "download_file",
-        "earthranger_utils",
-        "eetools",
-        "raster",
-        "utils",
-    ]
+    __all__ += ["AsyncEarthRangerIO"]
 except ImportError:
     pass
