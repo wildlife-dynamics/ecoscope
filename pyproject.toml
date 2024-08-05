@@ -25,7 +25,7 @@ classifiers=[
 dependencies = [
     "backoff",
     "earthengine-api",
-    "earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3",
+    "earthranger-client",
     "geopandas<=0.14.2",
     "pyproj",
     "rasterio",
@@ -49,6 +49,9 @@ analysis = [
     "scipy",
     "scikit-image",
     "scikit-learn",
+]
+async_earthranger = [
+    "earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3",
 ]
 mapping = [
     "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@77c56d30a9c2dd96fd863e910bf62952cfa36da8",
