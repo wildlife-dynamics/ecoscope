@@ -3,11 +3,18 @@ import geopandas as gpd
 import pandas as pd
 import asyncio
 from dateutil import parser
-from erclient.client import AsyncERClient
+
+import ecoscope
 from ecoscope.io.utils import to_hex
 from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf
 
-import ecoscope
+try:
+    from erclient.client import AsyncERClient
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        'Missing optional dependencies required by this module. \
+         Please run pip install ecoscope["async_earthranger"]'
+    )
 
 
 class AsyncEarthRangerIO(AsyncERClient):
