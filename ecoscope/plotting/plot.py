@@ -325,3 +325,42 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
 
     fig.update_layout(barmode="stack")
     return fig
+
+
+def pie_chart(
+    data: pd.DataFrame, value_column: str, label_column: str = None, style_kwargs: dict = {}, layout_kwargs: dict = None
+):
+    """
+    Creates a pie chart from the provided dataframe
+    Parameters
+    ----------
+    data: pd.Dataframe
+        The data to plot
+    value_column: str
+        The name of the dataframe column to pull slice values from
+        If the column contains non-numeric values, it is assumed to be categorical
+            and the pie slices will be a count of the occurrences of the category
+    label_column: str
+        The name of the dataframe column to label slices with, required if the data in value_column is numeric
+    style_kwargs: dict
+        Additional style kwargs passed to go.Pie()
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly bar chart
+    """
+
+    if pd.api.types.is_numeric_dtype(data[value_column]):
+        if label_column is not None:
+            labels = data[label_column]
+            values = data[value_column]
+        else:
+            raise ValueError("numerical values require a label column to")
+    else:  # assume categorical
+        labels = data[value_column].unique()
+        values = data[value_column].value_counts()
+
+    fig = go.Figure(data=go.Pie(labels=labels, values=values, **style_kwargs), layout=layout_kwargs)
+    return fig
