@@ -319,7 +319,7 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
                 x=x,
                 y=list(agg[agg[stack_column] == category][agg_function]),
                 name=str(category),
-                **{**data.style, **data.groupby_style[category]},
+                **{**data.style, **(data.groupby_style.get(category) or {})},
             )
         )
 
