@@ -64,6 +64,20 @@ def test_speed(movebank_relocations):
     len(figure.data[0].y) == len(traj) * 4
 
 
+def test_stacked_no_style(chart_df):
+    gb = chart_df.groupby(["time", "category"])
+    epd = EcoPlotData(gb, "time", "category", groupby_style=None)
+    chart = stacked_bar_chart(epd, agg_function="count", stack_column="category")
+
+    # we should have 2 categorical buckets
+    assert len(chart.data) == 2
+    assert chart.data[0].name == "A"
+    assert chart.data[1].name == "B"
+    # Should be the count of A and B for our 2 dates
+    assert chart.data[0].y == (0, 1)
+    assert chart.data[1].y == (1, 2)
+
+
 def test_stacked_bar_chart_categorical(chart_df):
     groupby_style = {"A": {"marker_color": "red"}, "B": {"marker_color": "blue"}}
     style = {"marker_line_color": "black", "xperiodalignment": "middle"}
@@ -109,6 +123,13 @@ def test_stacked_bar_chart_numerical(chart_df):
     assert chart.data[0].xperiodalignment == chart.data[1].xperiodalignment == "middle"
     assert chart.data[0].marker.line.color == chart.data[1].marker.line.color == "black"
     assert chart.data[1].marker.color == "green"
+
+
+def test_pie_chart_no_style(chart_df):
+    chart = pie_chart(chart_df, value_column="category")
+
+    assert set(chart.data[0].labels) == set(["A", "B"])
+    assert set(chart.data[0].values) == set([1, 3])
 
 
 def test_pie_chart_categorical(chart_df):
