@@ -8,14 +8,13 @@ import numpy as np
 import pandas as pd
 import pytz
 import requests
-from dateutil import parser
 from erclient.client import ERClient, ERClientException, ERClientNotFound
 from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
 from ecoscope.io.utils import pack_columns, to_hex
-from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf
+from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf, clean_time_cols
 
 
 class EarthRangerIO(ERClient):
@@ -178,6 +177,7 @@ class EarthRangerIO(ERClient):
         assert not df.empty
 
         df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
+        df = clean_time_cols(df)
 
         return df
 
@@ -192,11 +192,13 @@ class EarthRangerIO(ERClient):
         subjectsources : pd.DataFrame
         """
         params = clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
-        return pd.DataFrame(
+        df = pd.DataFrame(
             self.get_objects_multithreaded(
                 object="subjectsources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
             )
         )
+        df = clean_time_cols(df)
+        return df
 
     def _get_observations(
         self,
@@ -272,17 +274,9 @@ class EarthRangerIO(ERClient):
         if observations.empty:
             return gpd.GeoDataFrame()
 
-        observations["created_at"] = pd.to_datetime(
-            observations["created_at"],
-            errors="coerce",
-            utc=True,
-        ).dt.tz_convert(tz)
-
-        observations["recorded_at"] = pd.to_datetime(
-            observations["recorded_at"],
-            errors="coerce",
-            utc=True,
-        ).dt.tz_convert(tz)
+        observations = clean_time_cols(observations)
+        observations["created_at"] = observations["created_at"].dt.tz_convert(tz)
+        observations["recorded_at"] = observations["recorded_at"].dt.tz_convert(tz)
 
         observations.sort_values("recorded_at", inplace=True)
         return to_gdf(observations)
@@ -599,7 +593,7 @@ class EarthRangerIO(ERClient):
 
         assert not df.empty
 
-        df["time"] = df["time"].apply(lambda x: pd.to_datetime(parser.parse(x)))
+        df = clean_time_cols(df)
 
         gdf = gpd.GeoDataFrame(df)
         if gdf.loc[0, "location"] is not None:
@@ -657,6 +651,7 @@ class EarthRangerIO(ERClient):
         )
         if "serial_number" in df.columns:
             df = df.sort_values(by="serial_number").reset_index(drop=True)
+        df = clean_time_cols(df)
         return df
 
     def get_patrol_events(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
@@ -687,6 +682,7 @@ class EarthRangerIO(ERClient):
                         event["patrol_segment_id"] = segment.get("id")
                         events.append(event)
         events_df = pd.DataFrame(events)
+        events_df = clean_time_cols(events_df)
 
         events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
@@ -713,6 +709,7 @@ class EarthRangerIO(ERClient):
         df = self._get(object, **params)
         df["patrol_segments"][0].pop("updates")
         df.pop("updates")
+        df = clean_time_cols(df)
 
         return pd.DataFrame(dict([(k, pd.Series(v)) for k, v in df.items()]))
 
@@ -816,7 +813,9 @@ class EarthRangerIO(ERClient):
                         f"end_time={patrol_end_time} failed for: {e}"
                     )
 
-        df = ecoscope.base.Relocations(pd.concat(observations))
+        df = pd.concat(observations)
+        df = clean_time_cols(df)
+        df = ecoscope.base.Relocations(df)
         if include_patrol_details:
             return df.set_index("id")
         return df
@@ -840,11 +839,13 @@ class EarthRangerIO(ERClient):
         )
 
         object = f"activity/patrols/segments/{patrol_segment_id}/events/"
-        return pd.DataFrame(
+        df = pd.DataFrame(
             self.get_objects_multithreaded(
                 object=object, threads=self.tcp_limit, page_size=self.sub_page_size, **params
             )
         )
+        df = clean_time_cols(df)
+        return df
 
     def get_spatial_features_group(self, spatial_features_group_id=None, **addl_kwargs):
         """
