@@ -38,3 +38,5 @@ jobs:
       
       - name: Codecov
         uses: codecov/codecov-action@v4
+  run_unit_tests:
+    uses: ./.github/workflows/_tests.yml
