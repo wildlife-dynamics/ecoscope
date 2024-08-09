@@ -1,0 +1,46 @@
+name: Run tests
+on:
+  workflow_call
+
+env:
+  ER_USERNAME: ${{ secrets.ER_USERNAME }}
+  ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+
+jobs:
+  run_unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_DATAFLOW_SERVICE_KEY }}'
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' 
+      - name: Install pip
+        run: python -m ensurepip --upgrade
+      - name: Install pip tools
+        run: pip install pip-tools
+      - name: Install dependencies
+        run: pip install .
+      - name: Install pytest
+        run: pip install pytest
+      - name: Install papermill
+        run: pip install papermill
+      - name: Install folium
+        run: pip install folium
+      - name: Install branca
+        run: pip install branca
+      - name: Install ecoscope
+        run: pip install "ecoscope[all]"
+      - name: Install IpKernel
+        run: pip install ipykernel
+      - name: Use the kernel
+        run: python -m ipykernel install --user --name=venv
+      - name: Run unit tests
+        run: pytest tests/test_notebooks.py -s
+    env:
+      ER_USERNAME: ${{ secrets.ER_USERNAME }}
+      ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
