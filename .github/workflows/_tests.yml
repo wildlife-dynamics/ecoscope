@@ -43,6 +43,5 @@ jobs:
       - name: Run unit tests
         run: pytest tests/test_notebooks.py -s
     env:
-      ER_USERNAME: ${{ secrets.ER_USERNAME }}
       ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
       GCP_DATAFLOW_SERVICE_KEY: ${{ secrets.GCP_DATAFLOW_SERVICE_KEY }}
