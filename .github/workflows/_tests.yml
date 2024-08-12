@@ -1,7 +1,7 @@
 name: Run tests
 on:
-  workflow_call
-
+  push:
+    branches: [ "*" ]
 env:
   ER_USERNAME: ${{ secrets.ER_USERNAME }}
   ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
