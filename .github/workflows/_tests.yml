@@ -16,7 +16,7 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_DATAFLOW_SERVICE_KEY }}'
       - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v2'
+        uses: 'google-github-actions/setup-gcloud@v1'
       - name: Checkout branch
         uses: actions/checkout@v4
       - uses: actions/setup-python@v5
