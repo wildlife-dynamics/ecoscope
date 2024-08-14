@@ -1,0 +1,28 @@
+name: ecoscope
+channels:
+  - conda-forge
+dependencies:
+  - python==3.10.12 # Fixed to mirror version on Google Colab
+  - pip
+  - git
+  - jupyterlab
+  - geopandas<=0.14.2
+  - ipywidgets
+  - pip:
+      - kaleido
+      - pip-tools
+      - pre-commit>=3
+      - coverage[toml]
+      - earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3
+      - ecoscope[all]
+      - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@77c56d30a9c2dd96fd863e910bf62952cfa36da8
+      - nbsphinx
+      - sphinx-autoapi
+      - dask[dataframe]
+      - fsspec
+      - pytest-asyncio
+      - pytest
+      - papermill
+      - folium
+      - branca
+      - ipykernel
