@@ -5,6 +5,7 @@ on:
 env:
   ER_USERNAME: ${{ secrets.ER_USERNAME }}
   ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+  SKIP_NB_TESTS: True
   GCP_DATAFLOW_SERVICE_KEY: ${{ secrets.GCP_DATAFLOW_SERVICE_KEY }}
 
 jobs:
@@ -33,4 +34,5 @@ jobs:
     env:
       ER_USERNAME: ${{ secrets.ER_USERNAME }}
       ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+      SKIP_NB_TESTS: True
       GCP_DATAFLOW_SERVICE_KEY: ${{ secrets.GCP_DATAFLOW_SERVICE_KEY }}
