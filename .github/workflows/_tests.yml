@@ -9,18 +9,28 @@ env:
 
 jobs:
   run_unit_tests:
-    strategy:
-      fail-fast: false
-      matrix:
-        env: [environment-notebooks.yml]
     runs-on: ubuntu-latest
     steps:
+      - name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_DATAFLOW_SERVICE_KEY }}'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
       - name: Checkout branch
         uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10' 
+      - name: Install pip
+        run: python -m ensurepip --upgrade
+      - name: Install dependencies
+        run: pip install -r requirements-notebooks-test.txt
       - name: Use the kernel
         run: python -m ipykernel install --user --name=venv
       - name: Run unit tests
         run: pytest tests/test_notebooks.py -s
+    env:
+      ER_USERNAME: ${{ secrets.ER_USERNAME }}
+      ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+      GCP_DATAFLOW_SERVICE_KEY: ${{ secrets.GCP_DATAFLOW_SERVICE_KEY }}

@@ -1,0 +1,7 @@
+pip-tools
+pytest
+papermill
+folium
+branca
+ecoscope[all]
+ipykernel
