@@ -82,7 +82,6 @@ class EarthRangerIO(ERClient):
                 object="sources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
             )
         )
-        assert not df.empty
         return df
 
     def get_subjects(
@@ -174,10 +173,9 @@ class EarthRangerIO(ERClient):
                 )
             )
 
-        assert not df.empty
-
-        df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
-        df = clean_time_cols(df)
+        if not df.empty:
+            df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
+            df = clean_time_cols(df)
 
         return df
 
@@ -590,20 +588,20 @@ class EarthRangerIO(ERClient):
                 object="activity/events/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
             )
         )
-
-        assert not df.empty
-
-        df = clean_time_cols(df)
-
         gdf = gpd.GeoDataFrame(df)
-        if gdf.loc[0, "location"] is not None:
-            gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
-                gdf.loc[~gdf["geojson"].isna(), "geojson"]
-            )["geometry"]
-            gdf.set_geometry("geometry", inplace=True)
-            gdf.set_crs(4326, inplace=True)
-        gdf.sort_values("time", inplace=True)
-        return gdf.set_index("id")
+
+        if not df.empty:
+            df = clean_time_cols(df)
+            if gdf.loc[0, "location"] is not None:
+                gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
+                    gdf.loc[~gdf["geojson"].isna(), "geojson"]
+                )["geometry"]
+                gdf.set_geometry("geometry", inplace=True)
+                gdf.set_crs(4326, inplace=True)
+            gdf.sort_values("time", inplace=True)
+            gdf.set_index("id", inplace=True)
+
+        return gdf
 
     def get_patrol_types(self):
         df = pd.DataFrame(self._get("activity/patrols/types"))
