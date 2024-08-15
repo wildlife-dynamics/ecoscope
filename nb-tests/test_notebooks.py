@@ -44,7 +44,6 @@ ALL_NOTEBOOKS = [
     ALL_NOTEBOOKS,
     ids=[nb.path.name for nb in ALL_NOTEBOOKS],
 )
-@pytest.mark.skipif(os.environ.get("SKIP_NB_TESTS"), reason="Nb tests should not run for this pipeline")
 def test_notebooks(notebook: Notebook):
     try:
         papermill.execute_notebook(str(notebook.path), "./output.ipynb", kernel_name="venv")
