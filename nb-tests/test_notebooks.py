@@ -22,9 +22,10 @@ KNOWN_ERRORS_REGEXES = {  # This is basically a GitHub ticket queue
     "EcoGraph.ipynb": "not a zip file",
     "EcoPlot.ipynb": "not a zip file",
     "Landscape Grid.ipynb": "No module named 'branca'",
-    "Seasonal Calculation.ipynb": "buffer source array is read-only",
-    "Tracking Data Gantt Chart.ipynb": "not a zip file",
+    "Seasonal Calculation.ipynb": "No module named 'branca'",
+    "Tracking Data Gantt Chart.ipynb": "No module named 'branca'",
     "Remote Sensing Time Series Anomaly.ipynb": "No module named 'branca'",
+    "Reduce Regions.ipynb": "No module named 'branca'",
 }
 
 
