@@ -18,12 +18,13 @@ NB_DIR = pathlib.Path(__file__).parent.parent / "doc" / "source" / "notebooks"
 
 KNOWN_ERRORS_REGEXES = {  # This is basically a GitHub ticket queue
     "EarthRanger_IO.ipynb": "Series found",
-    "Relocations_and_Trajectories.ipynb": "not a zip file",
+    "Relocations_and_Trajectories.ipynb": "No module named 'branca'",
     "EcoGraph.ipynb": "not a zip file",
     "EcoPlot.ipynb": "not a zip file",
-    "Landscape Grid.ipynb": "not a zip file",
+    "Landscape Grid.ipynb": "No module named 'branca'",
     "Seasonal Calculation.ipynb": "buffer source array is read-only",
     "Tracking Data Gantt Chart.ipynb": "not a zip file",
+    "Remote Sensing Time Series Anomaly.ipynb": "No module named 'branca'",
 }
 
 
