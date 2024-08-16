@@ -1,8 +1,6 @@
 pip-tools
 pytest
 papermill
-folium
-branca
 .[all]
 ipykernel
 pytest-xdist
