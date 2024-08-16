@@ -27,7 +27,7 @@ jobs:
       - name: Use the kernel
         run: python -m ipykernel install --user --name=venv
       - name: Run unit tests
-        run: pytest nb-tests/test_notebooks.py -s
+        run: pytest -n auto nb-tests/test_notebooks.py -s
     env:
       ER_USERNAME: ${{ secrets.ER_USERNAME }}
       ER_PASSWORD: ${{ secrets.ER_PASSWORD }}

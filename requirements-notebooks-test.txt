@@ -5,3 +5,4 @@ folium
 branca
 .[all]
 ipykernel
+pytest-xdist
