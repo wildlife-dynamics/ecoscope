@@ -3,5 +3,5 @@ pytest
 papermill
 folium
 branca
-ecoscope[all]
+ecoscope["all"]
 ipykernel
