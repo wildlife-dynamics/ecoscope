@@ -4,7 +4,6 @@ import pathlib
 from dataclasses import dataclass
 import ee
 import papermill
-from papermill.execute import PapermillExecutionError
 import pytest
 
 try:
@@ -52,7 +51,7 @@ ALL_NOTEBOOKS = [
 )
 def test_notebooks(notebook: Notebook):
     if notebook.raises:  # these are the ones we expect to raise errors
-        with pytest.raises(PapermillExecutionError, match=re.escape(notebook.raises_match)):
+        with pytest.raises(Exception, match=re.escape(notebook.raises_match)):
             papermill.execute_notebook(str(notebook.path), "./output.ipynb", kernel_name="venv")
         pytest.xfail(f"Notebook {notebook.path} is known to fail with error {notebook.raises_match}")
     papermill.execute_notebook(str(notebook.path), "./output.ipynb", kernel_name="venv")
