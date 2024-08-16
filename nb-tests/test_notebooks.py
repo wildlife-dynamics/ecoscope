@@ -1,8 +1,10 @@
 import os
+import re
 import pathlib
 from dataclasses import dataclass
 import ee
 import papermill
+from papermill.execute import PapermillExecutionError
 import pytest
 
 try:
@@ -53,13 +55,14 @@ ALL_NOTEBOOKS = [
     ids=[nb.path.name for nb in ALL_NOTEBOOKS],
 )
 def test_notebooks(notebook: Notebook):
+    if notebook.raises:  # these are the ones we expect to raise errors
+        with pytest.raises(PapermillExecutionError, match=re.escape(notebook.raises_match)):
+            papermill.execute_notebook(str(notebook.path), "./output.ipynb", kernel_name="venv")
+        pytest.xfail(f"Notebook {notebook.path} is known to fail with error {notebook.raises_match}")
     try:
         papermill.execute_notebook(str(notebook.path), "./output.ipynb", kernel_name="venv")
     except Exception as e:
-        if notebook.raises:  # these are the ones we expect to raise errors
-            pytest.xfail(f"Notebook {notebook.path} is known to fail with error {notebook.raises_match}")
-        else:
-            raise UnexecptedNotebookExecutionError(
-                f"{notebook.path.name=} not in {list(KNOWN_ERRORS_REGEXES)= } but execution errored. "
-                "This notebook is unexpectedly broken."
-            ) from e
+        raise UnexecptedNotebookExecutionError(
+            f"{notebook.path.name=} not in {list(KNOWN_ERRORS_REGEXES)= } but execution errored. "
+            "This notebook is unexpectedly broken."
+        ) from e
