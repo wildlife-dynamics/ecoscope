@@ -10,9 +10,6 @@ NB_DIR = pathlib.Path(__file__).parent.parent / "doc" / "source" / "notebooks"
 
 KNOWN_ERRORS_REGEXES = {  # This is basically a GitHub ticket queue
     "EarthRanger_IO.ipynb": "Series found",
-    "GEE_IO.ipynb": "frontend does not support input requests", # This error only happens in the ci pipeline
-    "EcoMap.ipynb": "frontend does not support input requests", # This error only happens in the ci pipeline
-    "Remote Sensing Time Series Anomaly.ipynb": "frontend does not support input requests", # This error only happens in the ci pipeline
     "Relocations_and_Trajectories.ipynb": "not a zip file",
     "EcoGraph.ipynb": "not a zip file",
     "EcoPlot.ipynb": "not a zip file",

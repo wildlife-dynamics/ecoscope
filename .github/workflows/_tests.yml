@@ -7,18 +7,14 @@ on:
 env:
   ER_USERNAME: ${{ secrets.ER_USERNAME }}
   ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
-  GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
+  EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
+  EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+
 
 jobs:
   run_unit_tests:
     runs-on: ubuntu-latest
     steps:
-      - name: 'Authenticate to Google Cloud'
-        uses: 'google-github-actions/auth@v1'
-        with:
-          credentials_json: '${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}'
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v1'
       - name: Checkout branch
         uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,4 +31,5 @@ jobs:
     env:
       ER_USERNAME: ${{ secrets.ER_USERNAME }}
       ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
-      GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
+      EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
+      EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
