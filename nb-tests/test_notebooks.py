@@ -23,7 +23,7 @@ KNOWN_ERRORS_REGEXES = {  # This is basically a GitHub ticket queue
     "EcoPlot.ipynb": "not a zip file",
     "Landscape Grid.ipynb": "No module named 'branca'",
     "Seasonal Calculation.ipynb": "No module named 'branca'",
-    "Tracking Data Gantt Chart.ipynb": "No module named 'branca'",
+    "Tracking Data Gantt Chart.ipynb": "Bad CRC-32 for file 'er_relocs.csv.zip'",
     "Remote Sensing Time Series Anomaly.ipynb": "No module named 'branca'",
     "Reduce Regions.ipynb": "No module named 'branca'",
     "Landscape Dynamics Data.ipynb": "No module named 'branca'",
