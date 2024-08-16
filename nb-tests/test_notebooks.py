@@ -26,6 +26,7 @@ KNOWN_ERRORS_REGEXES = {  # This is basically a GitHub ticket queue
     "Tracking Data Gantt Chart.ipynb": "No module named 'branca'",
     "Remote Sensing Time Series Anomaly.ipynb": "No module named 'branca'",
     "Reduce Regions.ipynb": "No module named 'branca'",
+    "Landscape Dynamics Data.ipynb": "No module named 'branca'",
 }
 
 
