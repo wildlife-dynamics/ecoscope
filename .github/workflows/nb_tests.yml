@@ -1,0 +1,35 @@
+name: Run notebook tests
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "*" ]
+env:
+  ER_USERNAME: ${{ secrets.ER_USERNAME }}
+  ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+  EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
+  EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+
+
+jobs:
+  run_unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' 
+      - name: Install pip
+        run: python -m ensurepip --upgrade
+      - name: Install dependencies
+        run: pip install -r requirements-notebooks-test.txt
+      - name: Use the kernel
+        run: python -m ipykernel install --user --name=venv
+      - name: Run unit tests
+        run: pytest -n auto nb-tests/test_notebooks.py -s
+    env:
+      ER_USERNAME: ${{ secrets.ER_USERNAME }}
+      ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+      EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
+      EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}

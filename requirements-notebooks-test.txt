@@ -1,0 +1,6 @@
+pip-tools
+pytest
+papermill
+.[all]
+ipykernel
+pytest-xdist
