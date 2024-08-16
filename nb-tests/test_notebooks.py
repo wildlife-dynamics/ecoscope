@@ -3,7 +3,6 @@ import pathlib
 from dataclasses import dataclass
 import ee
 import papermill
-from papermill.execute import PapermillExecutionError
 import pytest
 
 try:
@@ -25,8 +24,11 @@ KNOWN_ERRORS_REGEXES = {  # This is basically a GitHub ticket queue
     "Seasonal Calculation.ipynb": "buffer source array is read-only",
     "Tracking Data Gantt Chart.ipynb": "not a zip file",
 }
+
+
 class UnexecptedNotebookExecutionError(Exception):
     pass
+
 
 @dataclass
 class Notebook:
@@ -38,11 +40,12 @@ class Notebook:
 ALL_NOTEBOOKS = [
     Notebook(
         path=p,
-        raises=False if not p.name in KNOWN_ERRORS_REGEXES else True,
+        raises=False if p.name not in KNOWN_ERRORS_REGEXES else True,
         raises_match=KNOWN_ERRORS_REGEXES.get(p.name),
     )
     for p in NB_DIR.rglob("*.ipynb")
 ]
+
 
 @pytest.mark.parametrize(
     "notebook",
