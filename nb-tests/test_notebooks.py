@@ -1,10 +1,18 @@
 import os
 import pathlib
 from dataclasses import dataclass
+import ee
 import papermill
 from papermill.execute import PapermillExecutionError
 import pytest
 
+try:
+    EE_ACCOUNT = os.getenv("EE_ACCOUNT")
+    EE_PRIVATE_KEY_DATA = os.getenv("EE_PRIVATE_KEY_DATA")
+    if EE_ACCOUNT and EE_PRIVATE_KEY_DATA:
+        ee.Initialize(credentials=ee.ServiceAccountCredentials(EE_ACCOUNT, key_data=EE_PRIVATE_KEY_DATA))
+except Exception:
+    raise ValueError("Earth Engine can not be initialized. Failing notebook tests")
 
 NB_DIR = pathlib.Path(__file__).parent.parent / "doc" / "source" / "notebooks"
 
