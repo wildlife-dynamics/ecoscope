@@ -27,6 +27,7 @@ dependencies = [
     "earthengine-api",
     "earthranger-client",
     "geopandas<=0.14.2",
+    "numpy<2",
     "pyproj",
     "rasterio",
     "tqdm",
