@@ -7,7 +7,8 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from io import BytesIO
-from typing import Dict, List, Union
+from typing import Dict, IO, List, Optional, TextIO, Union
+from pathlib import Path
 
 try:
     import matplotlib as mpl
@@ -509,6 +510,17 @@ class EcoMap(EcoMapMixin, Map):
             min_zoom=layer.get("min_zoom", None),
             max_requests=layer.get("max_requests", None),
         )
+
+    def to_html(
+        self,
+        filename: Union[str, Path, TextIO, IO[str], None] = None,
+        title: Optional[str] = None,
+        maximize: bool = True,
+    ) -> Union[None, str]:
+        if maximize:
+            self.height = "100%"
+            self.width = "100%"
+        return super().to_html(filename=filename, title=title)
 
     @staticmethod
     def hex_to_rgb(hex: str) -> list:
