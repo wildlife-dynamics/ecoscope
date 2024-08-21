@@ -27,6 +27,14 @@ jobs:
         with:
           environment-file: ${{ matrix.env }}
 
+      - name: Print env
+        run: |
+          python -V
+          python -c "import geopandas; geopandas.show_versions();"
+          micromamba info
+          micromamba list
+          python -m pip list
+
       - name: Test
         env:
           ER_USERNAME: ${{ secrets.ER_USERNAME }}
