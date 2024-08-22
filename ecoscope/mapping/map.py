@@ -6,6 +6,7 @@ import geopandas as gpd
 
 import numpy as np
 import pandas as pd
+import rasterio as rio
 from io import BytesIO
 from typing import Dict, IO, List, Optional, TextIO, Union
 from pathlib import Path
@@ -368,7 +369,7 @@ class EcoMap(EcoMapMixin, Map):
 
     def add_geotiff(
         self,
-        path: str,
+        tiff: str | rio.MemoryFile,
         zoom: bool = False,
         cmap: Union[str, mpl.colors.Colormap] = None,
         opacity: float = 0.7,
@@ -380,7 +381,7 @@ class EcoMap(EcoMapMixin, Map):
 
         Parameters
         ----------
-        path : str
+        tiff : str | rio.MemoryFile
             The path to the local tiff
         zoom : bool
             Whether to zoom the map to the bounds of the tiff
@@ -389,7 +390,7 @@ class EcoMap(EcoMapMixin, Map):
         opacity: float
             The opacity of the overlay
         """
-        with rasterio.open(path) as src:
+        with rasterio.open(tiff) as src:
             transform, width, height = rasterio.warp.calculate_default_transform(
                 src.crs, "EPSG:4326", src.width, src.height, *src.bounds
             )

@@ -246,5 +246,6 @@ def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None, xlen=
             height=raster_profile.pop("rows"),
             count=raster_profile.pop("band_count"),
             **raster_profile,
-        ).write(vals)
+        ).write(vals, 1)
+
         return memfile
