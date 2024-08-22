@@ -208,7 +208,7 @@ def raster_to_gdf(raster_path):
         )
 
 
-def grid_to_raster(grid=None, val_column="", out_dir="", raster_name="grid.tif", xlen=5000, ylen=5000, grid_crs=4326):
+def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None, xlen=5000, ylen=5000, grid_crs=4326):
     """
     Save a GeoDataFrame grid to a raster.
     """
@@ -231,8 +231,20 @@ def grid_to_raster(grid=None, val_column="", out_dir="", raster_name="grid.tif",
     raster_profile.raster_extent = ecoscope.io.raster.RasterExtent(
         x_min=bounds[0], x_max=bounds[2], y_min=bounds[1], y_max=bounds[3]
     )
-    ecoscope.io.raster.RasterPy.write(
-        ndarray=vals,
-        fp=os.path.join(out_dir, raster_name),
-        **raster_profile,
-    )
+
+    if raster_name:
+        ecoscope.io.raster.RasterPy.write(
+            ndarray=vals,
+            fp=os.path.join(out_dir, raster_name),
+            **raster_profile,
+        )
+    else:
+        memfile = rio.MemoryFile()
+        memfile.open(
+            driver="GTiff",
+            width=raster_profile.pop("columns"),
+            height=raster_profile.pop("rows"),
+            count=raster_profile.pop("band_count"),
+            **raster_profile,
+        ).write(vals)
+        return memfile
