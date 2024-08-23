@@ -5,6 +5,7 @@ from ecoscope.base._dataclasses import (
     RelocsSpeedFilter,
     TrajSegFilter,
 )
+from ecoscope.base.new_base import NewRelocations
 from ecoscope.base.base import EcoDataFrame, Relocations, Trajectory
 from ecoscope.base.utils import (
     cachedproperty,
@@ -15,6 +16,7 @@ from ecoscope.base.utils import (
 __all__ = [
     "EcoDataFrame",
     "Relocations",
+    "NewRelocations",
     "RelocsCoordinateFilter",
     "RelocsDateRangeFilter",
     "RelocsDistFilter",
