@@ -208,7 +208,7 @@ def raster_to_gdf(raster_path):
         )
 
 
-def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None, xlen=5000, ylen=5000, grid_crs=4326):
+def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None, xlen=5000, ylen=5000):
     """
     Save a GeoDataFrame grid to a raster.
     """
@@ -223,7 +223,7 @@ def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None, xlen=
 
     raster_profile = ecoscope.io.raster.RasterProfile(
         pixel_size=xlen,
-        crs=grid_crs,
+        crs=grid.crs.to_epsg(),
         nodata_value=np.nan,
         band_count=1,
     )

@@ -230,7 +230,6 @@ def test_add_geotiff_in_mem_with_cmap():
     raster = ecoscope.io.raster.grid_to_raster(
         grid,
         val_column="fake_density",
-        grid_crs=AOI.crs,
     )
 
     m = EcoMap()
