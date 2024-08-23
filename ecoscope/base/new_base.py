@@ -15,7 +15,6 @@ from ecoscope.base._dataclasses import (
     # TrajSegFilter,
 )
 from ecoscope.base.utils import cachedproperty
-from ecoscope.base import Trajectory
 
 
 @pd.api.extensions.register_dataframe_accessor("relocations")
@@ -34,6 +33,41 @@ class NewRelocations:
     @staticmethod
     def _validate(obj):
         assert isinstance(obj, gpd.GeoDataFrame)
+
+    @property
+    def start_fixes(self):
+        # unpack xy-coordinates of start fixes
+        return self.gdf["geometry"].x, self.gdf["geometry"].y
+
+    @property
+    def end_fixes(self):
+        # unpack xy-coordinates of end fixes
+        return self.gdf["_geometry"].x, self.gdf["_geometry"].y
+
+    @property
+    def inverse_transformation(self):
+        # use pyproj geodesic inverse function to compute vectorized distance & heading calculations
+        return Geod(ellps="WGS84").inv(*self.start_fixes, *self.end_fixes)
+
+    @property
+    def heading(self):
+        # Forward azimuth(s)
+        forward_azimuth, _, _ = self.inverse_transformation
+        forward_azimuth[forward_azimuth < 0] += 360
+        return forward_azimuth
+
+    @property
+    def dist_meters(self):
+        _, _, distance = self.inverse_transformation
+        return distance
+
+    @property
+    def timespan_seconds(self):
+        return (self.gdf["_fixtime"] - self.gdf["fixtime"]).dt.total_seconds()
+
+    @property
+    def speed_kmhr(self):
+        return (self.dist_meters / self.timespan_seconds) * 3.6
 
     def from_gdf(self, groupby_col=None, time_col="fixtime", uuid_col=None, **kwargs):
         """
@@ -104,8 +138,7 @@ class NewRelocations:
                 _junk_status=relocations.gdf["junk_status"].shift(-1),
             )[:-1]
 
-        straight_track = Trajectory._straighttrack_properties(result)
-        result["speed_kmhr"] = straight_track.speed_kmhr
+        result["speed_kmhr"] = relocations.speed_kmhr
 
         result.loc[
             (~result["junk_status"]) & (~result["_junk_status"]) & (result["speed_kmhr"] > fix_filter.max_speed_kmhr),
