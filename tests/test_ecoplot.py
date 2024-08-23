@@ -2,7 +2,6 @@ import pytest
 import numpy as np
 import pandas as pd
 from ecoscope.plotting.plot import EcoPlotData, ecoplot, mcp, nsd, speed, stacked_bar_chart, pie_chart
-from ecoscope.base import Trajectory
 
 
 @pytest.fixture
@@ -21,7 +20,7 @@ def chart_df():
 
 
 def test_ecoplot(movebank_relocations):
-    traj = Trajectory.from_relocations(movebank_relocations)
+    traj = movebank_relocations.trajectories.from_relocations(movebank_relocations)
     epd = EcoPlotData(traj.groupby("groupby_col"), "segment_start", "speed_kmhr", line=dict(color="blue"))
     figure = ecoplot([epd], "EcoPlot")
 
@@ -56,7 +55,7 @@ def test_nsd(movebank_relocations):
 
 
 def test_speed(movebank_relocations):
-    traj = Trajectory.from_relocations(movebank_relocations)
+    traj = movebank_relocations.trajectories.from_relocations()
     figure = speed(traj)
 
     assert len(figure.data) == 1

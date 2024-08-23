@@ -1,6 +1,5 @@
 import pyproj
 import pandas as pd
-from ecoscope.base import Trajectory
 from ecoscope.analysis import astronomy
 
 
@@ -33,7 +32,7 @@ def test_is_night(movebank_relocations):
 
 
 def test_daynight_ratio(movebank_relocations):
-    trajectory = Trajectory.from_relocations(movebank_relocations)
+    trajectory = movebank_relocations.trajectories.from_relocations()
     expected = pd.Series(
         [
             2.212816,

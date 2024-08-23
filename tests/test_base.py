@@ -20,7 +20,7 @@ def test_trajectory_is_not_empty(er_io):
 def test_redundant_columns_in_trajectory(er_io):
     # test there is no redundant column in trajectory
     relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
-    trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
+    trajectory = relocations.trajectories.from_relocations()
     assert "extra__fixtime" not in trajectory
     assert "extra___fixtime" not in trajectory
     assert "extra___geometry" not in trajectory
@@ -51,36 +51,34 @@ def test_relocations_from_gdf_preserve_fields(er_io):
 
 
 def test_displacement_property(movebank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    trajectory = movebank_relocations.trajectories.from_relocations()
     expected = pd.Series(
         [2633.760505, 147749.545621],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
-        trajectory.groupby("groupby_col")[trajectory.columns].apply(ecoscope.base.Trajectory.get_displacement),
+        trajectory.groupby("groupby_col")[trajectory.columns].apply(trajectory.trajectories.get_displacement),
         expected,
     )
 
 
 def test_tortuosity(movebank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    trajectory = movebank_relocations.trajectories.from_relocations()
     expected = pd.Series(
         [51.65388458528601, 75.96149479123005],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
-        trajectory.groupby("groupby_col")[trajectory.columns].apply(
-            ecoscope.base.Trajectory.get_tortuosity, include_groups=False
-        ),
+        trajectory.groupby("groupby_col")[trajectory.columns].apply(trajectory.trajectories.get_tortuosity),
         expected,
     )
 
 
 def test_turn_angle(movebank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    trajectory = movebank_relocations.trajectories.from_relocations()
     trajectory = trajectory.loc[trajectory.groupby_col == "Habiba"].head(5)
     trajectory["heading"] = [0, 90, 120, 60, 300]
-    turn_angle = trajectory.get_turn_angle()
+    turn_angle = trajectory.trajectories.get_turn_angle()
 
     expected = pd.Series(
         [np.nan, 90, 30, -60, -120],
@@ -92,7 +90,7 @@ def test_turn_angle(movebank_relocations):
 
     # Test filtering by dropping a row with index: 368706892.
     trajectory.drop(368706892, inplace=True)
-    turn_angle = trajectory.get_turn_angle()
+    turn_angle = trajectory.trajectories.get_turn_angle()
     expected = pd.Series(
         [np.nan, 90, np.nan, -120],
         dtype=np.float64,
@@ -104,25 +102,23 @@ def test_turn_angle(movebank_relocations):
 
 
 def test_sampling(movebank_relocations):
-    relocs_1 = ecoscope.base.Relocations.from_gdf(
-        gpd.GeoDataFrame(
-            {"fixtime": pd.date_range(0, periods=1000, freq="1s", tz="utc")},
-            geometry=gpd.points_from_xy(x=np.zeros(1000), y=np.linspace(0, 1, 1000)),
-            crs=4326,
-        )
-    )
-    traj_1 = ecoscope.base.Trajectory.from_relocations(relocs_1).loc[::2]
-    upsampled_noncontiguous_1 = traj_1.upsample("3600S")
+    relocs_1 = gpd.GeoDataFrame(
+        {"fixtime": pd.date_range(0, periods=1000, freq="1s", tz="utc")},
+        geometry=gpd.points_from_xy(x=np.zeros(1000), y=np.linspace(0, 1, 1000)),
+        crs=4326,
+    ).relocations.from_gdf()
 
-    relocs_2 = ecoscope.base.Relocations.from_gdf(
-        gpd.GeoDataFrame(
-            {"fixtime": pd.date_range(0, periods=10000, freq="2s", tz="utc")},
-            geometry=gpd.points_from_xy(x=np.zeros(10000), y=np.linspace(0, 1, 10000)),
-            crs=4326,
-        )
-    )
-    traj_2 = ecoscope.base.Trajectory.from_relocations(relocs_2).loc[::2]
-    upsampled_noncontiguous_2 = traj_2.upsample("3S")
+    traj_1 = relocs_1.trajectories.from_relocations(relocs_1).loc[::2]
+    upsampled_noncontiguous_1 = traj_1.trajectories.upsample("3600S")
+
+    relocs_2 = gpd.GeoDataFrame(
+        {"fixtime": pd.date_range(0, periods=10000, freq="2s", tz="utc")},
+        geometry=gpd.points_from_xy(x=np.zeros(10000), y=np.linspace(0, 1, 10000)),
+        crs=4326,
+    ).relocations.from_gdf()
+
+    traj_2 = relocs_2.trajectories.from_relocations(relocs_2).loc[::2]
+    upsampled_noncontiguous_2 = traj_2.trajectories.upsample("3S")
 
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
@@ -131,11 +127,11 @@ def test_sampling(movebank_relocations):
         max_y=18,
         filter_point_coords=[[180, 90], [0, 0]],
     )
-    movebank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
-    movebank_relocations.remove_filtered(inplace=True)
-    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
-    downsampled_relocs_noint = trajectory.downsample("10800S", tolerance="900S")
-    downsampled_relocs_int = trajectory.downsample("10800S", interpolation=True)
+    movebank_relocations = movebank_relocations.relocations.apply_reloc_filter(pnts_filter)
+    movebank_relocations = movebank_relocations.relocations.remove_filtered()
+    trajectory = movebank_relocations.trajectories.from_relocations()
+    downsampled_relocs_noint = trajectory.trajectories.downsample("10800S", tolerance="900S")
+    downsampled_relocs_int = trajectory.trajectories.downsample("10800S", interpolation=True)
 
     expected_noncontiguous_1 = gpd.read_feather("tests/test_output/upsampled_noncontiguous_1.feather")
     expected_noncontiguous_2 = gpd.read_feather("tests/test_output/upsampled_noncontiguous_2.feather")
@@ -151,10 +147,11 @@ def test_sampling(movebank_relocations):
 def test_edf_filter(movebank_relocations):
     movebank_relocations["junk_status"] = True
 
-    empty = movebank_relocations.remove_filtered()
+    empty = movebank_relocations.relocations.remove_filtered()
     assert len(empty) == 0
 
-    reset = movebank_relocations.reset_filter().remove_filtered()
+    reset = movebank_relocations.relocations.reset_filter()
+    reset.relocations.remove_filtered
     assert len(reset) > 0
 
 
@@ -165,22 +162,22 @@ def test_relocs_from_gdf_with_warnings():
     gdf = gpd.GeoDataFrame(df, geometry=geometry)
 
     with pytest.warns(UserWarning, match="CRS was not set"):
-        ecoscope.base.Relocations.from_gdf(gdf, time_col="timestamp")
+        gdf.relocations.from_gdf(time_col="timestamp")
 
     gdf = gpd.GeoDataFrame(df, geometry=geometry, crs=4326)
     gdf["timestamp"] = pd.to_datetime(gdf["timestamp"])
 
     with pytest.warns(UserWarning, match="timestamp is not timezone aware"):
-        ecoscope.base.Relocations.from_gdf(gdf, time_col="timestamp")
+        gdf.copy().relocations.from_gdf(time_col="timestamp")
 
     gdf["timestamp"] = "1/1/2000"
 
     with pytest.warns(UserWarning, match="timestamp is not of type datetime64"):
-        ecoscope.base.Relocations.from_gdf(gdf, time_col="timestamp")
+        gdf.copy().relocations.from_gdf(time_col="timestamp")
 
 
 def test_apply_traj_filter(movebank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    trajectory = movebank_relocations.trajectories.from_relocations()
 
     min_length = 0.2
     max_length = 6000
@@ -198,8 +195,8 @@ def test_apply_traj_filter(movebank_relocations):
         max_speed_kmhr=max_speed,
     )
 
-    filtered = trajectory.apply_traj_filter(traj_seg_filter)
-    filtered.remove_filtered(inplace=True)
+    filtered = trajectory.trajectories.apply_traj_filter(traj_seg_filter)
+    filtered = filtered.relocations.remove_filtered()
 
     assert filtered["dist_meters"].min() >= min_length
     assert filtered["dist_meters"].max() <= max_length

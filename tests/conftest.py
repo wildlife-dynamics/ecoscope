@@ -8,7 +8,6 @@ import pytest
 from erclient.client import ERClientNotFound
 
 import ecoscope
-from ecoscope.base import Relocations
 
 os.environ["USE_PYGEOS"] = "0"
 
@@ -86,8 +85,7 @@ def movebank_relocations():
         crs=4326,
     )
     gdf["timestamp"] = pd.to_datetime(gdf["timestamp"], utc=True)
-    return Relocations.from_gdf(
-        gdf,
+    return gdf.relocations.from_gdf(
         groupby_col="individual-local-identifier",
         time_col="timestamp",
         uuid_col="event-id",

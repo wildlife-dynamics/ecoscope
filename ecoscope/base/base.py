@@ -230,7 +230,7 @@ class Relocations(StraighttrackMixin):
     @cached_property
     def distance_from_centroid(self):
         # calculate the distance between the centroid and the fix
-        gs = self.geometry.to_crs(crs=self.estimate_utm_crs())
+        gs = self._gdf.geometry.to_crs(crs=self._gdf.estimate_utm_crs())
         return gs.distance(gs.unary_union.centroid)
 
     @cached_property
@@ -260,7 +260,14 @@ class Relocations(StraighttrackMixin):
         # Apply filter to the underlying geodataframe.
         distance = self.distance_from_centroid
         _filter = distance > threshold_dist_meters
-        self.relocations.loc[_filter, "junk_status"] = True
+        self._gdf.loc[_filter, "junk_status"] = True
+
+    def reset_filter(self):
+        self._gdf["junk_status"] = False
+        return self._gdf
+
+    def remove_filtered(self):
+        return self._gdf.query("~junk_status")
 
 
 @pd.api.extensions.register_dataframe_accessor("trajectories")
@@ -304,26 +311,28 @@ class Trajectory(StraighttrackMixin):
         self._gdf.sort_values("segment_start", inplace=True)
         return self._gdf
 
-    def get_displacement(self):
+    @staticmethod
+    def get_displacement(gdf):
         """
         Get displacement in meters between first and final fixes.
         """
 
-        if not self["segment_start"].is_monotonic_increasing:
-            self = self.sort_values("segment_start")
+        if not gdf["segment_start"].is_monotonic_increasing:
+            gdf = gdf.sort_values("segment_start")
 
-        gs = self.geometry.iloc[[0, -1]]
+        gs = gdf.geometry.iloc[[0, -1]]
         start, end = gs.to_crs(gs.estimate_utm_crs())
 
         return start.distance(end)
 
-    def get_tortuosity(self):
+    @staticmethod
+    def get_tortuosity(gdf):
         """
         Get tortuosity for dataframe defined as distance traveled divided by displacement between first and final
         points.
         """
 
-        return self["dist_meters"].sum() / self.get_displacement()
+        return gdf["dist_meters"].sum() / Trajectory.get_displacement(gdf)
 
     @staticmethod
     def _create_multitraj(df):
@@ -387,7 +396,7 @@ class Trajectory(StraighttrackMixin):
             "junk_status",
         ] = True
 
-        return self
+        return self._gdf
 
     def get_turn_angle(self):
         if not self._gdf["segment_start"].is_monotonic_increasing:

@@ -19,11 +19,11 @@ def test_etd_range(movebank_relocations):
         max_y=18,
         filter_point_coords=[[180, 90], [0, 0]],
     )
-    movebank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
-    movebank_relocations.remove_filtered(inplace=True)
+    movebank_relocations = movebank_relocations.relocations.apply_reloc_filter(pnts_filter)
+    movebank_relocations = movebank_relocations.relocations.remove_filtered()
 
     # Create Trajectory
-    movebank_trajectory_gdf = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    movebank_trajectory_gdf = movebank_relocations.trajectories.from_relocations(movebank_relocations)
 
     raster_profile = ecoscope.io.raster.RasterProfile(
         pixel_size=250.0,

@@ -3,15 +3,14 @@ import geopandas.testing
 import pandas as pd
 from shapely.geometry import MultiLineString, Polygon
 
-import ecoscope
 from ecoscope.analysis import geofence
 
 
 def test_geofence_crossing():
     obs = gpd.read_file("tests/sample_data/vector/observations.geojson")
     obs["recorded_at"] = pd.to_datetime(obs["recorded_at"], utc=True)
-    relocations = ecoscope.base.Relocations.from_gdf(obs, groupby_col="source_id", time_col="recorded_at")
-    trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
+    relocations = obs.relocations.from_gdf(groupby_col="source_id", time_col="recorded_at")
+    trajectory = relocations.trajectories.from_relocations()
 
     region = Polygon(
         [
