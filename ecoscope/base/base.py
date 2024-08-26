@@ -84,8 +84,6 @@ class Relocations(StraighttrackMixin):
         uuid_col : str, optional
             Name of `gdf` column of row identities. Used as index. Default is existing index.
         """
-        # if kwargs.get("copy") is not False:
-        #     gdf = gdf.copy()
 
         if groupby_col is None:
             if "groupby_col" not in self._gdf:
@@ -299,8 +297,6 @@ class Trajectory(StraighttrackMixin):
         -------
         Trajectory
         """
-        # if kwargs.get("copy") is not False:
-        #     gdf = gdf.copy()
 
         crs = self._gdf.crs
         self._gdf.to_crs(4326, inplace=True)

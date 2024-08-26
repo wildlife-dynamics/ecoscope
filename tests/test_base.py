@@ -30,7 +30,7 @@ def test_redundant_columns_in_trajectory(er_io):
 def test_relocs_speedfilter(er_io):
     relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     relocs_speed_filter = ecoscope.base.RelocsSpeedFilter(max_speed_kmhr=8)
-    relocs_after_filter = relocations.relocations.apply_reloc_filter(relocs_speed_filter)
+    relocs_after_filter = relocations.copy().relocations.apply_reloc_filter(relocs_speed_filter)
     relocs_after_filter = relocs_after_filter.relocations.remove_filtered()
     assert relocations.shape[0] != relocs_after_filter.shape[0]
 
@@ -39,7 +39,7 @@ def test_relocs_speedfilter(er_io):
 def test_relocs_distancefilter(er_io):
     relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
     relocs_speed_filter = ecoscope.base.RelocsDistFilter(min_dist_km=1.0, max_dist_km=6.0)
-    relocs_after_filter = relocations.relocations.apply_reloc_filter(relocs_speed_filter)
+    relocs_after_filter = relocations.copy().relocations.apply_reloc_filter(relocs_speed_filter)
     relocs_after_filter = relocs_after_filter.relocations.remove_filtered()
     assert relocations.shape[0] != relocs_after_filter.shape[0]
 

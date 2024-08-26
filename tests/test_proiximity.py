@@ -1,6 +1,5 @@
 import pytest
 from ecoscope.analysis.proximity import SpatialFeature, Proximity, ProximityProfile
-from ecoscope.base import Trajectory
 
 
 @pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
@@ -13,7 +12,7 @@ def test_proximity(er_io):
         prox_profile.spatial_features.append(SpatialFeature(row[1]["name"], row[1]["pk"], row[1]["geometry"]))
 
     relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
-    trajectory = Trajectory.from_relocations(relocations)
+    trajectory = relocations.trajectories.from_relocations(relocations)
 
     proximity_events = Proximity.calculate_proximity(proximity_profile=prox_profile, trajectory=trajectory)
 
