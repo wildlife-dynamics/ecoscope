@@ -382,7 +382,7 @@ class EcoMap(EcoMapMixin, Map):
         Parameters
         ----------
         tiff : str | rio.MemoryFile
-            The path to the local tiff
+            The string path to a tiff on disk or a rio.MemoryFile
         zoom : bool
             Whether to zoom the map to the bounds of the tiff
         cmap: str or matplotlib.colors.Colormap
