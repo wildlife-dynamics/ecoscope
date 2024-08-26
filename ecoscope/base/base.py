@@ -135,13 +135,13 @@ class Relocations(StraighttrackMixin):
             on Colab to the one that fixes this bug
             """
             warnings.filterwarnings("ignore", message="CRS not set for some of the concatenation inputs")
-            result = relocations.gdf.assign(
-                _fixtime=relocations.gdf["fixtime"].shift(-1),
-                _geometry=relocations.gdf["geometry"].shift(-1),
-                _junk_status=relocations.gdf["junk_status"].shift(-1),
+            result = relocations.assign(
+                _fixtime=relocations["fixtime"].shift(-1),
+                _geometry=relocations["geometry"].shift(-1),
+                _junk_status=relocations["junk_status"].shift(-1),
             )[:-1]
 
-        result["speed_kmhr"] = relocations.speed_kmhr
+        result["speed_kmhr"] = result.relocations.speed_kmhr
 
         result.loc[
             (~result["junk_status"]) & (~result["_junk_status"]) & (result["speed_kmhr"] > fix_filter.max_speed_kmhr),
@@ -163,9 +163,9 @@ class Relocations(StraighttrackMixin):
             on Colab to the one that fixes this bug
             """
             warnings.filterwarnings("ignore", message="CRS not set for some of the concatenation inputs")
-            result = relocations.gdf.assign(
-                _junk_status=relocations.gdf["junk_status"].shift(-1),
-                _geometry=relocations.gdf["geometry"].shift(-1),
+            result = relocations.assign(
+                _junk_status=relocations["junk_status"].shift(-1),
+                _geometry=relocations["geometry"].shift(-1),
             )[:-1]
 
         _, _, distance_m = Geod(ellps="WGS84").inv(

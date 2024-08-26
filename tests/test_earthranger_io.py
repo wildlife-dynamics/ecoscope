@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 from shapely.geometry import Point
 
-import ecoscope
 
 if not pytest.earthranger:
     pytest.skip(
@@ -23,7 +22,6 @@ def test_get_subject_observations(er_io):
         include_subjectsource_details=True,
     )
     assert not relocations.empty
-    assert isinstance(relocations, ecoscope.base.Relocations)
     assert "groupby_col" in relocations
     assert "fixtime" in relocations
     assert "extra__source" in relocations
@@ -34,7 +32,6 @@ def test_get_source_observations(er_io):
         source_ids=er_io.SOURCE_IDS,
         include_source_details=True,
     )
-    assert isinstance(relocations, ecoscope.base.Relocations)
     assert "fixtime" in relocations
     assert "groupby_col" in relocations
 
@@ -52,7 +49,6 @@ def test_get_subjectsource_observations(er_io):
         subjectsource_ids=er_io.SUBJECTSOURCE_IDS,
         include_source_details=True,
     )
-    assert isinstance(relocations, ecoscope.base.Relocations)
     assert "fixtime" in relocations
     assert "groupby_col" in relocations
 

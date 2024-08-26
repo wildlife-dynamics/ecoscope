@@ -12,7 +12,6 @@ from erclient.client import ERClient, ERClientException, ERClientNotFound
 from shapely.geometry import shape
 from tqdm.auto import tqdm
 
-import ecoscope
 from ecoscope.io.utils import pack_columns, to_hex
 from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf, clean_time_cols
 
@@ -312,8 +311,7 @@ class EarthRangerIO(ERClient):
             )
 
         if relocations:
-            return ecoscope.base.Relocations.from_gdf(
-                observations,
+            return observations.relocations.from_gdf(
                 groupby_col="source",
                 uuid_col="id",
                 time_col="recorded_at",
@@ -393,8 +391,7 @@ class EarthRangerIO(ERClient):
             )
 
         if relocations:
-            return ecoscope.base.Relocations.from_gdf(
-                observations,
+            return observations.relocations.from_gdf(
                 groupby_col="subject_id",
                 uuid_col="id",
                 time_col="recorded_at",
@@ -442,8 +439,7 @@ class EarthRangerIO(ERClient):
             )
 
         if relocations:
-            return ecoscope.base.Relocations.from_gdf(
-                observations,
+            return observations.relocations.from_gdf(
                 groupby_col="subjectsource_id",
                 uuid_col="id",
                 time_col="recorded_at",
@@ -813,7 +809,6 @@ class EarthRangerIO(ERClient):
 
         df = pd.concat(observations)
         df = clean_time_cols(df)
-        df = ecoscope.base.Relocations(df)
         if include_patrol_details:
             return df.set_index("id")
         return df
