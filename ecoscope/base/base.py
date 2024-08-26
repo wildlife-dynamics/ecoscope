@@ -454,8 +454,11 @@ class Trajectory(StraighttrackMixin):
                 crs=traj.crs,
             )
 
-        self._gdf.relocations.from_gdf(
-            self._gdf.groupby("groupby_col")[self._gdf.columns].apply(f, include_groups=False).reset_index(level=0)
+        return (
+            self._gdf.groupby("groupby_col")[self._gdf.columns]
+            .apply(f, include_groups=False)
+            .reset_index(level=0)
+            .relocations.from_gdf()
         )
 
     def to_relocations(self):
@@ -481,8 +484,11 @@ class Trajectory(StraighttrackMixin):
                 .sort_values("fixtime")
             )
 
-        return self._gdf.relocations.from_gdf(
-            self._gdf.groupby("groupby_col")[self._gdf.columns].apply(f, include_groups=False).reset_index(drop=True)
+        return (
+            self._gdf.groupby("groupby_col")[self._gdf.columns]
+            .apply(f, include_groups=False)
+            .reset_index(drop=True)
+            .relocations.from_gdf()
         )
 
     def downsample(self, freq, tolerance="0S", interpolation=False):
@@ -502,7 +508,7 @@ class Trajectory(StraighttrackMixin):
         """
 
         if interpolation:
-            return self._gdf.upsample(freq)
+            return self._gdf.trajectories.upsample(freq)
         else:
             freq = pd.tseries.frequencies.to_offset(freq)
             tolerance = pd.tseries.frequencies.to_offset(tolerance)
@@ -539,5 +545,5 @@ class Trajectory(StraighttrackMixin):
                 relocs_ind.drop(relocs_ind.loc[relocs_ind["extra__burst"] == -1].index, inplace=True)
                 return relocs_ind
 
-            relocs = self._gdf.trajectory.to_relocations()
+            relocs = self._gdf.trajectories.to_relocations()
             return relocs.groupby("groupby_col")[relocs.columns].apply(f).reset_index(drop=True)
