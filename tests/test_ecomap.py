@@ -234,7 +234,6 @@ def test_add_geotiff_in_mem_with_cmap():
 
     m = EcoMap()
     m.add_geotiff(raster, cmap="jet")
-    m.to_html("in_mem_raster.html")
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
