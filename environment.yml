@@ -15,7 +15,7 @@ dependencies:
       - coverage[toml]
       - earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3
       - ecoscope
-      - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@77c56d30a9c2dd96fd863e910bf62952cfa36da8
+      - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@a8adb48ec43fff795506db5a9e7e0103f877d65c
       - nbsphinx
       - sphinx-autoapi
       - dask[dataframe]
