@@ -19,11 +19,11 @@ def movebank_trajectory_gdf(movebank_relocations):
         max_y=18,
         filter_point_coords=[[180, 90], [0, 0]],
     )
-    movebank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
-    movebank_relocations.remove_filtered(inplace=True)
+    movebank_relocations = movebank_relocations.relocations.apply_reloc_filter(pnts_filter)
+    movebank_relocations = movebank_relocations.relocations.remove_filtered()
 
     # Create Trajectory
-    return ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    return movebank_relocations.trajectories.from_relocations()
 
 
 @pytest.fixture
