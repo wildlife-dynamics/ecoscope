@@ -73,33 +73,6 @@ def create_meshgrid(
     return gs.to_crs(out_crs)
 
 
-class cachedproperty:  # noqa
-    """
-    The ``cachedproperty`` is used similar to :class:`property`, except
-    that the wrapped method is only called once. This is commonly used
-    to implement lazy attributes.
-    """
-
-    def __init__(self, func):
-        self.func = func
-
-    def __doc__(self):
-        return getattr(self.func, "__doc__")
-
-    def __isabstractmethod__(self):
-        return getattr(self.func, "__isabstractmethod__", False)
-
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return self
-        value = obj.__dict__[self.func.__name__] = self.func(obj)
-        return value
-
-    def __repr__(self):
-        cls = self.__class__.__name__
-        return f"<{cls} func={self.func}>"
-
-
 def groupby_intervals(df, col, intervals):
     """
     Parameters

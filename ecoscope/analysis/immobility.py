@@ -1,8 +1,7 @@
 import datetime
 import typing
+import geopandas as gpd
 from dataclasses import dataclass
-
-import ecoscope
 
 
 @dataclass
@@ -22,9 +21,7 @@ class ImmobilityProfile:
 
 class Immobility:
     @classmethod
-    def calculate_immobility(
-        cls, immobility_profile: ImmobilityProfile, relocs: ecoscope.base.Relocations
-    ) -> typing.Dict:
+    def calculate_immobility(cls, immobility_profile: ImmobilityProfile, relocs: gpd.GeoDataFrame) -> typing.Dict:
         """
         Function to search for immobility within a movement trajectory. Assumes we start with a filtered
         trajectory spanning some period of time. The algorithm will work backwards through the trajectory's
@@ -43,7 +40,7 @@ class Immobility:
         ----------
         immobility_profile: ImmobilityProfile
             setting for immobility
-        relocs: ecoscope.base.Relocations
+        relocs: gpd.GeoDataFrame
             set for fixes for given subject.
 
         Returns
@@ -52,7 +49,7 @@ class Immobility:
 
         """
 
-        relocs.remove_filtered(inplace=True)
+        relocs.relocations.remove_filtered()
         relocs.sort_values(by="fixtime", ascending=True, inplace=True)
         ts = relocs.fixtime.iat[-1] - relocs.fixtime.iat[0]
 
@@ -62,7 +59,8 @@ class Immobility:
         relocs.sort_values(by="fixtime", ascending=False, inplace=True)
 
         cluster_pvalue = (
-            relocs.threshold_point_count(threshold_dist=immobility_profile.threshold_radius) / relocs.shape[0]
+            relocs.relocations.threshold_point_count(threshold_dist=immobility_profile.threshold_radius)
+            / relocs.shape[0]
         )
 
         if (cluster_pvalue >= immobility_profile.threshold_probability) and (
@@ -70,8 +68,8 @@ class Immobility:
         ):
             return {
                 "probability_value": cluster_pvalue,
-                "cluster_radius": relocs.cluster_radius,
-                "cluster_fix_count": relocs.threshold_point_count(immobility_profile.threshold_radius),
+                "cluster_radius": relocs.relocations.cluster_radius,
+                "cluster_fix_count": relocs.relocations.threshold_point_count(immobility_profile.threshold_radius),
                 "total_fix_count": relocs.shape[0],
                 "immobility_time": ts,
             }

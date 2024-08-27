@@ -7,17 +7,18 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from io import BytesIO
-from typing import Dict, List, Union
+from typing import Dict, IO, List, Optional, TextIO, Union
+from pathlib import Path
 
 try:
     import matplotlib as mpl
-    from ecoscope.analysis.speed import SpeedDataFrame
     from lonboard import Map
     from lonboard.types.layer import PathLayerKwargs, PolygonLayerKwargs, ScatterplotLayerKwargs
     from lonboard._geoarrow.ops.bbox import Bbox
     from lonboard._viewport import compute_view, bbox_to_zoom_level
     from lonboard._viz import viz_layer
-    from lonboard.colormap import apply_categorical_cmap
+
+    # from lonboard.colormap import apply_categorical_cmap
     from lonboard._layer import (
         BaseLayer,
         BitmapLayer,
@@ -43,42 +44,42 @@ except ModuleNotFoundError:
     )
 
 
-class EcoMapMixin:
-    def add_speedmap(
-        self,
-        trajectory: gpd.GeoDataFrame,
-        classification_method: str = "equal_interval",
-        num_classes: int = 6,
-        speed_colors: List = None,
-        bins: List = None,
-        legend: bool = True,
-    ):
+# class EcoMapMixin:
+#     def add_speedmap(
+#         self,
+#         trajectory: gpd.GeoDataFrame,
+#         classification_method: str = "equal_interval",
+#         num_classes: int = 6,
+#         speed_colors: List = None,
+#         bins: List = None,
+#         legend: bool = True,
+#     ):
 
-        speed_df = SpeedDataFrame.from_trajectory(
-            trajectory=trajectory,
-            classification_method=classification_method,
-            num_classes=num_classes,
-            speed_colors=speed_colors,
-            bins=bins,
-        )
+#         speed_df = SpeedDataFrame.from_trajectory(
+#             trajectory=trajectory,
+#             classification_method=classification_method,
+#             num_classes=num_classes,
+#             speed_colors=speed_colors,
+#             bins=bins,
+#         )
 
-        colors = speed_df["speed_colour"].to_list()
-        rgb = []
-        for i, color in enumerate(colors):
-            color = color.strip("#")
-            rgb.append(list(int(color[i : i + 2], 16) for i in (0, 2, 4)))
+#         colors = speed_df["speed_colour"].to_list()
+#         rgb = []
+#         for i, color in enumerate(colors):
+#             color = color.strip("#")
+#             rgb.append(list(int(color[i : i + 2], 16) for i in (0, 2, 4)))
 
-        cmap = apply_categorical_cmap(values=speed_df.index.to_series(), cmap=rgb)
-        path_kwargs = {"get_color": cmap, "pickable": False}
-        self.add_gdf(speed_df, path_kwargs=path_kwargs)
+#         cmap = apply_categorical_cmap(values=speed_df.index.to_series(), cmap=rgb)
+#         path_kwargs = {"get_color": cmap, "pickable": False}
+#         self.add_gdf(speed_df, path_kwargs=path_kwargs)
 
-        if legend:
-            self.add_legend(labels=speed_df.label.to_list(), colors=speed_df.speed_colour.to_list())
+#         if legend:
+#             self.add_legend(labels=speed_df.label.to_list(), colors=speed_df.speed_colour.to_list())
 
-        return speed_df
+#         return speed_df
 
 
-class EcoMap(EcoMapMixin, Map):
+class EcoMap(Map):
     def __init__(self, static=False, default_widgets=True, *args, **kwargs):
 
         kwargs["height"] = kwargs.get("height", 600)
@@ -324,8 +325,8 @@ class EcoMap(EcoMapMixin, Map):
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
 
         elif isinstance(ee_object, ee.geometry.Geometry):
-            geojson = ee_object.toGeoJSON()
-            gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
+            geojson = ee_object.getInfo()
+            gdf = gpd.read_file(json.dumps(geojson))
             ee_layer = self.layers_from_gdf(gdf=gdf, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
@@ -509,6 +510,17 @@ class EcoMap(EcoMapMixin, Map):
             min_zoom=layer.get("min_zoom", None),
             max_requests=layer.get("max_requests", None),
         )
+
+    def to_html(
+        self,
+        filename: Union[str, Path, TextIO, IO[str], None] = None,
+        title: Optional[str] = None,
+        maximize: bool = True,
+    ) -> Union[None, str]:
+        if maximize:
+            self.height = "100%"
+            self.width = "100%"
+        return super().to_html(filename=filename, title=title)
 
     @staticmethod
     def hex_to_rgb(hex: str) -> list:

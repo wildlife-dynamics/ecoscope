@@ -2,7 +2,6 @@ import ee
 import geopandas as gpd
 import pandas as pd
 import pytest
-import ecoscope
 import shapely
 from ecoscope.mapping import EcoMap
 from ecoscope.analysis.geospatial import datashade_gdf
@@ -26,9 +25,10 @@ def poly_gdf():
 def line_gdf():
     gdf = pd.read_csv("tests/sample_data/vector/KDB025Z.csv", index_col="id")
     gdf["geometry"] = gdf["geometry"].apply(lambda x: shapely.wkt.loads(x))
-    gdf = ecoscope.base.Relocations.from_gdf(gpd.GeoDataFrame(gdf, crs=4326))
-    gdf = ecoscope.base.Trajectory.from_relocations(gdf)
-    return gdf
+    gdf = gpd.GeoDataFrame(gdf, crs=4326)
+    relocs = gdf.relocations.from_gdf()
+    traj = relocs.trajectories.from_relocations()
+    return traj
 
 
 @pytest.fixture

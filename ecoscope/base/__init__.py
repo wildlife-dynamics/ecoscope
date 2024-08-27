@@ -5,15 +5,13 @@ from ecoscope.base._dataclasses import (
     RelocsSpeedFilter,
     TrajSegFilter,
 )
-from ecoscope.base.base import EcoDataFrame, Relocations, Trajectory
+from ecoscope.base.base import Relocations, Trajectory, ProximityProfile, SpatialFeature
 from ecoscope.base.utils import (
-    cachedproperty,
     create_meshgrid,
     groupby_intervals,
 )
 
 __all__ = [
-    "EcoDataFrame",
     "Relocations",
     "RelocsCoordinateFilter",
     "RelocsDateRangeFilter",
@@ -21,7 +19,8 @@ __all__ = [
     "RelocsSpeedFilter",
     "TrajSegFilter",
     "Trajectory",
-    "cachedproperty",
     "create_meshgrid",
     "groupby_intervals",
+    "ProximityProfile",
+    "SpatialFeature",
 ]

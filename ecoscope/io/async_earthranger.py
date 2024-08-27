@@ -3,7 +3,6 @@ import geopandas as gpd
 import pandas as pd
 import asyncio
 
-import ecoscope
 from ecoscope.io.utils import to_hex
 from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf, clean_time_cols
 
@@ -393,9 +392,9 @@ class AsyncEarthRangerIO(AsyncERClient):
             Additional parameters to pass to `_get_observations_by_patrol`.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : gpd.GeoDataFrame
         """
-        observations = ecoscope.base.Relocations()
+        observations = gpd.GeoDataFrame()
         df_pt = None
 
         if include_patrol_details:
@@ -419,7 +418,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         patrol:
             The patrol to download observations for
         relocations:
-            If true, returns a ecoscope.base.Relocations object instead of a GeoDataFrame
+            If true, runs relocations.from_gdf() over the dataframe
         tz:
             The timezeone to return observation times in
         patrol_types:
@@ -428,9 +427,9 @@ class AsyncEarthRangerIO(AsyncERClient):
             Additional parameters to pass to `get_observations`.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : gpd.GeoDataFrame
         """
-        observations = ecoscope.base.Relocations()
+        observations = gpd.GeoDataFrame()
         for patrol_segment in patrol["patrol_segments"]:
             subject_id = (patrol_segment.get("leader") or {}).get("id")
             patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
@@ -458,8 +457,7 @@ class AsyncEarthRangerIO(AsyncERClient):
                 observations_by_subject = to_gdf(observations_by_subject)
 
                 if relocations:
-                    observations_by_subject = ecoscope.base.Relocations.from_gdf(
-                        observations_by_subject,
+                    observations_by_subject = observations_by_subject.relocations.from_gdf(
                         groupby_col="subject_id",
                         uuid_col="id",
                         time_col="recorded_at",

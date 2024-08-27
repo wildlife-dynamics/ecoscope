@@ -4,7 +4,7 @@ import typing
 from dataclasses import dataclass
 
 import numpy as np
-from ecoscope.base import Trajectory
+import geopandas as gpd
 from ecoscope.io import raster
 
 try:
@@ -83,7 +83,7 @@ class Weibull3Parameter(WeibullPDF):
 
 
 def calculate_etd_range(
-    trajectory_gdf: Trajectory,
+    trajectory_gdf: gpd.GeoDataFrame,
     output_path: typing.Union[str, bytes, os.PathLike],
     max_speed_kmhr: float = 0.0,
     max_speed_percentage: float = 0.9999,
