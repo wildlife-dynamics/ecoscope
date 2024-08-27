@@ -27,7 +27,7 @@ class Ecograph:
 
     Parameters
     ----------
-    trajectory : ecoscope.base.Trajectory
+    trajectory : gpd.GeoDataFrame
         Trajectory dataframe
     resolution : float
         Pixel size, in meters

@@ -392,7 +392,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             Additional parameters to pass to `_get_observations_by_patrol`.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : gpd.GeoDataFrame
         """
         observations = gpd.GeoDataFrame()
         df_pt = None
@@ -418,7 +418,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         patrol:
             The patrol to download observations for
         relocations:
-            If true, returns a ecoscope.base.Relocations object instead of a GeoDataFrame
+            If true, runs relocations.from_gdf() over the dataframe
         tz:
             The timezeone to return observation times in
         patrol_types:
@@ -427,7 +427,7 @@ class AsyncEarthRangerIO(AsyncERClient):
             Additional parameters to pass to `get_observations`.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : gpd.GeoDataFrame
         """
         observations = gpd.GeoDataFrame()
         for patrol_segment in patrol["patrol_segments"]:

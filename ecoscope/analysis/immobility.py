@@ -1,8 +1,7 @@
 import datetime
 import typing
+import geopandas as gpd
 from dataclasses import dataclass
-
-import ecoscope
 
 
 @dataclass
@@ -22,9 +21,7 @@ class ImmobilityProfile:
 
 class Immobility:
     @classmethod
-    def calculate_immobility(
-        cls, immobility_profile: ImmobilityProfile, relocs: ecoscope.base.Relocations
-    ) -> typing.Dict:
+    def calculate_immobility(cls, immobility_profile: ImmobilityProfile, relocs: gpd.GeoDataFrame) -> typing.Dict:
         """
         Function to search for immobility within a movement trajectory. Assumes we start with a filtered
         trajectory spanning some period of time. The algorithm will work backwards through the trajectory's
@@ -43,7 +40,7 @@ class Immobility:
         ----------
         immobility_profile: ImmobilityProfile
             setting for immobility
-        relocs: ecoscope.base.Relocations
+        relocs: gpd.GeoDataFrame
             set for fixes for given subject.
 
         Returns

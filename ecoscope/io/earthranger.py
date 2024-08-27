@@ -280,20 +280,22 @@ class EarthRangerIO(ERClient):
 
     def get_source_observations(self, source_ids, include_source_details=False, relocations=True, **kwargs):
         """
-        Get observations for each listed source and create a `Relocations` object.
+        Get observations for each listed source.
         Parameters
         ----------
         source_ids : str or list[str]
             List of source UUIDs
         include_source_details : bool, optional
             Whether to merge source info into dataframe
+        relocations:
+            If true, runs relocations.from_gdf() over the dataframe
         kwargs
             Additional arguments to pass in the request to EarthRanger. See the docstring of `_get_observations` for
             info.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
-            Observations in `Relocations` format
+        relocations : gpd.GeoDataFrame
+            Observations dataframe
         """
 
         if isinstance(source_ids, str):
@@ -329,7 +331,7 @@ class EarthRangerIO(ERClient):
         **kwargs,
     ):
         """
-        Get observations for each listed subject and create a `Relocations` object.
+        Get observations for each listed subject.
         Parameters
         ----------
         subject_ids : str or list[str] or pd.DataFrame
@@ -340,13 +342,15 @@ class EarthRangerIO(ERClient):
             Whether to merge subject info into dataframe
         include_subjectsource_details : bool, optional
             Whether to merge subjectsource info into dataframe
+        relocations:
+            If true, runs relocations.from_gdf() over the dataframe
         kwargs
             Additional arguments to pass in the request to EarthRanger. See the docstring of `__get_observations` for
             info.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
-            Observations in `Relocations` format
+        relocations : gpd.GeoDataFrame
+            Observations dataframe
         """
 
         if isinstance(subject_ids, str):
@@ -407,20 +411,22 @@ class EarthRangerIO(ERClient):
         **kwargs,
     ):
         """
-        Get observations for each listed subjectsource and create a `Relocations` object.
+        Get observations for each listed subjectsource.
         Parameters
         ----------
         subjectsource_ids : str or list[str]
             List of subjectsource UUIDs
         include_source_details : bool, optional
             Whether to merge source info into dataframe
+        relocations:
+            If true, runs relocations.from_gdf() over the dataframe
         kwargs
             Additional arguments to pass in the request to EarthRanger. See the docstring of `__get_observations` for
             info.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
-            Observations in `Relocations` format
+        relocations : gpd.GeoDataFrame
+            Observations dataframe
         """
 
         if isinstance(subjectsource_ids, str):
@@ -464,8 +470,8 @@ class EarthRangerIO(ERClient):
             `get_subject_observations` for info.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
-            Observations in `Relocations` format
+        relocations : gpd.GeoDataFrame
+            Observations dataframe
         """
 
         assert (subject_group_id is None) != (subject_group_name is None)
@@ -736,7 +742,7 @@ class EarthRangerIO(ERClient):
 
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : gpd.GeoDataFrame
         """
 
         patrols_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **kwargs)
@@ -757,7 +763,7 @@ class EarthRangerIO(ERClient):
 
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : gpd.GeoDataFrame
         """
 
         observations = []

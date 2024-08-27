@@ -293,7 +293,7 @@ class Trajectory(StraighttrackMixin):
     """
     A trajectory represents a time-ordered collection of segments.
     Currently only straight track segments exist.
-    It is based on an underlying relocs object that is the point representation
+    It is based on an underlying relocs dataframe that is the point representation
     """
 
     def __init__(self, pandas_obj):
@@ -306,7 +306,7 @@ class Trajectory(StraighttrackMixin):
 
     def from_relocations(self, *args, **kwargs):
         """
-        Create Trajectory class from Relocation dataframe.
+        Create Trajectory dataframe from Relocation dataframe.
         Parameters
         ----------
         gdf: Geodataframe
@@ -433,14 +433,14 @@ class Trajectory(StraighttrackMixin):
 
     def upsample(self, freq):
         """
-        Interpolate to create upsampled Relocations
+        Interpolate to create upsampled Relocations dataframe
         Parameters
         ----------
         freq : str, pd.Timedelta or pd.DateOffset
-            Sampling frequency for new Relocations object
+            Sampling frequency for new Relocations dataframe
         Returns
         -------
-        relocs : ecoscope.base.Relocations
+        relocs : gpd.GeoDataFrame
         """
 
         freq = pd.tseries.frequencies.to_offset(freq)
@@ -479,10 +479,10 @@ class Trajectory(StraighttrackMixin):
 
     def to_relocations(self):
         """
-        Converts a Trajectory object to a Relocations object.
+        Converts a Trajectory dataframe to a Relocations dataframe.
         Returns
         -------
-        ecoscope.base.Relocations
+        gpd.GeoDataFrame
         """
 
         def f(traj):
@@ -513,14 +513,14 @@ class Trajectory(StraighttrackMixin):
         Parameters
         ----------
         freq: str, pd.Timedelta or pd.DateOffset
-            Downsampling frequency for new Relocations object
+            Downsampling frequency for new Relocations dataframe
         tolerance: str, pd.Timedelta or pd.DateOffset
             Tolerance on the downsampling frequency
         interpolation: bool, optional
             If true, interpolates locations on the whole trajectory
         Returns
         -------
-        ecoscope.base.Relocations
+        gpd.GeoDataFrame
         """
 
         if interpolation:
@@ -573,7 +573,7 @@ class Trajectory(StraighttrackMixin):
         ----------
         proximity_profile: ProximityProfile
             proximity setting for performing calculation
-        trajectory: ecoscope.base.Trajectory
+        trajectory: gpd.GeoDataFrame
             Geodataframe stores goemetry, speed_kmhr, heading etc. for each subject.
         Returns
         -------

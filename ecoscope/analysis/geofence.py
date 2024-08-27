@@ -6,8 +6,6 @@ import geopandas as gpd
 import pandas as pd
 import shapely
 
-import ecoscope
-
 
 class Region(collections.UserDict):
     def __init__(self, geometry: typing.Any, unique_id: str = None, region_name: str = None):
@@ -55,7 +53,7 @@ class GeoFenceCrossing:
     def analyse(
         cls,
         geocrossing_profile: GeoCrossingProfile,
-        trajectory: ecoscope.base.Trajectory,
+        trajectory: gpd.GeoDataFrame,
     ):
         """
         Analyze the trajectory of each subject in relation to set of virtual fences and regions to determine where/when
@@ -66,12 +64,12 @@ class GeoFenceCrossing:
         ----------
         geocrossing_profile: GeoCrossingProfile
             Object that contains the geonfences and regions
-        trajectory: ecoscope.base.Trajectory
+        trajectory: gpd.GeoDataFrame
             Geodataframe stores goemetry, speed_kmhr, heading etc. for each subject.
 
         Returns
         -------
-            ecoscope.base.EcoDataFrame
+            gpd.GeoDataFrame
 
         """
         trajectory = trajectory.copy()
