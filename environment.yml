@@ -5,18 +5,6 @@ dependencies:
   - python==3.10.12 # Fixed to mirror version on Google Colab
   - pip
   - git
-  - jupyterlab
   - geopandas
   - numpy
-  - ipywidgets
-  - pip:
-      - kaleido
-      - pre-commit>=3
-      - coverage[toml]
-      - earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3
-      - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@a8adb48ec43fff795506db5a9e7e0103f877d65c
-      - nbsphinx
-      - sphinx-autoapi
-      - dask[dataframe]
-      - fsspec
-      - pytest-asyncio
+  - dask
