@@ -31,38 +31,58 @@ def test_classify(sample_df, scheme, kwargs, expected):
     assert result.values.tolist() == expected, f"Failed on scheme {scheme}"
 
 
-def test_classify_with_labels():
-    result = apply_classification(sample_df, labels=["1", "2"], scheme="equal_interval", k=2)
-    assert result == ["1", "1", "1", "2", "2"]
+def test_classify_with_labels(sample_df):
+    result = apply_classification(sample_df, column_name="value", labels=["1", "2"], scheme="equal_interval", k=2)
+    assert result.to_list() == ["1", "1", "1", "2", "2"]
 
 
-def test_classify_with_invalid_labels():
+def test_classify_with_invalid_labels(sample_df):
     with pytest.raises(AssertionError):
-        apply_classification(sample_df, labels=[0], scheme="std_mean")
+        apply_classification(sample_df, column_name="value", labels=[0], scheme="std_mean")
 
 
-def test_classify_with_invalid_scheme():
+def test_classify_with_invalid_scheme(sample_df):
     with pytest.raises(ValueError):
-        apply_classification(sample_df, scheme="InvalidScheme")
+        apply_classification(sample_df, column_name="value", scheme="InvalidScheme")
 
 
 def test_color_dict(sample_df):
 
-    classified = apply_classification(sample_df, "value", scheme="equal_interval")
+    classified = apply_classification(sample_df, column_name="value", scheme="equal_interval")
     cmap = "viridis"
 
     color_dict = create_color_dict(classified, cmap)
 
+    assert len(classified) == len(sample_df["value"])
     # check that our classification bins are the keys of the color_dict
     assert classified.values.tolist() == list(color_dict.keys())
 
 
 def test_color_dict_k2(sample_df):
 
-    classified = apply_classification(sample_df, "value", scheme="equal_interval", k=2)
+    classified = apply_classification(sample_df, column_name="value", scheme="equal_interval", k=2)
     cmap = "viridis"
 
     color_dict = create_color_dict(classified, cmap)
 
+    assert len(classified) == len(sample_df["value"])
     # check that our classification bins are the keys of the color_dict
+    assert classified.unique().tolist() == list(color_dict.keys())
+
+
+def test_speed_parity(movebank_relocations):
+    trajectory = movebank_relocations.trajectories.from_relocations()
+    classified = apply_classification(trajectory, "speed_kmhr", k=6, scheme="equal_interval")
+
+    cmap = [
+        "#1a9850",
+        "#91cf60",
+        "#d9ef8b",
+        "#fee08b",
+        "#fc8d59",
+        "#d73027",
+    ]
+
+    color_dict = create_color_dict(classified, cmap)
+    assert len(classified) == len(trajectory["speed_kmhr"])
     assert classified.unique().tolist() == list(color_dict.keys())

@@ -71,9 +71,15 @@ def apply_classification(dataframe, column_name, labels=None, scheme="natural_br
 
 
 def create_color_dict(series, cmap, labels=None):
-    cmap = mpl.colormaps[cmap]
-    cmap = cmap.resampled(series.nunique())
-    cmap = pd.Series([color for color in cmap.colors], index=series.unique())
+
+    if isinstance(cmap, list):
+        assert len(cmap) == series.nunique()
+        cmap = pd.Series(cmap, index=series.unique())
+    if isinstance(cmap, str):
+        cmap = mpl.colormaps[cmap]
+        cmap = cmap.resampled(series.nunique())
+        cmap = pd.Series([color for color in cmap.colors], index=series.unique())
+
     vals = dict([(classification, cmap[classification]) for classification in series.values])
 
     return vals
