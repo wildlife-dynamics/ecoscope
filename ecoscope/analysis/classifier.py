@@ -25,13 +25,32 @@ def apply_classification(dataframe, column_name, labels=None, scheme="natural_br
     Classifies the data in a GeoDataFrame column using specified classification scheme.
 
     Args:
-    dataframe (pd.DatFrame): The frame of data
-    column_name (str): The datafraem column to classify.
+    dataframe (pd.DatFrame): The data.
+    column_name (str): The dataframe column to classify.
     labels (str): labels of bins, use bin edges if labels==None.
     scheme (str): Classification scheme to use [equal_interval, natural_breaks, quantile, std_mean, max_breaks,
     fisher_jenks]
 
-    **kwargs: Additional keyword arguments specific to the classification scheme.
+    **kwargs:
+        Additional keyword arguments specific to the classification scheme, passed to mapclassify.
+        See below
+
+    Applicable to equal_interval, natural_breaks, quantile, max_breaks & fisher_jenks:
+    k (int): The number of classes required
+
+    Applicable only to natural_breaks:
+    initial (int): The number of initial solutions generated with different centroids.
+        The best of initial results are returned.
+
+    Applicable only to max_breaks:
+    mindiff (float): The minimum difference between class breaks.
+
+    Applicable only to std_mean:
+    multiples (numpy.array): The multiples of the standard deviation to add/subtract
+        from the sample mean to define the bins.
+    anchor (bool): Anchor upper bound of one class to the sample mean.
+
+    For more information, see https://pysal.org/mapclassify/api.html
 
     Returns:
     result: an array of corresponding labels of the input data.
