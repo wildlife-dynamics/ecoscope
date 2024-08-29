@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib as mpl
 
 try:
     import mapclassify
@@ -67,3 +68,12 @@ def apply_classification(dataframe, column_name, labels=None, scheme="natural_br
     assert len(labels) == len(classifier.bins)
     classified = [labels[i] for i in classifier.yb]
     return pd.Series(classified, index=dataframe.index)
+
+
+def create_color_dict(series, cmap, labels=None):
+    cmap = mpl.colormaps[cmap]
+    cmap = cmap.resampled(series.nunique())
+    cmap = pd.Series([color for color in cmap.colors], index=series.unique())
+    vals = dict([(classification, cmap[classification]) for classification in series.values])
+
+    return vals

@@ -1,6 +1,14 @@
 import pytest
 import pandas as pd
-from ecoscope.analysis.classifier import apply_classification
+from ecoscope.analysis.classifier import apply_classification, create_color_dict
+
+
+@pytest.fixture
+def sample_df():
+    return pd.DataFrame(
+        data={"value": [1, 2, 3, 4, 5]},
+        index=["A", "B", "C", "D", "E"],
+    )
 
 
 @pytest.mark.parametrize(
@@ -17,30 +25,44 @@ from ecoscope.analysis.classifier import apply_classification
         ("fisher_jenks", {"k": 5}, [1.0, 2.0, 3.0, 4.0, 5.0]),
     ],
 )
-def test_classify(scheme, kwargs, expected):
-    y = [1, 2, 3, 4, 5]
-    y = pd.DataFrame(
-        data={"value": [1, 2, 3, 4, 5]},
-        index=["A", "B", "C", "D", "E"],
-    )
-    result = apply_classification(y, "value", scheme=scheme, **kwargs)
-    pd.testing.assert_index_equal(result.index, y.index)
+def test_classify(sample_df, scheme, kwargs, expected):
+    result = apply_classification(sample_df, "value", scheme=scheme, **kwargs)
+    pd.testing.assert_index_equal(result.index, sample_df.index)
     assert result.values.tolist() == expected, f"Failed on scheme {scheme}"
 
 
 def test_classify_with_labels():
-    y = [1, 2, 3, 4, 5]
-    result = apply_classification(y, labels=["1", "2"], scheme="equal_interval", k=2)
+    result = apply_classification(sample_df, labels=["1", "2"], scheme="equal_interval", k=2)
     assert result == ["1", "1", "1", "2", "2"]
 
 
 def test_classify_with_invalid_labels():
-    y = [1, 2, 3, 4, 5]
     with pytest.raises(AssertionError):
-        apply_classification(y, labels=[0], scheme="std_mean")
+        apply_classification(sample_df, labels=[0], scheme="std_mean")
 
 
 def test_classify_with_invalid_scheme():
-    y = [1, 2, 3, 4, 5]
     with pytest.raises(ValueError):
-        apply_classification(y, scheme="InvalidScheme")
+        apply_classification(sample_df, scheme="InvalidScheme")
+
+
+def test_color_dict(sample_df):
+
+    classified = apply_classification(sample_df, "value", scheme="equal_interval")
+    cmap = "viridis"
+
+    color_dict = create_color_dict(classified, cmap)
+
+    # check that our classification bins are the keys of the color_dict
+    assert classified.values.tolist() == list(color_dict.keys())
+
+
+def test_color_dict_k2(sample_df):
+
+    classified = apply_classification(sample_df, "value", scheme="equal_interval", k=2)
+    cmap = "viridis"
+
+    color_dict = create_color_dict(classified, cmap)
+
+    # check that our classification bins are the keys of the color_dict
+    assert classified.unique().tolist() == list(color_dict.keys())
