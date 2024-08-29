@@ -1,5 +1,5 @@
 import pytest
-
+import pandas as pd
 from ecoscope.analysis.classifier import apply_classification
 
 
@@ -17,10 +17,15 @@ from ecoscope.analysis.classifier import apply_classification
         ("fisher_jenks", {"k": 5}, [1.0, 2.0, 3.0, 4.0, 5.0]),
     ],
 )
-def test_classify_data(scheme, kwargs, expected):
+def test_classify(scheme, kwargs, expected):
     y = [1, 2, 3, 4, 5]
-    result = apply_classification(y, scheme=scheme, **kwargs)
-    assert result == expected, f"Failed on scheme {scheme}"
+    y = pd.DataFrame(
+        data={"value": [1, 2, 3, 4, 5]},
+        index=["A", "B", "C", "D", "E"],
+    )
+    result = apply_classification(y, "value", scheme=scheme, **kwargs)
+    pd.testing.assert_index_equal(result.index, y.index)
+    assert result.values.tolist() == expected, f"Failed on scheme {scheme}"
 
 
 def test_classify_with_labels():
