@@ -21,13 +21,17 @@ classification_methods = {
 
 
 # pass in a dataframe and output a series
-def apply_classification(dataframe, column_name, labels=None, scheme="natural_breaks", **kwargs):
+def apply_classification(
+    dataframe, input_column_name, output_column_name=None, labels=None, scheme="natural_breaks", **kwargs
+):
     """
     Classifies the data in a GeoDataFrame column using specified classification scheme.
 
     Args:
     dataframe (pd.DatFrame): The data.
-    column_name (str): The dataframe column to classify.
+    input_column_name (str): The dataframe column to classify.
+    output_column_name (str): The dataframe column that will contain the classification.
+        Defaults to "<input_column_name>_classified"
     labels (str): labels of bins, use bin edges if labels==None.
     scheme (str): Classification scheme to use [equal_interval, natural_breaks, quantile, std_mean, max_breaks,
     fisher_jenks]
@@ -56,30 +60,34 @@ def apply_classification(dataframe, column_name, labels=None, scheme="natural_br
     Returns:
     result: an array of corresponding labels of the input data.
     """
+    assert input_column_name in dataframe.columns
+    if not output_column_name:
+        output_column_name = f"{input_column_name}_classified"
 
     classifier_class = classification_methods.get(scheme)
 
     if not classifier_class:
         raise ValueError(f"Invalid classification scheme. Choose from: {list(classification_methods.keys())}")
 
-    classifier = classifier_class(dataframe[column_name].to_numpy(), **kwargs)
+    classifier = classifier_class(dataframe[input_column_name].to_numpy(), **kwargs)
     if labels is None:
         labels = classifier.bins
     assert len(labels) == len(classifier.bins)
-    classified = [labels[i] for i in classifier.yb]
-    return pd.Series(classified, index=dataframe.index)
+    dataframe[output_column_name] = [labels[i] for i in classifier.yb]
+    return dataframe
 
 
-def create_color_dict(series, cmap, labels=None):
+def create_color_dict(dataframe, column_name, cmap, labels=None):
+    assert column_name in dataframe.columns
 
     if isinstance(cmap, list):
-        assert len(cmap) == series.nunique()
-        cmap = pd.Series(cmap, index=series.unique())
+        assert len(cmap) == dataframe[column_name].nunique()
+        cmap = pd.Series(cmap, index=dataframe[column_name].unique())
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
-        cmap = cmap.resampled(series.nunique())
-        cmap = pd.Series([color for color in cmap.colors], index=series.unique())
+        cmap = cmap.resampled(dataframe[column_name].nunique())
+        cmap = pd.Series([color for color in cmap.colors], index=dataframe[column_name].unique())
 
-    vals = dict([(classification, cmap[classification]) for classification in series.values])
+    vals = dict([(classification, cmap[classification]) for classification in dataframe[column_name].values])
 
     return vals
