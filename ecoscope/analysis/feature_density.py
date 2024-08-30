@@ -3,11 +3,13 @@ import numpy as np
 
 def calculate_feature_density(selection, grid, geometry_type="point"):
     def clip_density(cell):
-        result = selection.clip_by_rect(*cell.bounds)
-        result = result[~result.is_empty]
         if geometry_type == "point":
-            return result.geometry.count()
+            result = selection.geometry.within(cell)
+            result = result[result]
+            return result.count()
         elif geometry_type == "line":
+            result = selection.clip_by_rect(*cell.bounds)
+            result = result[~result.is_empty]
             return result.geometry.length.sum()
         else:
             raise ValueError("Unsupported geometry type")
