@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+from ecoscope.base import Trajectory
 from ecoscope.analysis.classifier import apply_classification, create_color_lookup
 
 
@@ -69,7 +70,7 @@ def test_color_lookup_k2(sample_df):
 
 
 def test_color_lookup_cmap_list(movebank_relocations):
-    trajectory = movebank_relocations.trajectories.from_relocations()
+    trajectory = Trajectory.from_relocations(movebank_relocations)
     classified = apply_classification(
         trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval"
     )
@@ -91,7 +92,7 @@ def test_color_lookup_cmap_list(movebank_relocations):
 
 
 def test_color_lookup_cmap_bad_list(movebank_relocations):
-    trajectory = movebank_relocations.trajectories.from_relocations()
+    trajectory = Trajectory.from_relocations(movebank_relocations)
     classified = apply_classification(
         trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval"
     )
