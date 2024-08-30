@@ -69,3 +69,15 @@ class TrajSegFilter:
     max_time_secs: float = float("inf")
     min_speed_kmhr: float = 0.0
     max_speed_kmhr: float = float("inf")
+
+
+@dataclass
+class NumericStyleLookup:
+    column_name: str
+    lookup: typing.Dict[str, float]
+
+
+@dataclass
+class ColorStyleLookup:
+    column_name: str
+    lookup: typing.Dict[str, typing.Tuple[int, int, int, int]]

@@ -1,5 +1,6 @@
+import pytest
 import pandas as pd
-
+from ecoscope.base.utils import hex_to_rgba
 from ecoscope.base.utils import (
     create_meshgrid,
     groupby_intervals,
@@ -129,3 +130,25 @@ def test_modis_offset():
     modis = ModisBegin()
     assert modis.apply(ts1) == pd.Timestamp("2022-01-17 00:00:00+0")
     assert modis.apply(ts2) == pd.Timestamp("2023-01-01 00:00:00+0")
+
+
+@pytest.mark.parametrize(
+    "hex_str,expected",
+    [
+        ("#000000", (0, 0, 0, 255)),
+        ("FFFFFF00", (255, 255, 255, 0)),
+        ("#4444AABB", (68, 68, 170, 187)),
+        ("#123456", (18, 52, 86, 255)),
+    ],
+)
+def test_hex_to_rgba(hex_str, expected):
+    assert hex_to_rgba(hex_str) == expected
+
+
+@pytest.mark.parametrize(
+    "hex_str",
+    ["hello", "", "#FF00FNFF", None],
+)
+def test_hex_to_rgba_invalid(hex_str):
+    with pytest.raises(ValueError):
+        hex_to_rgba(hex_str)

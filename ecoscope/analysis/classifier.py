@@ -1,5 +1,7 @@
 import pandas as pd
 import matplotlib as mpl
+from ecoscope.base.utils import hex_to_rgba
+from ecoscope.base._dataclasses import ColorStyleLookup
 
 try:
     import mapclassify
@@ -60,7 +62,7 @@ def apply_classification(
     Returns:
     result: an array of corresponding labels of the input data.
     """
-    assert input_column_name in dataframe.columns
+    assert input_column_name in dataframe.columns, "input column must exist on dataframe"
     if not output_column_name:
         output_column_name = f"{input_column_name}_classified"
 
@@ -77,17 +79,33 @@ def apply_classification(
     return dataframe
 
 
-def create_color_dict(dataframe, column_name, cmap, labels=None):
-    assert column_name in dataframe.columns
+def create_color_lookup(dataframe, column_name, cmap):
+    """
+    Creates a color lookup from the values in the provided dataframe column and colormap
+
+    Args:
+    dataframe (pd.DatFrame): The data.
+    column_name (str): The dataframe column who's unique values will be keys in the lookup.
+    cmap (str, list): Either a named mpl.colormap or a list of string hex values.
+
+    Returns:
+    The generated ColorStyleLookup.
+    """
+    assert column_name in dataframe.columns, "input column must exist on dataframe"
 
     if isinstance(cmap, list):
-        assert len(cmap) == dataframe[column_name].nunique()
-        cmap = pd.Series(cmap, index=dataframe[column_name].unique())
+        nunique = dataframe[column_name].nunique()
+        assert len(cmap) >= nunique, f"cmap list must contain at least as many values as unique in {column_name}"
+        cmap = [hex_to_rgba(x) for x in cmap]
+        cmap = pd.Series(cmap[:nunique], index=dataframe[column_name].unique())
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
         cmap = cmap.resampled(dataframe[column_name].nunique())
-        cmap = pd.Series([color for color in cmap.colors], index=dataframe[column_name].unique())
+        # convert to hex first to put values in range(0,255), then to an RGBA tuple
+        cmap = pd.Series(
+            [hex_to_rgba(mpl.colors.to_hex(color)) for color in cmap.colors], index=dataframe[column_name].unique()
+        )
 
     vals = dict([(classification, cmap[classification]) for classification in dataframe[column_name].values])
 
-    return vals
+    return ColorStyleLookup(column_name=column_name, lookup=vals)

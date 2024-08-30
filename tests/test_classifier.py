@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from ecoscope.analysis.classifier import apply_classification, create_color_dict
+from ecoscope.analysis.classifier import apply_classification, create_color_lookup
 
 
 @pytest.fixture
@@ -46,32 +46,35 @@ def test_classify_with_invalid_scheme(sample_df):
         apply_classification(sample_df, input_column_name="value", scheme="InvalidScheme")
 
 
-def test_color_dict(sample_df):
+def test_color_lookup(sample_df):
 
     classified = apply_classification(sample_df, input_column_name="value", scheme="equal_interval")
     cmap = "viridis"
 
-    color_dict = create_color_dict(classified, "value_classified", cmap)
-    # check that our classification bins are the keys of the color_dict
-    assert classified["value_classified"].values.tolist() == list(color_dict.keys())
+    color_lookup = create_color_lookup(classified, "value_classified", cmap)
+    assert color_lookup.column_name == "value_classified"
+    # check that our classification bins are the keys of the color_lookup
+    assert classified["value_classified"].values.tolist() == list(color_lookup.lookup.keys())
 
 
-def test_color_dict_k2(sample_df):
+def test_color_lookup_k2(sample_df):
 
     classified = apply_classification(sample_df, input_column_name="value", scheme="equal_interval", k=2)
     cmap = "viridis"
 
-    color_dict = create_color_dict(classified, "value_classified", cmap)
-    # check that our classification bins are the keys of the color_dict
-    assert classified["value_classified"].unique().tolist() == list(color_dict.keys())
+    color_lookup = create_color_lookup(classified, "value_classified", cmap)
+    assert color_lookup.column_name == "value_classified"
+    # check that our classification bins are the keys of the color_lookup
+    assert classified["value_classified"].unique().tolist() == list(color_lookup.lookup.keys())
 
 
-def test_speed_parity(movebank_relocations):
+def test_color_lookup_cmap_list(movebank_relocations):
     trajectory = movebank_relocations.trajectories.from_relocations()
     classified = apply_classification(
         trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval"
     )
 
+    # With len(cmap)==7 we're also testing that the input cmap can be larger than the number of categories
     cmap = [
         "#1a9850",
         "#91cf60",
@@ -79,7 +82,21 @@ def test_speed_parity(movebank_relocations):
         "#fee08b",
         "#fc8d59",
         "#d73027",
+        "#FFFFFF",
     ]
 
-    color_dict = create_color_dict(classified, "speed_bins", cmap)
-    assert classified["speed_bins"].unique().tolist() == list(color_dict.keys())
+    color_lookup = create_color_lookup(classified, "speed_bins", cmap)
+    assert color_lookup.column_name == "speed_bins"
+    assert classified["speed_bins"].unique().tolist() == list(color_lookup.lookup.keys())
+
+
+def test_color_lookup_cmap_bad_list(movebank_relocations):
+    trajectory = movebank_relocations.trajectories.from_relocations()
+    classified = apply_classification(
+        trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval"
+    )
+
+    cmap = ["#1a9850"]
+
+    with pytest.raises(AssertionError):
+        create_color_lookup(classified, "speed_bins", cmap)
