@@ -6,6 +6,7 @@ import ecoscope
 import shapely
 from ecoscope.mapping import EcoMap
 from ecoscope.analysis.geospatial import datashade_gdf
+from ecoscope.analysis.classifier import apply_classification, create_color_lookup
 from lonboard._layer import BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
 from lonboard._deck_widget import (
     NorthArrowWidget,
@@ -231,3 +232,47 @@ def test_add_datashader_gdf_with_zoom(poly_gdf):
     assert isinstance(m.layers[1], BitmapLayer)
     assert m.view_state.longitude == (bounds[0] + bounds[2]) / 2
     assert m.view_state.latitude == (bounds[1] + bounds[3]) / 2
+
+
+def test_add_polyline_with_color(movebank_relocations):
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    # this is effectively a reimplementation of SpeedDataFrame
+    apply_classification(
+        trajectory, input_column_name="speed_kmhr", output_column_name="speed_bins", scheme="equal_interval", k=6
+    )
+    cmap = ["#1a9850", "#91cf60", "#d9ef8b", "#fee08b", "#fc8d59", "#d73027"]
+    color = create_color_lookup(trajectory, "speed_bins", cmap=cmap)
+
+    m = EcoMap()
+    m.add_layer(m.polyline_layer(trajectory, color=color, get_width=200))
+
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], PathLayer)
+    assert m.layers[1].get_width == 200
+
+
+def test_add_point_with_color(point_gdf):
+    point_gdf["time"] = point_gdf["recorded_at"].apply(lambda x: x.value)
+    apply_classification(point_gdf, input_column_name="time", scheme="equal_interval")
+    fill_color = create_color_lookup(point_gdf, "time_classified", "viridis")
+
+    m = EcoMap()
+    m.add_layer(m.point_layer(point_gdf, fill_color=fill_color, get_radius=10000))
+
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], ScatterplotLayer)
+
+
+def test_add_polygon_with_color(poly_gdf):
+    fill_color = create_color_lookup(poly_gdf, "ZoneID", "tab20b")
+
+    m = EcoMap()
+    m.add_layer(m.polygon_layer(poly_gdf, fill_color=fill_color, extruded=True, get_line_width=35), zoom=True)
+
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], PolygonLayer)
+    assert m.layers[1].extruded
+    assert m.layers[1].get_line_width == 35
+    # validating zoom param by checking view state is non-default
+    assert m.view_state.longitude != 10
+    assert m.view_state.latitude != 0

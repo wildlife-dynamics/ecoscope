@@ -9,6 +9,8 @@ import pandas as pd
 from io import BytesIO
 from typing import Dict, IO, List, Optional, TextIO, Union
 from pathlib import Path
+from ecoscope.base._dataclasses import ColorStyleLookup
+from numpy.typing import NDArray
 
 try:
     import matplotlib as mpl
@@ -127,6 +129,13 @@ class EcoMap(EcoMapMixin, Map):
         self.deck_widgets = update
 
     @staticmethod
+    def resolve_color_style(gdf: gpd.GeoDataFrame, style: ColorStyleLookup, default: any) -> NDArray[np.uint8] | None:
+        if style:
+            assert style.column_name in gdf.columns, f"{style.column_name} does not exist on provided gdf"
+            return apply_categorical_cmap(gdf[style.column_name], style.lookup)
+        return default
+
+    @staticmethod
     def layers_from_gdf(gdf: gpd.GeoDataFrame, **kwargs) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
         """
         Creates map layers from the provided gdf, returns multiple layers when geometry is mixed
@@ -174,7 +183,7 @@ class EcoMap(EcoMapMixin, Map):
         return gdf
 
     @staticmethod
-    def polyline_layer(gdf: gpd.GeoDataFrame, **kwargs) -> PathLayer:
+    def polyline_layer(gdf: gpd.GeoDataFrame, color: ColorStyleLookup = None, **kwargs) -> PathLayer:
         """
         Creates a polyline layer to add to a map
         Parameters
@@ -185,11 +194,14 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/path-layer/
         """
+        kwargs["get_color"] = EcoMap.resolve_color_style(gdf, color, kwargs.get("get_color"))
         gdf = EcoMap._clean_gdf(gdf)
         return PathLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
-    def polygon_layer(gdf: gpd.GeoDataFrame, **kwargs) -> PolygonLayer:
+    def polygon_layer(
+        gdf: gpd.GeoDataFrame, fill_color: ColorStyleLookup = None, line_color: ColorStyleLookup = None, **kwargs
+    ) -> PolygonLayer:
         """
         Creates a polygon layer to add to a map
         Parameters
@@ -200,11 +212,16 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/polygon-layer/
         """
+        kwargs["get_fill_color"] = EcoMap.resolve_color_style(gdf, fill_color, kwargs.get("get_fill_color"))
+        kwargs["get_line_color"] = EcoMap.resolve_color_style(gdf, line_color, kwargs.get("get_line_color"))
+
         gdf = EcoMap._clean_gdf(gdf)
         return PolygonLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
-    def point_layer(gdf: gpd.GeoDataFrame, **kwargs) -> ScatterplotLayer:
+    def point_layer(
+        gdf: gpd.GeoDataFrame, fill_color: ColorStyleLookup = None, line_color: ColorStyleLookup = None, **kwargs
+    ) -> ScatterplotLayer:
         """
         Creates a polygon layer to add to a map
         Parameters
@@ -215,6 +232,9 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.ScatterplotLayer:
             http://developmentseed.org/lonboard/latest/api/layers/scatterplot-layer/
         """
+        kwargs["get_fill_color"] = EcoMap.resolve_color_style(gdf, fill_color, kwargs.get("get_fill_color"))
+        kwargs["get_line_color"] = EcoMap.resolve_color_style(gdf, line_color, kwargs.get("get_line_color"))
+
         gdf = EcoMap._clean_gdf(gdf)
         return ScatterplotLayer.from_geopandas(gdf, **kwargs)
 
@@ -295,7 +315,7 @@ class EcoMap(EcoMapMixin, Map):
         self,
         ee_object: Union[ee.Image, ee.ImageCollection, ee.Geometry, ee.FeatureCollection],
         visualization_params: Dict,
-        **kwargs
+        **kwargs,
     ):
         """
         Adds a provided Earth Engine object to the map.
@@ -521,8 +541,3 @@ class EcoMap(EcoMapMixin, Map):
             self.height = "100%"
             self.width = "100%"
         return super().to_html(filename=filename, title=title)
-
-    @staticmethod
-    def hex_to_rgb(hex: str) -> list:
-        hex = hex.strip("#")
-        return list(int(hex[i : i + 2], 16) for i in (0, 2, 4))
