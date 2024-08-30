@@ -1,3 +1,5 @@
+import os
+import random
 import ee
 import geopandas as gpd
 import pandas as pd
@@ -211,6 +213,27 @@ def test_add_geotiff():
 def test_add_geotiff_with_cmap():
     m = EcoMap()
     m.add_geotiff("tests/sample_data/raster/uint8.tif", cmap="jet")
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], BitmapLayer)
+
+
+def test_add_geotiff_in_mem_with_cmap():
+    AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "maec_4zones_UTM36S.gpkg"))
+
+    grid = gpd.GeoDataFrame(
+        geometry=ecoscope.base.utils.create_meshgrid(
+            AOI.unary_union, in_crs=AOI.crs, out_crs=AOI.crs, xlen=5000, ylen=5000, return_intersecting_only=False
+        )
+    )
+
+    grid["fake_density"] = grid.apply(lambda _: random.randint(1, 50), axis=1)
+    raster = ecoscope.io.raster.grid_to_raster(
+        grid,
+        val_column="fake_density",
+    )
+
+    m = EcoMap()
+    m.add_geotiff(raster, cmap="jet")
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
