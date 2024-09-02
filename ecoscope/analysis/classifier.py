@@ -61,7 +61,7 @@ def apply_classification(
     For more information, see https://pysal.org/mapclassify/api.html
 
     Returns:
-    result: an array of corresponding labels of the input data.
+    The input dataframe with a classification column appended.
     """
     assert input_column_name in dataframe.columns, "input column must exist on dataframe"
     if not output_column_name:
@@ -80,31 +80,38 @@ def apply_classification(
     return dataframe
 
 
-def apply_color_map(dataframe, column_name, cmap):
+def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None):
     """
     Creates a color lookup from the values in the provided dataframe column and colormap
 
     Args:
     dataframe (pd.DatFrame): The data.
-    column_name (str): The dataframe column who's unique values will be keys in the lookup.
+    input_column_name (str): The dataframe column who's unique values will be keys in the lookup.
     cmap (str, list): Either a named mpl.colormap or a list of string hex values.
+    output_column_name(str): The dataframe column that will contain the classification.
+        Defaults to "<input_column_name>_colormap"
 
     Returns:
-    The generated ColorStyleLookup.
+    The input dataframe with a color map appended.
     """
-    assert column_name in dataframe.columns, "input column must exist on dataframe"
+    assert input_column_name in dataframe.columns, "input column must exist on dataframe"
 
     if isinstance(cmap, list):
-        nunique = dataframe[column_name].nunique()
-        assert len(cmap) >= nunique, f"cmap list must contain at least as many values as unique in {column_name}"
+        nunique = dataframe[input_column_name].nunique()
+        assert len(cmap) >= nunique, f"cmap list must contain at least as many values as unique in {input_column_name}"
         cmap = [hex_to_rgba(x) for x in cmap]
-        cmap = pd.Series(cmap[:nunique], index=dataframe[column_name].unique())
+        cmap = pd.Series(cmap[:nunique], index=dataframe[input_column_name].unique())
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
-        cmap = cmap.resampled(dataframe[column_name].nunique())
+        cmap = cmap.resampled(dataframe[input_column_name].nunique())
         # convert to hex first to put values in range(0,255), then to an RGBA tuple
         cmap = pd.Series(
-            [hex_to_rgba(mpl.colors.to_hex(color)) for color in cmap.colors], index=dataframe[column_name].unique()
+            [hex_to_rgba(mpl.colors.to_hex(color)) for color in cmap.colors],
+            index=dataframe[input_column_name].unique(),
         )
 
-    return [cmap[classification] for classification in dataframe[column_name]]
+    if not output_column_name:
+        output_column_name = f"{input_column_name}_colormap"
+
+    dataframe[output_column_name] = [cmap[classification] for classification in dataframe[input_column_name]]
+    return dataframe

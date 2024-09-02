@@ -4,6 +4,7 @@ from ecoscope.base._dataclasses import (
     RelocsDistFilter,
     RelocsSpeedFilter,
     TrajSegFilter,
+    ColorList,
 )
 from ecoscope.base.base import EcoDataFrame, Relocations, Trajectory
 from ecoscope.base.utils import (
@@ -26,4 +27,5 @@ __all__ = [
     "create_meshgrid",
     "groupby_intervals",
     "hex_to_rgba",
+    "ColorList",
 ]

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from ecoscope.plotting.plot import EcoPlotData, ecoplot, mcp, nsd, speed, stacked_bar_chart, pie_chart
 from ecoscope.base import Trajectory
+from ecoscope.analysis.classifier import apply_color_map
 
 
 @pytest.fixture
@@ -79,12 +80,13 @@ def test_stacked_no_style(chart_df):
 
 
 def test_stacked_bar_chart_categorical(chart_df):
-    groupby_style = {"A": {"marker_color": "red"}, "B": {"marker_color": "blue"}}
     style = {"marker_line_color": "black", "xperiodalignment": "middle"}
     layout_kwargs = {"plot_bgcolor": "gray", "xaxis_dtick": 86400000}
 
+    chart_df = apply_color_map(chart_df, "category", cmap=["#FF0000", "#0000FF"], output_column_name="colors")
+
     gb = chart_df.groupby(["time", "category"])
-    epd = EcoPlotData(gb, "time", "category", groupby_style=groupby_style, **style)
+    epd = EcoPlotData(gb, "time", "category", color_col="colors", **style)
     chart = stacked_bar_chart(epd, agg_function="count", stack_column="category", layout_kwargs=layout_kwargs)
 
     # we should have 2 categorical buckets
@@ -98,8 +100,8 @@ def test_stacked_bar_chart_categorical(chart_df):
     assert chart.layout.plot_bgcolor == "gray"
     assert chart.data[0].xperiodalignment == chart.data[1].xperiodalignment == "middle"
     assert chart.data[0].marker.line.color == chart.data[1].marker.line.color == "black"
-    assert chart.data[0].marker.color == "red"
-    assert chart.data[1].marker.color == "blue"
+    assert chart.data[0].marker.color == "rgba(255, 0, 0, 1.0)"
+    assert chart.data[1].marker.color == "rgba(0, 0, 255, 1.0)"
 
 
 def test_stacked_bar_chart_numerical(chart_df):

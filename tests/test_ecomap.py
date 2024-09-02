@@ -241,10 +241,11 @@ def test_add_polyline_with_color(movebank_relocations):
         trajectory, input_column_name="speed_kmhr", output_column_name="speed_bins", scheme="equal_interval", k=6
     )
     cmap = ["#1a9850", "#91cf60", "#d9ef8b", "#fee08b", "#fc8d59", "#d73027"]
-    color = apply_color_map(trajectory, "speed_bins", cmap=cmap)
+    apply_color_map(trajectory, "speed_bins", cmap=cmap, output_column_name="speed_colors")
 
     m = EcoMap()
-    m.add_layer(m.polyline_layer(trajectory, color=color, get_width=2000))
+    m.add_layer(m.polyline_layer(trajectory, color_column="speed_colors", get_width=2000))
+    m.to_html("polyline_test.html")
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PathLayer)
     assert m.layers[1].get_width == 2000
@@ -253,19 +254,23 @@ def test_add_polyline_with_color(movebank_relocations):
 def test_add_point_with_color(point_gdf):
     point_gdf["time"] = point_gdf["recorded_at"].apply(lambda x: x.value)
     apply_classification(point_gdf, input_column_name="time", scheme="equal_interval")
-    fill_color = apply_color_map(point_gdf, "time_classified", "viridis")
+    apply_color_map(point_gdf, "time_classified", "viridis", output_column_name="time_cmap")
 
     m = EcoMap()
-    m.add_layer(m.point_layer(point_gdf, fill_color=fill_color, get_radius=10000))
+    m.add_layer(m.point_layer(point_gdf, fill_color_column="time_cmap", get_radius=10000))
+    m.to_html("point_test.html")
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], ScatterplotLayer)
 
 
 def test_add_polygon_with_color(poly_gdf):
-    fill_color = apply_color_map(poly_gdf, "ZoneID", "tab20b")
+    apply_color_map(poly_gdf, "ZoneID", "tab20b")
 
     m = EcoMap()
-    m.add_layer(m.polygon_layer(poly_gdf, fill_color=fill_color, extruded=True, get_line_width=35), zoom=True)
+    m.add_layer(
+        m.polygon_layer(poly_gdf, fill_color_column="ZoneID_colormap", extruded=True, get_line_width=35), zoom=True
+    )
+    m.to_html("poly_test.html")
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PolygonLayer)
     assert m.layers[1].extruded

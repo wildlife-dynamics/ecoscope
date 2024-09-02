@@ -9,7 +9,6 @@ import pandas as pd
 from io import BytesIO
 from typing import Dict, IO, List, Optional, TextIO, Union
 from pathlib import Path
-from ecoscope.base._dataclasses import ColorList
 
 try:
     import matplotlib as mpl
@@ -175,7 +174,7 @@ class EcoMap(EcoMapMixin, Map):
         return gdf
 
     @staticmethod
-    def polyline_layer(gdf: gpd.GeoDataFrame, color: ColorList = None, **kwargs) -> PathLayer:
+    def polyline_layer(gdf: gpd.GeoDataFrame, color_column: str = None, **kwargs) -> PathLayer:
         """
         Creates a polyline layer to add to a map
         Parameters
@@ -186,15 +185,15 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/path-layer/
         """
-        if not kwargs.get("get_color") and color:
-            kwargs["get_color"] = np.array(color, dtype="uint8")
+        if not kwargs.get("get_color") and color_column:
+            kwargs["get_color"] = np.array([color for color in gdf[color_column].values], dtype="uint8")
 
         gdf = EcoMap._clean_gdf(gdf)
         return PathLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
     def polygon_layer(
-        gdf: gpd.GeoDataFrame, fill_color: ColorList = None, line_color: ColorList = None, **kwargs
+        gdf: gpd.GeoDataFrame, fill_color_column: str = None, line_color_column: str = None, **kwargs
     ) -> PolygonLayer:
         """
         Creates a polygon layer to add to a map
@@ -206,17 +205,17 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/polygon-layer/
         """
-        if not kwargs.get("get_fill_color") and fill_color:
-            kwargs["get_fill_color"] = np.array(fill_color, dtype="uint8")
-        if not kwargs.get("get_line_color") and line_color:
-            kwargs["get_line_color"] = np.array(line_color, dtype="uint8")
+        if not kwargs.get("get_fill_color") and fill_color_column:
+            kwargs["get_fill_color"] = np.array([color for color in gdf[fill_color_column].values], dtype="uint8")
+        if not kwargs.get("get_line_color") and line_color_column:
+            kwargs["get_line_color"] = np.array([color for color in gdf[line_color_column].values], dtype="uint8")
 
         gdf = EcoMap._clean_gdf(gdf)
         return PolygonLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
     def point_layer(
-        gdf: gpd.GeoDataFrame, fill_color: ColorList = None, line_color: ColorList = None, **kwargs
+        gdf: gpd.GeoDataFrame, fill_color_column: str = None, line_color_column: str = None, **kwargs
     ) -> ScatterplotLayer:
         """
         Creates a polygon layer to add to a map
@@ -228,10 +227,10 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.ScatterplotLayer:
             http://developmentseed.org/lonboard/latest/api/layers/scatterplot-layer/
         """
-        if not kwargs.get("get_fill_color") and fill_color:
-            kwargs["get_fill_color"] = np.array(fill_color, dtype="uint8")
-        if not kwargs.get("get_line_color") and line_color:
-            kwargs["get_line_color"] = np.array(line_color, dtype="uint8")
+        if not kwargs.get("get_fill_color") and fill_color_column:
+            kwargs["get_fill_color"] = np.array([color for color in gdf[fill_color_column].values], dtype="uint8")
+        if not kwargs.get("get_line_color") and line_color_column:
+            kwargs["get_line_color"] = np.array([color for color in gdf[line_color_column].values], dtype="uint8")
 
         gdf = EcoMap._clean_gdf(gdf)
         return ScatterplotLayer.from_geopandas(gdf, **kwargs)
