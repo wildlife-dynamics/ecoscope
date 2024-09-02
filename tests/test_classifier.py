@@ -47,31 +47,25 @@ def test_classify_with_invalid_scheme(sample_df):
         apply_classification(sample_df, input_column_name="value", scheme="InvalidScheme")
 
 
-def test_color_lookup(sample_df):
-
-    classified = apply_classification(sample_df, input_column_name="value", scheme="equal_interval")
+def test_apply_colormap(sample_df):
+    apply_classification(sample_df, input_column_name="value", scheme="equal_interval")
     cmap = "viridis"
+    apply_color_map(sample_df, "value_classified", cmap, output_column_name="colormap")
 
-    color_lookup = apply_color_map(classified, "value_classified", cmap)
-    assert len(color_lookup) == len(classified["value_classified"])
-    assert len(set(color_lookup)) == len(classified["value_classified"].unique())
+    assert len(set(sample_df["colormap"].unique())) == len(sample_df["value_classified"].unique())
 
 
-def test_color_lookup_k2(sample_df):
-
-    classified = apply_classification(sample_df, input_column_name="value", scheme="equal_interval", k=2)
+def test_apply_colormap_k2(sample_df):
+    apply_classification(sample_df, input_column_name="value", scheme="equal_interval", k=2)
     cmap = "viridis"
+    apply_color_map(sample_df, "value_classified", cmap, output_column_name="colormap")
 
-    color_lookup = apply_color_map(classified, "value_classified", cmap)
-    assert len(color_lookup) == len(classified["value_classified"])
-    assert len(set(color_lookup)) == len(classified["value_classified"].unique())
+    assert len(set(sample_df["colormap"].unique())) == len(sample_df["value_classified"].unique())
 
 
-def test_color_lookup_cmap_list(movebank_relocations):
+def test_apply_colormap_user_defined(movebank_relocations):
     trajectory = Trajectory.from_relocations(movebank_relocations)
-    classified = apply_classification(
-        trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval"
-    )
+    apply_classification(trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval")
 
     # With len(cmap)==7 we're also testing that the input cmap can be larger than the number of categories
     cmap = [
@@ -84,12 +78,11 @@ def test_color_lookup_cmap_list(movebank_relocations):
         "#FFFFFF",
     ]
 
-    color_lookup = apply_color_map(classified, "speed_bins", cmap)
-    assert len(color_lookup) == len(classified["speed_bins"])
-    assert len(set(color_lookup)) == 6
+    apply_color_map(trajectory, "speed_bins", cmap)
+    assert len(set(trajectory["speed_bins_colormap"].unique())) == len(trajectory["speed_bins"].unique())
 
 
-def test_color_lookup_cmap_bad_list(movebank_relocations):
+def test_apply_colormap_cmap_user_defined_bad(movebank_relocations):
     trajectory = Trajectory.from_relocations(movebank_relocations)
     classified = apply_classification(
         trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval"
