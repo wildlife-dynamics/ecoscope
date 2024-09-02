@@ -55,7 +55,7 @@ async_earthranger = [
     "earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3",
 ]
 mapping = [
-    "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@43f3e6bc490238c31a8c4e3eb70566527f483bd0",
+    "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.2",
     "matplotlib",
     "mapclassify",
 ]
