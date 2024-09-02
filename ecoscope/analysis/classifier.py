@@ -1,7 +1,8 @@
 import pandas as pd
 import matplotlib as mpl
 from ecoscope.base.utils import hex_to_rgba
-from ecoscope.base._dataclasses import ColorStyleLookup
+
+# from ecoscope.base._dataclasses import ColorStyleLookup
 
 try:
     import mapclassify
@@ -106,6 +107,4 @@ def create_color_lookup(dataframe, column_name, cmap):
             [hex_to_rgba(mpl.colors.to_hex(color)) for color in cmap.colors], index=dataframe[column_name].unique()
         )
 
-    vals = dict([(classification, cmap[classification]) for classification in dataframe[column_name].values])
-
-    return ColorStyleLookup(column_name=column_name, lookup=vals)
+    return [cmap[classification] for classification in dataframe[column_name]]

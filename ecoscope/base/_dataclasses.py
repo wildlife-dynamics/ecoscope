@@ -1,5 +1,6 @@
 import datetime
 import typing
+from typing import TypeAlias
 from dataclasses import dataclass, field
 
 import geopandas
@@ -71,13 +72,4 @@ class TrajSegFilter:
     max_speed_kmhr: float = float("inf")
 
 
-@dataclass
-class NumericStyleLookup:
-    column_name: str
-    lookup: typing.Dict[str, float]
-
-
-@dataclass
-class ColorStyleLookup:
-    column_name: str
-    lookup: typing.Dict[str, typing.Tuple[int, int, int, int]]
+ColorList: TypeAlias = list[typing.Tuple[int, int, int, int]]

@@ -244,8 +244,7 @@ def test_add_polyline_with_color(movebank_relocations):
     color = create_color_lookup(trajectory, "speed_bins", cmap=cmap)
 
     m = EcoMap()
-    m.add_layer(m.polyline_layer(trajectory, color=color, get_width=200))
-
+    m.add_layer(m.polyline_layer(trajectory, color=color, get_width=2000))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PathLayer)
     assert m.layers[1].get_width == 200
@@ -258,7 +257,6 @@ def test_add_point_with_color(point_gdf):
 
     m = EcoMap()
     m.add_layer(m.point_layer(point_gdf, fill_color=fill_color, get_radius=10000))
-
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], ScatterplotLayer)
 
@@ -268,7 +266,6 @@ def test_add_polygon_with_color(poly_gdf):
 
     m = EcoMap()
     m.add_layer(m.polygon_layer(poly_gdf, fill_color=fill_color, extruded=True, get_line_width=35), zoom=True)
-
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PolygonLayer)
     assert m.layers[1].extruded

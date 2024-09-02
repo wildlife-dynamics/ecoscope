@@ -53,9 +53,11 @@ def test_color_lookup(sample_df):
     cmap = "viridis"
 
     color_lookup = create_color_lookup(classified, "value_classified", cmap)
-    assert color_lookup.column_name == "value_classified"
-    # check that our classification bins are the keys of the color_lookup
-    assert classified["value_classified"].values.tolist() == list(color_lookup.lookup.keys())
+    # assert color_lookup.column_name == "value_classified"
+    # # check that our classification bins are the keys of the color_lookup
+    # assert classified["value_classified"].values.tolist() == list(color_lookup.lookup.keys())
+    assert len(color_lookup) == len(classified["value_classified"])
+    assert len(set(color_lookup)) == len(classified["value_classified"].unique())
 
 
 def test_color_lookup_k2(sample_df):
@@ -64,9 +66,12 @@ def test_color_lookup_k2(sample_df):
     cmap = "viridis"
 
     color_lookup = create_color_lookup(classified, "value_classified", cmap)
-    assert color_lookup.column_name == "value_classified"
-    # check that our classification bins are the keys of the color_lookup
-    assert classified["value_classified"].unique().tolist() == list(color_lookup.lookup.keys())
+    # assert color_lookup.column_name == "value_classified"
+    # # check that our classification bins are the keys of the color_lookup
+    # assert classified["value_classified"].unique().tolist() == list(color_lookup.lookup.keys())
+
+    assert len(color_lookup) == len(classified["value_classified"])
+    assert len(set(color_lookup)) == len(classified["value_classified"].unique())
 
 
 def test_color_lookup_cmap_list(movebank_relocations):
@@ -87,8 +92,10 @@ def test_color_lookup_cmap_list(movebank_relocations):
     ]
 
     color_lookup = create_color_lookup(classified, "speed_bins", cmap)
-    assert color_lookup.column_name == "speed_bins"
-    assert classified["speed_bins"].unique().tolist() == list(color_lookup.lookup.keys())
+    # assert color_lookup.column_name == "speed_bins"
+    # assert classified["speed_bins"].unique().tolist() == list(color_lookup.lookup.keys())
+    assert len(color_lookup) == len(classified["speed_bins"])
+    assert len(set(color_lookup)) == 6
 
 
 def test_color_lookup_cmap_bad_list(movebank_relocations):
