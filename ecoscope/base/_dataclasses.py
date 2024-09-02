@@ -1,6 +1,5 @@
 import datetime
 import typing
-from typing import TypeAlias, List, Tuple
 from dataclasses import dataclass, field
 
 import geopandas
@@ -70,6 +69,3 @@ class TrajSegFilter:
     max_time_secs: float = float("inf")
     min_speed_kmhr: float = 0.0
     max_speed_kmhr: float = float("inf")
-
-
-ColorList: TypeAlias = List[Tuple[int, int, int, int]]

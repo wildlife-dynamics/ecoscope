@@ -3,7 +3,6 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 import shapely
-from ecoscope.base._dataclasses import ColorList
 
 try:
     from sklearn.neighbors import KernelDensity
@@ -290,9 +289,7 @@ def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
     return fig
 
 
-def stacked_bar_chart(
-    data: EcoPlotData, agg_function: str, stack_column: str, bar_colors: ColorList = None, layout_kwargs: dict = None
-):
+def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, layout_kwargs: dict = None):
     """
     Creates a stacked bar chart from the provided EcoPlotData object
     Parameters
