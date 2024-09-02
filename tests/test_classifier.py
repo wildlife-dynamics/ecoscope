@@ -47,9 +47,9 @@ def test_classify_with_invalid_scheme(sample_df):
         apply_classification(sample_df, input_column_name="value", scheme="InvalidScheme")
 
 
-def test_apply_colormap(sample_df):
+@pytest.mark.parametrize("cmap", ["viridis", "RdYlGn"])
+def test_apply_colormap(sample_df, cmap):
     apply_classification(sample_df, input_column_name="value", scheme="equal_interval")
-    cmap = "viridis"
     apply_color_map(sample_df, "value_classified", cmap, output_column_name="colormap")
 
     assert len(set(sample_df["colormap"].unique())) == len(sample_df["value_classified"].unique())

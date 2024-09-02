@@ -104,9 +104,15 @@ def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None)
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
         cmap = cmap.resampled(dataframe[input_column_name].nunique())
+
+        if isinstance(cmap, mpl.colors.LinearSegmentedColormap):
+            cmap_colors = cmap([x for x in range(cmap.N)])
+        else:
+            cmap_colors = cmap.colors
+
         # convert to hex first to put values in range(0,255), then to an RGBA tuple
         cmap = pd.Series(
-            [hex_to_rgba(mpl.colors.to_hex(color)) for color in cmap.colors],
+            [hex_to_rgba(mpl.colors.to_hex(color)) for color in cmap_colors],
             index=dataframe[input_column_name].unique(),
         )
 
