@@ -292,7 +292,9 @@ class EcoMap(EcoMapMixin, Map):
         """
         kwargs["title"] = title
         kwargs["placement"] = kwargs.get("placement", "fill")
-        kwargs["style"] = kwargs.get("style", {"position": "relative", "margin": "0 auto", "width": "35%"})
+        # kwargs["style"] = kwargs.get("style", {"position": "relative", "margin": "0 auto", "width": "35%"})
+        kwargs["placement_x"] = kwargs.get("placement_x", "50%")
+        kwargs["placement_y"] = kwargs.get("placement_y", "1%")
 
         self.add_widget(TitleWidget(**kwargs))
 
