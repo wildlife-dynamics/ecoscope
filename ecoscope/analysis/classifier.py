@@ -82,7 +82,7 @@ def apply_classification(
 
 def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None):
     """
-    Creates a color lookup from the values in the provided dataframe column and colormap
+    Creates a new column on the provided dataframe with the given cmap applied over the specified input column
 
     Args:
     dataframe (pd.DatFrame): The data.
