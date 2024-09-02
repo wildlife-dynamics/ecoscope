@@ -80,7 +80,7 @@ def apply_classification(
     return dataframe
 
 
-def create_color_lookup(dataframe, column_name, cmap):
+def apply_color_map(dataframe, column_name, cmap):
     """
     Creates a color lookup from the values in the provided dataframe column and colormap
 

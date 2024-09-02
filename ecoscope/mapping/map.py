@@ -127,13 +127,6 @@ class EcoMap(EcoMapMixin, Map):
         update.append(widget)
         self.deck_widgets = update
 
-    # @staticmethod
-    # def resolve_color_style(gdf: gpd.GeoDataFrame, style: ColorStyleLookup, default: any) -> NDArray[np.uint8] | None:
-    #     if style:
-    #         assert style.column_name in gdf.columns, f"{style.column_name} does not exist on provided gdf"
-    #         return apply_categorical_cmap(gdf[style.column_name], style.lookup)
-    #     return default
-
     @staticmethod
     def layers_from_gdf(gdf: gpd.GeoDataFrame, **kwargs) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
         """
@@ -193,7 +186,6 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/path-layer/
         """
-        # kwargs["get_color"] = EcoMap.resolve_color_style(gdf, color, kwargs.get("get_color"))
         if not kwargs.get("get_color") and color:
             kwargs["get_color"] = np.array(color, dtype="uint8")
 
@@ -214,8 +206,6 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/polygon-layer/
         """
-        # kwargs["get_fill_color"] = EcoMap.resolve_color_style(gdf, fill_color, kwargs.get("get_fill_color"))
-        # kwargs["get_line_color"] = EcoMap.resolve_color_style(gdf, line_color, kwargs.get("get_line_color"))
         if not kwargs.get("get_fill_color") and fill_color:
             kwargs["get_fill_color"] = np.array(fill_color, dtype="uint8")
         if not kwargs.get("get_line_color") and line_color:
@@ -238,8 +228,6 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.ScatterplotLayer:
             http://developmentseed.org/lonboard/latest/api/layers/scatterplot-layer/
         """
-        # kwargs["get_fill_color"] = EcoMap.resolve_color_style(gdf, fill_color, kwargs.get("get_fill_color"))
-        # kwargs["get_line_color"] = EcoMap.resolve_color_style(gdf, line_color, kwargs.get("get_line_color"))
         if not kwargs.get("get_fill_color") and fill_color:
             kwargs["get_fill_color"] = np.array(fill_color, dtype="uint8")
         if not kwargs.get("get_line_color") and line_color:
