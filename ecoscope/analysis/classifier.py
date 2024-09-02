@@ -86,7 +86,7 @@ def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None)
 
     Args:
     dataframe (pd.DatFrame): The data.
-    input_column_name (str): The dataframe column who's unique values will be keys in the lookup.
+    input_column_name (str): The dataframe column who's values will be inform the cmap values.
     cmap (str, list): Either a named mpl.colormap or a list of string hex values.
     output_column_name(str): The dataframe column that will contain the classification.
         Defaults to "<input_column_name>_colormap"
