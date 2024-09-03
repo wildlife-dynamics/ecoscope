@@ -35,7 +35,7 @@ def apply_classification(
     input_column_name (str): The dataframe column to classify.
     output_column_name (str): The dataframe column that will contain the classification.
         Defaults to "<input_column_name>_classified"
-    labels (str): labels of bins, use bin edges if labels==None.
+    labels (list[str]): labels of bins, use bin edges if labels==None.
     scheme (str): Classification scheme to use [equal_interval, natural_breaks, quantile, std_mean, max_breaks,
     fisher_jenks]
 
@@ -105,10 +105,7 @@ def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None)
         cmap = mpl.colormaps[cmap]
         cmap = cmap.resampled(dataframe[input_column_name].nunique())
 
-        if isinstance(cmap, mpl.colors.LinearSegmentedColormap):
-            cmap_colors = cmap([x for x in range(cmap.N)])
-        else:
-            cmap_colors = cmap.colors
+        cmap_colors = cmap(range(dataframe[input_column_name].nunique()))
 
         # convert to hex first to put values in range(0,255), then to an RGBA tuple
         cmap = pd.Series(
