@@ -318,7 +318,7 @@ class EcoMap(EcoMapMixin, Map):
         **kwargs,
     ):
         """
-        Adds a provided Earth Engine object to the map.
+        Creates a layer from the provided Earth Engine.
         If an EE.Image/EE.ImageCollection or EE.FeatureCollection is provided,
         this results in a BitmapTileLayer being added
 
@@ -389,12 +389,11 @@ class EcoMap(EcoMapMixin, Map):
     @staticmethod
     def geotiff_layer(
         tiff: str | rio.MemoryFile,
-        zoom: bool = False,
         cmap: Union[str, mpl.colors.Colormap] = None,
         opacity: float = 0.7,
     ):
         """
-        Adds a local geotiff to the map
+        Creates a layer from a given geotiff
         Note that since deck.gl tiff support is limited, this extracts the CRS/Bounds from the tiff
         and converts the image data in-memory to PNG
 
@@ -402,8 +401,6 @@ class EcoMap(EcoMapMixin, Map):
         ----------
         tiff : str | rio.MemoryFile
             The string path to a tiff on disk or a rio.MemoryFile
-        zoom : bool
-            Whether to zoom the map to the bounds of the tiff
         cmap: str or matplotlib.colors.Colormap
             The colormap to apply to the raster
         opacity: float
@@ -465,9 +462,9 @@ class EcoMap(EcoMapMixin, Map):
                         return layer
 
     @staticmethod
-    def pil_layer(image, bounds, zoom=True, opacity=1):
+    def pil_layer(image, bounds, opacity=1):
         """
-        Overlays a PIL.Image onto the Ecomap
+        Creates layer from a PIL.Image
 
         Parameters
         ----------
@@ -475,8 +472,6 @@ class EcoMap(EcoMapMixin, Map):
             The image to be overlaid
         bounds: tuple
             Tuple containing the EPSG:4326 (minx, miny, maxx, maxy) values bounding the given image
-        zoom : bool, optional
-            Zoom to the generated image
         opacity : float, optional
             Sets opacity of overlaid image
         """
