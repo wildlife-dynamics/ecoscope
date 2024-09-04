@@ -208,13 +208,22 @@ def raster_to_gdf(raster_path):
         )
 
 
-def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None, xlen=5000, ylen=5000):
+def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None):
     """
     Save a GeoDataFrame grid to a raster.
     """
     bounds = grid["geometry"].total_bounds
-    nrows = int((bounds[3] - bounds[1]) / ylen)
-    ncols = int((bounds[2] - bounds[0]) / xlen)
+
+    if len(grid) == 1:
+        nrows = ncols = 1
+    else:
+        nrows = 0
+        for i, _ in enumerate(grid.index):
+            nrows += 1
+            if not (grid.geometry[i].intersects(grid.geometry[i + 1])):
+                break
+        ncols = len(grid) // nrows
+
     if val_column:
         vals = grid[val_column].to_numpy()
     else:
@@ -222,7 +231,7 @@ def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None, xlen=
     vals = np.flip(vals.reshape(nrows, ncols, order="F"), axis=0)
 
     raster_profile = ecoscope.io.raster.RasterProfile(
-        pixel_size=xlen,
+        pixel_size=bounds[2] - bounds[0] / nrows,
         crs=grid.crs.to_epsg(),
         nodata_value=np.nan,
         band_count=1,
