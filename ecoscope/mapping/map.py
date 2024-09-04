@@ -311,8 +311,8 @@ class EcoMap(EcoMapMixin, Map):
         """
         self.add_widget(SaveImageWidget(**kwargs))
 
-    def add_ee_layer(
-        self,
+    @staticmethod
+    def ee_layer(
         ee_object: Union[ee.Image, ee.ImageCollection, ee.Geometry, ee.FeatureCollection],
         visualization_params: Dict,
         **kwargs,
@@ -347,14 +347,14 @@ class EcoMap(EcoMapMixin, Map):
         elif isinstance(ee_object, ee.geometry.Geometry):
             geojson = ee_object.toGeoJSON()
             gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
-            ee_layer = self.layers_from_gdf(gdf=gdf, **kwargs)
+            ee_layer = EcoMap.layers_from_gdf(gdf=gdf, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
             ee_object_new = ee.Image().paint(ee_object, 0, 2)
             map_id_dict = ee.Image(ee_object_new).getMapId(visualization_params)
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
 
-        self.add_layer(ee_layer)
+        return ee_layer
 
     def zoom_to_bounds(self, feat: Union[BaseLayer, List[BaseLayer], gpd.GeoDataFrame]):
         """
@@ -386,8 +386,8 @@ class EcoMap(EcoMapMixin, Map):
 
         self.set_view_state(**view_state)
 
-    def add_geotiff(
-        self,
+    @staticmethod
+    def geotiff_layer(
         tiff: str | rio.MemoryFile,
         zoom: bool = False,
         cmap: Union[str, mpl.colors.Colormap] = None,
@@ -462,9 +462,10 @@ class EcoMap(EcoMapMixin, Map):
                         url = "data:image/png;base64," + base64.b64encode(outfile.read()).decode("utf-8")
 
                         layer = BitmapLayer(image=url, bounds=bounds, opacity=opacity)
-                        self.add_layer(layer, zoom=zoom)
+                        return layer
 
-    def add_pil_image(self, image, bounds, zoom=True, opacity=1):
+    @staticmethod
+    def pil_layer(image, bounds, zoom=True, opacity=1):
         """
         Overlays a PIL.Image onto the Ecomap
 
@@ -485,7 +486,7 @@ class EcoMap(EcoMapMixin, Map):
 
         url = "data:image/png;base64," + base64.b64encode(data.getvalue()).decode("utf-8")
         layer = BitmapLayer(image=url, bounds=bounds.tolist(), opacity=opacity)
-        self.add_layer(layer, zoom=zoom)
+        return layer
 
     @staticmethod
     def get_named_tile_layer(layer: str) -> BitmapTileLayer:

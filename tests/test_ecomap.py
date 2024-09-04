@@ -100,7 +100,7 @@ def test_add_ee_layer_image():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
     ee_object = ee.Image("USGS/SRTMGL1_003")
-    m.add_ee_layer(ee_object, vis_params)
+    m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
 
@@ -110,7 +110,7 @@ def test_add_ee_layer_image_collection():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5}
     ee_object = ee.ImageCollection("MODIS/006/MCD43C3")
-    m.add_ee_layer(ee_object, vis_params)
+    m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
     assert m.layers[1].tile_size == 256
@@ -121,7 +121,7 @@ def test_add_ee_layer_feature_collection():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
     ee_object = ee.FeatureCollection("LARSE/GEDI/GEDI02_A_002/GEDI02_A_2021244154857_O15413_04_T05622_02_003_02_V002")
-    m.add_ee_layer(ee_object, vis_params)
+    m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
 
@@ -130,7 +130,7 @@ def test_add_ee_layer_feature_collection():
 def test_add_ee_layer_geometry():
     m = EcoMap()
     rectangle = ee.Geometry.Rectangle([-40, -20, 40, 20])
-    m.add_ee_layer(rectangle, None)
+    m.add_layer(EcoMap.ee_layer(rectangle, None))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PolygonLayer)
 
@@ -204,21 +204,21 @@ def test_zoom_to_gdf():
     assert m.view_state.latitude == (y1 + y2) / 2
 
 
-def test_add_geotiff():
+def test_geotiff_layer():
     m = EcoMap()
-    m.add_geotiff("tests/sample_data/raster/uint8.tif", cmap=None)
+    m.add_layer(EcoMap.geotiff_layer("tests/sample_data/raster/uint8.tif", cmap=None))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
 
-def test_add_geotiff_with_cmap():
+def test_geotiff_layer_with_cmap():
     m = EcoMap()
-    m.add_geotiff("tests/sample_data/raster/uint8.tif", cmap="jet")
+    m.add_layer(EcoMap.geotiff_layer("tests/sample_data/raster/uint8.tif", cmap="jet"))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
 
-def test_add_geotiff_in_mem_with_cmap():
+def test_geotiff_layer_in_mem_with_cmap():
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "maec_4zones_UTM36S.gpkg"))
 
     grid = gpd.GeoDataFrame(
@@ -234,7 +234,7 @@ def test_add_geotiff_in_mem_with_cmap():
     )
 
     m = EcoMap()
-    m.add_geotiff(raster, cmap="jet")
+    m.add_layer(EcoMap.geotiff_layer(raster, cmap="jet"))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
@@ -242,7 +242,7 @@ def test_add_geotiff_in_mem_with_cmap():
 def test_add_datashader_gdf(point_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(point_gdf, "point")
-    m.add_pil_image(img, bounds, zoom=False)
+    m.add_layer(EcoMap.pil_layer(img, bounds, zoom=False))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
@@ -250,7 +250,7 @@ def test_add_datashader_gdf(point_gdf):
 def test_add_datashader_gdf_with_zoom(poly_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(poly_gdf, "polygon")
-    m.add_pil_image(img, bounds)
+    m.add_layer(EcoMap.pil_layer(img, bounds), zoom=True)
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
     assert m.view_state.longitude == (bounds[0] + bounds[2]) / 2
