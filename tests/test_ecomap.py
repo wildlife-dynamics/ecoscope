@@ -242,7 +242,7 @@ def test_geotiff_layer_in_mem_with_cmap():
 def test_add_datashader_gdf(point_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(point_gdf, "point")
-    m.add_layer(EcoMap.pil_layer(img, bounds, zoom=False))
+    m.add_layer(EcoMap.pil_layer(img, bounds))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
