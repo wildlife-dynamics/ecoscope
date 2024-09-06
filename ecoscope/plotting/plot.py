@@ -28,10 +28,11 @@ class EcoPlotData:
             for group, data in grouped:
                 color = color_list_to_css(data[color_col].unique()[0])
 
-                if not self.groupby_style.get(group[1]):
-                    self.groupby_style[group[1]] = {"marker_color": color}
+                # The least significant 'group' are our categories
+                if not self.groupby_style.get(group[-1]):
+                    self.groupby_style[group[-1]] = {"marker_color": color}
                 else:
-                    self.groupby_style[group[1]]["marker_color"] = color
+                    self.groupby_style[group[-1]]["marker_color"] = color
 
         # Plotting Defaults
         self.style["mode"] = self.style.get("mode", "lines+markers")
@@ -380,7 +381,7 @@ def pie_chart(
         values = data[value_column].value_counts()
 
     if color_column:
-        style_kwargs["marker_colors"] = [color_list_to_css(color) for color in color_column]
+        style_kwargs["marker_colors"] = [color_list_to_css(color) for color in data[color_column]]
 
     fig = go.Figure(data=go.Pie(labels=labels, values=values, **style_kwargs), layout=layout_kwargs)
     return fig

@@ -135,15 +135,23 @@ def test_pie_chart_no_style(chart_df):
 
 
 def test_pie_chart_categorical(chart_df):
-    layout = {"piecolorway": ["red", "green", "blue"]}
+    layout = {}
+    apply_color_map(chart_df, "category", cmap=["#FF0000", "#00FF00"], output_column_name="colors")
     style = {"marker_line_color": "#000000", "marker_line_width": 2, "textinfo": "value"}
-    chart = pie_chart(chart_df, value_column="category", style_kwargs=style, layout_kwargs=layout)
+    chart = pie_chart(
+        chart_df, value_column="category", style_kwargs=style, color_column="colors", layout_kwargs=layout
+    )
 
-    assert chart.layout["piecolorway"] == ("red", "green", "blue")
     assert set(chart.data[0].labels) == set(["A", "B"])
     assert set(chart.data[0].values) == set([1, 3])
     assert chart.data[0].marker.line.color == "#000000"
     assert chart.data[0].marker.line.width == 2
+    assert chart.data[0].marker.colors == (
+        "rgba(255, 0, 0, 1.0)",
+        "rgba(0, 255, 0, 1.0)",
+        "rgba(0, 255, 0, 1.0)",
+        "rgba(0, 255, 0, 1.0)",
+    )
 
 
 def test_pie_chart_numerical(chart_df):
