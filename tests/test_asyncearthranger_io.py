@@ -86,6 +86,7 @@ def get_subjects_fields():
         "created_at",
         "updated_at",
         "is_active",
+        "is_static",
         "user",
         "tracks_available",
         "image_url",
