@@ -175,7 +175,7 @@ class EcoMap(EcoMapMixin, Map):
         return gdf
 
     @staticmethod
-    def polyline_layer(gdf: gpd.GeoDataFrame, **kwargs) -> PathLayer:
+    def polyline_layer(gdf: gpd.GeoDataFrame, color_column: str = None, **kwargs) -> PathLayer:
         """
         Creates a polyline layer to add to a map
         Parameters
@@ -186,11 +186,16 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/path-layer/
         """
+        if not kwargs.get("get_color") and color_column:
+            kwargs["get_color"] = np.array([color for color in gdf[color_column].values], dtype="uint8")
+
         gdf = EcoMap._clean_gdf(gdf)
         return PathLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
-    def polygon_layer(gdf: gpd.GeoDataFrame, **kwargs) -> PolygonLayer:
+    def polygon_layer(
+        gdf: gpd.GeoDataFrame, fill_color_column: str = None, line_color_column: str = None, **kwargs
+    ) -> PolygonLayer:
         """
         Creates a polygon layer to add to a map
         Parameters
@@ -201,11 +206,18 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/polygon-layer/
         """
+        if not kwargs.get("get_fill_color") and fill_color_column:
+            kwargs["get_fill_color"] = np.array([color for color in gdf[fill_color_column].values], dtype="uint8")
+        if not kwargs.get("get_line_color") and line_color_column:
+            kwargs["get_line_color"] = np.array([color for color in gdf[line_color_column].values], dtype="uint8")
+
         gdf = EcoMap._clean_gdf(gdf)
         return PolygonLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
-    def point_layer(gdf: gpd.GeoDataFrame, **kwargs) -> ScatterplotLayer:
+    def point_layer(
+        gdf: gpd.GeoDataFrame, fill_color_column: str = None, line_color_column: str = None, **kwargs
+    ) -> ScatterplotLayer:
         """
         Creates a polygon layer to add to a map
         Parameters
@@ -216,6 +228,11 @@ class EcoMap(EcoMapMixin, Map):
             Additional kwargs passed to lonboard.ScatterplotLayer:
             http://developmentseed.org/lonboard/latest/api/layers/scatterplot-layer/
         """
+        if not kwargs.get("get_fill_color") and fill_color_column:
+            kwargs["get_fill_color"] = np.array([color for color in gdf[fill_color_column].values], dtype="uint8")
+        if not kwargs.get("get_line_color") and line_color_column:
+            kwargs["get_line_color"] = np.array([color for color in gdf[line_color_column].values], dtype="uint8")
+
         gdf = EcoMap._clean_gdf(gdf)
         return ScatterplotLayer.from_geopandas(gdf, **kwargs)
 
@@ -276,7 +293,9 @@ class EcoMap(EcoMapMixin, Map):
         """
         kwargs["title"] = title
         kwargs["placement"] = kwargs.get("placement", "fill")
-        kwargs["style"] = kwargs.get("style", {"position": "relative", "margin": "0 auto", "width": "35%"})
+        # kwargs["style"] = kwargs.get("style", {"position": "relative", "margin": "0 auto", "width": "35%"})
+        kwargs["placement_x"] = kwargs.get("placement_x", "50%")
+        kwargs["placement_y"] = kwargs.get("placement_y", "1%")
 
         self.add_widget(TitleWidget(**kwargs))
 
@@ -292,14 +311,14 @@ class EcoMap(EcoMapMixin, Map):
         """
         self.add_widget(SaveImageWidget(**kwargs))
 
-    def add_ee_layer(
-        self,
+    @staticmethod
+    def ee_layer(
         ee_object: Union[ee.Image, ee.ImageCollection, ee.Geometry, ee.FeatureCollection],
         visualization_params: Dict,
-        **kwargs
+        **kwargs,
     ):
         """
-        Adds a provided Earth Engine object to the map.
+        Creates a layer from the provided Earth Engine.
         If an EE.Image/EE.ImageCollection or EE.FeatureCollection is provided,
         this results in a BitmapTileLayer being added
 
@@ -328,14 +347,14 @@ class EcoMap(EcoMapMixin, Map):
         elif isinstance(ee_object, ee.geometry.Geometry):
             geojson = ee_object.toGeoJSON()
             gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
-            ee_layer = self.layers_from_gdf(gdf=gdf, **kwargs)
+            ee_layer = EcoMap.layers_from_gdf(gdf=gdf, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
             ee_object_new = ee.Image().paint(ee_object, 0, 2)
             map_id_dict = ee.Image(ee_object_new).getMapId(visualization_params)
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
 
-        self.add_layer(ee_layer)
+        return ee_layer
 
     def zoom_to_bounds(self, feat: Union[BaseLayer, List[BaseLayer], gpd.GeoDataFrame]):
         """
@@ -367,15 +386,14 @@ class EcoMap(EcoMapMixin, Map):
 
         self.set_view_state(**view_state)
 
-    def add_geotiff(
-        self,
+    @staticmethod
+    def geotiff_layer(
         tiff: str | rio.MemoryFile,
-        zoom: bool = False,
         cmap: Union[str, mpl.colors.Colormap] = None,
         opacity: float = 0.7,
     ):
         """
-        Adds a local geotiff to the map
+        Creates a layer from a given geotiff
         Note that since deck.gl tiff support is limited, this extracts the CRS/Bounds from the tiff
         and converts the image data in-memory to PNG
 
@@ -383,8 +401,6 @@ class EcoMap(EcoMapMixin, Map):
         ----------
         tiff : str | rio.MemoryFile
             The string path to a tiff on disk or a rio.MemoryFile
-        zoom : bool
-            Whether to zoom the map to the bounds of the tiff
         cmap: str or matplotlib.colors.Colormap
             The colormap to apply to the raster
         opacity: float
@@ -443,11 +459,12 @@ class EcoMap(EcoMapMixin, Map):
                         url = "data:image/png;base64," + base64.b64encode(outfile.read()).decode("utf-8")
 
                         layer = BitmapLayer(image=url, bounds=bounds, opacity=opacity)
-                        self.add_layer(layer, zoom=zoom)
+                        return layer
 
-    def add_pil_image(self, image, bounds, zoom=True, opacity=1):
+    @staticmethod
+    def pil_layer(image, bounds, opacity=1):
         """
-        Overlays a PIL.Image onto the Ecomap
+        Creates layer from a PIL.Image
 
         Parameters
         ----------
@@ -455,8 +472,6 @@ class EcoMap(EcoMapMixin, Map):
             The image to be overlaid
         bounds: tuple
             Tuple containing the EPSG:4326 (minx, miny, maxx, maxy) values bounding the given image
-        zoom : bool, optional
-            Zoom to the generated image
         opacity : float, optional
             Sets opacity of overlaid image
         """
@@ -466,7 +481,7 @@ class EcoMap(EcoMapMixin, Map):
 
         url = "data:image/png;base64," + base64.b64encode(data.getvalue()).decode("utf-8")
         layer = BitmapLayer(image=url, bounds=bounds.tolist(), opacity=opacity)
-        self.add_layer(layer, zoom=zoom)
+        return layer
 
     @staticmethod
     def get_named_tile_layer(layer: str) -> BitmapTileLayer:
@@ -522,8 +537,3 @@ class EcoMap(EcoMapMixin, Map):
             self.height = "100%"
             self.width = "100%"
         return super().to_html(filename=filename, title=title)
-
-    @staticmethod
-    def hex_to_rgb(hex: str) -> list:
-        hex = hex.strip("#")
-        return list(int(hex[i : i + 2], 16) for i in (0, 2, 4))

@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
 import shapely
@@ -14,12 +16,23 @@ except ModuleNotFoundError:
 
 
 class EcoPlotData:
-    def __init__(self, grouped, x_col="x", y_col="y", groupby_style=None, **style):
+    def __init__(self, grouped, x_col="x", y_col="y", color_col=None, groupby_style=None, **style):
         self.grouped = grouped
         self.x_col = x_col
         self.y_col = y_col
+        self.color_col = color_col
         self.groupby_style = {} if groupby_style is None else groupby_style
         self.style = style
+
+        if color_col:
+            for group, data in grouped:
+                color = color_list_to_css(data[color_col].unique()[0])
+
+                # The least significant 'group' are our categories
+                if not self.groupby_style.get(group[-1]):
+                    self.groupby_style[group[-1]] = {"marker_color": color}
+                else:
+                    self.groupby_style[group[-1]]["marker_color"] = color
 
         # Plotting Defaults
         self.style["mode"] = self.style.get("mode", "lines+markers")
@@ -328,7 +341,12 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
 
 
 def pie_chart(
-    data: pd.DataFrame, value_column: str, label_column: str = None, style_kwargs: dict = {}, layout_kwargs: dict = None
+    data: pd.DataFrame,
+    value_column: str,
+    label_column: str = None,
+    color_column: str = None,
+    style_kwargs: dict = {},
+    layout_kwargs: dict = None,
 ):
     """
     Creates a pie chart from the provided dataframe
@@ -362,5 +380,13 @@ def pie_chart(
         labels = data[value_column].unique()
         values = data[value_column].value_counts()
 
+    if color_column:
+        style_kwargs["marker_colors"] = [color_list_to_css(color) for color in data[color_column]]
+
     fig = go.Figure(data=go.Pie(labels=labels, values=values, **style_kwargs), layout=layout_kwargs)
     return fig
+
+
+def color_list_to_css(color: Tuple[int, int, int, int]):
+    # eg [255,0,120,255] converts to 'rgba(255,0,120,1)'
+    return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"

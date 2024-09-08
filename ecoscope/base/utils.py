@@ -262,3 +262,21 @@ def add_temporal_index(df, index_name, time_col, directive):
         return df.set_index(index_name, append=True)
     else:
         return df
+
+
+def hex_to_rgba(input: str) -> tuple:
+    if not input:
+        raise ValueError("Input cannot be empty")
+    hex = input.strip("#")
+
+    if len(hex) != 6 and len(hex) != 8:
+        raise ValueError("Invalid hex length, must be 6 or 8")
+
+    # Max alpha if none provided
+    if len(hex) == 6:
+        hex = f"{hex}FF"
+
+    try:
+        return tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4, 6))
+    except ValueError:
+        raise ValueError(f"Invalid hex string, {input}")

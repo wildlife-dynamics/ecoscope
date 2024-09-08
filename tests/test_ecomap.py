@@ -8,6 +8,7 @@ import ecoscope
 import shapely
 from ecoscope.mapping import EcoMap
 from ecoscope.analysis.geospatial import datashade_gdf
+from ecoscope.analysis.classifier import apply_classification, apply_color_map
 from lonboard._layer import BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
 from lonboard._deck_widget import (
     NorthArrowWidget,
@@ -99,7 +100,7 @@ def test_add_ee_layer_image():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
     ee_object = ee.Image("USGS/SRTMGL1_003")
-    m.add_ee_layer(ee_object, vis_params)
+    m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
 
@@ -109,7 +110,7 @@ def test_add_ee_layer_image_collection():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5}
     ee_object = ee.ImageCollection("MODIS/006/MCD43C3")
-    m.add_ee_layer(ee_object, vis_params)
+    m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
     assert m.layers[1].tile_size == 256
@@ -120,7 +121,7 @@ def test_add_ee_layer_feature_collection():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
     ee_object = ee.FeatureCollection("LARSE/GEDI/GEDI02_A_002/GEDI02_A_2021244154857_O15413_04_T05622_02_003_02_V002")
-    m.add_ee_layer(ee_object, vis_params)
+    m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
 
@@ -129,7 +130,7 @@ def test_add_ee_layer_feature_collection():
 def test_add_ee_layer_geometry():
     m = EcoMap()
     rectangle = ee.Geometry.Rectangle([-40, -20, 40, 20])
-    m.add_ee_layer(rectangle, None)
+    m.add_layer(EcoMap.ee_layer(rectangle, None))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PolygonLayer)
 
@@ -203,21 +204,21 @@ def test_zoom_to_gdf():
     assert m.view_state.latitude == (y1 + y2) / 2
 
 
-def test_add_geotiff():
+def test_geotiff_layer():
     m = EcoMap()
-    m.add_geotiff("tests/sample_data/raster/uint8.tif", cmap=None)
+    m.add_layer(EcoMap.geotiff_layer("tests/sample_data/raster/uint8.tif", cmap=None))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
 
-def test_add_geotiff_with_cmap():
+def test_geotiff_layer_with_cmap():
     m = EcoMap()
-    m.add_geotiff("tests/sample_data/raster/uint8.tif", cmap="jet")
+    m.add_layer(EcoMap.geotiff_layer("tests/sample_data/raster/uint8.tif", cmap="jet"))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
 
-def test_add_geotiff_in_mem_with_cmap():
+def test_geotiff_layer_in_mem_with_cmap():
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "maec_4zones_UTM36S.gpkg"))
 
     grid = gpd.GeoDataFrame(
@@ -233,7 +234,7 @@ def test_add_geotiff_in_mem_with_cmap():
     )
 
     m = EcoMap()
-    m.add_geotiff(raster, cmap="jet")
+    m.add_layer(EcoMap.geotiff_layer(raster, cmap="jet"))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
@@ -241,7 +242,7 @@ def test_add_geotiff_in_mem_with_cmap():
 def test_add_datashader_gdf(point_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(point_gdf, "point")
-    m.add_pil_image(img, bounds, zoom=False)
+    m.add_layer(EcoMap.pil_layer(img, bounds))
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
 
@@ -249,8 +250,54 @@ def test_add_datashader_gdf(point_gdf):
 def test_add_datashader_gdf_with_zoom(poly_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(poly_gdf, "polygon")
-    m.add_pil_image(img, bounds)
+    m.add_layer(EcoMap.pil_layer(img, bounds), zoom=True)
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapLayer)
     assert m.view_state.longitude == (bounds[0] + bounds[2]) / 2
     assert m.view_state.latitude == (bounds[1] + bounds[3]) / 2
+
+
+def test_add_polyline_with_color(movebank_relocations):
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    # this is effectively a reimplementation of SpeedDataFrame
+    apply_classification(
+        trajectory, input_column_name="speed_kmhr", output_column_name="speed_bins", scheme="equal_interval", k=6
+    )
+    cmap = ["#1a9850", "#91cf60", "#d9ef8b", "#fee08b", "#fc8d59", "#d73027"]
+    apply_color_map(trajectory, "speed_bins", cmap=cmap, output_column_name="speed_colors")
+
+    m = EcoMap()
+    m.add_layer(m.polyline_layer(trajectory, color_column="speed_colors", get_width=2000))
+
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], PathLayer)
+    assert m.layers[1].get_width == 2000
+
+
+def test_add_point_with_color(point_gdf):
+    point_gdf["time"] = point_gdf["recorded_at"].apply(lambda x: x.value)
+    apply_classification(point_gdf, input_column_name="time", scheme="equal_interval")
+    apply_color_map(point_gdf, "time_classified", "viridis", output_column_name="time_cmap")
+
+    m = EcoMap()
+    m.add_layer(m.point_layer(point_gdf, fill_color_column="time_cmap", get_radius=10000))
+
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], ScatterplotLayer)
+
+
+def test_add_polygon_with_color(poly_gdf):
+    apply_color_map(poly_gdf, "ZoneID", "tab20b")
+
+    m = EcoMap()
+    m.add_layer(
+        m.polygon_layer(poly_gdf, fill_color_column="ZoneID_colormap", extruded=True, get_line_width=35), zoom=True
+    )
+
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], PolygonLayer)
+    assert m.layers[1].extruded
+    assert m.layers[1].get_line_width == 35
+    # validating zoom param by checking view state is non-default
+    assert m.view_state.longitude != 10
+    assert m.view_state.latitude != 0

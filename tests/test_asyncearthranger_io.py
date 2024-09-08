@@ -165,7 +165,7 @@ async def test_get_events_by_type(er_io_async, get_events_fields):
 
 @pytest.mark.asyncio
 async def test_get_events(er_io_async, get_events_fields):
-    events = await er_io_async.get_events_dataframe(event_ids=["71a03681-3d45-44ea-9b63-ca2ac278d8ec"])
+    events = await er_io_async.get_events_dataframe(event_ids=["34ecf597-0ecc-4ac3-bec5-e9de801f0063"])
     assert len(events) == 1
     assert set(events.columns) == set(get_events_fields)
     assert type(events["time"] == pd.Timestamp)

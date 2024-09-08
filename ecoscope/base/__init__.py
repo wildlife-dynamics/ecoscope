@@ -10,6 +10,7 @@ from ecoscope.base.utils import (
     cachedproperty,
     create_meshgrid,
     groupby_intervals,
+    hex_to_rgba,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "cachedproperty",
     "create_meshgrid",
     "groupby_intervals",
+    "hex_to_rgba",
 ]
