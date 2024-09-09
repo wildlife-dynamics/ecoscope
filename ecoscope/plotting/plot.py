@@ -1,8 +1,8 @@
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 import shapely
+
+from ecoscope.base.utils import color_tuple_to_css
 
 try:
     from sklearn.neighbors import KernelDensity
@@ -26,7 +26,7 @@ class EcoPlotData:
 
         if color_col:
             for group, data in grouped:
-                color = color_list_to_css(data[color_col].unique()[0])
+                color = color_tuple_to_css(data[color_col].unique()[0])
 
                 # The least significant 'group' are our categories
                 if not self.groupby_style.get(group[-1]):
@@ -381,13 +381,8 @@ def pie_chart(
         values = data[value_column].value_counts(sort=False)
 
     if color_column:
-        style_kwargs["marker_colors"] = [color_list_to_css(color) for color in data[color_column].unique()]
+        style_kwargs["marker_colors"] = [color_tuple_to_css(color) for color in data[color_column].unique()]
     # breakpoint()
 
     fig = go.Figure(data=go.Pie(labels=labels, values=values, **style_kwargs), layout=layout_kwargs)
     return fig
-
-
-def color_list_to_css(color: Tuple[int, int, int, int]):
-    # eg [255,0,120,255] converts to 'rgba(255,0,120,1)'
-    return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"

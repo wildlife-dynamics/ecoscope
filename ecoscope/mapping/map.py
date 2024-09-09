@@ -7,6 +7,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio as rio
+from ecoscope.base.utils import color_tuple_to_css
 from io import BytesIO
 from typing import Dict, IO, List, Optional, TextIO, Union
 from pathlib import Path
@@ -236,7 +237,7 @@ class EcoMap(EcoMapMixin, Map):
         gdf = EcoMap._clean_gdf(gdf)
         return ScatterplotLayer.from_geopandas(gdf, **kwargs)
 
-    def add_legend(self, **kwargs):
+    def add_legend(self, labels: list | pd.Series, colors: list | pd.Series, **kwargs):
         """
         Adds a legend to the map
         Parameters
@@ -246,13 +247,21 @@ class EcoMap(EcoMapMixin, Map):
             Where to place the widget within the map
         title: str
             A title displayed on the widget
-        labels: list[str]
+        labels: list or pd.Series
             A list of labels
-        colors: list[str]
-            A list of colors as hex values
+        colors: list or pd.Series
+            A list of colors as hex values, or a pd.Series of color tuples
         style: dict
             Additional style params
         """
+        if isinstance(labels, pd.Series):
+            labels = labels.unique().tolist()
+
+        kwargs["labels"] = labels = [str(label) for label in labels]
+
+        if isinstance(colors, pd.Series):
+            kwargs["colors"] = labels = [color_tuple_to_css(color) for color in colors.unique().tolist()]
+
         self.add_widget(LegendWidget(**kwargs))
 
     def add_north_arrow(self, **kwargs):

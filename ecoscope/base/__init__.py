@@ -11,6 +11,7 @@ from ecoscope.base.utils import (
     create_meshgrid,
     groupby_intervals,
     hex_to_rgba,
+    color_tuple_to_css,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "create_meshgrid",
     "groupby_intervals",
     "hex_to_rgba",
+    "color_tuple_to_css",
 ]

@@ -2,6 +2,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from shapely.geometry import box
+from typing import Tuple
 
 
 def create_meshgrid(
@@ -280,3 +281,8 @@ def hex_to_rgba(input: str) -> tuple:
         return tuple(int(hex[i : i + 2], 16) for i in (0, 2, 4, 6))
     except ValueError:
         raise ValueError(f"Invalid hex string, {input}")
+
+
+def color_tuple_to_css(color: Tuple[int, int, int, int]):
+    # eg [255,0,120,255] converts to 'rgba(255,0,120,1)'
+    return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"
