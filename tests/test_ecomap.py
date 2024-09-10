@@ -67,6 +67,24 @@ def test_add_legend():
     assert len(m.deck_widgets) == 1
 
 
+def test_add_legend_tuples():
+    m = EcoMap(default_widgets=False)
+    m.add_legend(labels=["Black", "White"], colors=[(0, 0, 0, 255), (255, 255, 255, 255)])
+    assert len(m.deck_widgets) == 1
+
+
+def test_add_legend_mixed():
+    m = EcoMap(default_widgets=False)
+    m.add_legend(labels=["Black", "White"], colors=[(0, 0, 0, 255), "#FFFFFF"])
+    assert len(m.deck_widgets) == 1
+
+
+def test_add_legend_series():
+    m = EcoMap(default_widgets=False)
+    m.add_legend(labels=pd.Series(["Black", "White"]), colors=pd.Series([(0, 0, 0, 255), (255, 255, 255, 255)]))
+    assert len(m.deck_widgets) == 1
+
+
 def test_add_north_arrow():
     m = EcoMap()
     m.add_north_arrow()
