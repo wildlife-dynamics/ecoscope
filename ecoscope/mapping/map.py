@@ -248,21 +248,21 @@ class EcoMap(EcoMapMixin, Map):
         title: str
             A title displayed on the widget
         labels: list or pd.Series
-            A list of labels
+            A list or series of labels
         colors: list or pd.Series
-            A list of colors as hex values, or a pd.Series of color tuples
+            A list or series of colors as string hex values or RGBA color tuples
         style: dict
             Additional style params
         """
         if isinstance(labels, pd.Series):
             labels = labels.unique().tolist()
-
-        kwargs["labels"] = labels = [str(label) for label in labels]
-
         if isinstance(colors, pd.Series):
-            kwargs["colors"] = labels = [color_tuple_to_css(color) for color in colors.unique().tolist()]
+            colors = colors.unique().tolist()
 
-        self.add_widget(LegendWidget(**kwargs))
+        labels = [str(label) for label in labels]
+        colors = [color_tuple_to_css(color) if isinstance(color, tuple) else color for color in colors]
+
+        self.add_widget(LegendWidget(labels=labels, colors=colors, **kwargs))
 
     def add_north_arrow(self, **kwargs):
         """
