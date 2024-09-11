@@ -20,7 +20,7 @@ def sample_df():
         (
             "std_mean",
             {"multiples": [-2, -1, 1, 2]},
-            [1.4188611699158102, 4.58113883008419, 4.58113883008419, 4.58113883008419, 6.16227766016838],
+            [1.4, 4.6, 4.6, 4.6, 6.2],
         ),
         ("max_breaks", {"k": 4}, [2.5, 2.5, 3.5, 4.5, 5.0]),
         ("fisher_jenks", {"k": 5}, [1.0, 2.0, 3.0, 4.0, 5.0]),
@@ -109,4 +109,10 @@ def test_apply_colormap_cmap_user_defined_bad(movebank_relocations):
 
 def test_classify_with_ranges(sample_df):
     result = apply_classification(sample_df, input_column_name="value", scheme="equal_interval", label_ranges=True, k=5)
-    assert result["value_classified"].values.tolist() == ["0 - 1.8", "1.8 - 2.6", "2.6 - 3.4", "3.4 - 4.2", "4.2 - 5.0"]
+    assert result["value_classified"].values.tolist() == [
+        "1.0 - 1.8",
+        "1.8 - 2.6",
+        "2.6 - 3.4",
+        "3.4 - 4.2",
+        "4.2 - 5.0",
+    ]
