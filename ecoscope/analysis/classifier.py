@@ -87,7 +87,8 @@ def apply_classification(
         labels = classifier.bins
 
         # Generate range labels if our bins are numeric
-        if np.issubdtype(dataframe[input_column_name].dtype, np.floating) and label_ranges:
+        if np.issubdtype(dataframe[input_column_name].dtype, np.number) and label_ranges:
+            # We could do this using mapclassify.get_legend_classes, but this generates a cleaner labely
             ranges = [f"0 - {labels[0]:.{label_decimals}f}"]
             ranges.extend(
                 [f"{labels[i]:.{label_decimals}f} - {labels[i + 1]:.{label_decimals}f}" for i in range(len(labels) - 1)]

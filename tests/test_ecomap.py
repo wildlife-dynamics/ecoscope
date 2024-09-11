@@ -292,6 +292,7 @@ def test_add_polyline_with_color(movebank_relocations):
 
     m = EcoMap()
     m.add_layer(m.polyline_layer(trajectory, color_column="speed_colors", get_width=2000))
+    m.add_legend(labels=trajectory["speed_bins"], colors=trajectory["speed_colors"])
 
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PathLayer)

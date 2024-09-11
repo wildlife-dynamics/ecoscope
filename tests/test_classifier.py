@@ -37,6 +37,19 @@ def test_classify_with_labels(sample_df):
     assert result["value_classified"].values.tolist() == ["1", "1", "1", "2", "2"]
 
 
+def test_classify_with_labels_prefix_suffix(sample_df):
+    result = apply_classification(
+        sample_df,
+        input_column_name="value",
+        labels=["1", "2"],
+        label_prefix="_",
+        label_suffix="_",
+        scheme="equal_interval",
+        k=2,
+    )
+    assert result["value_classified"].values.tolist() == ["_1_", "_1_", "_1_", "_2_", "_2_"]
+
+
 def test_classify_with_invalid_labels(sample_df):
     with pytest.raises(AssertionError):
         apply_classification(sample_df, input_column_name="value", labels=[0], scheme="std_mean")
@@ -92,3 +105,8 @@ def test_apply_colormap_cmap_user_defined_bad(movebank_relocations):
 
     with pytest.raises(AssertionError):
         apply_color_map(classified, "speed_bins", cmap)
+
+
+def test_classify_with_ranges(sample_df):
+    result = apply_classification(sample_df, input_column_name="value", scheme="equal_interval", label_ranges=True, k=5)
+    assert result["value_classified"].values.tolist() == ["0 - 1.8", "1.8 - 2.6", "2.6 - 3.4", "3.4 - 4.2", "4.2 - 5.0"]
