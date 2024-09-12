@@ -6,7 +6,9 @@ import zipfile
 
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
 from tqdm.auto import tqdm
+from urllib3.util import Retry
 
 
 def to_hex(val, default="#ff0000"):
@@ -27,18 +29,22 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
     return dataframe
 
 
-def download_file(url, path, overwrite_existing=False, chunk_size=1024, unzip=True, **request_kwargs):
+def download_file(url, path, retries=2, overwrite_existing=False, chunk_size=1024, unzip=False, **request_kwargs):
     """
     Download a file from a URL to a local path. If the path is a directory, the filename will be inferred from
     the response header
     """
+
+    s = requests.Session()
+    retries = Retry(total=retries, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
+    s.mount("https://", HTTPAdapter(max_retries=retries))
 
     if __is_gdrive_url(url):
         url = __transform_gdrive_url(url)
     elif __is_dropbox_url(url):
         url = __transform_dropbox_url(url)
 
-    r = requests.get(url, stream=True, **request_kwargs)
+    r = s.get(url, stream=True, **request_kwargs)
 
     if os.path.isdir(path):
         m = email.message.Message()
