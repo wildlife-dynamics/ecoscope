@@ -100,7 +100,7 @@ def test_download_file_retry_on_error(mock):
     with pytest.raises(RetryError):
         ecoscope.io.download_file(
             url,
-            os.path.join(output_dir, "a_file.csv"),
+            output_dir,
             overwrite_existing=True,
         )
 

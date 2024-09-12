@@ -48,7 +48,7 @@ def download_file(url, path, retries=2, overwrite_existing=False, chunk_size=102
 
     if os.path.isdir(path):
         m = email.message.Message()
-        m["content-type"] = r.headers["content-disposition"]
+        m["content-type"] = r.headers.get("content-disposition")
         filename = m.get_param("filename")
         if filename is None:
             raise ValueError("URL has no RFC 6266 filename.")
@@ -59,7 +59,8 @@ def download_file(url, path, retries=2, overwrite_existing=False, chunk_size=102
         return
 
     with open(path, "wb") as f:
-        with tqdm.wrapattr(f, "write", total=int(r.headers["Content-Length"])) as fout:
+        content_length = r.headers.get("content-length")
+        with tqdm.wrapattr(f, "write", total=int(content_length)) if content_length else f as fout:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 fout.write(chunk)
 
