@@ -87,7 +87,10 @@ def test_get_patrols(er_io):
 
 
 def test_get_patrol_events(er_io):
-    events = er_io.get_patrol_events()
+    events = er_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
     assert "id" in events
     assert "event_type" in events
     assert "geometry" in events
@@ -196,7 +199,11 @@ def test_patch_event(er_io):
 
 
 def test_get_patrol_observations(er_io):
-    patrols = er_io.get_patrols()
+    patrols = er_io.get_patrols(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+
     observations = er_io.get_patrol_observations(
         patrols,
         include_source_details=False,
