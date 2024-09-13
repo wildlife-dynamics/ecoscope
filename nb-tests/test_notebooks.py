@@ -18,11 +18,6 @@ NB_DIR = pathlib.Path(__file__).parent.parent / "doc" / "source" / "notebooks"
 
 KNOWN_ERRORS_REGEXES = {  # This is basically a GitHub ticket queue
     "Relocations_and_Trajectories.ipynb": "No module named 'branca'",
-    "Landscape Grid.ipynb": "No module named 'branca'",
-    "Seasonal Calculation.ipynb": "No module named 'branca'",
-    "Remote Sensing Time Series Anomaly.ipynb": "No module named 'branca'",
-    "Reduce Regions.ipynb": "No module named 'branca'",
-    "Landscape Dynamics Data.ipynb": "No module named 'branca'",
 }
 
 
