@@ -634,7 +634,7 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         since:
-            lower date range !!!!! TODO: this is not DATE
+            lower date range
         until:
             upper date range
         patrol_type:
