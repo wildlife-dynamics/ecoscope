@@ -213,25 +213,19 @@ def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None):
     Save a GeoDataFrame grid to a raster.
     """
     bounds = grid["geometry"].total_bounds
+    cell_values = ((geom, value) for geom, value in zip(grid.geometry, grid[val_column]))
 
-    if len(grid) == 1:
-        nrows = ncols = 1
-    else:
-        nrows = 0
-        for i, _ in enumerate(grid.index):
-            nrows += 1
-            if not (grid.geometry[i].intersects(grid.geometry[i + 1])):
-                break
-        ncols = len(grid) // nrows
-
-    if val_column:
-        vals = grid[val_column].to_numpy()
-    else:
-        vals = np.zeros(len(grid))
-    vals = np.flip(vals.reshape(nrows, ncols, order="F"), axis=0)
+    rasterized = rio.features.rasterize(
+        cell_values,
+        out_shape=grid.shape,
+        # transform = raster.transform,
+        all_touched=True,
+        fill=-5,  # background value
+        merge_alg=rio.enums.MergeAlg.replace,
+        dtype=rio.int16,
+    )
 
     raster_profile = ecoscope.io.raster.RasterProfile(
-        pixel_size=bounds[2] - bounds[0] / nrows,
         crs=grid.crs.to_epsg(),
         nodata_value=np.nan,
         band_count=1,
@@ -243,7 +237,7 @@ def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None):
 
     if raster_name:
         ecoscope.io.raster.RasterPy.write(
-            ndarray=vals,
+            ndarray=rasterized,
             fp=os.path.join(out_dir, raster_name),
             **raster_profile,
         )
@@ -255,6 +249,6 @@ def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None):
             height=raster_profile.pop("rows"),
             count=raster_profile.pop("band_count"),
             **raster_profile,
-        ).write(vals, 1)
+        ).write(rasterized, 1)
 
         return memfile
