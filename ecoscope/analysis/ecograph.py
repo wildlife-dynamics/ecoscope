@@ -85,7 +85,7 @@ class Ecograph:
             G = self._get_ecograph(df, subject_name, radius, cutoff, tortuosity_length)
             self.graphs[subject_name] = G
 
-        self.trajectory.groupby("groupby_col")[self.trajectory.columns].progress_apply(compute)
+        self.trajectory.groupby("groupby_col")[self.trajectory.columns].apply(compute)
 
     def to_csv(self, output_path):
         """

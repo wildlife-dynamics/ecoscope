@@ -16,18 +16,7 @@ except Exception:
 
 NB_DIR = pathlib.Path(__file__).parent.parent / "doc" / "source" / "notebooks"
 
-KNOWN_ERRORS_REGEXES = {  # This is basically a GitHub ticket queue
-    "EarthRanger_IO.ipynb": "Series found",
-    "Relocations_and_Trajectories.ipynb": "No module named 'branca'",
-    "EcoGraph.ipynb": "not a zip file",
-    "EcoPlot.ipynb": "not a zip file",
-    "Landscape Grid.ipynb": "No module named 'branca'",
-    "Seasonal Calculation.ipynb": "No module named 'branca'",
-    "Tracking Data Gantt Chart.ipynb": "Bad CRC-32 for file 'er_relocs.csv.zip'",
-    "Remote Sensing Time Series Anomaly.ipynb": "No module named 'branca'",
-    "Reduce Regions.ipynb": "No module named 'branca'",
-    "Landscape Dynamics Data.ipynb": "No module named 'branca'",
-}
+KNOWN_ERRORS_REGEXES = {}  # This is basically a GitHub ticket queue
 
 
 @dataclass

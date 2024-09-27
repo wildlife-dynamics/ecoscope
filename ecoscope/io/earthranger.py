@@ -1088,7 +1088,7 @@ class EarthRangerIO(ERClient):
             else:
                 return pd.DataFrame(results)
 
-        return observations.groupby(source_id_col, group_keys=False).progress_apply(upload)
+        return observations.groupby(source_id_col, group_keys=False).apply(upload)
 
     def post_event(
         self,

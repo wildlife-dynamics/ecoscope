@@ -218,7 +218,10 @@ async def test_get_patrols(er_io_async, get_patrols_fields):
 
 @pytest.mark.asyncio
 async def test_get_patrol_observations(er_io_async, get_patrol_observations_fields):
-    observations = await er_io_async.get_patrol_observations_with_patrol_filter()
+    observations = await er_io_async.get_patrol_observations_with_patrol_filter(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
     assert not observations.empty
     assert set(observations.columns) == set(get_patrol_observations_fields)
     assert type(observations["fixtime"] == pd.Timestamp)
@@ -228,7 +231,11 @@ async def test_get_patrol_observations(er_io_async, get_patrol_observations_fiel
 async def test_get_patrol_observations_with_patrol_details(
     er_io_async, get_patrol_observations_fields, get_patrol_details_fields
 ):
-    observations = await er_io_async.get_patrol_observations_with_patrol_filter(include_patrol_details=True)
+    observations = await er_io_async.get_patrol_observations_with_patrol_filter(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+        include_patrol_details=True,
+    )
     assert not observations.empty
     assert set(observations.columns) == set(get_patrol_observations_fields).union(get_patrol_details_fields)
     assert type(observations["fixtime"] == pd.Timestamp)
