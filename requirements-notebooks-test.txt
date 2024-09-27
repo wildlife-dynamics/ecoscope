@@ -4,3 +4,4 @@ papermill
 .[all]
 ipykernel
 pytest-xdist
+folium

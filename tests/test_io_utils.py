@@ -1,8 +1,12 @@
 import json
 import os
+import pytest
 
 import fsspec
 import pandas as pd
+from unittest.mock import Mock, patch
+from http.client import HTTPMessage
+from requests.exceptions import RetryError
 
 import ecoscope
 
@@ -80,3 +84,24 @@ def test_download_file_dropbox_share_link():
 
     data = pd.read_csv(os.path.join(output_dir, "download_data.csv"))
     assert len(data) > 0
+
+
+@patch("urllib3.connectionpool.HTTPConnectionPool._get_conn")
+def test_download_file_retry_on_error(mock):
+    mock.return_value.getresponse.side_effect = [
+        Mock(status=500, msg=HTTPMessage(), headers={}),
+        Mock(status=504, msg=HTTPMessage(), headers={}),
+        Mock(status=503, msg=HTTPMessage(), headers={}),
+    ]
+
+    url = "https://totallyreal.com"
+    output_dir = "tests/test_output"
+
+    with pytest.raises(RetryError):
+        ecoscope.io.download_file(
+            url,
+            output_dir,
+            overwrite_existing=True,
+        )
+
+    assert mock.call_count == 3
