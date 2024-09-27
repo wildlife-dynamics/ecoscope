@@ -13,8 +13,8 @@ from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
+from ecoscope.io.earthranger_utils import clean_kwargs, clean_time_cols, dataframe_to_dict, to_gdf
 from ecoscope.io.utils import pack_columns, to_hex
-from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf, clean_time_cols
 
 
 class EarthRangerIO(ERClient):
@@ -79,7 +79,10 @@ class EarthRangerIO(ERClient):
         )
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="sources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object="sources/",
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         return df
@@ -154,7 +157,10 @@ class EarthRangerIO(ERClient):
                 params["id"] = ",".join(subjects)
                 return pd.DataFrame(
                     self.get_objects_multithreaded(
-                        object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                        object="subjects/",
+                        threads=self.tcp_limit,
+                        page_size=self.sub_page_size,
+                        **params,
                     )
                 )
 
@@ -169,7 +175,10 @@ class EarthRangerIO(ERClient):
         else:
             df = pd.DataFrame(
                 self.get_objects_multithreaded(
-                    object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                    object="subjects/",
+                    threads=self.tcp_limit,
+                    page_size=self.sub_page_size,
+                    **params,
                 )
             )
 
@@ -192,7 +201,10 @@ class EarthRangerIO(ERClient):
         params = clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="subjectsources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object="subjectsources/",
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         df = clean_time_cols(df)
@@ -262,7 +274,10 @@ class EarthRangerIO(ERClient):
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
             dataframe = pd.DataFrame(
                 self.get_objects_multithreaded(
-                    object="observations/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                    object="observations/",
+                    threads=self.tcp_limit,
+                    page_size=self.sub_page_size,
+                    **params,
                 )
             )
             dataframe[id_name] = _id
@@ -452,7 +467,11 @@ class EarthRangerIO(ERClient):
             return observations
 
     def get_subjectgroup_observations(
-        self, subject_group_id=None, subject_group_name=None, include_inactive=True, **kwargs
+        self,
+        subject_group_id=None,
+        subject_group_name=None,
+        include_inactive=True,
+        **kwargs,
     ):
         """
         Parameters
@@ -585,7 +604,10 @@ class EarthRangerIO(ERClient):
 
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="activity/events/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object="activity/events/",
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         gdf = gpd.GeoDataFrame(df)
@@ -644,7 +666,10 @@ class EarthRangerIO(ERClient):
 
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="activity/patrols", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object="activity/patrols",
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         if "serial_number" in df.columns:
@@ -669,7 +694,13 @@ class EarthRangerIO(ERClient):
         events : pd.DataFrame
             DataFrame of queried patrols
         """
-        patrol_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **addl_kwargs)
+        patrol_df = self.get_patrols(
+            since=since,
+            until=until,
+            patrol_type=patrol_type,
+            status=status,
+            **addl_kwargs,
+        )
 
         events = []
         for _, row in patrol_df.iterrows():
@@ -683,6 +714,10 @@ class EarthRangerIO(ERClient):
         events_df = clean_time_cols(events_df)
 
         events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
+        events_df["time"] = events_df["geojson"].apply(
+            lambda x: datetime.datetime.strptime(x.get("properties").get("datetime"), "%Y-%m-%dT%H:%M:%S%z")
+        )
+
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
 
     def get_patrol_segments_from_patrol_id(self, patrol_id, **addl_kwargs):
@@ -718,7 +753,13 @@ class EarthRangerIO(ERClient):
         )
 
     def get_patrol_observations_with_patrol_filter(
-        self, since=None, until=None, patrol_type=None, status=None, include_patrol_details=False, **kwargs
+        self,
+        since=None,
+        until=None,
+        patrol_type=None,
+        status=None,
+        include_patrol_details=False,
+        **kwargs,
     ):
         """
         Download observations for patrols with provided filters.
@@ -779,7 +820,10 @@ class EarthRangerIO(ERClient):
 
                 try:
                     observation = self.get_subject_observations(
-                        subject_ids=[subject_id], since=patrol_start_time, until=patrol_end_time, **kwargs
+                        subject_ids=[subject_id],
+                        since=patrol_start_time,
+                        until=patrol_end_time,
+                        **kwargs,
                     )
                     if include_patrol_details:
                         observation["patrol_id"] = patrol["id"]
@@ -839,7 +883,10 @@ class EarthRangerIO(ERClient):
         object = f"activity/patrols/segments/{patrol_segment_id}/events/"
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object=object, threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object=object,
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         df = clean_time_cols(df)
@@ -1123,17 +1170,38 @@ class EarthRangerIO(ERClient):
         }
 
         if tracked_subject_id is not None:
-            payload.update({"leader": {"content_type": "observations.subject", "id": tracked_subject_id}})
+            payload.update(
+                {
+                    "leader": {
+                        "content_type": "observations.subject",
+                        "id": tracked_subject_id,
+                    }
+                }
+            )
         else:
             payload.update({"leader": None})
 
         if start_location is not None:
-            payload.update({"start_location": {"latitude": start_location[0], "longitude": start_location[1]}})
+            payload.update(
+                {
+                    "start_location": {
+                        "latitude": start_location[0],
+                        "longitude": start_location[1],
+                    }
+                }
+            )
         else:
             payload.update({"start_location": None})
 
         if end_location is not None:
-            payload.update({"end_location": {"latitude": end_location[0], "longitude": end_location[1]}})
+            payload.update(
+                {
+                    "end_location": {
+                        "latitude": end_location[0],
+                        "longitude": end_location[1],
+                    }
+                }
+            )
         else:
             payload.update({"end_location": None})
 

@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+import numpy as np
 from ecoscope.base import Trajectory
 from ecoscope.analysis.classifier import apply_classification, apply_color_map
 
@@ -52,7 +53,18 @@ def test_apply_colormap(sample_df, cmap):
     apply_classification(sample_df, input_column_name="value", scheme="equal_interval")
     apply_color_map(sample_df, "value_classified", cmap, output_column_name="colormap")
 
-    assert len(set(sample_df["colormap"].unique())) == len(sample_df["value_classified"].unique())
+    assert len(sample_df["colormap"].unique()) == len(sample_df["value_classified"].unique())
+
+
+def test_apply_colormap_with_nan():
+    df = pd.DataFrame(
+        data={"value": [1, 2, 3, 4, np.nan]},
+        index=["A", "B", "C", "D", "E"],
+    )
+    apply_color_map(df, "value", "viridis", output_column_name="colormap")
+
+    assert len(df["colormap"].unique()) == len(df["value"].unique())
+    assert df.loc["E"]["colormap"] == (0, 0, 0, 0)
 
 
 def test_apply_colormap_k2(sample_df):
@@ -60,7 +72,7 @@ def test_apply_colormap_k2(sample_df):
     cmap = "viridis"
     apply_color_map(sample_df, "value_classified", cmap, output_column_name="colormap")
 
-    assert len(set(sample_df["colormap"].unique())) == len(sample_df["value_classified"].unique())
+    assert len(sample_df["colormap"].unique()) == len(sample_df["value_classified"].unique())
 
 
 def test_apply_colormap_user_defined(movebank_relocations):
@@ -79,7 +91,7 @@ def test_apply_colormap_user_defined(movebank_relocations):
     ]
 
     apply_color_map(trajectory, "speed_bins", cmap)
-    assert len(set(trajectory["speed_bins_colormap"].unique())) == len(trajectory["speed_bins"].unique())
+    assert len(trajectory["speed_bins_colormap"].unique()) == len(trajectory["speed_bins"].unique())
 
 
 def test_apply_colormap_cmap_user_defined_bad(movebank_relocations):
