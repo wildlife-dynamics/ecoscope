@@ -106,7 +106,7 @@ html_theme_options = {
 commit_id = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("ascii")
 nbsphinx_prolog = f"""
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
-  :target: {{{{ "https://githubtocolab.com/wildlife-dynamics/ecoscope/blob/{commit_id}/doc/source/" + env.docname|urlencode + ".ipynb" }}}}
+  :target: {{{{ "https://githubtocolab.com/wildlife-dynamics/ecoscope/blob/{commit_id}/doc/source/" + env.docname + ".ipynb" }}}}
 
 ----
 """  # noqa
