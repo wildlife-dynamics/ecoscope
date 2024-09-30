@@ -43,3 +43,10 @@ def clean_time_cols(df):
             # convert x is not None to pd.isna(x) is False
             df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x)) if not pd.isna(x) else None)
     return df
+
+
+def format_iso_time(date_string: str) -> str:
+    try:
+        return pd.to_datetime(date_string).isoformat()
+    except ValueError:
+        raise ValueError(f"Failed to parse timestamp'{date_string}'")

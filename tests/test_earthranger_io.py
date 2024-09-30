@@ -4,6 +4,7 @@ import uuid
 import geopandas as gpd
 import pandas as pd
 import pytest
+import pytz
 from shapely.geometry import Point
 
 import ecoscope
@@ -81,9 +82,31 @@ def test_das_client_method(er_io):
     er_io.get_me()
 
 
-def test_get_patrols(er_io):
-    patrols = er_io.get_patrols()
+def test_get_patrols_datestr(er_io):
+    # patrols = er_io.get_patrols(
+    #     since=pd.Timestamp("2017-01-01").isoformat(),
+    #     until=pd.Timestamp("2017-04-01").isoformat(),
+    # )
+    since_str = "2017-01-01"
+    since_time = pd.to_datetime(since_str).replace(tzinfo=pytz.UTC)
+    until_str = "2017-04-01"
+    until_time = pd.to_datetime(until_str).replace(tzinfo=pytz.UTC)
+    patrols = er_io.get_patrols(since=since_str, until=until_str)
+
     assert len(patrols) > 0
+
+    time_ranges = [
+        segment["time_range"]
+        for segments in patrols["patrol_segments"]
+        for segment in segments
+        if "time_range" in segment
+    ]
+
+    for time_range in time_ranges:
+        start = pd.to_datetime(time_range["start_time"])
+        end = pd.to_datetime(time_range["end_time"])
+
+        assert start <= until_time and end >= since_time
 
 
 def test_get_patrol_events(er_io):

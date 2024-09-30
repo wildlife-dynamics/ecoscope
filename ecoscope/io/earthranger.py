@@ -13,7 +13,7 @@ from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
-from ecoscope.io.earthranger_utils import clean_kwargs, clean_time_cols, dataframe_to_dict, to_gdf
+from ecoscope.io.earthranger_utils import clean_kwargs, clean_time_cols, dataframe_to_dict, format_iso_time, to_gdf
 from ecoscope.io.utils import pack_columns, to_hex
 
 
@@ -634,9 +634,9 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         since:
-            lower date range
+            lower time range in isoformat
         until:
-            upper date range
+            upper time range in isoformat
         patrol_type:
             Comma-separated list of type of patrol UUID
         status
@@ -653,6 +653,9 @@ class EarthRangerIO(ERClient):
             patrol_type=[patrol_type] if isinstance(patrol_type, str) else patrol_type,
             return_data=True,
         )
+
+        since = format_iso_time(since)
+        until = format_iso_time(until)
 
         filter = {"date_range": {}, "patrol_type": []}
 
