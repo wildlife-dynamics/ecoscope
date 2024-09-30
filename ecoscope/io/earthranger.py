@@ -629,7 +629,7 @@ class EarthRangerIO(ERClient):
         df = pd.DataFrame(self._get("activity/patrols/types"))
         return df.set_index("id")
 
-    def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
+    def get_patrols(self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs):
         """
         Parameters
         ----------
@@ -639,6 +639,10 @@ class EarthRangerIO(ERClient):
             upper time range in isoformat
         patrol_type:
             Comma-separated list of type of patrol UUID
+            !!!! Either an array or a UUID!!!!
+            !!!! does not accept comma!!!!!
+        patrol_type_value:
+            The value of a patrol type
         status
             Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
         Returns
@@ -647,24 +651,32 @@ class EarthRangerIO(ERClient):
             DataFrame of queried patrols
         """
 
+        patrol_type_value_list = [patrol_type_value] if isinstance(patrol_type_value, str) else patrol_type_value
         params = clean_kwargs(
             addl_kwargs,
             status=status,
             patrol_type=[patrol_type] if isinstance(patrol_type, str) else patrol_type,
+            patrol_type_value=patrol_type_value_list,
             return_data=True,
         )
-
-        since = format_iso_time(since)
-        until = format_iso_time(until)
 
         filter = {"date_range": {}, "patrol_type": []}
 
         if since is not None:
-            filter["date_range"]["lower"] = since
+            filter["date_range"]["lower"] = format_iso_time(since)
         if until is not None:
-            filter["date_range"]["upper"] = until
+            filter["date_range"]["upper"] = format_iso_time(until)
         if patrol_type is not None:
             filter["patrol_type"] = params["patrol_type"]
+        if patrol_type_value_list is not None:
+            patrol_types = self.get_patrol_types()
+            matching_rows = patrol_types[patrol_types["value"].isin(patrol_type_value_list)]
+            missing_values = set(patrol_type_value_list) - set(matching_rows["value"])
+            if missing_values:
+                raise ValueError(f"Failed to find IDs for values: {missing_values}")
+
+            filter["patrol_type"] = matching_rows.index.tolist()
+
         params["filter"] = json.dumps(filter)
 
         df = pd.DataFrame(

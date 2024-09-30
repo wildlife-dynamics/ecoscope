@@ -110,6 +110,36 @@ def test_get_patrols_datestr_invalid_format(er_io):
         er_io.get_patrols(since="not a date")
 
 
+def test_get_patrols_with_type_value(er_io):
+    patrols = er_io.get_patrols(since="2017-01-01", until="2017-04-01", patrol_type_value="ecoscope_patrol")
+
+    patrol_types = [
+        segment["patrol_type"]
+        for segments in patrols["patrol_segments"]
+        for segment in segments
+        if "patrol_type" in segment
+    ]
+    assert all(value == "ecoscope_patrol" for value in patrol_types)
+
+
+def test_get_patrols_with_type_value_list(er_io):
+    patrol_type_value_list = ["ecoscope_patrol", "MEP_Distance_Survey_Patrol"]
+    patrols = er_io.get_patrols(since="2024-01-01", until="2024-04-01", patrol_type_value=patrol_type_value_list)
+
+    patrol_types = [
+        segment["patrol_type"]
+        for segments in patrols["patrol_segments"]
+        for segment in segments
+        if "patrol_type" in segment
+    ]
+    assert all(value in patrol_type_value_list for value in patrol_types)
+
+
+def test_get_patrols_with_invalid_type_value(er_io):
+    with pytest.raises(ValueError):
+        er_io.get_patrols(since="2017-01-01", until="2017-04-01", patrol_type_value="invalid")
+
+
 def test_get_patrol_events(er_io):
     events = er_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
