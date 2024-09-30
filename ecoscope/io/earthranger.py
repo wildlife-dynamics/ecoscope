@@ -13,7 +13,13 @@ from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
-from ecoscope.io.earthranger_utils import clean_kwargs, clean_time_cols, dataframe_to_dict, format_iso_time, to_gdf
+from ecoscope.io.earthranger_utils import (
+    clean_kwargs,
+    clean_time_cols,
+    dataframe_to_dict,
+    format_iso_time,
+    to_gdf,
+)
 from ecoscope.io.utils import pack_columns, to_hex
 
 
@@ -691,18 +697,23 @@ class EarthRangerIO(ERClient):
         df = clean_time_cols(df)
         return df
 
-    def get_patrol_events(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
+    def get_patrol_events(
+        self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs
+    ):
         """
         Parameters
         ----------
         since:
-            lower date range
+            Lower time range
         until:
-            upper date range
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
+            A patrol type UUID or a list of UUIDs
+        patrol_type_value:
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         Returns
         -------
         events : pd.DataFrame
@@ -712,6 +723,7 @@ class EarthRangerIO(ERClient):
             since=since,
             until=until,
             patrol_type=patrol_type,
+            patrol_type_value=patrol_type_value,
             status=status,
             **addl_kwargs,
         )
@@ -771,6 +783,7 @@ class EarthRangerIO(ERClient):
         since=None,
         until=None,
         patrol_type=None,
+        patrol_type_value=None,
         status=None,
         include_patrol_details=False,
         **kwargs,
@@ -781,13 +794,16 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         since:
-            lower date range
+            Lower time range
         until:
-            upper date range
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
+            A patrol type UUID or a list of UUIDs
+        patrol_type_value:
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         include_patrol_details : bool, optional
             Whether to merge patrol details into dataframe
         kwargs
@@ -798,7 +814,14 @@ class EarthRangerIO(ERClient):
         relocations : ecoscope.base.Relocations
         """
 
-        patrols_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **kwargs)
+        patrols_df = self.get_patrols(
+            since=since,
+            until=until,
+            patrol_type=patrol_type,
+            patrol_type_value=patrol_type_value,
+            status=status,
+            **kwargs,
+        )
         return self.get_patrol_observations(patrols_df, include_patrol_details=include_patrol_details, **kwargs)
 
     def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
