@@ -13,7 +13,13 @@ from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
-from ecoscope.io.earthranger_utils import clean_kwargs, clean_time_cols, dataframe_to_dict, to_gdf
+from ecoscope.io.earthranger_utils import (
+    clean_kwargs,
+    clean_time_cols,
+    dataframe_to_dict,
+    format_iso_time,
+    to_gdf,
+)
 from ecoscope.io.utils import pack_columns, to_hex
 
 
@@ -629,39 +635,53 @@ class EarthRangerIO(ERClient):
         df = pd.DataFrame(self._get("activity/patrols/types"))
         return df.set_index("id")
 
-    def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
+    def get_patrols(self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs):
         """
         Parameters
         ----------
         since:
-            lower date range
+            Lower time range
         until:
-            upper date range
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
+            A patrol type UUID or a list of UUIDs
+        patrol_type_value:
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         Returns
         -------
         patrols : pd.DataFrame
             DataFrame of queried patrols
         """
 
+        patrol_type_value_list = [patrol_type_value] if isinstance(patrol_type_value, str) else patrol_type_value
         params = clean_kwargs(
             addl_kwargs,
             status=status,
             patrol_type=[patrol_type] if isinstance(patrol_type, str) else patrol_type,
+            patrol_type_value=patrol_type_value_list,
             return_data=True,
         )
 
         filter = {"date_range": {}, "patrol_type": []}
 
         if since is not None:
-            filter["date_range"]["lower"] = since
+            filter["date_range"]["lower"] = format_iso_time(since)
         if until is not None:
-            filter["date_range"]["upper"] = until
+            filter["date_range"]["upper"] = format_iso_time(until)
         if patrol_type is not None:
             filter["patrol_type"] = params["patrol_type"]
+        if patrol_type_value_list is not None:
+            patrol_types = self.get_patrol_types()
+            matching_rows = patrol_types[patrol_types["value"].isin(patrol_type_value_list)]
+            missing_values = set(patrol_type_value_list) - set(matching_rows["value"])
+            if missing_values:
+                raise ValueError(f"Failed to find IDs for values: {missing_values}")
+
+            filter["patrol_type"] = matching_rows.index.tolist()
+
         params["filter"] = json.dumps(filter)
 
         df = pd.DataFrame(
@@ -677,18 +697,23 @@ class EarthRangerIO(ERClient):
         df = clean_time_cols(df)
         return df
 
-    def get_patrol_events(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
+    def get_patrol_events(
+        self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs
+    ):
         """
         Parameters
         ----------
         since:
-            lower date range
+            Lower time range
         until:
-            upper date range
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
+            A patrol type UUID or a list of UUIDs
+        patrol_type_value:
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         Returns
         -------
         events : pd.DataFrame
@@ -698,6 +723,7 @@ class EarthRangerIO(ERClient):
             since=since,
             until=until,
             patrol_type=patrol_type,
+            patrol_type_value=patrol_type_value,
             status=status,
             **addl_kwargs,
         )
@@ -757,6 +783,7 @@ class EarthRangerIO(ERClient):
         since=None,
         until=None,
         patrol_type=None,
+        patrol_type_value=None,
         status=None,
         include_patrol_details=False,
         **kwargs,
@@ -767,13 +794,16 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         since:
-            lower date range
+            Lower time range
         until:
-            upper date range
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
+            A patrol type UUID or a list of UUIDs
+        patrol_type_value:
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         include_patrol_details : bool, optional
             Whether to merge patrol details into dataframe
         kwargs
@@ -784,7 +814,14 @@ class EarthRangerIO(ERClient):
         relocations : ecoscope.base.Relocations
         """
 
-        patrols_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **kwargs)
+        patrols_df = self.get_patrols(
+            since=since,
+            until=until,
+            patrol_type=patrol_type,
+            patrol_type_value=patrol_type_value,
+            status=status,
+            **kwargs,
+        )
         return self.get_patrol_observations(patrols_df, include_patrol_details=include_patrol_details, **kwargs)
 
     def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
