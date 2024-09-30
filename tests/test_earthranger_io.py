@@ -83,10 +83,6 @@ def test_das_client_method(er_io):
 
 
 def test_get_patrols_datestr(er_io):
-    # patrols = er_io.get_patrols(
-    #     since=pd.Timestamp("2017-01-01").isoformat(),
-    #     until=pd.Timestamp("2017-04-01").isoformat(),
-    # )
     since_str = "2017-01-01"
     since_time = pd.to_datetime(since_str).replace(tzinfo=pytz.UTC)
     until_str = "2017-04-01"
@@ -109,6 +105,11 @@ def test_get_patrols_datestr(er_io):
         assert start <= until_time and end >= since_time
 
 
+def test_get_patrols_datestr_invalid_format(er_io):
+    with pytest.raises(ValueError):
+        er_io.get_patrols(since="not a date")
+
+
 def test_get_patrol_events(er_io):
     events = er_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
@@ -119,6 +120,7 @@ def test_get_patrol_events(er_io):
     assert "geometry" in events
     assert "patrol_id" in events
     assert "patrol_segment_id" in events
+    assert "time" in events
 
 
 def test_post_observations(er_io):
