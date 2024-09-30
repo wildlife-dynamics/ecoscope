@@ -634,17 +634,16 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         since:
-            lower time range in isoformat
+            Lower time range
         until:
-            upper time range in isoformat
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
-            !!!! Either an array or a UUID!!!!
-            !!!! does not accept comma!!!!!
+            A patrol type UUID or a list of UUIDs
         patrol_type_value:
-            The value of a patrol type
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         Returns
         -------
         patrols : pd.DataFrame
