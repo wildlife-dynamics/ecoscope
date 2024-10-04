@@ -24,7 +24,7 @@ from ecoscope.io.utils import pack_columns, to_hex
 
 
 class EarthRangerIO(ERClient):
-    def __init__(self, sub_page_size=4000, tcp_limit=5, **kwargs):
+    def __init__(self, sub_page_size=4000, tcp_limit=5, existing_session=None, **kwargs):
         if "server" in kwargs:
             server = kwargs.pop("server")
             kwargs["service_root"] = f"{server}/api/v1.0"
@@ -34,8 +34,13 @@ class EarthRangerIO(ERClient):
         self.tcp_limit = tcp_limit
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
+
         try:
-            self.login()
+            if existing_session is not None:
+                self.auth = existing_session
+                self.refresh_token()
+            else:
+                self.login()
         except ERClientNotFound:
             raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")
 
