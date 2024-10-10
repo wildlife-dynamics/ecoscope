@@ -304,5 +304,5 @@ def test_existing_session(er_io):
     )
     assert not events.empty
 
-    # Because er_io is session scoped, login again to restore the jwt
-    er_io.login()
+    # Because er_io is session scoped, refresh token here to restore the jwt
+    er_io.refresh_token()
