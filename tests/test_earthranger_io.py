@@ -303,3 +303,6 @@ def test_existing_session(er_io):
         until=pd.Timestamp("2017-04-01").isoformat(),
     )
     assert not events.empty
+
+    # Because er_io is session scoped, login again to restore the jwt
+    er_io.login()
