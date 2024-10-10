@@ -251,3 +251,14 @@ async def test_display_map(er_io_async):
         await er_io_async.get_event_type_display_name(event_type="shot_rep", event_property="shotrep_timeofshot")
         == "Time when shot was heard"
     )
+
+
+@pytest.mark.asyncio
+async def test_existing_session(er_io_async):
+    await er_io_async.login()
+    new_client = ecoscope.io.AsyncEarthRangerIO(
+        service_root=er_io_async.service_root, token_url=er_io_async.token_url, existing_session=er_io_async.auth
+    )
+
+    patrols = await new_client.get_patrols_dataframe()
+    assert not patrols.empty
