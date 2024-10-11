@@ -30,6 +30,12 @@ jobs:
           environment-file: ${{ matrix.env }}
           cache-environment: true
           cache-downloads: true
+          init-shell: bash
+
+      - name: Install pip dependencies and our package
+        shell: bash -leo pipefail {0}
+        run: |
+          python -m pip install ".[all]"
 
       - name: Test
         env:
