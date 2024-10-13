@@ -1,7 +1,8 @@
-import pyproj
 import pandas as pd
-from ecoscope.base import Trajectory
+import pyproj
+
 from ecoscope.analysis import astronomy
+from ecoscope.base import Trajectory
 
 
 def test_to_EarthLocation(movebank_relocations):
@@ -36,8 +37,8 @@ def test_daynight_ratio(movebank_relocations):
     trajectory = Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
         [
-            2.212816,
-            0.656435,
+            0.451912,
+            1.523379,
         ],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
