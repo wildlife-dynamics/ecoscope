@@ -80,7 +80,7 @@ docs = [
     "sphinx-autoapi",
 ]
 all = [
-    "ecoscope[analysis,mapping,plotting,test,docs]",
+    "ecoscope[analysis,async_earthranger,mapping,plotting,test,docs]",
 ]
 
 [tool.pytest.ini_options]
