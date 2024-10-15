@@ -95,12 +95,38 @@ jobs:
         '${{ github.ref_name }}' dist/**
         --repo '${{ github.repository }}'
 
+  build-for-prefix:
+    needs:
+    - github-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name : Build prefix release
+        uses: prefix-dev/rattler-build-action@v0.2.16
+        run: # ./build.sh
+      - name: Upload conda channel
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            /tmp/ecoscope/release/artifacts/
+            !/tmp/ecoscope/release/artifacts/bld
+            !/tmp/ecoscope/release/artifacts/src_cache
+          if-no-files-found: error
+          compression-level: 0
+  
+  verify-tag:
+    needs:
+    - build-for-prefix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify build tag
+        uses: prefix-dev/rattler-build-action@v0.2.16
+        run: # ./verify.sh ${{ github.ref_name }}
+
   publish-to-prefix:
     needs:
-    - build
-    - install
-    if: startsWith(github.ref, 'refs/tags/')
-
+    - verify-tag
     runs-on: ubuntu-latest
     steps:
       - name: Download conda channel
@@ -110,14 +136,12 @@ jobs:
           path: /tmp/ecoscope/release/artifacts
       - name: Log conda channel contents
         run: ls -lR /tmp/ecoscope/release/artifacts
-
       - uses: actions/checkout@v4
-      - name: Install pixi
-        run: curl -fsSL https://pixi.sh/install.sh | bash && echo "$HOME/.pixi/bin" >> $GITHUB_PATH
       - name: Publish to prefix.dev
+        uses: prefix-dev/rattler-build-action@v0.2.16
         env:
           PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
-        run: pixi run --manifest-path pixi.toml -e default push-all
+        run: # ./publish.sh ${{ github.ref_name }}
 
   publish-to-pypi:
     name: Publish to PyPI
