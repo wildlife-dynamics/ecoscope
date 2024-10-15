@@ -279,13 +279,20 @@ def test_add_polyline_with_color(movebank_relocations):
     trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     # this is effectively a reimplementation of SpeedDataFrame
     apply_classification(
-        trajectory, input_column_name="speed_kmhr", output_column_name="speed_bins", scheme="equal_interval", k=6
+        trajectory,
+        input_column_name="speed_kmhr",
+        output_column_name="speed_bins",
+        scheme="equal_interval",
+        label_suffix=" km/h",
+        label_ranges=True,
+        k=6,
     )
     cmap = ["#1a9850", "#91cf60", "#d9ef8b", "#fee08b", "#fc8d59", "#d73027"]
     apply_color_map(trajectory, "speed_bins", cmap=cmap, output_column_name="speed_colors")
 
     m = EcoMap()
     m.add_layer(m.polyline_layer(trajectory, color_column="speed_colors", get_width=2000))
+    m.add_legend(labels=trajectory["speed_bins"], colors=trajectory["speed_colors"])
 
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], PathLayer)
