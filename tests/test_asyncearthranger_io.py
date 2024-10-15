@@ -1,4 +1,5 @@
 import os
+import json
 
 import pandas as pd
 import pytest
@@ -260,5 +261,18 @@ async def test_existing_session(er_io_async):
         service_root=er_io_async.service_root, token_url=er_io_async.token_url, existing_session=er_io_async.auth
     )
 
-    patrols = await new_client.get_patrols_dataframe()
-    assert not patrols.empty
+    sources = await new_client.get_sources_dataframe()
+    assert not sources.empty
+
+
+@pytest.mark.asyncio
+async def test_existing_session_string_token(er_io_async):
+    await er_io_async.login()
+    new_client = ecoscope.io.AsyncEarthRangerIO(
+        service_root=er_io_async.service_root,
+        token_url=er_io_async.token_url,
+        existing_session=json.dumps(er_io_async.auth),
+    )
+
+    sources = await new_client.get_sources_dataframe()
+    assert not sources.empty

@@ -1,5 +1,6 @@
 import datetime
 import uuid
+import json
 
 import geopandas as gpd
 import pandas as pd
@@ -296,6 +297,21 @@ def test_get_subjects_chunking(er_io):
 def test_existing_session(er_io):
     new_client = ecoscope.io.EarthRangerIO(
         service_root=er_io.service_root, token_url=er_io.token_url, existing_session=er_io.auth
+    )
+
+    events = new_client.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+    assert not events.empty
+
+    # Because er_io is session scoped, refresh token here to restore the jwt
+    er_io.refresh_token()
+
+
+def test_existing_session_string_token(er_io):
+    new_client = ecoscope.io.EarthRangerIO(
+        service_root=er_io.service_root, token_url=er_io.token_url, existing_session=json.dumps(er_io.auth)
     )
 
     events = new_client.get_patrol_events(

@@ -37,6 +37,8 @@ class EarthRangerIO(ERClient):
 
         try:
             if existing_session is not None:
+                if isinstance(existing_session, str):
+                    existing_session = json.loads(existing_session)
                 self.auth = existing_session
                 self.refresh_token()
             else:
