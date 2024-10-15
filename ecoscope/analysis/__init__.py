@@ -1,6 +1,5 @@
 __all__ = [
     "ecograph",
-    "speed",
     "UD",
     "astronomy",
     "classifier",
