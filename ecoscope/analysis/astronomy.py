@@ -1,7 +1,8 @@
 import warnings
+
 import numpy as np
-import pyproj
 import pandas as pd
+import pyproj
 
 try:
     import astroplan
@@ -109,4 +110,4 @@ def get_daynight_ratio(traj, n_grid_points=150) -> pd.Series:
     day_distance += (day_night_df.dist_meters * i).sum()
     night_distance += ((1 - i) * day_night_df.dist_meters).sum()
 
-    return day_distance / night_distance
+    return night_distance / day_distance
