@@ -1,14 +1,13 @@
 context:
   name: ecoscope
-  version: 1.8.5
+  version: TAG_VERSION
   
 package:
   name: ecoscope
   version: ${{ version }}
 
 source:
-  url: https://github.com/wildlife-dynamics/ecoscope/archive/v${{ version }}.tar.gz
-  sha256: fd76a0a62deee113379b5b25bb93ba8e81c9418a6f30c6c159d163e782b18a37
+  path: ../../../dist/DIST_NAME
 
 build:
   noarch: python
