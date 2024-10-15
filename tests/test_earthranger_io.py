@@ -4,6 +4,7 @@ import uuid
 import geopandas as gpd
 import pandas as pd
 import pytest
+import pytz
 from shapely.geometry import Point
 
 import ecoscope
@@ -81,18 +82,75 @@ def test_das_client_method(er_io):
     er_io.get_me()
 
 
-def test_get_patrols(er_io):
-    patrols = er_io.get_patrols()
+def test_get_patrols_datestr(er_io):
+    since_str = "2017-01-01"
+    since_time = pd.to_datetime(since_str).replace(tzinfo=pytz.UTC)
+    until_str = "2017-04-01"
+    until_time = pd.to_datetime(until_str).replace(tzinfo=pytz.UTC)
+    patrols = er_io.get_patrols(since=since_str, until=until_str)
+
     assert len(patrols) > 0
+
+    time_ranges = [
+        segment["time_range"]
+        for segments in patrols["patrol_segments"]
+        for segment in segments
+        if "time_range" in segment
+    ]
+
+    for time_range in time_ranges:
+        start = pd.to_datetime(time_range["start_time"])
+        end = pd.to_datetime(time_range["end_time"])
+
+        assert start <= until_time and end >= since_time
+
+
+def test_get_patrols_datestr_invalid_format(er_io):
+    with pytest.raises(ValueError):
+        er_io.get_patrols(since="not a date")
+
+
+def test_get_patrols_with_type_value(er_io):
+    patrols = er_io.get_patrols(since="2017-01-01", until="2017-04-01", patrol_type_value="ecoscope_patrol")
+
+    patrol_types = [
+        segment["patrol_type"]
+        for segments in patrols["patrol_segments"]
+        for segment in segments
+        if "patrol_type" in segment
+    ]
+    assert all(value == "ecoscope_patrol" for value in patrol_types)
+
+
+def test_get_patrols_with_type_value_list(er_io):
+    patrol_type_value_list = ["ecoscope_patrol", "MEP_Distance_Survey_Patrol"]
+    patrols = er_io.get_patrols(since="2024-01-01", until="2024-04-01", patrol_type_value=patrol_type_value_list)
+
+    patrol_types = [
+        segment["patrol_type"]
+        for segments in patrols["patrol_segments"]
+        for segment in segments
+        if "patrol_type" in segment
+    ]
+    assert all(value in patrol_type_value_list for value in patrol_types)
+
+
+def test_get_patrols_with_invalid_type_value(er_io):
+    with pytest.raises(ValueError):
+        er_io.get_patrols(since="2017-01-01", until="2017-04-01", patrol_type_value="invalid")
 
 
 def test_get_patrol_events(er_io):
-    events = er_io.get_patrol_events()
+    events = er_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
     assert "id" in events
     assert "event_type" in events
     assert "geometry" in events
     assert "patrol_id" in events
     assert "patrol_segment_id" in events
+    assert "time" in events
 
 
 def test_post_observations(er_io):
@@ -196,7 +254,11 @@ def test_patch_event(er_io):
 
 
 def test_get_patrol_observations(er_io):
-    patrols = er_io.get_patrols()
+    patrols = er_io.get_patrols(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+
     observations = er_io.get_patrol_observations(
         patrols,
         include_source_details=False,

@@ -13,8 +13,14 @@ from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 import ecoscope
+from ecoscope.io.earthranger_utils import (
+    clean_kwargs,
+    clean_time_cols,
+    dataframe_to_dict,
+    format_iso_time,
+    to_gdf,
+)
 from ecoscope.io.utils import pack_columns, to_hex
-from ecoscope.io.earthranger_utils import clean_kwargs, dataframe_to_dict, to_gdf, clean_time_cols
 
 
 class EarthRangerIO(ERClient):
@@ -79,7 +85,10 @@ class EarthRangerIO(ERClient):
         )
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="sources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object="sources/",
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         return df
@@ -154,7 +163,10 @@ class EarthRangerIO(ERClient):
                 params["id"] = ",".join(subjects)
                 return pd.DataFrame(
                     self.get_objects_multithreaded(
-                        object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                        object="subjects/",
+                        threads=self.tcp_limit,
+                        page_size=self.sub_page_size,
+                        **params,
                     )
                 )
 
@@ -169,7 +181,10 @@ class EarthRangerIO(ERClient):
         else:
             df = pd.DataFrame(
                 self.get_objects_multithreaded(
-                    object="subjects/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                    object="subjects/",
+                    threads=self.tcp_limit,
+                    page_size=self.sub_page_size,
+                    **params,
                 )
             )
 
@@ -192,7 +207,10 @@ class EarthRangerIO(ERClient):
         params = clean_kwargs(addl_kwargs, sources=sources, subjects=subjects)
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="subjectsources/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object="subjectsources/",
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         df = clean_time_cols(df)
@@ -262,7 +280,10 @@ class EarthRangerIO(ERClient):
             pbar.set_description(f"Downloading Observations for {id_name}={_id}")
             dataframe = pd.DataFrame(
                 self.get_objects_multithreaded(
-                    object="observations/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                    object="observations/",
+                    threads=self.tcp_limit,
+                    page_size=self.sub_page_size,
+                    **params,
                 )
             )
             dataframe[id_name] = _id
@@ -452,7 +473,11 @@ class EarthRangerIO(ERClient):
             return observations
 
     def get_subjectgroup_observations(
-        self, subject_group_id=None, subject_group_name=None, include_inactive=True, **kwargs
+        self,
+        subject_group_id=None,
+        subject_group_name=None,
+        include_inactive=True,
+        **kwargs,
     ):
         """
         Parameters
@@ -585,7 +610,10 @@ class EarthRangerIO(ERClient):
 
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="activity/events/", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object="activity/events/",
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         gdf = gpd.GeoDataFrame(df)
@@ -607,44 +635,61 @@ class EarthRangerIO(ERClient):
         df = pd.DataFrame(self._get("activity/patrols/types"))
         return df.set_index("id")
 
-    def get_patrols(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
+    def get_patrols(self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs):
         """
         Parameters
         ----------
         since:
-            lower date range
+            Lower time range
         until:
-            upper date range
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
+            A patrol type UUID or a list of UUIDs
+        patrol_type_value:
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         Returns
         -------
         patrols : pd.DataFrame
             DataFrame of queried patrols
         """
 
+        patrol_type_value_list = [patrol_type_value] if isinstance(patrol_type_value, str) else patrol_type_value
         params = clean_kwargs(
             addl_kwargs,
             status=status,
             patrol_type=[patrol_type] if isinstance(patrol_type, str) else patrol_type,
+            patrol_type_value=patrol_type_value_list,
             return_data=True,
         )
 
         filter = {"date_range": {}, "patrol_type": []}
 
         if since is not None:
-            filter["date_range"]["lower"] = since
+            filter["date_range"]["lower"] = format_iso_time(since)
         if until is not None:
-            filter["date_range"]["upper"] = until
+            filter["date_range"]["upper"] = format_iso_time(until)
         if patrol_type is not None:
             filter["patrol_type"] = params["patrol_type"]
+        if patrol_type_value_list is not None:
+            patrol_types = self.get_patrol_types()
+            matching_rows = patrol_types[patrol_types["value"].isin(patrol_type_value_list)]
+            missing_values = set(patrol_type_value_list) - set(matching_rows["value"])
+            if missing_values:
+                raise ValueError(f"Failed to find IDs for values: {missing_values}")
+
+            filter["patrol_type"] = matching_rows.index.tolist()
+
         params["filter"] = json.dumps(filter)
 
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object="activity/patrols", threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object="activity/patrols",
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         if "serial_number" in df.columns:
@@ -652,24 +697,36 @@ class EarthRangerIO(ERClient):
         df = clean_time_cols(df)
         return df
 
-    def get_patrol_events(self, since=None, until=None, patrol_type=None, status=None, **addl_kwargs):
+    def get_patrol_events(
+        self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs
+    ):
         """
         Parameters
         ----------
         since:
-            lower date range
+            Lower time range
         until:
-            upper date range
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
+            A patrol type UUID or a list of UUIDs
+        patrol_type_value:
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         Returns
         -------
         events : pd.DataFrame
             DataFrame of queried patrols
         """
-        patrol_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **addl_kwargs)
+        patrol_df = self.get_patrols(
+            since=since,
+            until=until,
+            patrol_type=patrol_type,
+            patrol_type_value=patrol_type_value,
+            status=status,
+            **addl_kwargs,
+        )
 
         events = []
         for _, row in patrol_df.iterrows():
@@ -683,6 +740,10 @@ class EarthRangerIO(ERClient):
         events_df = clean_time_cols(events_df)
 
         events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
+        events_df["time"] = events_df["geojson"].apply(
+            lambda x: datetime.datetime.strptime(x.get("properties").get("datetime"), "%Y-%m-%dT%H:%M:%S%z")
+        )
+
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
 
     def get_patrol_segments_from_patrol_id(self, patrol_id, **addl_kwargs):
@@ -718,7 +779,14 @@ class EarthRangerIO(ERClient):
         )
 
     def get_patrol_observations_with_patrol_filter(
-        self, since=None, until=None, patrol_type=None, status=None, include_patrol_details=False, **kwargs
+        self,
+        since=None,
+        until=None,
+        patrol_type=None,
+        patrol_type_value=None,
+        status=None,
+        include_patrol_details=False,
+        **kwargs,
     ):
         """
         Download observations for patrols with provided filters.
@@ -726,13 +794,16 @@ class EarthRangerIO(ERClient):
         Parameters
         ----------
         since:
-            lower date range
+            Lower time range
         until:
-            upper date range
+            Upper time range
         patrol_type:
-            Comma-separated list of type of patrol UUID
+            A patrol type UUID or a list of UUIDs
+        patrol_type_value:
+            A patrol type value or a list of patrol type values
         status
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            Accept a status string or a list of statuses
         include_patrol_details : bool, optional
             Whether to merge patrol details into dataframe
         kwargs
@@ -743,7 +814,14 @@ class EarthRangerIO(ERClient):
         relocations : ecoscope.base.Relocations
         """
 
-        patrols_df = self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status, **kwargs)
+        patrols_df = self.get_patrols(
+            since=since,
+            until=until,
+            patrol_type=patrol_type,
+            patrol_type_value=patrol_type_value,
+            status=status,
+            **kwargs,
+        )
         return self.get_patrol_observations(patrols_df, include_patrol_details=include_patrol_details, **kwargs)
 
     def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
@@ -779,7 +857,10 @@ class EarthRangerIO(ERClient):
 
                 try:
                     observation = self.get_subject_observations(
-                        subject_ids=[subject_id], since=patrol_start_time, until=patrol_end_time, **kwargs
+                        subject_ids=[subject_id],
+                        since=patrol_start_time,
+                        until=patrol_end_time,
+                        **kwargs,
                     )
                     if include_patrol_details:
                         observation["patrol_id"] = patrol["id"]
@@ -839,7 +920,10 @@ class EarthRangerIO(ERClient):
         object = f"activity/patrols/segments/{patrol_segment_id}/events/"
         df = pd.DataFrame(
             self.get_objects_multithreaded(
-                object=object, threads=self.tcp_limit, page_size=self.sub_page_size, **params
+                object=object,
+                threads=self.tcp_limit,
+                page_size=self.sub_page_size,
+                **params,
             )
         )
         df = clean_time_cols(df)
@@ -1041,7 +1125,7 @@ class EarthRangerIO(ERClient):
             else:
                 return pd.DataFrame(results)
 
-        return observations.groupby(source_id_col, group_keys=False).progress_apply(upload)
+        return observations.groupby(source_id_col, group_keys=False).apply(upload)
 
     def post_event(
         self,
@@ -1123,17 +1207,38 @@ class EarthRangerIO(ERClient):
         }
 
         if tracked_subject_id is not None:
-            payload.update({"leader": {"content_type": "observations.subject", "id": tracked_subject_id}})
+            payload.update(
+                {
+                    "leader": {
+                        "content_type": "observations.subject",
+                        "id": tracked_subject_id,
+                    }
+                }
+            )
         else:
             payload.update({"leader": None})
 
         if start_location is not None:
-            payload.update({"start_location": {"latitude": start_location[0], "longitude": start_location[1]}})
+            payload.update(
+                {
+                    "start_location": {
+                        "latitude": start_location[0],
+                        "longitude": start_location[1],
+                    }
+                }
+            )
         else:
             payload.update({"start_location": None})
 
         if end_location is not None:
-            payload.update({"end_location": {"latitude": end_location[0], "longitude": end_location[1]}})
+            payload.update(
+                {
+                    "end_location": {
+                        "latitude": end_location[0],
+                        "longitude": end_location[1],
+                    }
+                }
+            )
         else:
             payload.update({"end_location": None})
 

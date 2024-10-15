@@ -135,11 +135,22 @@ def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None)
         cmap = mpl.colormaps[cmap]
         cmap = cmap.resampled(dataframe[input_column_name].nunique())
 
-        cmap_colors = cmap(range(dataframe[input_column_name].nunique()))
+        if pd.api.types.is_numeric_dtype(dataframe[input_column_name].dtype):
+            cmap_colors = []
+            val_min = dataframe[input_column_name].min()
+            val_max = dataframe[input_column_name].max()
+            for val in dataframe[input_column_name].unique():
+                cmap_colors.append(cmap((val - val_min) / (val_max - val_min)))
+        else:
+            cmap_colors = cmap(range(len(dataframe[input_column_name].unique())))
+
+        color_list = []
+        for color in cmap_colors:
+            color_list.append(tuple([round(val * 255) for val in color]))
 
         # convert to hex first to put values in range(0,255), then to an RGBA tuple
         cmap = pd.Series(
-            [hex_to_rgba(mpl.colors.to_hex(color)) for color in cmap_colors],
+            color_list,
             index=dataframe[input_column_name].unique(),
         )
 
