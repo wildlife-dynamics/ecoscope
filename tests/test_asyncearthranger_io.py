@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 import pytest
+import pytest_asyncio
 import ecoscope
 from erclient import ERClientException
 
@@ -12,12 +13,12 @@ if not pytest.earthranger:
     )
 
 
-@pytest.fixture
-def er_io_async():
+@pytest_asyncio.fixture
+async def er_io_async():
     ER_SERVER = "https://mep-dev.pamdas.org"
     ER_USERNAME = os.getenv("ER_USERNAME")
     ER_PASSWORD = os.getenv("ER_PASSWORD")
-    er_io = ecoscope.io.AsyncEarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
+    er_io = await ecoscope.io.AsyncEarthRangerIO.create(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
 
     return er_io
 
@@ -279,3 +280,9 @@ async def test_existing_token_expired(er_io_async):
 
     with pytest.raises(ERClientException):
         await new_client.get_sources_dataframe()
+
+
+@pytest.mark.asyncio
+async def test_get_me(er_io_async):
+    me = await er_io_async.get_me()
+    assert me.get("username")
