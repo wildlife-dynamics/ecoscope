@@ -28,8 +28,6 @@ jobs:
           # https://github.com/mamba-org/setup-micromamba/issues/227
           micromamba-version: 1.5.10-0
           environment-file: ${{ matrix.env }}
-          cache-environment: true
-          cache-downloads: true
 
       - name: Test
         env:
