@@ -96,6 +96,7 @@ jobs:
         --repo '${{ github.repository }}'
 
   build-for-prefix:
+    name: Build prefix package
     needs:
     - github-release
     runs-on: ubuntu-latest
@@ -131,6 +132,7 @@ jobs:
           compression-level: 0
           
   publish-to-prefix:
+    name: Publish to prefix
     needs:
     - build-for-prefix
     runs-on: ubuntu-latest
