@@ -310,10 +310,5 @@ def test_existing_token_expired(er_io):
     token = er_io.auth.get("access_token")
     er_io.refresh_token()
 
-    new_client = ecoscope.io.EarthRangerIO(service_root=er_io.service_root, token_url=er_io.token_url, token=token)
-
-    with pytest.raises(ERClientException):
-        new_client.get_patrol_events(
-            since=pd.Timestamp("2017-01-01").isoformat(),
-            until=pd.Timestamp("2017-04-01").isoformat(),
-        )
+    with pytest.raises(ERClientException, match="Authorization token is invalid or expired."):
+        ecoscope.io.EarthRangerIO(service_root=er_io.service_root, token_url=er_io.token_url, token=token)

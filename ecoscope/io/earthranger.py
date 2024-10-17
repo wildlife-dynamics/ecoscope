@@ -40,6 +40,11 @@ class EarthRangerIO(ERClient):
                 self.login()
             except ERClientNotFound:
                 raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")
+        else:
+            try:
+                self.get_me()
+            except ERClientException:
+                raise ERClientException("Authorization token is invalid or expired.")
 
     def _token_request(self, payload):
         response = requests.post(self.token_url, data=payload)
