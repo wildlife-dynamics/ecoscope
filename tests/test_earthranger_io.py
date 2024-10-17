@@ -1,6 +1,5 @@
 import datetime
 import uuid
-import json
 
 import geopandas as gpd
 import pandas as pd
@@ -9,6 +8,7 @@ import pytz
 from shapely.geometry import Point
 
 import ecoscope
+from erclient import ERClientException
 
 if not pytest.earthranger:
     pytest.skip(
@@ -294,9 +294,9 @@ def test_get_subjects_chunking(er_io):
     pd.testing.assert_frame_equal(single_request_result, chunked_request_result)
 
 
-def test_existing_session(er_io):
+def test_existing_token(er_io):
     new_client = ecoscope.io.EarthRangerIO(
-        service_root=er_io.service_root, token_url=er_io.token_url, existing_session=er_io.auth
+        service_root=er_io.service_root, token_url=er_io.token_url, token=er_io.auth.get("access_token")
     )
 
     events = new_client.get_patrol_events(
@@ -305,20 +305,15 @@ def test_existing_session(er_io):
     )
     assert not events.empty
 
-    # Because er_io is session scoped, refresh token here to restore the jwt
+
+def test_existing_token_expired(er_io):
+    token = er_io.auth.get("access_token")
     er_io.refresh_token()
 
+    new_client = ecoscope.io.EarthRangerIO(service_root=er_io.service_root, token_url=er_io.token_url, token=token)
 
-def test_existing_session_string_token(er_io):
-    new_client = ecoscope.io.EarthRangerIO(
-        service_root=er_io.service_root, token_url=er_io.token_url, existing_session=json.dumps(er_io.auth)
-    )
-
-    events = new_client.get_patrol_events(
-        since=pd.Timestamp("2017-01-01").isoformat(),
-        until=pd.Timestamp("2017-04-01").isoformat(),
-    )
-    assert not events.empty
-
-    # Because er_io is session scoped, refresh token here to restore the jwt
-    er_io.refresh_token()
+    with pytest.raises(ERClientException):
+        new_client.get_patrol_events(
+            since=pd.Timestamp("2017-01-01").isoformat(),
+            until=pd.Timestamp("2017-04-01").isoformat(),
+        )

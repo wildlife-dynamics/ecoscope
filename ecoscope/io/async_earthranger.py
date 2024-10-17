@@ -17,7 +17,7 @@ except ModuleNotFoundError:
 
 
 class AsyncEarthRangerIO(AsyncERClient):
-    def __init__(self, sub_page_size=4000, tcp_limit=5, existing_session=None, **kwargs):
+    def __init__(self, sub_page_size=4000, tcp_limit=5, **kwargs):
         if "server" in kwargs:
             server = kwargs.pop("server")
             kwargs["service_root"] = f"{server}/api/v1.0"
@@ -29,11 +29,6 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
-
-        if existing_session is not None:
-            if isinstance(existing_session, str):
-                existing_session = json.loads(existing_session)
-            self.auth = existing_session
 
     async def get_sources(
         self,

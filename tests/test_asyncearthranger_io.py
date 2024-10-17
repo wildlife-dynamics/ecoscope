@@ -1,9 +1,9 @@
 import os
-import json
 
 import pandas as pd
 import pytest
 import ecoscope
+from erclient import ERClientException
 
 if not pytest.earthranger:
     pytest.skip(
@@ -255,10 +255,12 @@ async def test_display_map(er_io_async):
 
 
 @pytest.mark.asyncio
-async def test_existing_session(er_io_async):
+async def test_existing_token(er_io_async):
     await er_io_async.login()
     new_client = ecoscope.io.AsyncEarthRangerIO(
-        service_root=er_io_async.service_root, token_url=er_io_async.token_url, existing_session=er_io_async.auth
+        service_root=er_io_async.service_root,
+        token_url=er_io_async.token_url,
+        token=er_io_async.auth.get("access_token"),
     )
 
     sources = await new_client.get_sources_dataframe()
@@ -266,13 +268,14 @@ async def test_existing_session(er_io_async):
 
 
 @pytest.mark.asyncio
-async def test_existing_session_string_token(er_io_async):
+async def test_existing_token_expired(er_io_async):
     await er_io_async.login()
+    token = er_io_async.auth.get("access_token")
+    await er_io_async.refresh_token()
+
     new_client = ecoscope.io.AsyncEarthRangerIO(
-        service_root=er_io_async.service_root,
-        token_url=er_io_async.token_url,
-        existing_session=json.dumps(er_io_async.auth),
+        service_root=er_io_async.service_root, token_url=er_io_async.token_url, token=token
     )
 
-    sources = await new_client.get_sources_dataframe()
-    assert not sources.empty
+    with pytest.raises(ERClientException):
+        await new_client.get_sources_dataframe()
