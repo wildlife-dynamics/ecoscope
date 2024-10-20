@@ -50,6 +50,30 @@ def test_relocations_from_gdf_preserve_fields(er_io):
     gpd.testing.assert_geodataframe_equal(relocations, ecoscope.base.Relocations.from_gdf(relocations))
 
 
+def test_trajectory_properties(movebank_relocations):
+    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+
+    assert "groupby_col" in trajectory
+    assert "segment_start" in trajectory
+    assert "segment_end" in trajectory
+    assert "timespan_seconds" in trajectory
+    assert "speed_kmhr" in trajectory
+    assert "heading" in trajectory
+    assert "geometry" in trajectory
+    assert "junk_status" in trajectory
+    assert "nsd" in trajectory
+
+    trajectory = trajectory.loc[trajectory.groupby_col == "Habiba"].head(5)
+
+    expected_nsd = pd.Series(
+        [0.446425, 1.803153, 2.916319, 28.909629, 72.475410],
+        dtype=np.float64,
+        index=pd.Index([368706890, 368706891, 368706892, 368706893, 368706894], name="event-id"),
+        name="nsd",
+    )
+    pandas.testing.assert_series_equal(trajectory["nsd"], expected_nsd)
+
+
 def test_displacement_property(movebank_relocations):
     trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
