@@ -627,14 +627,11 @@ class Trajectory(EcoDataFrame):
                 return distance
 
             @property
-            def geodetic_displacement(self):
+            def nsd(self):
                 start_point = df["geometry"].iloc[0]
                 geod = Geod(ellps="WGS84")
-                return [geod.inv(start_point.x, start_point.y, geo.x, geo.y)[2] for geo in df["_geometry"]]
-
-            @property
-            def nsd(self):
-                return [(x**2) / (1000 * 2) for x in self.geodetic_displacement]
+                geod_displacement = [geod.inv(start_point.x, start_point.y, geo.x, geo.y)[2] for geo in df["_geometry"]]
+                return [(x**2) / (1000 * 2) for x in geod_displacement]
 
             @property
             def timespan_seconds(self):
