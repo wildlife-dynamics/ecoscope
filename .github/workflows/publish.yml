@@ -101,6 +101,7 @@ jobs:
     - build
     - install
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
       - name: Download the built dist
