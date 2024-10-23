@@ -493,7 +493,7 @@ class EcoMap(EcoMapMixin, Map):
         return layer
 
     @staticmethod
-    def get_named_tile_layer(layer: str, opacity: float) -> BitmapTileLayer:
+    def get_named_tile_layer(layer: str, opacity: float = 1) -> BitmapTileLayer:
         # From Leafmap
         # https://github.com/opengeos/leafmap/blob/master/leafmap/basemaps.py
         xyz_tiles = {
