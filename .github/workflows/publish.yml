@@ -98,7 +98,8 @@ jobs:
   build-for-prefix:
     name: Build prefix package
     needs:
-    - github-release
+    - build
+    - install
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -114,42 +115,15 @@ jobs:
       - name: Log the generated recipe
         run: cat publish/recipes/release/ecoscope.yaml
       - name: Create channel
-        run: mkdir -p /tmp/ecoscope/release/artifacts        
+        run: mkdir -p /tmp/ecoscope/release/artifacts
       - name: Build prefix release
         uses: prefix-dev/rattler-build-action@v0.2.16
         with:
           recipe-path: publish/recipes/release/ecoscope.yaml
           build-args: --output-dir /tmp/ecoscope/release/artifacts --channel https://prefix.dev/ecoscope-workflows --channel conda-forge
-      - name: Upload conda channel
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-artifacts
-          path: |
-            /tmp/ecoscope/release/artifacts/
-            !/tmp/ecoscope/release/artifacts/bld
-            !/tmp/ecoscope/release/artifacts/src_cache
-          if-no-files-found: error
-          compression-level: 0
-          
-  publish-to-prefix:
-    name: Publish to prefix
-    needs:
-    - build-for-prefix
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download conda channel
-        uses: actions/download-artifact@v4
-        with:
-          name: release-artifacts
-          path: /tmp/ecoscope/release/artifacts
-      - name: Log conda channel contents
-        run: ls -lR /tmp/ecoscope/release/artifacts
-      - uses: actions/checkout@v4
-      - name: Publish to prefix.dev
-        uses: prefix-dev/rattler-build-action@v0.2.16
       - run: |
           for file in /tmp/ecoscope/release/artifacts/**/*.conda; do
-              rattler-build upload prefix -c ecoscope-workflows "$file" || true
+            rattler-build upload prefix -c ecoscope-workflows "$file"
           done
         env:
           PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
