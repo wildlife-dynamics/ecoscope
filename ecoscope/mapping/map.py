@@ -493,7 +493,7 @@ class EcoMap(EcoMapMixin, Map):
         return layer
 
     @staticmethod
-    def get_named_tile_layer(layer: str) -> BitmapTileLayer:
+    def get_named_tile_layer(layer: str, opacity: float) -> BitmapTileLayer:
         # From Leafmap
         # https://github.com/opengeos/leafmap/blob/master/leafmap/basemaps.py
         xyz_tiles = {
@@ -534,6 +534,7 @@ class EcoMap(EcoMapMixin, Map):
             max_zoom=layer.get("max_zoom", None),
             min_zoom=layer.get("min_zoom", None),
             max_requests=layer.get("max_requests", None),
+            opacity=opacity,
         )
 
     def to_html(
