@@ -319,3 +319,12 @@ def test_add_polygon_with_color(poly_gdf):
     # validating zoom param by checking view state is non-default
     assert m.view_state.longitude != 10
     assert m.view_state.latitude != 0
+
+
+def test_add_named_tile_layer():
+    m = EcoMap()
+    m.add_layer(m.get_named_tile_layer("HYBRID", opacity=0.3))
+
+    assert len(m.layers) == 2
+    assert isinstance(m.layers[1], BitmapTileLayer)
+    assert m.layers[1].opacity == 0.3
