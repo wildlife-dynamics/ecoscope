@@ -412,6 +412,7 @@ class Trajectory(EcoDataFrame):
                 "heading": track_properties.heading,
                 "geometry": shapely.linestrings(coords),
                 "junk_status": gdf.junk_status,
+                "nsd": track_properties.nsd,
             },
             crs=4326,
             index=gdf.index,
@@ -624,6 +625,13 @@ class Trajectory(EcoDataFrame):
             def dist_meters(self):
                 _, _, distance = self.inverse_transformation
                 return distance
+
+            @property
+            def nsd(self):
+                start_point = df["geometry"].iloc[0]
+                geod = Geod(ellps="WGS84")
+                geod_displacement = [geod.inv(start_point.x, start_point.y, geo.x, geo.y)[2] for geo in df["_geometry"]]
+                return [(x**2) / (1000 * 2) for x in geod_displacement]
 
             @property
             def timespan_seconds(self):

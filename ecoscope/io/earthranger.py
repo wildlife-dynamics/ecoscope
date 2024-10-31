@@ -34,22 +34,29 @@ class EarthRangerIO(ERClient):
         self.tcp_limit = tcp_limit
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
-        try:
-            self.login()
-        except ERClientNotFound:
-            raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")
+
+        if not self.auth:
+            try:
+                self.login()
+            except ERClientNotFound:
+                raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")
+        else:
+            try:
+                self.get_me()
+            except ERClientException:
+                raise ERClientException("Authorization token is invalid or expired.")
 
     def _token_request(self, payload):
         response = requests.post(self.token_url, data=payload)
         if response.ok:
-            self.auth = json.loads(response.text)
+            self.auth = response.json()
             expires_in = int(self.auth["expires_in"]) - 5 * 60
             self.auth_expires = pytz.utc.localize(datetime.datetime.utcnow()) + datetime.timedelta(seconds=expires_in)
             return True
 
         self.auth = None
         self.auth_expires = pytz.utc.localize(datetime.datetime.min)
-        raise ERClientNotFound(json.loads(response.text)["error_description"])
+        raise ERClientNotFound(response.json().get("error_description", "invalid token"))
 
     """
     GET Functions
