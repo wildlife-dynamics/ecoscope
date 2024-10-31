@@ -95,6 +95,40 @@ jobs:
         '${{ github.ref_name }}' dist/**
         --repo '${{ github.repository }}'
 
+  build-for-prefix:
+    name: Build prefix package
+    needs:
+    - build
+    - install
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the built dist
+        uses: actions/download-artifact@v4
+        with:
+          name: pip-dist
+          path: dist/
+      - name: Add tag to recipe
+        run: sed -i "s/TAG_VERSION/${{ github.ref_name }}/g" publish/recipes/release/ecoscope.yaml
+      - name: Add dist to recipe
+        run: sed -i "s/DIST_NAME/$(find ./dist/*.tar.gz  -printf "%f\n")/g" publish/recipes/release/ecoscope.yaml
+      - name: Log the generated recipe
+        run: cat publish/recipes/release/ecoscope.yaml
+      - name: Create channel
+        run: mkdir -p /tmp/ecoscope/release/artifacts
+      - name: Build prefix release
+        uses: prefix-dev/rattler-build-action@v0.2.18
+        with:
+          recipe-path: publish/recipes/release/ecoscope.yaml
+          build-args: --output-dir /tmp/ecoscope/release/artifacts --channel https://prefix.dev/ecoscope-workflows --channel conda-forge
+      - run: |
+          for file in /tmp/ecoscope/release/artifacts/**/*.conda; do
+            rattler-build upload prefix -c ecoscope-workflows "$file"
+          done
+        env:
+          PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
+
   publish-to-pypi:
     name: Publish to PyPI
     needs:

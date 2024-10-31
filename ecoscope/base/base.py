@@ -13,7 +13,7 @@ from ecoscope.base._dataclasses import (
     RelocsSpeedFilter,
     TrajSegFilter,
 )
-from ecoscope.base.utils import cachedproperty
+from functools import cached_property
 
 
 class EcoDataFrame(gpd.GeoDataFrame):
@@ -285,13 +285,13 @@ class Relocations(EcoDataFrame):
         if not inplace:
             return frame
 
-    @cachedproperty
+    @cached_property
     def distance_from_centroid(self):
         # calculate the distance between the centroid and the fix
         gs = self.geometry.to_crs(crs=self.estimate_utm_crs())
         return gs.distance(gs.unary_union.centroid)
 
-    @cachedproperty
+    @cached_property
     def cluster_radius(self):
         """
         The cluster radius is the largest distance between a point in the relocationss and the
@@ -300,7 +300,7 @@ class Relocations(EcoDataFrame):
         distance = self.distance_from_centroid
         return distance.max()
 
-    @cachedproperty
+    @cached_property
     def cluster_std_dev(self):
         """
         The cluster standard deviation is the standard deviation of the radii from the centroid
@@ -412,6 +412,7 @@ class Trajectory(EcoDataFrame):
                 "heading": track_properties.heading,
                 "geometry": shapely.linestrings(coords),
                 "junk_status": gdf.junk_status,
+                "nsd": track_properties.nsd,
             },
             crs=4326,
             index=gdf.index,
@@ -624,6 +625,13 @@ class Trajectory(EcoDataFrame):
             def dist_meters(self):
                 _, _, distance = self.inverse_transformation
                 return distance
+
+            @property
+            def nsd(self):
+                start_point = df["geometry"].iloc[0]
+                geod = Geod(ellps="WGS84")
+                geod_displacement = [geod.inv(start_point.x, start_point.y, geo.x, geo.y)[2] for geo in df["_geometry"]]
+                return [(x**2) / (1000 * 2) for x in geod_displacement]
 
             @property
             def timespan_seconds(self):

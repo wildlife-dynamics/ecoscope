@@ -6,6 +6,7 @@ import asyncio
 import ecoscope
 from ecoscope.io.utils import to_hex
 from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf, clean_time_cols
+from erclient.client import ERClientException, ERClientNotFound
 
 try:
     from erclient.client import AsyncERClient
@@ -29,6 +30,28 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
         super().__init__(**kwargs)
+
+    @classmethod
+    async def create(cls, **kwargs):
+        client = cls(**kwargs)
+
+        await client._init_client()
+        return client
+
+    async def _init_client(self):
+        if not self.auth:
+            try:
+                await self.login()
+            except ERClientNotFound:
+                raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")
+        else:
+            try:
+                await self.get_me()
+            except ERClientException:
+                raise ERClientException("Authorization token is invalid or expired.")
+
+    async def get_me(self):
+        return await self._get("user/me", params={})
 
     async def get_sources(
         self,
