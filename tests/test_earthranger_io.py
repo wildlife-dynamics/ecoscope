@@ -269,6 +269,24 @@ def test_get_patrol_observations(er_io):
     assert not observations.empty
 
 
+def test_get_patrol_observations_with_patrol_details(er_io):
+    patrols = er_io.get_patrols(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+
+    observations = er_io.get_patrol_observations(
+        patrols,
+        include_source_details=False,
+        include_subject_details=False,
+        include_subjectsource_details=False,
+        include_patrol_details=True,
+    )
+    assert not observations.empty
+    assert "patrol_id" in observations.columns
+    assert "patrol_title" in observations.columns
+
+
 def test_users(er_io):
     users = pd.DataFrame(er_io.get_users())
     assert not users.empty
