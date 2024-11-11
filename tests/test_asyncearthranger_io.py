@@ -141,6 +141,7 @@ def get_patrol_observations_fields():
 def get_patrol_details_fields():
     return [
         "patrol_id",
+        "patrol_title",
         "patrol_serial_number",
         "patrol_start_time",
         "patrol_end_time",
