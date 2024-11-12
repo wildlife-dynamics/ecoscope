@@ -871,6 +871,7 @@ class EarthRangerIO(ERClient):
                     )
                     if include_patrol_details:
                         observation["patrol_id"] = patrol["id"]
+                        observation["patrol_title"] = patrol["title"]
                         observation["patrol_serial_number"] = patrol["serial_number"]
                         observation["patrol_start_time"] = patrol_start_time
                         observation["patrol_end_time"] = patrol_end_time

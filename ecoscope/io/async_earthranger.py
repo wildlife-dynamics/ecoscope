@@ -493,6 +493,7 @@ class AsyncEarthRangerIO(AsyncERClient):
                         patrol_types["value"] == patrol_segment.get("patrol_type")
                     ].reset_index()["id"][0]
                     observations_by_subject["patrol_id"] = patrol["id"]
+                    observations_by_subject["patrol_title"] = patrol["title"]
                     observations_by_subject["patrol_serial_number"] = patrol["serial_number"]
                     observations_by_subject["patrol_start_time"] = patrol_start_time
                     observations_by_subject["patrol_end_time"] = patrol_end_time
