@@ -127,7 +127,6 @@ def get_patrol_observations_fields():
         "extra__recorded_at",
         "extra__created_at",
         "extra__exclusion_flags",
-        "extra__das_tenant_id",
         "extra__source",
         "extra__subject_id",
         "geometry",
@@ -141,6 +140,7 @@ def get_patrol_observations_fields():
 def get_patrol_details_fields():
     return [
         "patrol_id",
+        "patrol_title",
         "patrol_serial_number",
         "patrol_start_time",
         "patrol_end_time",

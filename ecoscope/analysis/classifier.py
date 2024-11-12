@@ -25,19 +25,36 @@ classification_methods = {
 
 # pass in a dataframe and output a series
 def apply_classification(
-    dataframe, input_column_name, output_column_name=None, labels=None, scheme="natural_breaks", **kwargs
+    dataframe,
+    input_column_name,
+    output_column_name=None,
+    labels=None,
+    scheme="natural_breaks",
+    label_prefix="",
+    label_suffix="",
+    label_ranges=False,
+    label_decimals=1,
+    **kwargs,
 ):
     """
-    Classifies the data in a GeoDataFrame column using specified classification scheme.
+    Classifies the data in a DataFrame column using specified classification scheme.
 
     Args:
     dataframe (pd.DatFrame): The data.
     input_column_name (str): The dataframe column to classify.
-    output_column_name (str): The dataframe column that will contain the classification.
+    output_column_names (str): The dataframe column that will contain the classification.
         Defaults to "<input_column_name>_classified"
     labels (list[str]): labels of bins, use bin edges if labels==None.
     scheme (str): Classification scheme to use [equal_interval, natural_breaks, quantile, std_mean, max_breaks,
     fisher_jenks]
+    label_prefix (str): Prepends provided string to each label
+    label_suffix (str): Appends provided string to each label
+    label_ranges (bool): Applicable only when 'labels' is not set
+                         If True, generated labels will be the range between bin edges,
+                         rather than the bin edges themselves.
+    label_decimals (int): Applicable only when 'labels' is not set
+                          Specifies the number of decimal places in the label
+
 
     **kwargs:
         Additional keyword arguments specific to the classification scheme, passed to mapclassify.
@@ -75,7 +92,20 @@ def apply_classification(
     classifier = classifier_class(dataframe[input_column_name].to_numpy(), **kwargs)
     if labels is None:
         labels = classifier.bins
+
+        if label_ranges:
+            # We could do this using mapclassify.get_legend_classes, but this generates a cleaner label
+            ranges = [f"{dataframe[input_column_name].min():.{label_decimals}f} - {labels[0]:.{label_decimals}f}"]
+            ranges.extend(
+                [f"{labels[i]:.{label_decimals}f} - {labels[i + 1]:.{label_decimals}f}" for i in range(len(labels) - 1)]
+            )
+            labels = ranges
+        else:
+            labels = [round(label, label_decimals) for label in labels]
+
     assert len(labels) == len(classifier.bins)
+    if label_prefix or label_suffix:
+        labels = [f"{label_prefix}{label}{label_suffix}" for label in labels]
     dataframe[output_column_name] = [labels[i] for i in classifier.yb]
     return dataframe
 
