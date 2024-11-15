@@ -41,7 +41,7 @@ def clean_time_cols(df):
     for col in time_cols:
         if col in df.columns:
             # convert x is not None to pd.isna(x) is False
-            df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x)) if not pd.isna(x) else None)
+            df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x), utc=True) if not pd.isna(x) else None)
     return df
 
 
