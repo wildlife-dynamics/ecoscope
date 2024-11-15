@@ -26,9 +26,13 @@ def df_with_times():
 
 
 def test_clean_time_cols(df_with_times):
-    cleaned = clean_time_cols(df_with_times)
+    with pytest.raises(AttributeError):
+        df_with_times["time"].dt
 
+    cleaned = clean_time_cols(df_with_times)
     assert pd.api.types.is_datetime64_ns_dtype(cleaned["time"])
+    # Check we have our dt accessor
+    df_with_times["time"].dt
 
     expected_times = pd.arrays.DatetimeArray._from_sequence(
         [
