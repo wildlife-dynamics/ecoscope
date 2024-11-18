@@ -744,8 +744,10 @@ class EarthRangerIO(ERClient):
                         event["patrol_segment_id"] = segment.get("id")
                         events.append(event)
         events_df = pd.DataFrame(events)
-        events_df = clean_time_cols(events_df)
+        if events_df.empty:
+            return events_df
 
+        events_df = clean_time_cols(events_df)
         events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
         events_df["time"] = events_df["geojson"].apply(
             lambda x: datetime.datetime.strptime(x.get("properties").get("datetime"), "%Y-%m-%dT%H:%M:%S%z")
