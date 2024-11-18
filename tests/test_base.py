@@ -233,3 +233,18 @@ def test_apply_traj_filter(movebank_relocations):
 
     assert filtered["speed_kmhr"].min() >= min_speed
     assert filtered["speed_kmhr"].max() <= max_speed
+
+
+@pytest.fixture
+def sample_relocs():
+    gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
+    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
+
+    return ecoscope.base.Relocations.from_gdf(gdf)
+
+
+def test_trajectory_with_single_relocation(sample_relocs):
+    assert len(sample_relocs["extra__subject_id"].unique()) == 3
+    trajectory = ecoscope.base.Trajectory.from_relocations(sample_relocs)
+    assert not trajectory.empty
+    assert len(trajectory["extra__subject_id"].unique()) == 2

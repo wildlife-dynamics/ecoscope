@@ -379,6 +379,12 @@ class Trajectory(EcoDataFrame):
 
     @staticmethod
     def _create_multitraj(df):
+        if len(df) == 1:
+            warnings.warn(
+                f"Subject id {df['extra__subject_id']} has only one relocation "
+                "and will be excluded from trajectory creation"
+            )
+            return pd.DataFrame()
         with warnings.catch_warnings():
             """
             Note : This warning can be removed once the version of Geopandas is updated
