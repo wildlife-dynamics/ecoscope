@@ -37,7 +37,7 @@ def to_gdf(df):
 
 
 def clean_time_cols(df):
-    time_cols = ["time", "created_at", "updated_at", "end_time", "last_position_date", "recorded_at"]
+    time_cols = ["time", "created_at", "updated_at", "end_time", "last_position_date", "recorded_at", "fixtime"]
     for col in time_cols:
         if col in df.columns:
             # convert x is not None to pd.isna(x) is False
