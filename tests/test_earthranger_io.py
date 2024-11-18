@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from unittest.mock import patch
 
 import geopandas as gpd
 import pandas as pd
@@ -152,6 +153,17 @@ def test_get_patrol_events(er_io):
     assert "patrol_id" in events
     assert "patrol_segment_id" in events
     assert "time" in events
+
+
+@patch("ecoscope.io.EarthRangerIO.get_patrols")
+def test_get_patrol_events_empty(patrols_mock, er_io):
+    patrols_mock.return_value = pd.DataFrame()
+
+    events = er_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+    assert events.empty
 
 
 def test_post_observations(er_io):
