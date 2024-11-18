@@ -11,7 +11,7 @@ dependencies:
   - numpy<2
   - ipywidgets
   - pip:
-      - kaleido
+      - kaleido==0.2.1
       - pre-commit>=3
       - coverage[toml]
       - earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3
