@@ -39,7 +39,7 @@ def to_gdf(df):
 def clean_time_cols(df):
     time_cols = ["time", "created_at", "updated_at", "end_time", "last_position_date", "recorded_at", "fixtime"]
     for col in time_cols:
-        if col in df.columns:
+        if col in df.columns and not pd.api.types.is_datetime64_ns_dtype(df[col]):
             # convert x is not None to pd.isna(x) is False
             df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x), utc=True) if not pd.isna(x) else None)
     return df
