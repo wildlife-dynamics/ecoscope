@@ -220,6 +220,12 @@ def test_zoom_to_gdf():
 
     assert m.view_state.longitude == (x1 + x2) / 2
     assert m.view_state.latitude == (y1 + y2) / 2
+    assert m.view_state.zoom == 6
+
+    m.zoom_to_bounds(feat=gpd.GeoDataFrame(geometry=gs), max_zoom=1)
+    assert m.view_state.longitude == (x1 + x2) / 2
+    assert m.view_state.latitude == (y1 + y2) / 2
+    assert m.view_state.zoom == 1
 
 
 def test_geotiff_layer():
