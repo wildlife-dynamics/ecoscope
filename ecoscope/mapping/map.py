@@ -507,21 +507,19 @@ class EcoMap(EcoMapMixin, Map):
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",  # noqa
                 "attribution": "Esri",
                 "name": "Esri.WorldStreetMap",
+                "max_zoom": 18,
             },
             "SATELLITE": {
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                 "attribution": "Esri",
                 "name": "Esri.WorldImagery",
+                "max_zoom": 17,
             },
             "TERRAIN": {
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
                 "attribution": "Esri",
                 "name": "Esri.WorldTopoMap",
-            },
-            "HYBRID": {
-                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                "attribution": "Esri",
-                "name": "Esri.WorldImagery",
+                "max_zoom": 17,
             },
         }
 

@@ -330,7 +330,7 @@ def test_add_polygon_with_color(poly_gdf):
 
 def test_add_named_tile_layer():
     m = EcoMap()
-    m.add_layer(m.get_named_tile_layer("HYBRID", opacity=0.3))
+    m.add_layer(m.get_named_tile_layer("TERRAIN", opacity=0.3))
 
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)
