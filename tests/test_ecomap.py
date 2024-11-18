@@ -220,6 +220,12 @@ def test_zoom_to_gdf():
 
     assert m.view_state.longitude == (x1 + x2) / 2
     assert m.view_state.latitude == (y1 + y2) / 2
+    assert m.view_state.zoom == 6
+
+    m.zoom_to_bounds(feat=gpd.GeoDataFrame(geometry=gs), max_zoom=1)
+    assert m.view_state.longitude == (x1 + x2) / 2
+    assert m.view_state.latitude == (y1 + y2) / 2
+    assert m.view_state.zoom == 1
 
 
 def test_geotiff_layer():
@@ -330,7 +336,7 @@ def test_add_polygon_with_color(poly_gdf):
 
 def test_add_named_tile_layer():
     m = EcoMap()
-    m.add_layer(m.get_named_tile_layer("HYBRID", opacity=0.3))
+    m.add_layer(m.get_named_tile_layer("TERRAIN", opacity=0.3))
 
     assert len(m.layers) == 2
     assert isinstance(m.layers[1], BitmapTileLayer)

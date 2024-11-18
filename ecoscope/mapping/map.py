@@ -365,7 +365,7 @@ class EcoMap(EcoMapMixin, Map):
 
         return ee_layer
 
-    def zoom_to_bounds(self, feat: Union[BaseLayer, List[BaseLayer], gpd.GeoDataFrame]):
+    def zoom_to_bounds(self, feat: Union[BaseLayer, List[BaseLayer], gpd.GeoDataFrame], max_zoom: int = 20):
         """
         Zooms the map to the bounds of a dataframe or layer.
 
@@ -382,11 +382,12 @@ class EcoMap(EcoMapMixin, Map):
 
             centerLon = (bounds[0] + bounds[2]) / 2
             centerLat = (bounds[1] + bounds[3]) / 2
+            zoom_level = min(bbox_to_zoom_level(bbox), max_zoom)
 
             view_state = {
                 "longitude": centerLon,
                 "latitude": centerLat,
-                "zoom": bbox_to_zoom_level(bbox),
+                "zoom": zoom_level,
                 "pitch": 0,
                 "bearing": 0,
             }
@@ -507,21 +508,19 @@ class EcoMap(EcoMapMixin, Map):
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",  # noqa
                 "attribution": "Esri",
                 "name": "Esri.WorldStreetMap",
+                "max_zoom": 18,
             },
             "SATELLITE": {
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                 "attribution": "Esri",
                 "name": "Esri.WorldImagery",
+                "max_zoom": 17,
             },
             "TERRAIN": {
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
                 "attribution": "Esri",
                 "name": "Esri.WorldTopoMap",
-            },
-            "HYBRID": {
-                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                "attribution": "Esri",
-                "name": "Esri.WorldImagery",
+                "max_zoom": 17,
             },
         }
 
