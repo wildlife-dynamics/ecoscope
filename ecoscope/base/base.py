@@ -104,6 +104,13 @@ class EcoDataFrame(gpd.GeoDataFrame):
         else:
             frame = self.copy()
 
+        if not frame["junk_status"].dtype == bool:
+            warnings.warn(
+                f"junk_status column is of type {frame['junk_status'].dtype}, expected `bool`. "
+                "Attempting to automatically convert."
+            )
+            frame["junk_status"] = frame["junk_status"].astype(bool)
+
         frame.query("~junk_status", inplace=True)
 
         if not inplace:
@@ -381,10 +388,10 @@ class Trajectory(EcoDataFrame):
     def _create_multitraj(df):
         if len(df) == 1:
             warnings.warn(
-                f"Subject id {df['extra__subject_id']} has only one relocation "
+                f"Subject id {df.get('groupby_col')} has only one relocation "
                 "and will be excluded from trajectory creation"
             )
-            return pd.DataFrame()
+            return None
         with warnings.catch_warnings():
             """
             Note : This warning can be removed once the version of Geopandas is updated

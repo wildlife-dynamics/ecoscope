@@ -248,3 +248,13 @@ def test_trajectory_with_single_relocation(sample_relocs):
     trajectory = ecoscope.base.Trajectory.from_relocations(sample_relocs)
     assert not trajectory.empty
     assert len(trajectory["extra__subject_id"].unique()) == 2
+
+
+def test_trajectory_preserves_column_dtypes(sample_relocs):
+    before = sample_relocs.dtypes
+    trajectory = ecoscope.base.Trajectory.from_relocations(sample_relocs)
+    after = trajectory.dtypes
+
+    for col in before.index:
+        if after.get(col):  # Dropping columns is okay
+            assert after[col] == before[col]
