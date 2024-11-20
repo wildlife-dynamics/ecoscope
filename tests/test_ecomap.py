@@ -147,8 +147,8 @@ def test_add_ee_layer_geometry():
     m = EcoMap()
     rectangle = ee.Geometry.Rectangle([-40, -20, 40, 20])
     m.add_layer(EcoMap.ee_layer(rectangle, None))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], PolygonLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], PolygonLayer)
 
 
 def test_add_polyline(line_gdf):
