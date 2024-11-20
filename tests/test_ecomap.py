@@ -117,8 +117,8 @@ def test_add_ee_layer_image():
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
     ee_object = ee.Image("USGS/SRTMGL1_003")
     m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapTileLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapTileLayer)
 
 
 @pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
@@ -127,9 +127,9 @@ def test_add_ee_layer_image_collection():
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5}
     ee_object = ee.ImageCollection("MODIS/006/MCD43C3")
     m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapTileLayer)
-    assert m.layers[1].tile_size == 256
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapTileLayer)
+    assert m.layers[0].tile_size == 256
 
 
 @pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
@@ -138,8 +138,8 @@ def test_add_ee_layer_feature_collection():
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
     ee_object = ee.FeatureCollection("LARSE/GEDI/GEDI02_A_002/GEDI02_A_2021244154857_O15413_04_T05622_02_003_02_V002")
     m.add_layer(EcoMap.ee_layer(ee_object, vis_params))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapTileLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapTileLayer)
 
 
 @pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
