@@ -44,8 +44,7 @@ def test_ecomap_base():
     m = EcoMap()
 
     assert len(m.deck_widgets) == 3
-    assert len(m.layers) == 1
-    assert isinstance(m.layers[0], BitmapTileLayer)
+    assert len(m.layers) == 0
     assert isinstance(m.deck_widgets[0], FullscreenWidget)
     assert isinstance(m.deck_widgets[1], ScaleWidget)
     assert isinstance(m.deck_widgets[2], SaveImageWidget)
@@ -56,8 +55,7 @@ def test_static_map():
 
     assert m.controller is False
     assert len(m.deck_widgets) == 1
-    assert len(m.layers) == 1
-    assert isinstance(m.layers[0], BitmapTileLayer)
+    assert len(m.layers) == 0
     assert isinstance(m.deck_widgets[0], ScaleWidget)
 
 
@@ -156,27 +154,27 @@ def test_add_ee_layer_geometry():
 def test_add_polyline(line_gdf):
     m = EcoMap()
     m.add_layer(m.polyline_layer(line_gdf, get_width=200))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], PathLayer)
-    assert m.layers[1].get_width == 200
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], PathLayer)
+    assert m.layers[0].get_width == 200
 
 
 def test_add_point(point_gdf):
     m = EcoMap()
     m.add_layer(m.point_layer(point_gdf, get_fill_color=[25, 100, 25, 100]))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], ScatterplotLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], ScatterplotLayer)
     # default color
-    assert m.layers[1].get_fill_color == [25, 100, 25, 100]
+    assert m.layers[0].get_fill_color == [25, 100, 25, 100]
 
 
 def test_add_polygon(poly_gdf):
     m = EcoMap()
     m.add_layer(m.polygon_layer(poly_gdf, extruded=True, get_line_width=35), zoom=True)
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], PolygonLayer)
-    assert m.layers[1].extruded
-    assert m.layers[1].get_line_width == 35
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], PolygonLayer)
+    assert m.layers[0].extruded
+    assert m.layers[0].get_line_width == 35
     # validating zoom param by checking view state is non-default
     assert m.view_state.longitude != 10
     assert m.view_state.latitude != 0
@@ -231,15 +229,15 @@ def test_zoom_to_gdf():
 def test_geotiff_layer():
     m = EcoMap()
     m.add_layer(EcoMap.geotiff_layer("tests/sample_data/raster/uint8.tif", cmap=None))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapLayer)
 
 
 def test_geotiff_layer_with_cmap():
     m = EcoMap()
     m.add_layer(EcoMap.geotiff_layer("tests/sample_data/raster/uint8.tif", cmap="jet"))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapLayer)
 
 
 def test_geotiff_layer_in_mem_with_cmap():
@@ -259,24 +257,24 @@ def test_geotiff_layer_in_mem_with_cmap():
 
     m = EcoMap()
     m.add_layer(EcoMap.geotiff_layer(raster, cmap="jet"))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapLayer)
 
 
 def test_add_datashader_gdf(point_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(point_gdf, "point")
     m.add_layer(EcoMap.pil_layer(img, bounds))
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapLayer)
 
 
 def test_add_datashader_gdf_with_zoom(poly_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(poly_gdf, "polygon")
     m.add_layer(EcoMap.pil_layer(img, bounds), zoom=True)
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapLayer)
     assert m.view_state.longitude == (bounds[0] + bounds[2]) / 2
     assert m.view_state.latitude == (bounds[1] + bounds[3]) / 2
 
@@ -300,9 +298,9 @@ def test_add_polyline_with_color(movebank_relocations):
     m.add_layer(m.polyline_layer(trajectory, color_column="speed_colors", get_width=2000))
     m.add_legend(labels=trajectory["speed_bins"], colors=trajectory["speed_colors"])
 
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], PathLayer)
-    assert m.layers[1].get_width == 2000
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], PathLayer)
+    assert m.layers[0].get_width == 2000
 
 
 def test_add_point_with_color(point_gdf):
@@ -313,8 +311,8 @@ def test_add_point_with_color(point_gdf):
     m = EcoMap()
     m.add_layer(m.point_layer(point_gdf, fill_color_column="time_cmap", get_radius=10000))
 
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], ScatterplotLayer)
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], ScatterplotLayer)
 
 
 def test_add_polygon_with_color(poly_gdf):
@@ -325,10 +323,10 @@ def test_add_polygon_with_color(poly_gdf):
         m.polygon_layer(poly_gdf, fill_color_column="ZoneID_colormap", extruded=True, get_line_width=35), zoom=True
     )
 
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], PolygonLayer)
-    assert m.layers[1].extruded
-    assert m.layers[1].get_line_width == 35
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], PolygonLayer)
+    assert m.layers[0].extruded
+    assert m.layers[0].get_line_width == 35
     # validating zoom param by checking view state is non-default
     assert m.view_state.longitude != 10
     assert m.view_state.latitude != 0
@@ -338,6 +336,6 @@ def test_add_named_tile_layer():
     m = EcoMap()
     m.add_layer(m.get_named_tile_layer("TERRAIN", opacity=0.3))
 
-    assert len(m.layers) == 2
-    assert isinstance(m.layers[1], BitmapTileLayer)
-    assert m.layers[1].opacity == 0.3
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapTileLayer)
+    assert m.layers[0].opacity == 0.3
