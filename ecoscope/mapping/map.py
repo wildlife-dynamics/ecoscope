@@ -87,7 +87,7 @@ class EcoMap(EcoMapMixin, Map):
         kwargs["height"] = kwargs.get("height", 600)
         kwargs["width"] = kwargs.get("width", 800)
 
-        kwargs["layers"] = kwargs.get("layers", [self.get_named_tile_layer("OpenStreetMap")])
+        kwargs["layers"] = kwargs.get("layers", [])
 
         if kwargs.get("deck_widgets") is None and default_widgets:
             if static:
