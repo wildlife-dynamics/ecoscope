@@ -254,15 +254,31 @@ class EcoMap(EcoMapMixin, Map):
         style: dict
             Additional style params
         """
+        nans = None
         if isinstance(labels, pd.Series):
+            if pd.api.types.is_numeric_dtype(labels):
+                nans = np.argwhere(np.isnan(labels))
             labels = labels.unique().tolist()
         if isinstance(colors, pd.Series):
             colors = colors.unique().tolist()
 
-        labels = [str(label) for label in labels]
-        colors = [color_tuple_to_css(color) if isinstance(color, tuple) else color for color in colors]
+        if len(labels) != len(colors):
+            raise ValueError("Unique label and color values must be of equal number")
 
-        self.add_widget(LegendWidget(labels=labels, colors=colors, **kwargs))
+        if nans is not None:
+            filtered_labels = []
+            filtered_colors = []
+            for index, value in enumerate(labels):
+                if index not in nans:
+                    filtered_labels.append(labels[index])
+                    filtered_colors.append(colors[index])
+            labels = filtered_labels
+            colors = filtered_colors
+
+        widget_labels = [str(label) for label in labels]
+        widget_colors = [color_tuple_to_css(color) if isinstance(color, tuple) else color for color in colors]
+
+        self.add_widget(LegendWidget(labels=widget_labels, colors=widget_colors, **kwargs))
 
     def add_north_arrow(self, **kwargs):
         """
