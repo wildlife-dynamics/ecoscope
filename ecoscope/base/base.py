@@ -104,6 +104,13 @@ class EcoDataFrame(gpd.GeoDataFrame):
         else:
             frame = self.copy()
 
+        if not frame["junk_status"].dtype == bool:
+            warnings.warn(
+                f"junk_status column is of type {frame['junk_status'].dtype}, expected `bool`. "
+                "Attempting to automatically convert."
+            )
+            frame["junk_status"] = frame["junk_status"].astype(bool)
+
         frame.query("~junk_status", inplace=True)
 
         if not inplace:
