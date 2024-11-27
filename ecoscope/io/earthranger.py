@@ -895,6 +895,7 @@ class EarthRangerIO(ERClient):
                             )
                         )
                     if len(observation) > 0:
+                        observation["groupby_col"] = patrol["id"]
                         observations.append(observation)
                 except Exception as e:
                     print(
@@ -904,7 +905,6 @@ class EarthRangerIO(ERClient):
 
         df = pd.concat(observations)
         df = clean_time_cols(df)
-        df["groupby_col"] = df["patrol_id"]
         df = ecoscope.base.Relocations(df)
         if include_patrol_details:
             return df.set_index("id")
