@@ -904,6 +904,7 @@ class EarthRangerIO(ERClient):
 
         df = pd.concat(observations)
         df = clean_time_cols(df)
+        df["groupby_col"] = "patrol_id"
         df = ecoscope.base.Relocations(df)
         if include_patrol_details:
             return df.set_index("id")

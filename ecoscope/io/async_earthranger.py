@@ -431,6 +431,7 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         observations = await asyncio.gather(*tasks)
         observations = pd.concat(observations)
+        observations["groupby_col"] = "patrol_id"
 
         return observations
 
