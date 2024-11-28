@@ -419,10 +419,7 @@ class AsyncEarthRangerIO(AsyncERClient):
         relocations : ecoscope.base.Relocations
         """
         observations = ecoscope.base.Relocations()
-        df_pt = None
-
-        if include_patrol_details:
-            df_pt = await self.get_patrol_types_dataframe()
+        df_pt = await self.get_patrol_types_dataframe() if include_patrol_details else None
 
         tasks = []
         async for patrol in self.get_patrols(since=since, until=until, patrol_type=patrol_type, status=status):
@@ -431,6 +428,9 @@ class AsyncEarthRangerIO(AsyncERClient):
 
         observations = await asyncio.gather(*tasks)
         observations = pd.concat(observations)
+
+        if include_patrol_details:
+            observations["groupby_col"] = observations["patrol_id"]
 
         return observations
 
