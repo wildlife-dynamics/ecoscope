@@ -9,7 +9,6 @@ def sample_spatial_features():
     return gpd.read_feather("tests/sample_data/vector/spatial_features.feather")
 
 
-@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
 def test_proximity(sample_relocs, sample_spatial_features):
     prox_profile = ProximityProfile([])
 
