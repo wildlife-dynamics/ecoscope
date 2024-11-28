@@ -45,4 +45,4 @@ jobs:
           pytest -v -r s --color=yes --cov=ecoscope --cov-append --cov-report=xml
       
       - name: Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
