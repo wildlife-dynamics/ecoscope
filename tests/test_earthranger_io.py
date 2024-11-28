@@ -11,6 +11,8 @@ from shapely.geometry import Point
 import ecoscope
 from erclient import ERClientException
 
+pytestmark = pytest.mark.io
+
 if not pytest.earthranger:
     pytest.skip(
         "Skipping tests because connection to EarthRanger is not available.",
