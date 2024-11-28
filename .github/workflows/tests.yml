@@ -43,7 +43,7 @@ jobs:
           EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
           EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
         run: |
-          pytest -v -r s --color=yes --cov=ecoscope --cov-append --cov-report=xml
+          pytest -v -r s -m ${{ inputs.io }} --color=yes --cov=ecoscope --cov-append --cov-report=xml
       
       - name: Codecov
         uses: codecov/codecov-action@v5
