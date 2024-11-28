@@ -5,6 +5,13 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "*" ]
+  paths:
+    - 'ecoscope/io/earthranger.py'
+    - 'ecoscope/io/async_earthranger.py'
+    - 'ecoscope/io/earthranger_utils.py'
+    - 'tests/test_earthranger_utils.py'
+    - 'tests/test_async_earthranger_io.py'
+    - 'tests/test_earthranger_io.py'
 
 jobs:
   dev:
