@@ -1,15 +1,13 @@
-name: Tests Main
+name: Test IO
 
 on:
   push:
     branches: [ "master" ]
   pull_request:
     branches: [ "*" ]
-  paths:
-      - '**.js'
 
 jobs:
   dev:
     uses: ./.github/workflows/tests.yml
     with:
-      io: "not io"
+      io: "io"
