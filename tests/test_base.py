@@ -9,14 +9,6 @@ import ecoscope
 
 
 @pytest.fixture
-def sample_relocs():
-    gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
-    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
-
-    return ecoscope.base.Relocations.from_gdf(gdf)
-
-
-@pytest.fixture
 def sample_single_relocs():
     gdf = gpd.read_parquet("tests/sample_data/vector/sample_single_relocs.parquet")
     gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)

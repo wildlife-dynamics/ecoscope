@@ -100,3 +100,11 @@ def aoi_gdf():
     regions_gdf = gpd.GeoDataFrame.from_file(AOI_FILE).to_crs(4326)
     regions_gdf.set_index("ZONE", drop=True, inplace=True)
     return regions_gdf
+
+
+@pytest.fixture
+def sample_relocs():
+    gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
+    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
+
+    return ecoscope.base.Relocations.from_gdf(gdf)
