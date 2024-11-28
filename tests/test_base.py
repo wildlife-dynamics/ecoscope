@@ -8,46 +8,52 @@ import pytest
 import ecoscope
 
 
-@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
-def test_trajectory_is_not_empty(er_io):
+@pytest.fixture
+def sample_relocs():
+    gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
+    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
+
+    return ecoscope.base.Relocations.from_gdf(gdf)
+
+
+@pytest.fixture
+def sample_single_relocs():
+    gdf = gpd.read_parquet("tests/sample_data/vector/sample_single_relocs.parquet")
+    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
+
+    return ecoscope.base.Relocations.from_gdf(gdf)
+
+
+def test_trajectory_is_not_empty(sample_relocs):
     # test there is actually data in trajectory
-    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
-    trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
+    trajectory = ecoscope.base.Trajectory.from_relocations(sample_relocs)
     assert not trajectory.empty
 
 
-@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
-def test_redundant_columns_in_trajectory(er_io):
+def test_redundant_columns_in_trajectory(sample_relocs):
     # test there is no redundant column in trajectory
-    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
-    trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
+    trajectory = ecoscope.base.Trajectory.from_relocations(sample_relocs)
     assert "extra__fixtime" not in trajectory
     assert "extra___fixtime" not in trajectory
     assert "extra___geometry" not in trajectory
 
 
-@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
-def test_relocs_speedfilter(er_io):
-    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
+def test_relocs_speedfilter(sample_relocs):
     relocs_speed_filter = ecoscope.base.RelocsSpeedFilter(max_speed_kmhr=8)
-    relocs_after_filter = relocations.apply_reloc_filter(relocs_speed_filter)
+    relocs_after_filter = sample_relocs.apply_reloc_filter(relocs_speed_filter)
     relocs_after_filter.remove_filtered(inplace=True)
-    assert relocations.shape[0] != relocs_after_filter.shape[0]
+    assert sample_relocs.shape[0] != relocs_after_filter.shape[0]
 
 
-@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
-def test_relocs_distancefilter(er_io):
-    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
+def test_relocs_distancefilter(sample_relocs):
     relocs_speed_filter = ecoscope.base.RelocsDistFilter(min_dist_km=1.0, max_dist_km=6.0)
-    relocs_after_filter = relocations.apply_reloc_filter(relocs_speed_filter)
+    relocs_after_filter = sample_relocs.apply_reloc_filter(relocs_speed_filter)
     relocs_after_filter.remove_filtered(inplace=True)
-    assert relocations.shape[0] != relocs_after_filter.shape[0]
+    assert sample_relocs.shape[0] != relocs_after_filter.shape[0]
 
 
-@pytest.mark.skipif(not pytest.earthranger, reason="No connection to EarthRanger")
-def test_relocations_from_gdf_preserve_fields(er_io):
-    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
-    gpd.testing.assert_geodataframe_equal(relocations, ecoscope.base.Relocations.from_gdf(relocations))
+def test_relocations_from_gdf_preserve_fields(sample_relocs):
+    gpd.testing.assert_geodataframe_equal(sample_relocs, ecoscope.base.Relocations.from_gdf(sample_relocs))
 
 
 def test_trajectory_properties(movebank_relocations):
@@ -235,24 +241,16 @@ def test_apply_traj_filter(movebank_relocations):
     assert filtered["speed_kmhr"].max() <= max_speed
 
 
-@pytest.fixture
-def sample_relocs():
-    gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
-    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
-
-    return ecoscope.base.Relocations.from_gdf(gdf)
-
-
-def test_trajectory_with_single_relocation(sample_relocs):
-    assert len(sample_relocs["extra__subject_id"].unique()) == 3
-    trajectory = ecoscope.base.Trajectory.from_relocations(sample_relocs)
+def test_trajectory_with_single_relocation(sample_single_relocs):
+    assert len(sample_single_relocs["extra__subject_id"].unique()) == 3
+    trajectory = ecoscope.base.Trajectory.from_relocations(sample_single_relocs)
     assert not trajectory.empty
     assert len(trajectory["extra__subject_id"].unique()) == 2
 
 
-def test_trajectory_preserves_column_dtypes(sample_relocs):
-    before = sample_relocs.dtypes
-    trajectory = ecoscope.base.Trajectory.from_relocations(sample_relocs)
+def test_trajectory_preserves_column_dtypes(sample_single_relocs):
+    before = sample_single_relocs.dtypes
+    trajectory = ecoscope.base.Trajectory.from_relocations(sample_single_relocs)
     after = trajectory.dtypes
 
     for col in before.index:
