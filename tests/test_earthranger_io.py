@@ -27,7 +27,6 @@ def test_get_subject_observations(er_io):
         include_source_details=True,
         include_subjectsource_details=True,
     )
-    assert False
     assert not relocations.empty
     assert isinstance(relocations, ecoscope.base.Relocations)
     assert "groupby_col" in relocations
