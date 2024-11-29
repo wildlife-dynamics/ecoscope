@@ -1,4 +1,5 @@
 import warnings
+from functools import cached_property
 
 import geopandas as gpd
 import numpy as np
@@ -13,7 +14,6 @@ from ecoscope.base._dataclasses import (
     RelocsSpeedFilter,
     TrajSegFilter,
 )
-from functools import cached_property
 
 
 class EcoDataFrame(gpd.GeoDataFrame):
@@ -352,7 +352,7 @@ class Trajectory(EcoDataFrame):
         assert isinstance(gdf, Relocations)
         assert {"groupby_col", "fixtime", "geometry"}.issubset(gdf)
 
-        if kwargs.get("copy") is not False:
+        if kwargs.get("copy"):
             gdf = gdf.copy()
 
         gdf = EcoDataFrame(gdf)
