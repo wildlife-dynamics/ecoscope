@@ -367,14 +367,11 @@ class Trajectory(EcoDataFrame):
         """
         Get displacement in meters between first and final fixes.
         """
-
         if not self["segment_start"].is_monotonic_increasing:
             self = self.sort_values("segment_start")
-
-        gs = self.geometry.iloc[[0, -1]]
-        start, end = gs.to_crs(gs.estimate_utm_crs())
-
-        return start.distance(end)
+        start = self.geometry.iloc[0].coords[0]
+        end = self.geometry.iloc[-1].coords[1]
+        return Geod(ellps="WGS84").inv(start[0], start[1], end[0], end[1])[2]
 
     def get_tortuosity(self):
         """

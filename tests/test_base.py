@@ -77,7 +77,7 @@ def test_trajectory_properties(movebank_relocations):
 def test_displacement_property(movebank_relocations):
     trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
-        [2633.760505, 147749.545621],
+        [2633.9728734217356, 147960.93352796172],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
