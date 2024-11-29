@@ -27,8 +27,6 @@ jobs:
         uses: mamba-org/setup-micromamba@v2.0.2
         with:
           environment-file: ${{ matrix.env }}
-          cache-environment: true
-          cache-downloads: true
           init-shell: bash powershell
 
       - name: Install pip dependencies and our package
