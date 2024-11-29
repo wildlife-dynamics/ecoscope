@@ -22,12 +22,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Micromamba
         uses: mamba-org/setup-micromamba@v2.0.2
         with:
           environment-file: ${{ matrix.env }}
           init-shell: bash powershell
+          cache-environment: true
 
       - name: Install pip dependencies and our package
         shell: bash -leo pipefail {0}
