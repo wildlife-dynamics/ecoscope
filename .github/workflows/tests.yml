@@ -6,7 +6,6 @@ on:
       io:
         type: string
         required: true
-    inputs:
       os:
         type: string
         required: true
