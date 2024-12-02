@@ -26,7 +26,7 @@ jobs:
       - name: Setup Micromamba
         uses: mamba-org/setup-micromamba@v2.0.2
         with:
-          environment-file: ${{ environment.yml }}
+          environment-file: environment.yml
           cache-environment: true
           init-shell: bash powershell
 
