@@ -11,4 +11,4 @@ jobs:
     uses: ./.github/workflows/tests.yml
     with:
       io: "not io"
-    secrets: inherit
+      os: "ubuntu-latest"

@@ -6,19 +6,20 @@ on:
       io:
         type: string
         required: true
+    inputs:
+      os:
+        type: string
+        required: true
 
 jobs:
   Test:
-    name: ${{ matrix.os }}, ${{ matrix.env }}
-    runs-on: ${{ matrix.os }}
+    name: ${{ inputs.os }}, ${{ inputs.io }}
+    runs-on: ${{ inputs.os }}
     defaults:
       run:
         shell: bash -leo pipefail {0}
     strategy:
       fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        env: [environment.yml]
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +27,7 @@ jobs:
       - name: Setup Micromamba
         uses: mamba-org/setup-micromamba@v2.0.2
         with:
-          environment-file: ${{ matrix.env }}
+          environment-file: ${{ environment.yml }}
           cache-environment: true
           init-shell: bash powershell
 

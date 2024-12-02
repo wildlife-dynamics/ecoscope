@@ -1,0 +1,26 @@
+name: Test Everything
+
+on:
+  schedule:
+    # Per https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule
+    # Make this a weird time
+    - cron: "23 5 * * *"
+  workflow_dispatch: {}
+  
+
+jobs:
+  ubuntu:
+    uses: ./.github/workflows/tests.yml
+    with:
+      io: "io or not io"
+      os: "ubuntu-latest"
+  mac:
+    uses: ./.github/workflows/tests.yml
+    with:
+      io: "io or not io"
+      os: "macos-latest"
+  windows:
+    uses: ./.github/workflows/tests.yml
+    with:
+      io: "io or not io"
+      os: "windows-latest"
