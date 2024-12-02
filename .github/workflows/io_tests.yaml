@@ -1,6 +1,10 @@
 name: Test IO
 
 on:
+  schedule:
+    # Per https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule
+    # Make this a weird time
+    - cron: "23 5 * * 1"
   push:
     branches: [ "master" ]
   pull_request:
