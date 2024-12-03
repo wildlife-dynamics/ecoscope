@@ -743,6 +743,7 @@ class EarthRangerIO(ERClient):
                     for event in segment.get("events", []):
                         event["patrol_id"] = row.get("id")
                         event["patrol_segment_id"] = segment.get("id")
+                        event["patrol_start_time"] = (segment.get("time_range") or {}).get("start_time")
                         events.append(event)
         events_df = pd.DataFrame(events)
         if events_df.empty:

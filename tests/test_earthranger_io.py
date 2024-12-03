@@ -148,6 +148,7 @@ def test_get_patrol_events(er_io):
     assert "geometry" in events
     assert "patrol_id" in events
     assert "patrol_segment_id" in events
+    assert "patrol_start_time" in events
     assert "time" in events
 
 
