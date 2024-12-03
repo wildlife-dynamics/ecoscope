@@ -4,9 +4,8 @@ import pytest
 from ecoscope import plotting
 from ecoscope.analysis import seasons
 
-pytestmark = pytest.mark.io
 
-
+@pytest.mark.io
 def test_seasons():
     gdf = gpd.read_file("tests/sample_data/vector/AOI_sites.gpkg").to_crs(4326)
 
