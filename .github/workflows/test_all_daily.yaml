@@ -1,4 +1,4 @@
-name: Test Everything
+name: Test Daily
 
 on:
   schedule:
