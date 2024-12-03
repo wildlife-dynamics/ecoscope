@@ -8,12 +8,6 @@ from erclient import ERClientException
 
 pytestmark = pytest.mark.io
 
-if not pytest.earthranger:
-    pytest.skip(
-        "Skipping tests because connection to EarthRanger is not available.",
-        allow_module_level=True,
-    )
-
 
 @pytest_asyncio.fixture
 async def er_io_async():

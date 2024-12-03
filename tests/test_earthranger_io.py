@@ -13,12 +13,6 @@ from erclient import ERClientException
 
 pytestmark = pytest.mark.io
 
-if not pytest.earthranger:
-    pytest.skip(
-        "Skipping tests because connection to EarthRanger is not available.",
-        allow_module_level=True,
-    )
-
 
 def test_get_subject_observations(er_io):
     relocations = er_io.get_subject_observations(

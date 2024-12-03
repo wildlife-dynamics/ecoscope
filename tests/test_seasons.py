@@ -4,16 +4,9 @@ import pytest
 from ecoscope import plotting
 from ecoscope.analysis import seasons
 
-if not pytest.earthengine:
-    pytest.skip(
-        "Skipping tests because connection to Earth Engine is not available.",
-        allow_module_level=True,
-    )
-
 pytestmark = pytest.mark.io
 
 
-@pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
 def test_seasons():
     gdf = gpd.read_file("tests/sample_data/vector/AOI_sites.gpkg").to_crs(4326)
 
