@@ -293,6 +293,7 @@ def test_get_patrol_observations_with_patrol_details(er_io):
     assert not observations.empty
     assert "patrol_id" in observations.columns
     assert "patrol_title" in observations.columns
+    pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
 
 
 def test_users(er_io):

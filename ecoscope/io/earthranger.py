@@ -896,6 +896,7 @@ class EarthRangerIO(ERClient):
                             )
                         )
                     if len(observation) > 0:
+                        observation["groupby_col"] = patrol["id"]
                         observations.append(observation)
                 except Exception as e:
                     print(

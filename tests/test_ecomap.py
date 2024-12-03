@@ -2,6 +2,7 @@ import os
 import random
 import ee
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import pytest
 import ecoscope
@@ -16,6 +17,7 @@ from lonboard._deck_widget import (
     TitleWidget,
     SaveImageWidget,
     FullscreenWidget,
+    LegendWidget,
 )
 
 
@@ -81,6 +83,37 @@ def test_add_legend_series():
     m = EcoMap(default_widgets=False)
     m.add_legend(labels=pd.Series(["Black", "White"]), colors=pd.Series([(0, 0, 0, 255), (255, 255, 255, 255)]))
     assert len(m.deck_widgets) == 1
+    legend = m.deck_widgets[0]
+    assert isinstance(legend, LegendWidget)
+    assert legend.labels == ["Black", "White"]
+    assert legend.colors == ["rgba(0, 0, 0, 1.0)", "rgba(255, 255, 255, 1.0)"]
+
+
+def test_add_legend_series_with_nan():
+    m = EcoMap(default_widgets=False)
+    m.add_legend(
+        labels=pd.Series([0, 1, np.nan, 5, np.nan]),
+        colors=pd.Series([(0, 0, 0, 255), (255, 255, 255, 255), (0, 0, 0, 0), (100, 100, 100, 255), (0, 0, 0, 0)]),
+    )
+    assert len(m.deck_widgets) == 1
+    legend = m.deck_widgets[0]
+    assert isinstance(legend, LegendWidget)
+    assert legend.labels == ["0.0", "1.0", "5.0"]
+    assert legend.colors == ["rgba(0, 0, 0, 1.0)", "rgba(255, 255, 255, 1.0)", "rgba(100, 100, 100, 1.0)"]
+
+
+def test_add_legend_series_unbalanced_good():
+    m = EcoMap(default_widgets=False)
+    m.add_legend(
+        labels=pd.Series(["Black", "White", "White"]),
+        colors=pd.Series([(0, 0, 0, 255), (255, 255, 255, 255), (255, 255, 255, 255)]),
+    )
+
+
+def test_add_legend_series_unbalanced_bad():
+    m = EcoMap(default_widgets=False)
+    with pytest.raises(ValueError, match="Unique label and color values must be of equal number"):
+        m.add_legend(labels=pd.Series(["Black", "White"]), colors=pd.Series([(0, 0, 0, 255), (0, 0, 0, 255)]))
 
 
 def test_add_north_arrow():

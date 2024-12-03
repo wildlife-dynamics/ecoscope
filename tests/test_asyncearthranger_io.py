@@ -237,6 +237,7 @@ async def test_get_patrol_observations_with_patrol_details(
     assert not observations.empty
     assert set(observations.columns) == set(get_patrol_observations_fields).union(get_patrol_details_fields)
     assert type(observations["fixtime"] == pd.Timestamp)
+    pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
 
 
 @pytest.mark.asyncio
