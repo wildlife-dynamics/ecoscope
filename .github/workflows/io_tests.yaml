@@ -9,10 +9,12 @@ on:
       - 'ecoscope/io/async_earthranger.py'
       - 'ecoscope/io/earthranger_utils.py'
       - 'ecoscope/io/utils.py'
+      - 'ecoscope/io/eetools.py'
       - 'tests/test_earthranger_utils.py'
       - 'tests/test_async_earthranger_io.py'
       - 'tests/test_earthranger_io.py'
       - 'tests/test_io_utils.py'
+      - 'tests/test_eetools.py'
 
 jobs:
   dev:
