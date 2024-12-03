@@ -10,6 +10,8 @@ if not pytest.earthengine:
         allow_module_level=True,
     )
 
+pytestmark = pytest.mark.io
+
 
 @pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
 def test_seasons():

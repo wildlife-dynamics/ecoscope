@@ -10,11 +10,13 @@ on:
       - 'ecoscope/io/earthranger_utils.py'
       - 'ecoscope/io/utils.py'
       - 'ecoscope/io/eetools.py'
+      - 'ecoscope/analysis/seasons.py'
       - 'tests/test_earthranger_utils.py'
       - 'tests/test_async_earthranger_io.py'
       - 'tests/test_earthranger_io.py'
       - 'tests/test_io_utils.py'
       - 'tests/test_eetools.py'
+      - 'tests/test_seasons.py'
 
 jobs:
   dev:
