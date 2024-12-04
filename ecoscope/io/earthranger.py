@@ -626,8 +626,8 @@ class EarthRangerIO(ERClient):
         )
         gdf = gpd.GeoDataFrame(df)
 
-        if not df.empty:
-            df = clean_time_cols(df)
+        if not gdf.empty:
+            gdf = clean_time_cols(gdf)
             if gdf.loc[0, "location"] is not None:
                 gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
                     gdf.loc[~gdf["geojson"].isna(), "geojson"]
