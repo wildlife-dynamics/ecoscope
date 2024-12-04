@@ -148,6 +148,7 @@ def test_get_patrol_events(er_io):
     assert "geometry" in events
     assert "patrol_id" in events
     assert "patrol_segment_id" in events
+    assert "patrol_start_time" in events
     assert "time" in events
 
 
@@ -339,3 +340,19 @@ def test_existing_token_expired(er_io):
 
     with pytest.raises(ERClientException, match="Authorization token is invalid or expired."):
         ecoscope.io.EarthRangerIO(service_root=er_io.service_root, token_url=er_io.token_url, token=token)
+
+
+def test_get_patrol_observations_with_patrol_filter(er_io):
+    observations = er_io.get_patrol_observations_with_patrol_filter(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+        patrol_type_value="ecoscope_patrol",
+        status=["done"],
+        include_patrol_details=True,
+    )
+
+    assert not observations.empty
+    assert "patrol_id" in observations.columns
+    assert "patrol_title" in observations.columns
+    assert "patrol_start_time" in observations.columns
+    pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
