@@ -11,7 +11,15 @@ from shapely.geometry import Point
 import ecoscope
 from erclient import ERClientException
 
+from ecoscope.io.earthranger_utils import TIME_COLS
+
 pytestmark = pytest.mark.io
+
+
+def check_time_is_parsed(df):
+    for col in TIME_COLS:
+        if col in df.columns:
+            assert pd.api.types.is_datetime64_ns_dtype(df[col]) or df[col].isna().all()
 
 
 def test_get_subject_observations(er_io):
@@ -26,6 +34,7 @@ def test_get_subject_observations(er_io):
     assert "groupby_col" in relocations
     assert "fixtime" in relocations
     assert "extra__source" in relocations
+    check_time_is_parsed(relocations)
 
 
 def test_get_source_observations(er_io):
@@ -36,6 +45,7 @@ def test_get_source_observations(er_io):
     assert isinstance(relocations, ecoscope.base.Relocations)
     assert "fixtime" in relocations
     assert "groupby_col" in relocations
+    check_time_is_parsed(relocations)
 
 
 def test_get_source_no_observations(er_io):
@@ -54,6 +64,7 @@ def test_get_subjectsource_observations(er_io):
     assert isinstance(relocations, ecoscope.base.Relocations)
     assert "fixtime" in relocations
     assert "groupby_col" in relocations
+    check_time_is_parsed(relocations)  # TODO Check this
 
 
 def test_get_subjectsource_no_observations(er_io):
@@ -73,6 +84,7 @@ def test_get_subjectgroup_observations(er_io):
 def test_get_events(er_events_io):
     events = er_events_io.get_events(event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"])
     assert not events.empty
+    check_time_is_parsed(events)
 
 
 def test_das_client_method(er_io):
@@ -88,6 +100,7 @@ def test_get_patrols_datestr(er_io):
     patrols = er_io.get_patrols(since=since_str, until=until_str)
 
     assert len(patrols) > 0
+    check_time_is_parsed(patrols)
 
     time_ranges = [
         segment["time_range"]
@@ -118,6 +131,7 @@ def test_get_patrols_with_type_value(er_io):
         if "patrol_type" in segment
     ]
     assert all(value == "ecoscope_patrol" for value in patrol_types)
+    check_time_is_parsed(patrols)
 
 
 def test_get_patrols_with_type_value_list(er_io):
@@ -131,6 +145,7 @@ def test_get_patrols_with_type_value_list(er_io):
         if "patrol_type" in segment
     ]
     assert all(value in patrol_type_value_list for value in patrol_types)
+    check_time_is_parsed(patrols)
 
 
 def test_get_patrols_with_invalid_type_value(er_io):
@@ -150,6 +165,7 @@ def test_get_patrol_events(er_io):
     assert "patrol_segment_id" in events
     assert "patrol_start_time" in events
     assert "time" in events
+    check_time_is_parsed(events)
 
 
 @patch("ecoscope.io.EarthRangerIO.get_patrols")
@@ -276,6 +292,7 @@ def test_get_patrol_observations(er_io):
         include_subjectsource_details=False,
     )
     assert not observations.empty
+    check_time_is_parsed(observations)
 
 
 def test_get_patrol_observations_with_patrol_details(er_io):
@@ -295,6 +312,7 @@ def test_get_patrol_observations_with_patrol_details(er_io):
     assert "patrol_id" in observations.columns
     assert "patrol_title" in observations.columns
     pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
+    check_time_is_parsed(observations)
 
 
 def test_users(er_io):

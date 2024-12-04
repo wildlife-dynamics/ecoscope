@@ -3,6 +3,8 @@ import geopandas as gpd
 import pandas as pd
 from dateutil import parser
 
+TIME_COLS = ["time", "created_at", "updated_at", "end_time", "last_position_date", "recorded_at", "fixtime"]
+
 
 def clean_kwargs(addl_kwargs={}, **kwargs):
     for k in addl_kwargs.keys():
@@ -38,8 +40,7 @@ def to_gdf(df):
 
 
 def clean_time_cols(df):
-    time_cols = ["time", "created_at", "updated_at", "end_time", "last_position_date", "recorded_at", "fixtime"]
-    for col in time_cols:
+    for col in TIME_COLS:
         if col in df.columns and not pd.api.types.is_datetime64_ns_dtype(df[col]):
             # convert x is not None to pd.isna(x) is False
             df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x), utc=True) if not pd.isna(x) else None)
