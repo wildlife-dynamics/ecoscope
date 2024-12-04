@@ -4,8 +4,7 @@ import pandas as pd
 import asyncio
 
 import ecoscope
-from ecoscope.io.utils import to_hex
-from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf, clean_time_cols
+from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf, clean_time_cols, to_hex
 from erclient.client import ERClientException, ERClientNotFound
 
 try:

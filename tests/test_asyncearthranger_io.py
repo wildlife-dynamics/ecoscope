@@ -6,11 +6,7 @@ import pytest_asyncio
 import ecoscope
 from erclient import ERClientException
 
-if not pytest.earthranger:
-    pytest.skip(
-        "Skipping tests because connection to EarthRanger is not available.",
-        allow_module_level=True,
-    )
+pytestmark = pytest.mark.io
 
 
 @pytest_asyncio.fixture

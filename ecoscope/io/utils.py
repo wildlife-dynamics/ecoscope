@@ -1,32 +1,12 @@
 import email
 import os
 import re
-import typing
 import zipfile
 
-import pandas as pd
 import requests
 from requests.adapters import HTTPAdapter
 from tqdm.auto import tqdm
 from urllib3.util import Retry
-
-
-def to_hex(val, default="#ff0000"):
-    if val and not pd.isnull(val):
-        return "#{:02X}{:02X}{:02X}".format(*[int(i) for i in val.split(",")])
-    return default
-
-
-def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
-    """This method would add all extra columns to single column"""
-    metadata_cols = list(set(dataframe.columns).difference(set(columns)))
-
-    # To prevent additional column from being dropped, name the column metadata (rename it back).
-    if metadata_cols:
-        dataframe["metadata"] = dataframe[metadata_cols].to_dict(orient="records")
-        dataframe.drop(metadata_cols, inplace=True, axis=1)
-        dataframe.rename(columns={"metadata": "additional"}, inplace=True)
-    return dataframe
 
 
 def download_file(url, path, retries=2, overwrite_existing=False, chunk_size=1024, unzip=False, **request_kwargs):

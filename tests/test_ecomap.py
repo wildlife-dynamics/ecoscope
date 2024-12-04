@@ -144,7 +144,7 @@ def test_add_save_image():
     assert isinstance(m.deck_widgets[3], SaveImageWidget)
 
 
-@pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
+@pytest.mark.io
 def test_add_ee_layer_image():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
@@ -154,7 +154,7 @@ def test_add_ee_layer_image():
     assert isinstance(m.layers[0], BitmapTileLayer)
 
 
-@pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
+@pytest.mark.io
 def test_add_ee_layer_image_collection():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5}
@@ -165,7 +165,7 @@ def test_add_ee_layer_image_collection():
     assert m.layers[0].tile_size == 256
 
 
-@pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
+@pytest.mark.io
 def test_add_ee_layer_feature_collection():
     m = EcoMap()
     vis_params = {"min": 0, "max": 4000, "opacity": 0.5, "palette": ["006633", "E5FFCC", "662A00", "D8D8D8", "F5F5F5"]}
@@ -175,7 +175,7 @@ def test_add_ee_layer_feature_collection():
     assert isinstance(m.layers[0], BitmapTileLayer)
 
 
-@pytest.mark.skipif(not pytest.earthengine, reason="No connection to EarthEngine.")
+@pytest.mark.io
 def test_add_ee_layer_geometry():
     m = EcoMap()
     rectangle = ee.Geometry.Rectangle([-40, -20, 40, 20])

@@ -1,0 +1,47 @@
+name: Tests
+
+on:
+  workflow_call:
+    inputs:
+      io:
+        type: string
+        required: true
+      os:
+        type: string
+        required: true
+
+jobs:
+  Test:
+    name: ${{ inputs.os }}, ${{ inputs.io }}
+    runs-on: ${{ inputs.os }}
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Micromamba
+        uses: mamba-org/setup-micromamba@v2.0.2
+        with:
+          environment-file: environment.yml
+          cache-environment: true
+          init-shell: bash powershell
+
+      - name: Install our package
+        run: |
+          python -m pip install ".[all]"
+
+      - name: Test
+        env:
+          ER_USERNAME: ${{ secrets.ER_USERNAME }}
+          ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+          EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
+          EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+        run: |
+          pytest -v -r s -m "${{ inputs.io }}" --color=yes --cov=ecoscope --cov-append --cov-report=xml
+      
+      - name: Codecov
+        uses: codecov/codecov-action@v5

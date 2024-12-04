@@ -10,6 +10,8 @@ from requests.exceptions import RetryError
 
 import ecoscope
 
+pytestmark = pytest.mark.io
+
 
 def test_download_file_github_csv():
     ECOSCOPE_RAW = "https://raw.githubusercontent.com/wildlife-dynamics/ecoscope/master"

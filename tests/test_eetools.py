@@ -4,8 +4,7 @@ import pytest
 
 import ecoscope
 
-if not pytest.earthengine:
-    pytest.skip("Skipping tests because connection to Earth Engine is not available.", allow_module_level=True)
+pytestmark = pytest.mark.io
 
 
 def test_albedo_anomaly(aoi_gdf):

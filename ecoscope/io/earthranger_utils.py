@@ -1,3 +1,4 @@
+import typing
 import geopandas as gpd
 import pandas as pd
 from dateutil import parser
@@ -50,3 +51,21 @@ def format_iso_time(date_string: str) -> str:
         return pd.to_datetime(date_string).isoformat()
     except ValueError:
         raise ValueError(f"Failed to parse timestamp'{date_string}'")
+
+
+def to_hex(val, default="#ff0000"):
+    if val and not pd.isnull(val):
+        return "#{:02X}{:02X}{:02X}".format(*[int(i) for i in val.split(",")])
+    return default
+
+
+def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
+    """This method would add all extra columns to single column"""
+    metadata_cols = list(set(dataframe.columns).difference(set(columns)))
+
+    # To prevent additional column from being dropped, name the column metadata (rename it back).
+    if metadata_cols:
+        dataframe["metadata"] = dataframe[metadata_cols].to_dict(orient="records")
+        dataframe.drop(metadata_cols, inplace=True, axis=1)
+        dataframe.rename(columns={"metadata": "additional"}, inplace=True)
+    return dataframe

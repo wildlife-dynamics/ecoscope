@@ -1,4 +1,4 @@
-name: Tests Main
+name: Test IO
 
 on:
   push:
@@ -10,5 +10,6 @@ jobs:
   dev:
     uses: ./.github/workflows/tests.yml
     with:
-      io: "not io"
+      io: "io"
       os: "ubuntu-latest"
+    secrets: inherit

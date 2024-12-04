@@ -1,0 +1,36 @@
+name: Test Daily
+
+on:
+  schedule:
+    # Per https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule
+    # Make this a weird time
+    - cron: "23 5 * * *"
+  workflow_dispatch: {}
+  
+
+jobs:
+  ubuntu:
+    uses: ./.github/workflows/tests.yml
+    with:
+      io: "io or not io"
+      os: "ubuntu-latest"
+    secrets: inherit
+  mac:
+    uses: ./.github/workflows/tests.yml
+    # The If Always/Needs combo here is so that these tests can be 
+    # run sequentially but don't care about eachother failing
+    # We want to run sequentially to minimise the load on mep-dev
+    if: ${{ always() }}
+    needs: [ubuntu]
+    with:
+      io: "io or not io"
+      os: "macos-latest"
+    secrets: inherit
+  windows:
+    uses: ./.github/workflows/tests.yml
+    if: ${{ always() }}
+    needs: [ubuntu, mac]
+    with:
+      io: "io or not io"
+      os: "windows-latest"
+    secrets: inherit

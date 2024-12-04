@@ -5,7 +5,6 @@ import ee
 import geopandas as gpd
 import pandas as pd
 import pytest
-from erclient.client import ERClientNotFound
 
 import ecoscope
 from ecoscope.base import Relocations
@@ -18,31 +17,20 @@ def pytest_configure(config):
 
     os.makedirs("tests/outputs", exist_ok=True)
 
-    try:
-        EE_ACCOUNT = os.getenv("EE_ACCOUNT")
-        EE_PRIVATE_KEY_DATA = os.getenv("EE_PRIVATE_KEY_DATA")
-        if EE_ACCOUNT and EE_PRIVATE_KEY_DATA:
-            ee.Initialize(credentials=ee.ServiceAccountCredentials(EE_ACCOUNT, key_data=EE_PRIVATE_KEY_DATA))
-        else:
-            ee.Initialize()
-        pytest.earthengine = True
-    except Exception:
-        pytest.earthengine = False
-        warnings.warn(Warning("Earth Engine can not be initialized. Skipping related tests..."))
-
-    try:
-        pytest.earthranger = ecoscope.io.EarthRangerIO(
-            server=os.getenv("ER_SERVER", "https://mep-dev.pamdas.org"),
-            username=os.getenv("ER_USERNAME"),
-            password=os.getenv("ER_PASSWORD"),
-        ).login()
-        if not pytest.earthranger:
-            warnings.warn(Warning("EarthRanger_IO can not be initialized. Skipping related tests..."))
-    except ERClientNotFound:
-        pytest.earthranger = False
-        warnings.warn(Warning("EarthRanger_IO can not be initialized. Skipping related tests..."))
+    if config.inicfg.get("markers") == ["io"]:
+        try:
+            EE_ACCOUNT = os.getenv("EE_ACCOUNT")
+            EE_PRIVATE_KEY_DATA = os.getenv("EE_PRIVATE_KEY_DATA")
+            if EE_ACCOUNT and EE_PRIVATE_KEY_DATA:
+                ee.Initialize(credentials=ee.ServiceAccountCredentials(EE_ACCOUNT, key_data=EE_PRIVATE_KEY_DATA))
+            else:
+                ee.Initialize()
+            pytest.earthengine = True
+        except Exception:
+            warnings.warn(Warning("Earth Engine can not be initialized."))
 
 
+@pytest.mark.io
 @pytest.fixture(scope="session")
 def er_io():
     ER_SERVER = "https://mep-dev.pamdas.org"
@@ -59,6 +47,7 @@ def er_io():
     return er_io
 
 
+@pytest.mark.io
 @pytest.fixture(scope="session")
 def er_events_io():
     ER_SERVER = "https://mep-dev.pamdas.org"
@@ -100,3 +89,11 @@ def aoi_gdf():
     regions_gdf = gpd.GeoDataFrame.from_file(AOI_FILE).to_crs(4326)
     regions_gdf.set_index("ZONE", drop=True, inplace=True)
     return regions_gdf
+
+
+@pytest.fixture
+def sample_relocs():
+    gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
+    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
+
+    return ecoscope.base.Relocations.from_gdf(gdf)
