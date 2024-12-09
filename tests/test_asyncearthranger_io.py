@@ -44,7 +44,6 @@ def get_events_fields():
         "icon_id",
         "serial_number",
         "event_details",
-        "files",
         "related_subjects",
         "event_category",
         "url",
@@ -96,6 +95,7 @@ def get_subjects_fields():
         "country",
         "sex",
         "hex",
+        "messaging",
     ]
 
 
