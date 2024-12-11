@@ -751,9 +751,22 @@ class EarthRangerIO(ERClient):
 
         events_df = clean_time_cols(events_df)
         events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
-        events_df["time"] = events_df["geojson"].apply(
-            lambda x: datetime.datetime.strptime(x.get("properties").get("datetime"), "%Y-%m-%dT%H:%M:%S%z")
-        )
+
+        def _strptime(x: dict, fmt: str) -> datetime.datetime:
+            return datetime.datetime.strptime(x.get("properties").get("datetime"), fmt)
+
+        def _dt_from_geojson(x: dict) -> datetime.datetime:
+            possible_fmts = ["%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S.%f%z"]               
+            try:
+                return _strptime(x, possible_fmts[0])
+            except ValueError:
+                pass
+            try:
+                return _strptime(x, possible_fmts[1])
+            except ValueError as e:
+                raise ValueError(f"Failed to parse datetime from geojson {x} with either of formats {possible_fmts}") from e
+    
+        events_df["time"] = events_df["geojson"].apply(lambda x: _dt_from_geojson(x))
 
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
 
