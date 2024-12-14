@@ -7,7 +7,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio as rio
-from ecoscope.base.utils import color_tuple_to_css
+from ecoscope.base.utils import color_tuple_to_css, hex_to_rgba
 from io import BytesIO
 from typing import Dict, IO, List, Optional, TextIO, Union
 from pathlib import Path
@@ -254,28 +254,27 @@ class EcoMap(EcoMapMixin, Map):
         style: dict
             Additional style params
         """
-        nans = None
         if isinstance(labels, pd.Series):
-            labels = labels.unique().tolist()
+            labels = labels.tolist()
         if isinstance(colors, pd.Series):
-            nans = np.argwhere(colors == (0, 0, 0, 0))
-            colors = colors.unique().tolist()
+            colors = colors.tolist()
 
+        labels = list(dict.fromkeys(labels))
+        colors = list(dict.fromkeys(colors))
         if len(labels) != len(colors):
             raise ValueError("Unique label and color values must be of equal number")
 
-        if nans is not None:
-            filtered_labels = []
-            filtered_colors = []
-            for index, value in enumerate(labels):
-                if index not in nans:
-                    filtered_labels.append(labels[index])
-                    filtered_colors.append(colors[index])
-            labels = filtered_labels
-            colors = filtered_colors
+        filtered_labels = []
+        filtered_colors = []
+        for index, value in enumerate(colors):
+            if isinstance(value, str):
+                value = hex_to_rgba(value)
+            if len(value) == 4 and value[3] > 0:
+                filtered_labels.append(labels[index])
+                filtered_colors.append(colors[index])
 
-        widget_labels = [str(label) for label in labels]
-        widget_colors = [color_tuple_to_css(color) if isinstance(color, tuple) else color for color in colors]
+        widget_labels = [str(label) for label in filtered_labels]
+        widget_colors = [color_tuple_to_css(color) if isinstance(color, tuple) else color for color in filtered_colors]
 
         self.add_widget(LegendWidget(labels=widget_labels, colors=widget_colors, **kwargs))
 
