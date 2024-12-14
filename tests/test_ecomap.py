@@ -2,7 +2,6 @@ import os
 import random
 import ee
 import geopandas as gpd
-import numpy as np
 import pandas as pd
 import pytest
 import ecoscope
@@ -89,16 +88,16 @@ def test_add_legend_series():
     assert legend.colors == ["rgba(0, 0, 0, 1.0)", "rgba(255, 255, 255, 1.0)"]
 
 
-def test_add_legend_series_with_nan():
+def test_add_legend_series_with_transparent():
     m = EcoMap(default_widgets=False)
     m.add_legend(
-        labels=pd.Series([0, 1, np.nan, 5, np.nan]),
+        labels=pd.Series([1, 3, 0, 5, 0]),
         colors=pd.Series([(0, 0, 0, 255), (255, 255, 255, 255), (0, 0, 0, 0), (100, 100, 100, 255), (0, 0, 0, 0)]),
     )
     assert len(m.deck_widgets) == 1
     legend = m.deck_widgets[0]
     assert isinstance(legend, LegendWidget)
-    assert legend.labels == ["0.0", "1.0", "5.0"]
+    assert legend.labels == ["1", "3", "5"]
     assert legend.colors == ["rgba(0, 0, 0, 1.0)", "rgba(255, 255, 255, 1.0)", "rgba(100, 100, 100, 1.0)"]
 
 

@@ -256,10 +256,9 @@ class EcoMap(EcoMapMixin, Map):
         """
         nans = None
         if isinstance(labels, pd.Series):
-            if pd.api.types.is_numeric_dtype(labels):
-                nans = np.argwhere(np.isnan(labels))
             labels = labels.unique().tolist()
         if isinstance(colors, pd.Series):
+            nans = np.argwhere(colors == (0, 0, 0, 0))
             colors = colors.unique().tolist()
 
         if len(labels) != len(colors):
