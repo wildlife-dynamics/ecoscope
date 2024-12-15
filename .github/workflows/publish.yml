@@ -19,6 +19,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -82,18 +84,22 @@ jobs:
     - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
+        REF_NAME: ${{ github.ref_name }}
+        REPOSITORY: ${{ github.repository }}
       run: >-
         gh release create
-        '${{ github.ref_name }}'
-        --repo '${{ github.repository }}'
+        '${REF_NAME}'
+        --repo '${REPOSITORY}'
         --generate-notes
     - name: Upload artifact signatures to GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
+        REF_NAME: ${{ github.ref_name }}
+        REPOSITORY: ${{ github.repository }}
       run: >-
         gh release upload
-        '${{ github.ref_name }}' dist/**
-        --repo '${{ github.repository }}'
+        '${REF_NAME}' dist/**
+        --repo '${REPOSITORY}'
 
   build-for-prefix:
     name: Build prefix package
@@ -104,13 +110,17 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Download the built dist
         uses: actions/download-artifact@v4
         with:
           name: pip-dist
           path: dist/
       - name: Add tag to recipe
-        run: sed -i "s/TAG_VERSION/${{ github.ref_name }}/g" publish/recipes/release/ecoscope.yaml
+        env: 
+          REF_NAME: ${{ github.ref_name }}
+        run: sed -i "s/TAG_VERSION/${REF_NAME}/g" publish/recipes/release/ecoscope.yaml
       - name: Add dist to recipe
         run: sed -i "s/DIST_NAME/$(find ./dist/*.tar.gz  -printf "%f\n")/g" publish/recipes/release/ecoscope.yaml
       - name: Log the generated recipe
