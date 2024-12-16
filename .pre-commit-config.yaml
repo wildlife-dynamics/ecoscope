@@ -38,4 +38,9 @@ repos:
         args: ['--ignore=E203,E402,W503', '--max-line-length=120']
           #- id: nbqa-isort
           #args: ['-m3', '--tc']
+  - repo: https://github.com/woodruffw/zizmor-pre-commit
+    rev: v0.9.1 
+    hooks:
+      - id: zizmor
+
 exclude: ^ecoscope/contrib/
