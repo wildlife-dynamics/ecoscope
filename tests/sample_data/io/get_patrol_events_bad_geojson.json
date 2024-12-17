@@ -84,9 +84,9 @@
                             "properties": {
                                 "message": "",
                                 "datetime": "2017-02-05T00:10:00+00:00",
-                                "image": "https://mep-dev.pamdas.org/static/poacher_camp-gray.svg",
+                                "image": "https://test-data.pamdas.org/static/poacher_camp-gray.svg",
                                 "icon": {
-                                    "iconUrl": "https://mep-dev.pamdas.org/static/poacher_camp-gray.svg",
+                                    "iconUrl": "https://test-data.pamdas.org/static/poacher_camp-gray.svg",
                                     "iconSize": [
                                         25,
                                         25
@@ -148,9 +148,9 @@
                             },
                             "properties": {
                                 "message": "",
-                                "image": "https://mep-dev.pamdas.org/static/hwc_rep-gray.svg",
+                                "image": "https://test-data.pamdas.org/static/hwc_rep-gray.svg",
                                 "icon": {
-                                    "iconUrl": "https://mep-dev.pamdas.org/static/hwc_rep-gray.svg",
+                                    "iconUrl": "https://test-data.pamdas.org/static/hwc_rep-gray.svg",
                                     "iconSize": [
                                         25,
                                         25
@@ -191,9 +191,9 @@
                             "properties": {
                                 "message": "",
                                 "datetime": "2017-02-05T02:30:00+00:00",
-                                "image": "https://mep-dev.pamdas.org/static/hwc_rep-gray.svg",
+                                "image": "https://test-data.pamdas.org/static/hwc_rep-gray.svg",
                                 "icon": {
-                                    "iconUrl": "https://mep-dev.pamdas.org/static/hwc_rep-gray.svg",
+                                    "iconUrl": "https://test-data.pamdas.org/static/hwc_rep-gray.svg",
                                     "iconSize": [
                                         25,
                                         25
@@ -238,17 +238,17 @@
                         "is_collection": false
                     }
                 ],
-                "image_url": "https:\/\/mep-dev.pamdas.org\/static\/sprite-src\/plane-patrol-icon.svg",
+                "image_url": "https:\/\/test-data.pamdas.org\/static\/sprite-src\/plane-patrol-icon.svg",
                 "icon_id": "plane-patrol-icon",
                 "updates": [
                     {
                         "message": "Report Added",
                         "time": "2024-09-09T18:01:10.677469+00:00",
                         "user": {
-                            "username": "jwall",
-                            "first_name": "Jake",
-                            "last_name": "Wall",
-                            "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                            "username": "user1",
+                            "first_name": "Elebot",
+                            "last_name": "Elebot",
+                            "id": "abc123",
                             "content_type": "accounts.user"
                         },
                         "type": "add_event"
@@ -257,10 +257,10 @@
                         "message": "Report Added",
                         "time": "2024-09-09T18:01:10.613940+00:00",
                         "user": {
-                            "username": "jwall",
-                            "first_name": "Jake",
-                            "last_name": "Wall",
-                            "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                            "username": "user1",
+                            "first_name": "Elebot",
+                            "last_name": "Elebot",
+                            "id": "abc123",
                             "content_type": "accounts.user"
                         },
                         "type": "add_event"
@@ -269,10 +269,10 @@
                         "message": "Report Added",
                         "time": "2024-09-09T18:01:10.544995+00:00",
                         "user": {
-                            "username": "jwall",
-                            "first_name": "Jake",
-                            "last_name": "Wall",
-                            "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                            "username": "user1",
+                            "first_name": "Elebot",
+                            "last_name": "Elebot",
+                            "id": "abc123",
                             "content_type": "accounts.user"
                         },
                         "type": "add_event"
@@ -281,10 +281,10 @@
                         "message": "Report Added",
                         "time": "2024-09-09T18:01:10.470386+00:00",
                         "user": {
-                            "username": "jwall",
-                            "first_name": "Jake",
-                            "last_name": "Wall",
-                            "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                            "username": "user1",
+                            "first_name": "Elebot",
+                            "last_name": "Elebot",
+                            "id": "abc123",
                             "content_type": "accounts.user"
                         },
                         "type": "add_event"
@@ -299,10 +299,10 @@
                 "message": "Patrol Added",
                 "time": "2024-09-09T18:01:10.177573+00:00",
                 "user": {
-                    "username": "jwall",
-                    "first_name": "Jake",
-                    "last_name": "Wall",
-                    "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                    "username": "user1",
+                    "first_name": "Elebot",
+                    "last_name": "Elebot",
+                    "id": "abc123",
                     "content_type": "accounts.user"
                 },
                 "type": "add_patrol"
