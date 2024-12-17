@@ -17,6 +17,7 @@ from ecoscope.io.earthranger_utils import (
     clean_kwargs,
     clean_time_cols,
     dataframe_to_dict,
+    filter_bad_geojson,
     format_iso_time,
     to_gdf,
     to_hex,
@@ -629,9 +630,8 @@ class EarthRangerIO(ERClient):
         if not gdf.empty:
             gdf = clean_time_cols(gdf)
             if gdf.loc[0, "location"] is not None:
-                gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
-                    gdf.loc[~gdf["geojson"].isna(), "geojson"]
-                )["geometry"]
+                gdf = filter_bad_geojson(gdf)
+                gdf["geometry"] = gpd.GeoDataFrame.from_features(gdf["geojson"])["geometry"]
                 gdf.set_geometry("geometry", inplace=True)
                 gdf.set_crs(4326, inplace=True)
             gdf.sort_values("time", inplace=True)

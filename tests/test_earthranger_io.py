@@ -16,6 +16,11 @@ from ecoscope.io.earthranger_utils import TIME_COLS
 pytestmark = pytest.mark.io
 
 
+@pytest.fixture
+def sample_bad_events_geojson():
+    return pd.read_feather("tests/sample_data/io/get_events_geojson_bad.feather")
+
+
 def check_time_is_parsed(df):
     for col in TIME_COLS:
         if col in df.columns:
@@ -374,3 +379,11 @@ def test_get_patrol_observations_with_patrol_filter(er_io):
     assert "patrol_title" in observations.columns
     assert "patrol_start_time" in observations.columns
     pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
+
+
+@patch("erclient.client.ERClient.get_objects_multithreaded")
+def test_get_events_bad_geojson(events_mock, sample_bad_events_geojson, er_io):
+    events_mock.return_value = sample_bad_events_geojson
+
+    events = er_io.get_events(event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"])
+    assert not events.empty
