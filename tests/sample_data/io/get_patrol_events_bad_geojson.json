@@ -1,0 +1,312 @@
+{
+    "id": {
+        "0": "c9f6018b-b51d-4093-8516-d82141d93982"
+    },
+    "priority": {
+        "0": 0
+    },
+    "state": {
+        "0": "done"
+    },
+    "objective": {
+        "0": "Demo Patrol"
+    },
+    "serial_number": {
+        "0": 23474
+    },
+    "title": {
+        "0": "Ecoscope Demo Patrol"
+    },
+    "files": {
+        "0": []
+    },
+    "notes": {
+        "0": []
+    },
+    "patrol_segments": {
+        "0": [
+            {
+                "id": "0e91ec92-bf8b-4e86-b579-47b814419ceb",
+                "patrol_type": "ecoscope_patrol",
+                "leader": {
+                    "content_type": "observations.subject",
+                    "id": "ef343e5d-f6c7-4867-ab33-2b2933b3bce5",
+                    "name": "eco_1",
+                    "subject_type": "person",
+                    "subject_subtype": "ranger",
+                    "common_name": null,
+                    "additional": {
+                        "rgb": "",
+                        "sex": "",
+                        "region": "",
+                        "country": "",
+                        "external_id": "",
+                        "tm_animal_id": "",
+                        "external_name": ""
+                    },
+                    "created_at": "2024-09-09T13:29:59.189245+03:00",
+                    "updated_at": "2024-10-23T21:07:01.505307+03:00",
+                    "is_active": true,
+                    "user": null,
+                    "region": "",
+                    "country": "",
+                    "sex": "",
+                    "tracks_available": false,
+                    "image_url": "\/static\/ranger-black.svg"
+                },
+                "scheduled_start": null,
+                "scheduled_end": null,
+                "time_range": {
+                    "start_time": "2017-02-04T13:30:00+03:00",
+                    "end_time": "2017-02-05T07:30:00+03:00"
+                },
+                "start_location": {
+                    "latitude": -2.8935350263,
+                    "longitude": 39.2917871115
+                },
+                "end_location": {
+                    "latitude": -2.9053535333,
+                    "longitude": 39.334974731
+                },
+                "events": [
+                    {
+                        "id": "a8c1ff24-83fc-48ff-a09c-c66d57518c34",
+                        "serial_number": 443915,
+                        "event_type": "poacher_camp_rep",
+                        "priority": 0,
+                        "title": "poacher_camp_rep",
+                        "state": "new",
+                        "contains": [],
+                        "updated_at": "2024-09-09T21:01:10.460147+03:00",
+                        "created_at": "2024-09-09T21:01:10.460077+03:00",
+                        "geojson": {
+                            "type": "Feature",
+                            "properties": {
+                                "message": "",
+                                "datetime": "2017-02-05T00:10:00+00:00",
+                                "image": "https://mep-dev.pamdas.org/static/poacher_camp-gray.svg",
+                                "icon": {
+                                    "iconUrl": "https://mep-dev.pamdas.org/static/poacher_camp-gray.svg",
+                                    "iconSize": [
+                                        25,
+                                        25
+                                    ],
+                                    "iconAncor": [
+                                        12,
+                                        12
+                                    ],
+                                    "popupAncor": [
+                                        0,
+                                        -13
+                                    ],
+                                    "className": "dot"
+                                }
+                            }
+                        },
+                        "is_collection": false
+                    },
+                    {
+                        "id": "c62e681d-d955-4f29-a855-1fe95669387a",
+                        "serial_number": 443916,
+                        "event_type": "injured_animal_rep",
+                        "priority": 0,
+                        "title": "injured_animal_rep",
+                        "state": "new",
+                        "contains": [],
+                        "updated_at": "2024-09-09T21:01:10.537946+03:00",
+                        "created_at": "2024-09-09T21:01:10.537915+03:00",
+                        "geojson": {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Point",
+                                "coordinates": [
+                                    39.335383647060006,
+                                    -2.894132395575768
+                                ]
+                            }
+                        },
+                        "is_collection": false
+                    },
+                    {
+                        "id": "da236714-fed2-4c72-8f4f-d4b1ec8dffe5",
+                        "serial_number": 443917,
+                        "event_type": "hwc_rep",
+                        "priority": 0,
+                        "title": "hwc_rep",
+                        "state": "new",
+                        "contains": [],
+                        "updated_at": "2024-09-09T21:01:10.603993+03:00",
+                        "created_at": "2024-09-09T21:01:10.603959+03:00",
+                        "geojson": {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Point",
+                                "coordinates": [
+                                    39.33850583956563,
+                                    -2.890615124552055
+                                ]
+                            },
+                            "properties": {
+                                "message": "",
+                                "image": "https://mep-dev.pamdas.org/static/hwc_rep-gray.svg",
+                                "icon": {
+                                    "iconUrl": "https://mep-dev.pamdas.org/static/hwc_rep-gray.svg",
+                                    "iconSize": [
+                                        25,
+                                        25
+                                    ],
+                                    "iconAncor": [
+                                        12,
+                                        12
+                                    ],
+                                    "popupAncor": [
+                                        0,
+                                        -13
+                                    ],
+                                    "className": "dot"
+                                }
+                            }
+                        },
+                        "is_collection": false
+                    },
+                    {
+                        "id": "ebf812f5-e616-40e4-8fcf-ebb3ef6a6364",
+                        "serial_number": 443918,
+                        "event_type": "hwc_rep",
+                        "priority": 0,
+                        "title": "hwc_rep",
+                        "state": "new",
+                        "contains": [],
+                        "updated_at": "2024-09-09T21:01:10.669634+03:00",
+                        "created_at": "2024-09-09T21:01:10.669604+03:00",
+                        "geojson": {
+                            "type": "Feature",
+                            "geometry": {
+                                "type": "Point",
+                                "coordinates": [
+                                    39.337466773044824,
+                                    -2.888976612685578
+                                ]
+                            },
+                            "properties": {
+                                "message": "",
+                                "datetime": "2017-02-05T02:30:00+00:00",
+                                "image": "https://mep-dev.pamdas.org/static/hwc_rep-gray.svg",
+                                "icon": {
+                                    "iconUrl": "https://mep-dev.pamdas.org/static/hwc_rep-gray.svg",
+                                    "iconSize": [
+                                        25,
+                                        25
+                                    ],
+                                    "iconAncor": [
+                                        12,
+                                        12
+                                    ],
+                                    "popupAncor": [
+                                        0,
+                                        -13
+                                    ],
+                                    "className": "dot"
+                                }
+                            }
+                        },
+                        "is_collection": false
+                    },
+                    {
+                        "id": "42a76ef1-02f8-43de-8304-753c7749e213",
+                        "serial_number": 444080,
+                        "event_type": "injured_animal_rep",
+                        "priority": 0,
+                        "title": "injured_animal_rep",
+                        "state": "new",
+                        "contains": [],
+                        "updated_at": "2024-09-10T00:53:42.143250+03:00",
+                        "created_at": "2024-09-10T00:53:42.143217+03:00",
+                        "geojson": {},
+                        "is_collection": false
+                    },
+                    {
+                        "id": "42a76ef1-02f8-43de-8304-753c7749e214",
+                        "serial_number": 444081,
+                        "event_type": "hwc_rep",
+                        "priority": 0,
+                        "title": "hwc_rep",
+                        "state": "new",
+                        "contains": [],
+                        "updated_at": "2024-09-10T00:53:42.143250+03:00",
+                        "created_at": "2024-09-10T00:53:42.143217+03:00",
+                        "is_collection": false
+                    }
+                ],
+                "image_url": "https:\/\/mep-dev.pamdas.org\/static\/sprite-src\/plane-patrol-icon.svg",
+                "icon_id": "plane-patrol-icon",
+                "updates": [
+                    {
+                        "message": "Report Added",
+                        "time": "2024-09-09T18:01:10.677469+00:00",
+                        "user": {
+                            "username": "jwall",
+                            "first_name": "Jake",
+                            "last_name": "Wall",
+                            "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                            "content_type": "accounts.user"
+                        },
+                        "type": "add_event"
+                    },
+                    {
+                        "message": "Report Added",
+                        "time": "2024-09-09T18:01:10.613940+00:00",
+                        "user": {
+                            "username": "jwall",
+                            "first_name": "Jake",
+                            "last_name": "Wall",
+                            "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                            "content_type": "accounts.user"
+                        },
+                        "type": "add_event"
+                    },
+                    {
+                        "message": "Report Added",
+                        "time": "2024-09-09T18:01:10.544995+00:00",
+                        "user": {
+                            "username": "jwall",
+                            "first_name": "Jake",
+                            "last_name": "Wall",
+                            "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                            "content_type": "accounts.user"
+                        },
+                        "type": "add_event"
+                    },
+                    {
+                        "message": "Report Added",
+                        "time": "2024-09-09T18:01:10.470386+00:00",
+                        "user": {
+                            "username": "jwall",
+                            "first_name": "Jake",
+                            "last_name": "Wall",
+                            "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                            "content_type": "accounts.user"
+                        },
+                        "type": "add_event"
+                    }
+                ]
+            }
+        ]
+    },
+    "updates": {
+        "0": [
+            {
+                "message": "Patrol Added",
+                "time": "2024-09-09T18:01:10.177573+00:00",
+                "user": {
+                    "username": "jwall",
+                    "first_name": "Jake",
+                    "last_name": "Wall",
+                    "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                    "content_type": "accounts.user"
+                },
+                "type": "add_patrol"
+            }
+        ]
+    }
+}

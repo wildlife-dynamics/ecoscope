@@ -748,8 +748,10 @@ class EarthRangerIO(ERClient):
         if events_df.empty:
             return events_df
 
+        events_df = filter_bad_geojson(events_df)
         events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
-        events_df["time"] = events_df["geojson"].apply(lambda x: x.get("properties").get("datetime"))
+        events_df["time"] = events_df["geojson"].apply(lambda x: x.get("properties", {}).get("datetime"))
+        events_df = events_df.loc[events_df["time"].notnull()]
         events_df = clean_time_cols(events_df)
 
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)

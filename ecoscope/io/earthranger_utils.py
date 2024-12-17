@@ -73,4 +73,4 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
 
 
 def filter_bad_geojson(dataframe: pd.DataFrame):
-    return dataframe[dataframe["geojson"].apply(lambda x: True if x.get("geometry") else False)]
+    return dataframe[dataframe["geojson"].apply(lambda x: True if isinstance(x, dict) and x.get("geometry") else False)]
