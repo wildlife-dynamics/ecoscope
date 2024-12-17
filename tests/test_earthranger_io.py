@@ -11,6 +11,7 @@ from shapely.geometry import Point
 import ecoscope
 from erclient import ERClientException
 
+from ecoscope.io.earthranger import EarthRangerIO
 from ecoscope.io.earthranger_utils import TIME_COLS
 
 pytestmark = pytest.mark.io
@@ -427,3 +428,20 @@ def test_get_patrol_events_bad_geojson(get_objects_mock, sample_bad_patrol_event
     assert not patrol_events.empty
     # We're rejecting any geojson that's missing geometry or a timestamp
     assert patrol_events.id.to_list() == ["ebf812f5-e616-40e4-8fcf-ebb3ef6a6364"]
+
+
+@pytest.mark.parametrize(
+    "er_callable, er_kwargs",
+    [
+        (EarthRangerIO.get_patrols, {}),
+        (EarthRangerIO.get_subjectgroup_observations, {"subject_group_id": "12345"}),
+        (EarthRangerIO.get_patrol_observations_with_patrol_filter, {}),
+        (EarthRangerIO.get_patrol_events, {}),
+        (EarthRangerIO.get_events, {}),
+    ],
+)
+@patch("erclient.client.ERClient._get")
+def test_empty_responses(_get_mock, er_io, er_callable, er_kwargs):
+    _get_mock.return_value = {}
+    df = er_callable(er_io, **er_kwargs)
+    assert df.empty

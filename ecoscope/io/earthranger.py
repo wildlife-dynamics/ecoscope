@@ -513,6 +513,9 @@ class EarthRangerIO(ERClient):
         else:
             subjects = self.get_subjects(subject_group_name=subject_group_name, include_inactive=include_inactive)
 
+        if subjects.empty:
+            return subjects
+
         return self.get_subject_observations(subjects, **kwargs)
 
     def get_event_types(self, include_inactive=False, **addl_kwargs):
@@ -641,7 +644,9 @@ class EarthRangerIO(ERClient):
 
     def get_patrol_types(self):
         df = pd.DataFrame(self._get("activity/patrols/types"))
-        return df.set_index("id")
+        if not df.empty:
+            df = df.set_index("id")
+        return df
 
     def get_patrols(self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs):
         """
@@ -872,37 +877,42 @@ class EarthRangerIO(ERClient):
                         until=patrol_end_time,
                         **kwargs,
                     )
-                    if include_patrol_details:
-                        observation["patrol_id"] = patrol["id"]
-                        observation["patrol_title"] = patrol["title"]
-                        observation["patrol_serial_number"] = patrol["serial_number"]
-                        observation["patrol_start_time"] = patrol_start_time
-                        observation["patrol_end_time"] = patrol_end_time
-                        observation["patrol_type"] = patrol_type
-                        observation = (
-                            observation.reset_index()
-                            .merge(
-                                pd.DataFrame(df_pt).add_prefix("patrol_type__"),
-                                left_on="patrol_type",
-                                right_on="id",
-                            )
-                            .drop(
-                                columns=[
-                                    "patrol_type__ordernum",
-                                    "patrol_type__icon_id",
-                                    "patrol_type__default_priority",
-                                    "patrol_type__is_active",
-                                ]
-                            )
-                        )
                     if len(observation) > 0:
                         observation["groupby_col"] = patrol["id"]
+
+                        if include_patrol_details:
+                            observation["patrol_id"] = patrol["id"]
+                            observation["patrol_title"] = patrol["title"]
+                            observation["patrol_serial_number"] = patrol["serial_number"]
+                            observation["patrol_start_time"] = patrol_start_time
+                            observation["patrol_end_time"] = patrol_end_time
+                            observation["patrol_type"] = patrol_type
+                            observation = (
+                                observation.reset_index()
+                                .merge(
+                                    pd.DataFrame(df_pt).add_prefix("patrol_type__"),
+                                    left_on="patrol_type",
+                                    right_on="id",
+                                )
+                                .drop(
+                                    columns=[
+                                        "patrol_type__ordernum",
+                                        "patrol_type__icon_id",
+                                        "patrol_type__default_priority",
+                                        "patrol_type__is_active",
+                                    ]
+                                )
+                            )
+
                         observations.append(observation)
                 except Exception as e:
                     print(
                         f"Getting observations for subject_id={subject_id} start_time={patrol_start_time}"
                         f"end_time={patrol_end_time} failed for: {e}"
                     )
+
+        if not observations:
+            return pd.DataFrame()
 
         df = pd.concat(observations)
         df = clean_time_cols(df)
