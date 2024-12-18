@@ -399,21 +399,26 @@ def draw_historic_timeseries(
     historic_mean_title: str = "Historic Mean",
     layout_kwargs: dict = None,
 ):
-    # todo: update doc
     """
     Creates a timeseries plot compared with historical values
     Parameters
     ----------
     df: pd.Dataframe
         The data to plot
-    value_column: str
+    current_value_column: str
         The name of the dataframe column to pull slice values from
-        If the column contains non-numeric values, it is assumed to be categorical
-            and the pie slices will be a count of the occurrences of the category
-    label_column: str
-        The name of the dataframe column to label slices with, required if the data in value_column is numeric
-    style_kwargs: dict
-        Additional style kwargs passed to go.Pie()
+    current_value_title: str
+        The title shown in the plot legend for current value
+    historic_min_column: str
+        The name of the dataframe column to pull historic min values from. historic_min_column and historic_max_column should exist together.
+    historic_max_column: str
+        The name of the dataframe column to pull historic max values from. historic_min_column and historic_max_column should exist together.
+    historic_band_title: str
+        The title shown in the plot legend for historic band
+    historic_mean_column: str
+        The name of the dataframe column to pull historic mean values from
+    current_value_title: str
+        The title shown in the plot legend for historic mean values
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)
     Returns
@@ -424,8 +429,8 @@ def draw_historic_timeseries(
 
     fig = go.Figure(layout=layout_kwargs)
 
-    # add the upper bound
     if historic_max_column and historic_min_column:
+        # add the upper bound
         fig.add_trace(
             go.Scatter(
                 x=df.img_date,
@@ -437,7 +442,8 @@ def draw_historic_timeseries(
                 showlegend=False,
             )
         )
-
+        
+        # lower band
         fig.add_trace(
             go.Scatter(
                 x=df.img_date,
@@ -473,4 +479,5 @@ def draw_historic_timeseries(
             name=current_value_title,
         )
     )
+
     return fig
