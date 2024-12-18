@@ -5,9 +5,9 @@ import shapely
 from ecoscope.base.utils import color_tuple_to_css
 
 try:
-    from sklearn.neighbors import KernelDensity
     import plotly.graph_objs as go
     from plotly.subplots import make_subplots
+    from sklearn.neighbors import KernelDensity
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
@@ -385,4 +385,92 @@ def pie_chart(
     # breakpoint()
 
     fig = go.Figure(data=go.Pie(labels=labels, values=values, **style_kwargs), layout=layout_kwargs)
+    return fig
+
+
+def draw_historic_timeseries(
+    df: pd.DataFrame,
+    current_value_column: str,
+    current_value_title: str,
+    historic_min_column: str = None,
+    historic_max_column: str = None,
+    historic_band_title: str = "Historic Min-Max",
+    historic_mean_column: str = None,
+    historic_mean_title: str = "Historic Mean",
+    layout_kwargs: dict = None,
+):
+    # todo: update doc
+    """
+    Creates a timeseries plot compared with historical values
+    Parameters
+    ----------
+    df: pd.Dataframe
+        The data to plot
+    value_column: str
+        The name of the dataframe column to pull slice values from
+        If the column contains non-numeric values, it is assumed to be categorical
+            and the pie slices will be a count of the occurrences of the category
+    label_column: str
+        The name of the dataframe column to label slices with, required if the data in value_column is numeric
+    style_kwargs: dict
+        Additional style kwargs passed to go.Pie()
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly bar chart
+    """
+
+    fig = go.Figure(layout=layout_kwargs)
+
+    # add the upper bound
+    if historic_max_column and historic_min_column:
+        fig.add_trace(
+            go.Scatter(
+                x=df.img_date,
+                y=df[historic_max_column],
+                fill=None,
+                mode="lines",
+                line_color="green",
+                name="",
+                showlegend=False,
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=df.img_date,
+                y=df[historic_min_column],
+                fill="tonexty",
+                mode="lines",
+                line_color="green",
+                name=historic_band_title,
+            )
+        )
+
+    if historic_mean_column:
+        # add the historic mean
+        fig.add_trace(
+            go.Scatter(
+                x=df.img_date,
+                y=df[historic_mean_column],
+                fill=None,
+                mode="lines",
+                line=dict(color="green", dash="dot"),
+                name=historic_mean_title,
+            )
+        )
+
+    # add current NDVI values
+    fig.add_trace(
+        go.Scatter(
+            x=df.img_date,
+            y=df[current_value_column],
+            fill=None,
+            mode="lines",
+            line_color="navy",
+            name=current_value_title,
+        )
+    )
     return fig
