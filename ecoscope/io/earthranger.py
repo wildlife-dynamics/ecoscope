@@ -19,9 +19,9 @@ from ecoscope.io.earthranger_utils import (
     dataframe_to_dict,
     filter_bad_geojson,
     format_iso_time,
+    pack_columns,
     to_gdf,
     to_hex,
-    pack_columns,
 )
 
 
@@ -1038,6 +1038,34 @@ class EarthRangerIO(ERClient):
             payload.update(kwargs)
 
         response = self._post("sources", payload=payload)
+        return pd.DataFrame([response])
+
+    def post_source_provider(
+        self,
+        provider_key: str,
+        display_name: str,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """
+        Parameters
+        ----------
+        provider_key
+        display_name
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+
+        payload = {
+            "provider_key": provider_key,
+            "display_name": display_name,
+        }
+
+        if kwargs:
+            payload.update(kwargs)
+
+        response = self._post("sourceproviders", payload=payload)
         return pd.DataFrame([response])
 
     def post_subject(
