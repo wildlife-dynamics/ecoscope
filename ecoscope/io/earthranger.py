@@ -3,25 +3,24 @@ import json
 import math
 import typing
 
+import ecoscope
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytz
 import requests
-from erclient.client import ERClient, ERClientException, ERClientNotFound
-from shapely.geometry import shape
-from tqdm.auto import tqdm
-
-import ecoscope
 from ecoscope.io.earthranger_utils import (
     clean_kwargs,
     clean_time_cols,
     dataframe_to_dict,
     format_iso_time,
+    pack_columns,
     to_gdf,
     to_hex,
-    pack_columns,
 )
+from erclient.client import ERClient, ERClientException, ERClientNotFound
+from shapely.geometry import shape
+from tqdm.auto import tqdm
 
 
 class EarthRangerIO(ERClient):
