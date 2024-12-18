@@ -398,6 +398,9 @@ def draw_historic_timeseries(
     historic_mean_column: str = None,
     historic_mean_title: str = "Historic Mean",
     layout_kwargs: dict = None,
+    upper_lower_band_style: dict = {"mode": "lines", "line_color": "green"},
+    historic_mean_style: dict = {"mode": "lines", "line": {"color": "green", "dash": "dot"}},
+    current_value_style: dict = {"mode": "lines", "line_color": "navy"},
 ):
     """
     Creates a timeseries plot compared with historical values
@@ -410,9 +413,11 @@ def draw_historic_timeseries(
     current_value_title: str
         The title shown in the plot legend for current value
     historic_min_column: str
-        The name of the dataframe column to pull historic min values from. historic_min_column and historic_max_column should exist together.
+        The name of the dataframe column to pull historic min values from.
+        historic_min_column and historic_max_column should exist together.
     historic_max_column: str
-        The name of the dataframe column to pull historic max values from. historic_min_column and historic_max_column should exist together.
+        The name of the dataframe column to pull historic max values from.
+        historic_min_column and historic_max_column should exist together.
     historic_band_title: str
         The title shown in the plot legend for historic band
     historic_mean_column: str
@@ -436,22 +441,20 @@ def draw_historic_timeseries(
                 x=df.img_date,
                 y=df[historic_max_column],
                 fill=None,
-                mode="lines",
-                line_color="green",
                 name="",
                 showlegend=False,
+                **upper_lower_band_style,
             )
         )
-        
+
         # lower band
         fig.add_trace(
             go.Scatter(
                 x=df.img_date,
                 y=df[historic_min_column],
                 fill="tonexty",
-                mode="lines",
-                line_color="green",
                 name=historic_band_title,
+                **upper_lower_band_style,
             )
         )
 
@@ -462,9 +465,8 @@ def draw_historic_timeseries(
                 x=df.img_date,
                 y=df[historic_mean_column],
                 fill=None,
-                mode="lines",
-                line=dict(color="green", dash="dot"),
                 name=historic_mean_title,
+                **historic_mean_style,
             )
         )
 
@@ -474,9 +476,8 @@ def draw_historic_timeseries(
             x=df.img_date,
             y=df[current_value_column],
             fill=None,
-            mode="lines",
-            line_color="navy",
             name=current_value_title,
+            **current_value_style,
         )
     )
 
