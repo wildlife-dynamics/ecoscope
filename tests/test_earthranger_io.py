@@ -11,9 +11,35 @@ from shapely.geometry import Point
 import ecoscope
 from erclient import ERClientException
 
+from ecoscope.io.earthranger import EarthRangerIO
 from ecoscope.io.earthranger_utils import TIME_COLS
 
 pytestmark = pytest.mark.io
+
+
+@pytest.fixture
+def sample_bad_events_geojson():
+    """
+    A mock get_events response with intentionally bad geojson:
+    There are 6 events in this mock
+    event 0: 'geometry' is None
+    event 5: 'geomtery' and 'properties' are None
+    """
+    return pd.read_feather("tests/sample_data/io/get_events_bad_geojson.feather")
+
+
+@pytest.fixture
+def sample_bad_patrol_events_geojson():
+    """
+    A mock get_patrol_events response with intentionally bad geojson:
+    There's a single patrol in this mock with events that have the following problems in their json
+        event 0: 'geometry' key is not present
+        event 1: 'properties' key is not present
+        event 2: 'datetime' key is not present within 'properties
+        event 3: is untouched
+        event 4: 'geojson' is an empty dict
+    """
+    return pd.read_json("tests/sample_data/io/get_patrol_events_bad_geojson.json")
 
 
 def check_time_is_parsed(df):
@@ -374,3 +400,48 @@ def test_get_patrol_observations_with_patrol_filter(er_io):
     assert "patrol_title" in observations.columns
     assert "patrol_start_time" in observations.columns
     pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
+
+
+@patch("erclient.client.ERClient.get_objects_multithreaded")
+def test_get_events_bad_geojson(get_objects_mock, sample_bad_events_geojson, er_io):
+    get_objects_mock.return_value = sample_bad_events_geojson
+
+    events = er_io.get_events(event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"])
+    assert not events.empty
+    # of the 6 id's in the mock we expect these 4 to be returned
+    assert events.index.to_list() == [
+        "bcda9c6a-628c-4825-947d-72f66115fc09",
+        "d464672a-3cc2-4d9a-bb3f-a69c34efb09c",
+        "4a599a57-7a89-4eb3-bb11-d2a36d1627e2",
+        "bcb01505-c635-48eb-b176-2b1390a0a5bf",
+    ]
+
+
+@patch("erclient.client.ERClient.get_objects_multithreaded")
+def test_get_patrol_events_bad_geojson(get_objects_mock, sample_bad_patrol_events_geojson, er_io):
+    get_objects_mock.return_value = sample_bad_patrol_events_geojson
+
+    patrol_events = er_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+    assert not patrol_events.empty
+    # We're rejecting any geojson that's missing geometry or a timestamp
+    assert patrol_events.id.to_list() == ["ebf812f5-e616-40e4-8fcf-ebb3ef6a6364"]
+
+
+@pytest.mark.parametrize(
+    "er_callable, er_kwargs",
+    [
+        (EarthRangerIO.get_patrols, {}),
+        (EarthRangerIO.get_subjectgroup_observations, {"subject_group_id": "12345"}),
+        (EarthRangerIO.get_patrol_observations_with_patrol_filter, {}),
+        (EarthRangerIO.get_patrol_events, {}),
+        (EarthRangerIO.get_events, {}),
+    ],
+)
+@patch("erclient.client.ERClient._get")
+def test_empty_responses(_get_mock, er_io, er_callable, er_kwargs):
+    _get_mock.return_value = {}
+    df = er_callable(er_io, **er_kwargs)
+    assert df.empty

@@ -70,3 +70,7 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
         dataframe.drop(metadata_cols, inplace=True, axis=1)
         dataframe.rename(columns={"metadata": "additional"}, inplace=True)
     return dataframe
+
+
+def filter_bad_geojson(dataframe: pd.DataFrame):
+    return dataframe[dataframe["geojson"].apply(lambda x: True if isinstance(x, dict) and x.get("geometry") else False)]

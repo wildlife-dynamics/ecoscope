@@ -17,6 +17,7 @@ from ecoscope.io.earthranger_utils import (
     clean_kwargs,
     clean_time_cols,
     dataframe_to_dict,
+    filter_bad_geojson,
     format_iso_time,
     to_gdf,
     to_hex,
@@ -512,6 +513,9 @@ class EarthRangerIO(ERClient):
         else:
             subjects = self.get_subjects(subject_group_name=subject_group_name, include_inactive=include_inactive)
 
+        if subjects.empty:
+            return subjects
+
         return self.get_subject_observations(subjects, **kwargs)
 
     def get_event_types(self, include_inactive=False, **addl_kwargs):
@@ -629,9 +633,8 @@ class EarthRangerIO(ERClient):
         if not gdf.empty:
             gdf = clean_time_cols(gdf)
             if gdf.loc[0, "location"] is not None:
-                gdf.loc[~gdf["geojson"].isna(), "geometry"] = gpd.GeoDataFrame.from_features(
-                    gdf.loc[~gdf["geojson"].isna(), "geojson"]
-                )["geometry"]
+                gdf = filter_bad_geojson(gdf)
+                gdf["geometry"] = gpd.GeoDataFrame.from_features(gdf["geojson"])["geometry"]
                 gdf.set_geometry("geometry", inplace=True)
                 gdf.set_crs(4326, inplace=True)
             gdf.sort_values("time", inplace=True)
@@ -641,7 +644,9 @@ class EarthRangerIO(ERClient):
 
     def get_patrol_types(self):
         df = pd.DataFrame(self._get("activity/patrols/types"))
-        return df.set_index("id")
+        if not df.empty:
+            df = df.set_index("id")
+        return df
 
     def get_patrols(self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs):
         """
@@ -738,19 +743,20 @@ class EarthRangerIO(ERClient):
 
         events = []
         for _, row in patrol_df.iterrows():
-            if row["patrol_segments"]:
-                for segment in row["patrol_segments"]:
-                    for event in segment.get("events", []):
-                        event["patrol_id"] = row.get("id")
-                        event["patrol_segment_id"] = segment.get("id")
-                        event["patrol_start_time"] = (segment.get("time_range") or {}).get("start_time")
-                        events.append(event)
+            for segment in row.get("patrol_segments", []):
+                for event in segment.get("events", []):
+                    event["patrol_id"] = row.get("id")
+                    event["patrol_segment_id"] = segment.get("id")
+                    event["patrol_start_time"] = (segment.get("time_range") or {}).get("start_time")
+                    events.append(event)
         events_df = pd.DataFrame(events)
         if events_df.empty:
             return events_df
 
+        events_df = filter_bad_geojson(events_df)
         events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
-        events_df["time"] = events_df["geojson"].apply(lambda x: x.get("properties").get("datetime"))
+        events_df["time"] = events_df["geojson"].apply(lambda x: x.get("properties", {}).get("datetime"))
+        events_df = events_df.loc[events_df["time"].notnull()]
         events_df = clean_time_cols(events_df)
 
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
@@ -871,37 +877,42 @@ class EarthRangerIO(ERClient):
                         until=patrol_end_time,
                         **kwargs,
                     )
-                    if include_patrol_details:
-                        observation["patrol_id"] = patrol["id"]
-                        observation["patrol_title"] = patrol["title"]
-                        observation["patrol_serial_number"] = patrol["serial_number"]
-                        observation["patrol_start_time"] = patrol_start_time
-                        observation["patrol_end_time"] = patrol_end_time
-                        observation["patrol_type"] = patrol_type
-                        observation = (
-                            observation.reset_index()
-                            .merge(
-                                pd.DataFrame(df_pt).add_prefix("patrol_type__"),
-                                left_on="patrol_type",
-                                right_on="id",
-                            )
-                            .drop(
-                                columns=[
-                                    "patrol_type__ordernum",
-                                    "patrol_type__icon_id",
-                                    "patrol_type__default_priority",
-                                    "patrol_type__is_active",
-                                ]
-                            )
-                        )
                     if len(observation) > 0:
                         observation["groupby_col"] = patrol["id"]
+
+                        if include_patrol_details:
+                            observation["patrol_id"] = patrol["id"]
+                            observation["patrol_title"] = patrol["title"]
+                            observation["patrol_serial_number"] = patrol["serial_number"]
+                            observation["patrol_start_time"] = patrol_start_time
+                            observation["patrol_end_time"] = patrol_end_time
+                            observation["patrol_type"] = patrol_type
+                            observation = (
+                                observation.reset_index()
+                                .merge(
+                                    pd.DataFrame(df_pt).add_prefix("patrol_type__"),
+                                    left_on="patrol_type",
+                                    right_on="id",
+                                )
+                                .drop(
+                                    columns=[
+                                        "patrol_type__ordernum",
+                                        "patrol_type__icon_id",
+                                        "patrol_type__default_priority",
+                                        "patrol_type__is_active",
+                                    ]
+                                )
+                            )
+
                         observations.append(observation)
                 except Exception as e:
                     print(
                         f"Getting observations for subject_id={subject_id} start_time={patrol_start_time}"
                         f"end_time={patrol_end_time} failed for: {e}"
                     )
+
+        if not observations:
+            return pd.DataFrame()
 
         df = pd.concat(observations)
         df = clean_time_cols(df)
