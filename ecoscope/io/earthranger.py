@@ -1040,10 +1040,11 @@ class EarthRangerIO(ERClient):
         response = self._post("sources", payload=payload)
         return pd.DataFrame([response])
 
-    def post_source_provider(
+    def post_sourceproviders(
         self,
         provider_key: str,
         display_name: str,
+        additional: typing.Dict = {},
         **kwargs,
     ) -> pd.DataFrame:
         """
@@ -1060,6 +1061,7 @@ class EarthRangerIO(ERClient):
         payload = {
             "provider_key": provider_key,
             "display_name": display_name,
+            "additional": additional,
         }
 
         if kwargs:

@@ -6,11 +6,10 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import pytz
+from erclient import ERClientException
 from shapely.geometry import Point
 
 import ecoscope
-from erclient import ERClientException
-
 from ecoscope.io.earthranger import EarthRangerIO
 from ecoscope.io.earthranger_utils import TIME_COLS
 
@@ -203,6 +202,13 @@ def test_get_patrol_events_empty(patrols_mock, er_io):
         until=pd.Timestamp("2017-04-01").isoformat(),
     )
     assert events.empty
+
+
+def test_post_sourceproviders(er_io):
+    response = er_io.post_sourceproviders(provider_key="test_provider_key", display_name="Test Provider Key")
+    assert "id" in response
+    assert "provider_key" in response
+    assert "display_name" in response
 
 
 def test_post_observations(er_io):
