@@ -8,6 +8,7 @@ on:
 
 jobs:
   dev:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     uses: ./.github/workflows/tests.yml
     with:
       io: "io"
