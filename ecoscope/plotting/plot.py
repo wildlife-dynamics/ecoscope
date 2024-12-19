@@ -470,7 +470,7 @@ def draw_historic_timeseries(
             )
         )
 
-    # add current NDVI values
+    # add current values
     fig.add_trace(
         go.Scatter(
             x=df.img_date,
