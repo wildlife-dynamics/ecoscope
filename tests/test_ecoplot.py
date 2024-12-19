@@ -1,9 +1,19 @@
-import pytest
 import numpy as np
 import pandas as pd
-from ecoscope.plotting.plot import EcoPlotData, ecoplot, mcp, nsd, speed, stacked_bar_chart, pie_chart
-from ecoscope.base import Trajectory
+import pytest
+
 from ecoscope.analysis.classifier import apply_color_map
+from ecoscope.base import Trajectory
+from ecoscope.plotting.plot import (
+    EcoPlotData,
+    draw_historic_timeseries,
+    ecoplot,
+    mcp,
+    nsd,
+    pie_chart,
+    speed,
+    stacked_bar_chart,
+)
 
 
 @pytest.fixture
@@ -175,3 +185,39 @@ def test_pie_chart_numerical(chart_df):
         "rgba(0, 0, 255, 1.0)",
         "rgba(255, 255, 255, 1.0)",
     )
+
+
+def test_draw_historic_timeseries():
+    df = pd.DataFrame(
+        {
+            "min": [0.351723, 0.351723, 0.303219, 0.303219, 0.342149, 0.342149],
+            "max": [0.667335, 0.667335, 0.708183, 0.708183, 0.727095, 0.727095],
+            "mean": [0.472017, 0.472017, 0.543062, 0.543062, 0.555547, 0.555547],
+            "NDVI": [0.609656, 0.671868, 0.680008, 0.586662, 0.612170, np.nan],
+            "img_date": pd.to_datetime(
+                [
+                    "2023-11-09",
+                    "2023-11-25",
+                    "2023-12-11",
+                    "2023-12-27",
+                    "2024-01-09",
+                    "2024-01-25",
+                ]
+            ),
+        }
+    )
+
+    chart = draw_historic_timeseries(
+        df,
+        current_value_column="NDVI",
+        current_value_title="NDVI",
+        historic_min_column="min",
+        historic_max_column="max",
+        historic_mean_column="mean",
+    )
+
+    assert len(chart.data) == 4
+    assert chart.data[0].showlegend is False
+    assert chart.data[1].name == "Historic Min-Max"
+    assert chart.data[2].name == "Historic Mean"
+    assert chart.data[3].name == "NDVI"
