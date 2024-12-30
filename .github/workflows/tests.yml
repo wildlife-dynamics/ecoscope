@@ -22,6 +22,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+            persist-credentials: false
 
       - name: Setup Micromamba
         uses: mamba-org/setup-micromamba@v2.0.3
@@ -40,8 +42,9 @@ jobs:
           ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
           EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
           EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+          INPUT_IO: ${{inputs.io}}
         run: |
-          pytest -v -r s -m "${{ inputs.io }}" --color=yes --cov=ecoscope --cov-append --cov-report=xml
+          pytest -v -r s -m "${INPUT_IO}" --color=yes --cov=ecoscope --cov-append --cov-report=xml
       
       - name: Codecov
         uses: codecov/codecov-action@v5
