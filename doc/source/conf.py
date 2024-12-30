@@ -103,7 +103,11 @@ html_theme_options = {
     "pygment_dark_style": "dracula",
 }
 
-commit_id = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("ascii")
+commit_id = (
+    subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+    .strip()
+    .decode("ascii")
+)
 nbsphinx_prolog = f"""
 .. image:: https://colab.research.google.com/assets/colab-badge.svg
   :target: {{{{ "https://colab.research.google.com/github/wildlife-dynamics/ecoscope/blob/{commit_id}/doc/source/" + env.docname|urlencode + ".ipynb" }}}}
