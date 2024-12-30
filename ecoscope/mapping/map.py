@@ -46,7 +46,6 @@ except ModuleNotFoundError:
 
 class EcoMap(Map):
     def __init__(self, static=False, default_widgets=True, *args, **kwargs):
-
         kwargs["height"] = kwargs.get("height", 600)
         kwargs["width"] = kwargs.get("width", 800)
 

@@ -27,7 +27,6 @@ def _min_max_scaler(x):
 
 
 def std_ndvi_vals(aoi=None, img_coll=None, nir_band=None, red_band=None, img_scale=1, start=None, end=None):
-
     coll = (
         ee.ImageCollection(img_coll)
         .select([nir_band, red_band])
@@ -95,7 +94,6 @@ def val_cuts(vals, num_seasons=2):
 
 
 def seasonal_windows(ndvi_vals, cuts, season_labels):
-
     enc = LabelEncoder()
     ndvi_vals["season"] = pandas.cut(ndvi_vals["NDVI"], bins=cuts, labels=season_labels)
     ndvi_vals["season_code"] = enc.fit_transform(ndvi_vals["season"])
@@ -122,7 +120,6 @@ def seasonal_windows(ndvi_vals, cuts, season_labels):
 def add_seasonal_index(
     df, index_name, start_date, end_date, time_col, aoi_geom_filter=None, seasons=2, season_labels=["dry", "wet"]
 ):
-
     aoi_ = None
     try:
         aoi_ = aoi_geom_filter.dissolve().iloc[0]["geometry"]
