@@ -809,7 +809,7 @@ class EarthRangerIO(ERClient):
             return events_df
 
         events_df = filter_bad_geojson(events_df)
-        if events_df.empty():
+        if events_df.empty:
             return gpd.GeoDataFrame()
 
         events_df["geometry"] = events_df["geojson"].apply(
