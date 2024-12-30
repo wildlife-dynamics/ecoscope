@@ -1,5 +1,4 @@
 import typing
-
 import geopandas as gpd
 import pandas as pd
 from dateutil import parser
@@ -89,7 +88,9 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
     return dataframe
 
 
-def filter_bad_geojson(gdf: gpd.GeoDataFrame):
-    # CAVEAT: when you apply a boolean filter to a GeoDataFrame, it can sometimes return a regular DataFrame instead of preserving the GeoDataFrame type.
-    mask = gdf["geojson"].apply(lambda x: isinstance(x, dict) and x.get("geometry"))
-    return gpd.GeoDataFrame(gdf[mask], geometry="geometry")
+def filter_bad_geojson(dataframe: pd.DataFrame):
+    return dataframe[
+        dataframe["geojson"].apply(
+            lambda x: True if isinstance(x, dict) and x.get("geometry") else False
+        )
+    ]

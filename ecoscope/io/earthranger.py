@@ -40,7 +40,9 @@ class EarthRangerIO(ERClient):
             try:
                 self.login()
             except ERClientNotFound:
-                raise ERClientNotFound("Failed login. Check Stack Trace for specific reason.")
+                raise ERClientNotFound(
+                    "Failed login. Check Stack Trace for specific reason."
+                )
         else:
             try:
                 self.get_me()
@@ -52,12 +54,16 @@ class EarthRangerIO(ERClient):
         if response.ok:
             self.auth = response.json()
             expires_in = int(self.auth["expires_in"]) - 5 * 60
-            self.auth_expires = pytz.utc.localize(datetime.datetime.utcnow()) + datetime.timedelta(seconds=expires_in)
+            self.auth_expires = pytz.utc.localize(
+                datetime.datetime.utcnow()
+            ) + datetime.timedelta(seconds=expires_in)
             return True
 
         self.auth = None
         self.auth_expires = pytz.utc.localize(datetime.datetime.min)
-        raise ERClientNotFound(response.json().get("error_description", "invalid token"))
+        raise ERClientNotFound(
+            response.json().get("error_description", "invalid token")
+        )
 
     """
     GET Functions
@@ -181,7 +187,9 @@ class EarthRangerIO(ERClient):
             df = pd.concat(
                 [
                     partial_subjects(s)
-                    for s in np.array_split(params["id"], math.ceil(len(params["id"]) / max_ids_per_request))
+                    for s in np.array_split(
+                        params["id"], math.ceil(len(params["id"]) / max_ids_per_request)
+                    )
                 ],
                 ignore_index=True,
             )
@@ -197,7 +205,11 @@ class EarthRangerIO(ERClient):
             )
 
         if not df.empty:
-            df["hex"] = df["additional"].str["rgb"].map(to_hex) if "additional" in df else "#ff0000"
+            df["hex"] = (
+                df["additional"].str["rgb"].map(to_hex)
+                if "additional" in df
+                else "#ff0000"
+            )
             df = clean_time_cols(df)
 
         return df
@@ -308,7 +320,9 @@ class EarthRangerIO(ERClient):
         observations.sort_values("recorded_at", inplace=True)
         return to_gdf(observations)
 
-    def get_source_observations(self, source_ids, include_source_details=False, relocations=True, **kwargs):
+    def get_source_observations(
+        self, source_ids, include_source_details=False, relocations=True, **kwargs
+    ):
         """
         Get observations for each listed source and create a `Relocations` object.
         Parameters
@@ -335,7 +349,9 @@ class EarthRangerIO(ERClient):
 
         if include_source_details:
             observations = observations.merge(
-                pd.DataFrame(self.get_sources(id=",".join(observations["source"].unique()))).add_prefix("source__"),
+                pd.DataFrame(
+                    self.get_sources(id=",".join(observations["source"].unique()))
+                ).add_prefix("source__"),
                 left_on="source",
                 right_on="source__id",
             )
@@ -385,7 +401,9 @@ class EarthRangerIO(ERClient):
         elif isinstance(subject_ids, pd.DataFrame):
             subject_ids = subject_ids.id.tolist()
         elif not isinstance(subject_ids, list):
-            raise ValueError(f"subject_ids must be either a str or list[str] or pd.DataFrame, not {type(subject_ids)}")
+            raise ValueError(
+                f"subject_ids must be either a str or list[str] or pd.DataFrame, not {type(subject_ids)}"
+            )
 
         observations = self._get_observations(subject_ids=subject_ids, **kwargs)
 
@@ -394,7 +412,9 @@ class EarthRangerIO(ERClient):
 
         if include_source_details:
             observations = observations.merge(
-                self.get_sources(id=",".join(observations["source"].unique())).add_prefix("source__"),
+                self.get_sources(
+                    id=",".join(observations["source"].unique())
+                ).add_prefix("source__"),
                 left_on="source",
                 right_on="source__id",
             )
@@ -407,16 +427,18 @@ class EarthRangerIO(ERClient):
                 )
             else:
                 observations = observations.merge(
-                    self.get_subjects(id=",".join(subject_ids), include_inactive=True).add_prefix("subject__"),
+                    self.get_subjects(
+                        id=",".join(subject_ids), include_inactive=True
+                    ).add_prefix("subject__"),
                     left_on="subject_id",
                     right_on="subject__id",
                 )
 
         if include_subjectsource_details:
             observations = observations.merge(
-                self.get_subjectsources(subjects=",".join(observations["subject_id"].unique())).add_prefix(
-                    "subjectsource__"
-                ),
+                self.get_subjectsources(
+                    subjects=",".join(observations["subject_id"].unique())
+                ).add_prefix("subjectsource__"),
                 left_on=["subject_id", "source"],
                 right_on=["subjectsource__subject", "subjectsource__source"],
             )
@@ -458,14 +480,18 @@ class EarthRangerIO(ERClient):
         if isinstance(subjectsource_ids, str):
             subjectsource_ids = [subjectsource_ids]
 
-        observations = self._get_observations(subjectsource_ids=subjectsource_ids, **kwargs)
+        observations = self._get_observations(
+            subjectsource_ids=subjectsource_ids, **kwargs
+        )
 
         if observations.empty:
             return gpd.GeoDataFrame()
 
         if include_source_details:
             observations = observations.merge(
-                pd.DataFrame(self.get_sources(id=",".join(observations["source"].unique()))).add_prefix("source__"),
+                pd.DataFrame(
+                    self.get_sources(id=",".join(observations["source"].unique()))
+                ).add_prefix("source__"),
                 left_on="source",
                 right_on="source__id",
             )
@@ -508,9 +534,13 @@ class EarthRangerIO(ERClient):
         assert (subject_group_id is None) != (subject_group_name is None)
 
         if subject_group_id:
-            subjects = self.get_subjects(subject_group_id=subject_group_id, include_inactive=include_inactive)
+            subjects = self.get_subjects(
+                subject_group_id=subject_group_id, include_inactive=include_inactive
+            )
         else:
-            subjects = self.get_subjects(subject_group_name=subject_group_name, include_inactive=include_inactive)
+            subjects = self.get_subjects(
+                subject_group_name=subject_group_name, include_inactive=include_inactive
+            )
 
         if subjects.empty:
             return subjects
@@ -627,19 +657,20 @@ class EarthRangerIO(ERClient):
                 **params,
             )
         )
-        gdf = gpd.GeoDataFrame(df)
 
-        if not gdf.empty:
-            gdf = clean_time_cols(gdf)
-            if gdf.loc[0, "location"] is not None:
-                gdf = filter_bad_geojson(gdf)
-                gdf["geometry"] = gpd.GeoDataFrame.from_features(gdf["geojson"])["geometry"]
-                gdf.set_geometry("geometry", inplace=True)
-                gdf.set_crs(4326, inplace=True)
+        if not df.empty:
+            df = clean_time_cols(df)
+            if df.loc[0, "location"] is not None:
+                df = filter_bad_geojson(df)
+                df["geometry"] = gpd.GeoDataFrame.from_features(df["geojson"])[
+                    "geometry"
+                ]
+                gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
             gdf.sort_values("time", inplace=True)
             gdf.set_index("id", inplace=True)
+            return gdf
 
-        return gdf
+        return gpd.GeoDataFrame()
 
     def get_patrol_types(self):
         df = pd.DataFrame(self._get("activity/patrols/types"))
@@ -647,7 +678,15 @@ class EarthRangerIO(ERClient):
             df = df.set_index("id")
         return df
 
-    def get_patrols(self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs):
+    def get_patrols(
+        self,
+        since=None,
+        until=None,
+        patrol_type=None,
+        patrol_type_value=None,
+        status=None,
+        **addl_kwargs,
+    ):
         """
         Parameters
         ----------
@@ -668,7 +707,11 @@ class EarthRangerIO(ERClient):
             DataFrame of queried patrols
         """
 
-        patrol_type_value_list = [patrol_type_value] if isinstance(patrol_type_value, str) else patrol_type_value
+        patrol_type_value_list = (
+            [patrol_type_value]
+            if isinstance(patrol_type_value, str)
+            else patrol_type_value
+        )
         params = clean_kwargs(
             addl_kwargs,
             status=status,
@@ -687,7 +730,9 @@ class EarthRangerIO(ERClient):
             filter["patrol_type"] = params["patrol_type"]
         if patrol_type_value_list is not None:
             patrol_types = self.get_patrol_types()
-            matching_rows = patrol_types[patrol_types["value"].isin(patrol_type_value_list)]
+            matching_rows = patrol_types[
+                patrol_types["value"].isin(patrol_type_value_list)
+            ]
             missing_values = set(patrol_type_value_list) - set(matching_rows["value"])
             if missing_values:
                 raise ValueError(f"Failed to find IDs for values: {missing_values}")
@@ -710,7 +755,13 @@ class EarthRangerIO(ERClient):
         return df
 
     def get_patrol_events(
-        self, since=None, until=None, patrol_type=None, patrol_type_value=None, status=None, **addl_kwargs
+        self,
+        since=None,
+        until=None,
+        patrol_type=None,
+        patrol_type_value=None,
+        status=None,
+        **addl_kwargs,
     ):
         """
         Parameters
@@ -746,15 +797,21 @@ class EarthRangerIO(ERClient):
                 for event in segment.get("events", []):
                     event["patrol_id"] = row.get("id")
                     event["patrol_segment_id"] = segment.get("id")
-                    event["patrol_start_time"] = (segment.get("time_range") or {}).get("start_time")
+                    event["patrol_start_time"] = (segment.get("time_range") or {}).get(
+                        "start_time"
+                    )
                     events.append(event)
         events_df = pd.DataFrame(events)
         if events_df.empty:
             return events_df
 
         events_df = filter_bad_geojson(events_df)
-        events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
-        events_df["time"] = events_df["geojson"].apply(lambda x: x.get("properties", {}).get("datetime"))
+        events_df["geometry"] = events_df["geojson"].apply(
+            lambda x: shape(x.get("geometry"))
+        )
+        events_df["time"] = events_df["geojson"].apply(
+            lambda x: x.get("properties", {}).get("datetime")
+        )
         events_df = events_df.loc[events_df["time"].notnull()]
         events_df = clean_time_cols(events_df)
 
@@ -789,7 +846,9 @@ class EarthRangerIO(ERClient):
     def get_patrol_segments(self):
         object = "activity/patrols/segments/"
         return pd.DataFrame(
-            self.get_objects_multithreaded(object=object, threads=self.tcp_limit, page_size=self.sub_page_size)
+            self.get_objects_multithreaded(
+                object=object, threads=self.tcp_limit, page_size=self.sub_page_size
+            )
         )
 
     def get_patrol_observations_with_patrol_filter(
@@ -836,9 +895,13 @@ class EarthRangerIO(ERClient):
             status=status,
             **kwargs,
         )
-        return self.get_patrol_observations(patrols_df, include_patrol_details=include_patrol_details, **kwargs)
+        return self.get_patrol_observations(
+            patrols_df, include_patrol_details=include_patrol_details, **kwargs
+        )
 
-    def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
+    def get_patrol_observations(
+        self, patrols_df, include_patrol_details=False, **kwargs
+    ):
         """
         Download observations for provided `patrols_df`.
 
@@ -861,10 +924,16 @@ class EarthRangerIO(ERClient):
         for _, patrol in patrols_df.iterrows():
             for patrol_segment in patrol["patrol_segments"]:
                 subject_id = (patrol_segment.get("leader") or {}).get("id")
-                patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
-                patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
+                patrol_start_time = (patrol_segment.get("time_range") or {}).get(
+                    "start_time"
+                )
+                patrol_end_time = (patrol_segment.get("time_range") or {}).get(
+                    "end_time"
+                )
 
-                patrol_type = df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
+                patrol_type = df_pt[
+                    df_pt["value"] == patrol_segment.get("patrol_type")
+                ].reset_index()["id"][0]
 
                 if None in {subject_id, patrol_start_time}:
                     continue
@@ -882,7 +951,9 @@ class EarthRangerIO(ERClient):
                         if include_patrol_details:
                             observation["patrol_id"] = patrol["id"]
                             observation["patrol_title"] = patrol["title"]
-                            observation["patrol_serial_number"] = patrol["serial_number"]
+                            observation["patrol_serial_number"] = patrol[
+                                "serial_number"
+                            ]
                             observation["patrol_start_time"] = patrol_start_time
                             observation["patrol_end_time"] = patrol_end_time
                             observation["patrol_type"] = patrol_type
@@ -965,7 +1036,9 @@ class EarthRangerIO(ERClient):
         -------
         dataframe : GeoDataFrame of spatial features in a spatial features group.
         """
-        params = clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
+        params = clean_kwargs(
+            addl_kwargs, spatial_features_group_id=spatial_features_group_id
+        )
 
         object = f"spatialfeaturegroup/{spatial_features_group_id}/"
         spatial_features_group = self._get(object, **params)
@@ -1161,10 +1234,12 @@ class EarthRangerIO(ERClient):
 
         def upload(obs):
             try:
-                obs = obs.rename(columns={source_id_col: "source", recorded_at_col: "recorded_at"})
-                obs["location"] = pd.DataFrame({"longitude": obs.geometry.x, "latitude": obs.geometry.y}).to_dict(
-                    "records"
+                obs = obs.rename(
+                    columns={source_id_col: "source", recorded_at_col: "recorded_at"}
                 )
+                obs["location"] = pd.DataFrame(
+                    {"longitude": obs.geometry.x, "latitude": obs.geometry.y}
+                ).to_dict("records")
                 del obs["geometry"]
                 obs = pack_columns(obs, columns=["source", "recorded_at", "location"])
                 post_data = obs.to_dict("records")
@@ -1180,7 +1255,9 @@ class EarthRangerIO(ERClient):
 
     def post_event(
         self,
-        events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]],
+        events: typing.Union[
+            gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]
+        ],
     ) -> pd.DataFrame:
         """
         Parameters
@@ -1327,7 +1404,9 @@ class EarthRangerIO(ERClient):
         if addl_kwargs:
             payload.update(addl_kwargs)
 
-        response = self._post(f"activity/patrols/segments/{patrol_segment_id}/events/", payload=payload)
+        response = self._post(
+            f"activity/patrols/segments/{patrol_segment_id}/events/", payload=payload
+        )
         return pd.DataFrame([response])
 
     """
@@ -1337,7 +1416,9 @@ class EarthRangerIO(ERClient):
     def patch_event(
         self,
         event_id: str,
-        events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]],
+        events: typing.Union[
+            gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]
+        ],
     ) -> pd.DataFrame:
         """
         Parameters
@@ -1354,7 +1435,10 @@ class EarthRangerIO(ERClient):
 
         events = dataframe_to_dict(events)
         if isinstance(events, list):
-            results = [self._patch(f"activity/event/{event_id}", payload=event) for event in events]
+            results = [
+                self._patch(f"activity/event/{event_id}", payload=event)
+                for event in events
+            ]
         else:
             results = [self._patch(f"activity/event/{event_id}", payload=events)]
         return pd.DataFrame(results)
