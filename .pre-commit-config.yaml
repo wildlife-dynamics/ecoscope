@@ -7,9 +7,10 @@ repos:
     hooks:
       # Run the linter and absolufy-imports.
       - id: ruff
-        args: [--fix]
+        args: [--fix, --extend-select, E501, --line-length, "120"]
       # Run the formatter.
       - id: ruff-format
+        args: [--line-length, "120"]
   - repo: https://github.com/kynan/nbstripout
     rev: 0.5.0
     hooks:
@@ -21,13 +22,4 @@ repos:
     - id: codespell
       files: ^.*\.(py|md|rst|ipynb)$
       args: ["-w"]
-  - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.3.1
-    hooks:
-      - id: nbqa-black
-        args: ['--line-length=120']
-      - id: nbqa-flake8
-        args: ['--ignore=E203,E402,W503', '--max-line-length=120']
-          #- id: nbqa-isort
-          #args: ['-m3', '--tc']
 exclude: ^ecoscope/contrib/

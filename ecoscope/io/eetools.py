@@ -217,7 +217,6 @@ def label_gdf_with_temporal_image_collection_by_feature(
     region_reducer=None,
     scale=500.0,
 ):
-
     # Match the features to the necessary image collection images
     _match_gdf_to_img_coll_ids(
         gdf=gdf,

@@ -136,7 +136,11 @@ def test_inverted_all_day(inverted_daily_summary):
     """Test all-day segment when sunrise is after sunset."""
     date = datetime(2024, 1, 1)
     astronomy.calculate_day_night_distance(
-        date, datetime(2024, 1, 1, 4, 0), datetime(2024, 1, 1, 5, 0), 1000, inverted_daily_summary  # 4:00 AM  # 5:00 AM
+        date,
+        datetime(2024, 1, 1, 4, 0),
+        datetime(2024, 1, 1, 5, 0),
+        1000,
+        inverted_daily_summary,  # 4:00 AM  # 5:00 AM
     )
     assert inverted_daily_summary.loc[date, "day_distance"] == 1000
     assert inverted_daily_summary.loc[date, "night_distance"] == 0

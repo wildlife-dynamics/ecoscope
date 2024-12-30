@@ -9,7 +9,6 @@ from ecoscope.analysis.feature_density import calculate_feature_density
 
 
 def test_feature_density_point():
-
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
     my_crs = 32736
 
@@ -33,7 +32,6 @@ def test_feature_density_point():
 
 
 def test_feature_density_line():
-
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
     my_crs = 32736
 
