@@ -10,6 +10,7 @@ repos:
         args: [--fix, --extend-select, E501, --line-length, "120"]
       # Run the formatter.
       - id: ruff-format
+        args: [--line-length, "120"]
   - repo: https://github.com/kynan/nbstripout
     rev: 0.5.0
     hooks:
