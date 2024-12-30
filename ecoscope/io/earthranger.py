@@ -662,6 +662,9 @@ class EarthRangerIO(ERClient):
             df = clean_time_cols(df)
             if df.loc[0, "location"] is not None:
                 df = filter_bad_geojson(df)
+                if df.empty:
+                    return gpd.GeoDataFrame()
+
                 df["geometry"] = gpd.GeoDataFrame.from_features(df["geojson"])[
                     "geometry"
                 ]
@@ -806,6 +809,9 @@ class EarthRangerIO(ERClient):
             return events_df
 
         events_df = filter_bad_geojson(events_df)
+        if events_df.empty():
+            return gpd.GeoDataFrame()
+
         events_df["geometry"] = events_df["geojson"].apply(
             lambda x: shape(x.get("geometry"))
         )
