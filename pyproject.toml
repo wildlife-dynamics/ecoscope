@@ -61,7 +61,7 @@ mapping = [
     "mapclassify",
 ]
 plotting = [
-    "kaleido==0.2.1",
+    "kaleido",
     "plotly",
     "scikit-learn",
 ]
