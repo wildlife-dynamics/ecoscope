@@ -67,6 +67,22 @@ def get_source_fields():
         "created_at",
         "updated_at",
         "url",
+        "datasource",
+        "feed_passwd",
+        "adjusted_beacon_freq",
+        "two_way_messaging",
+        "has_acc_data",
+        "predicted_expiry",
+        "feed_id",
+        "collar_key",
+        "collar_manufacturer",
+        "adjusted_frequency",
+        "collar_model",
+        "collar_status",
+        "silence_notification_threshold",
+        "data_owners",
+        "frequency",
+        "backup_frequency",
     ]
 
 
