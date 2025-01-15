@@ -14,7 +14,7 @@ dependencies:
       - kaleido==0.2.1
       - pre-commit>=3
       - coverage[toml]
-      - earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3
+      - earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3
       - ecoscope
       - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.3
       - nbsphinx

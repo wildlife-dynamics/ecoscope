@@ -2,36 +2,34 @@
 requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
 
 [project]
-name="ecoscope"
+name = "ecoscope"
 dynamic = ["version"]
-description="Standard Analytical Reporting Framework for Conservation"
+description = "Standard Analytical Reporting Framework for Conservation"
 readme = "README.rst"
-authors = [
-  { name = "Jake Wall", email = "walljcg@gmail.com" }
-]
-license = {file = "LICENSE"}
-classifiers=[
-    "License :: OSI Approved :: BSD License",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.4",
-    "Programming Language :: Python :: 3.5",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
+authors = [{ name = "Jake Wall", email = "walljcg@gmail.com" }]
+license = { file = "LICENSE" }
+classifiers = [
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.4",
+  "Programming Language :: Python :: 3.5",
+  "Programming Language :: Python :: 3.6",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
 ]
 dependencies = [
-    "backoff",
-    "earthengine-api",
-    "earthranger-client",
-    "fiona<1.10.0",
-    "geopandas<=0.14.2",
-    "numpy<2",
-    "pyproj",
-    "rasterio",
-    "tqdm",
+  "backoff",
+  "earthengine-api",
+  "earthranger-client",
+  "fiona<1.10.0",
+  "geopandas<=0.14.2",
+  "numpy<2",
+  "pyproj",
+  "rasterio",
+  "tqdm",
 ]
 
 [project.urls]
@@ -41,57 +39,49 @@ Tracker = "https://github.com/wildlife-dynamics/ecoscope/issues"
 
 [project.optional-dependencies]
 analysis = [
-    "astroplan",
-    "datashader",
-    "igraph",
-    "mapclassify",
-    "matplotlib",
-    "networkx",
-    "numba",
-    "scipy",
-    "scikit-image",
-    "scikit-learn",
+  "astroplan",
+  "datashader",
+  "igraph",
+  "mapclassify",
+  "matplotlib",
+  "networkx",
+  "numba",
+  "scipy",
+  "scikit-image",
+  "scikit-learn",
 ]
 async_earthranger = [
-    "earthranger-client @ git+https://github.com/PADAS/er-client@v1.2.3",
+  "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
 ]
 mapping = [
-    "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.3",
-    "matplotlib",
-    "mapclassify",
+  "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.3",
+  "matplotlib",
+  "mapclassify",
 ]
-plotting = [
-    "kaleido",
-    "plotly",
-    "scikit-learn",
-]
+plotting = ["kaleido", "plotly", "scikit-learn"]
 test = [
-    "pytest",
-    "pytest-asyncio",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest-reportlog",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
+  "pytest-mock",
+  "pytest-reportlog",
 ]
 docs = [
-    "myst-parser",
-    "nbsphinx",
-    "pydata-sphinx-theme",
-    "sphinx",
-    "sphinx-autoapi",
+  "myst-parser",
+  "nbsphinx",
+  "pydata-sphinx-theme",
+  "sphinx",
+  "sphinx-autoapi",
 ]
-all = [
-    "ecoscope[analysis,async_earthranger,mapping,plotting,test,docs]",
-]
+all = ["ecoscope[analysis,async_earthranger,mapping,plotting,test,docs]"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"
 filterwarnings = [
-    "ignore:distutils Version classes are deprecated. Use packaging.version instead.:DeprecationWarning",
-    'ignore:Feature.geometry\(\) is deprecated. Use Element.geometry\(\):DeprecationWarning',
+  "ignore:distutils Version classes are deprecated. Use packaging.version instead.:DeprecationWarning",
+  'ignore:Feature.geometry\(\) is deprecated. Use Element.geometry\(\):DeprecationWarning',
 ]
-markers = [
-    "io",
-]
+markers = ["io"]
 
 [tool.black]
 include = '\.pyi?$'
@@ -118,17 +108,17 @@ source = ['ecoscope']
 omit = ['ecoscope/contrib/*']
 
 [tool.setuptools]
-packages=[
-        "ecoscope",
-        "ecoscope.analysis",
-        "ecoscope.analysis.UD",
-        "ecoscope.base",
-        "ecoscope.contrib",
-        "ecoscope.io",
-        "ecoscope.mapping",
-        "ecoscope.plotting",
-    ]
-    
+packages = [
+  "ecoscope",
+  "ecoscope.analysis",
+  "ecoscope.analysis.UD",
+  "ecoscope.base",
+  "ecoscope.contrib",
+  "ecoscope.io",
+  "ecoscope.mapping",
+  "ecoscope.plotting",
+]
+
 [tool.setuptools_scm]
 write_to = "ecoscope/_version.py"
 write_to_template = "__version__ = '{version}'"
