@@ -189,6 +189,7 @@ def test_get_patrol_events(er_io):
     assert "patrol_id" in events
     assert "patrol_segment_id" in events
     assert "patrol_start_time" in events
+    assert "patrol_type" in events
     assert "time" in events
     check_time_is_parsed(events)
 
@@ -343,6 +344,7 @@ def test_get_patrol_observations_with_patrol_details(er_io):
     assert not observations.empty
     assert "patrol_id" in observations.columns
     assert "patrol_title" in observations.columns
+    assert "patrol_type" in observations.columns
     pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
     check_time_is_parsed(observations)
 
@@ -405,6 +407,7 @@ def test_get_patrol_observations_with_patrol_filter(er_io):
     assert "patrol_id" in observations.columns
     assert "patrol_title" in observations.columns
     assert "patrol_start_time" in observations.columns
+    assert "patrol_type" in observations.columns
     pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
 
 
