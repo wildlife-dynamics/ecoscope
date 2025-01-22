@@ -422,7 +422,7 @@ def draw_historic_timeseries(
         The title shown in the plot legend for historic band
     historic_mean_column: str
         The name of the dataframe column to pull historic mean values from
-    current_value_title: str
+    historic_mean_title: str
         The title shown in the plot legend for historic mean values
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)

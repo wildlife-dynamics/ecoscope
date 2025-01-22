@@ -51,6 +51,10 @@ class PercentileArea:
                 # calculate percentile value
                 # percentile_val = np.percentile(data_array[~np.isnan(data_array)], 100.0 - percentile)
                 values = np.sort(data_array[~np.isnan(data_array)]).flatten()
+
+                if len(values) == 0:
+                    continue
+
                 csum = np.cumsum(values)
                 percentile_val = values[np.argmin(np.abs(csum[-1] * (1 - percentile / 100) - csum))]
 
