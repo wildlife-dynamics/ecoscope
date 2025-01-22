@@ -194,6 +194,17 @@ def test_get_patrol_events(er_io):
     check_time_is_parsed(events)
 
 
+def test_get_patrol_events_with_event_type_filter(er_io):
+    event_type_filter = ["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"]
+    events = er_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+        event_type=event_type_filter,
+    )
+    assert not events.empty
+    assert events["event_type"].uniquie().tolist() == event_type_filter
+
+
 @patch("ecoscope.io.EarthRangerIO.get_patrols")
 def test_get_patrol_events_empty(patrols_mock, er_io):
     patrols_mock.return_value = pd.DataFrame()
