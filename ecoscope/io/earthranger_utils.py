@@ -2,6 +2,7 @@ import typing
 import geopandas as gpd
 import pandas as pd
 from dateutil import parser
+from datetime import datetime, timedelta
 
 TIME_COLS = [
     "time",
@@ -82,3 +83,14 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
 
 def filter_bad_geojson(dataframe: pd.DataFrame):
     return dataframe[dataframe["geojson"].apply(lambda x: True if isinstance(x, dict) and x.get("geometry") else False)]
+
+def generate_day_filters(start_date: datetime, end_date: datetime) -> typing.List[str]:
+    """
+    Generates a list of `month` and `day` strings for partition filtering.
+    """
+    day_list = []
+    filter_date = start_date
+    while filter_date <= end_date:
+        day_list.append(filter_date.strftime("%Y-%m-%d"))
+        filter_date += timedelta(days=1)
+    return day_list

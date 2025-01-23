@@ -18,9 +18,12 @@ from ecoscope.io.earthranger_utils import (
     pack_columns,
     to_gdf,
     to_hex,
+    generate_day_filters,
 )
 from erclient.client import ERClient, ERClientException, ERClientNotFound
 from shapely.geometry import shape
+from shapely import wkb
+import pyarrow.parquet as pq
 from tqdm.auto import tqdm
 
 
@@ -307,6 +310,108 @@ class EarthRangerIO(ERClient):
 
         observations.sort_values("recorded_at", inplace=True)
         return to_gdf(observations)
+
+    def _get_observations_gcs(
+        self,
+        source_ids=None,
+        subject_ids=None,
+        subjectsource_ids=None,
+        tz="UTC",
+        since=None,
+        until=None,
+        filter=None,
+        include_details=None,
+        created_after=None,
+        **addl_kwargs,
+    ):
+        """
+        Return observations matching queries from GCS. If `subject_id`, `source_id`, or `subjectsource_id` is specified, the
+        index is set to the provided value.
+        Parameters
+        ----------
+        subject_ids: filter to a single subject
+        source_ids: filter to a single source
+        subjectsource_ids: filter to a subjectsource_id, rather than source_id + time range
+        since: get observations after this ISO8061 date, include timezone
+        until:get observations up to this ISO8061 date, include timezone
+        filter
+            filter using exclusion_flags for an observation.
+            filter=None returns everything
+            filter=0  filters out everything but rows with exclusion flag 0 (i.e, passes back clean data)
+            filter=1  filters out everything but rows with exclusion flag 1 (i.e, passes back manually filtered data)
+            filter=2, filters out everything but rows with exclusion flag 2 (i.e., passes back automatically filtered
+            data)
+            filter=3, filters out everything but rows with exclusion flag 2 or 1 (i.e., passes back both manual and
+            automatically filtered data)
+        include_details: one of [true,false], default is false. This brings back the observation additional field
+        created_after: get observations created (saved in EarthRanger) after this ISO8061 date, include timezone
+        Returns
+        -------
+        observations : gpd.GeoDataFrame
+        """
+        assert (source_ids, subject_ids, subjectsource_ids).count(None) == 2
+
+        return_columns = ["id","location","created_at","recorded_at","source_id","exclusion_flags"]
+        path = "gs://er-datalake-io/observation_sourceid/"
+        filter_conditions = []
+
+        params = clean_kwargs(
+            addl_kwargs,
+            since=since,
+            until=until,
+            filter=filter,
+            include_details=include_details,
+            created_after=created_after,
+        )
+
+        if params.get("since") is not None:
+            since_time = datetime.datetime.fromisoformat(params["since"])
+            if params.get("until") is not None:
+                until_time = datetime.datetime.fromisoformat(params["until"])
+            else:
+                until_time = datetime.datetime.now()
+            day_filters = generate_day_filters(since_time, until_time)
+            filter_conditions.append(('record_day', 'in', day_filters))
+
+        if params.get("filter") is not None:
+            filter_conditions.append(('exclusion_flags', '==', params["filter"]))
+
+        if params.get("created_after") is not None:
+            created_after_time = datetime.datetime.fromisoformat(params["created_after"])
+            filter_conditions.append(('created_at', '>=', created_after_time))
+
+        if params.get("include_details"):
+            return_columns.append("additional")
+
+        # Filter query based on source_id, subject_id, or subjectsource_id
+        if source_ids:
+            if isinstance(source_ids, str):
+                source_ids = [source_ids]
+            filter_conditions.append(('source_id', 'in', source_ids))
+        elif subject_ids:
+            return_columns.append("subject_id")
+            if isinstance(subject_ids, str):
+                subject_ids = [subject_ids]
+            source_ids = self.get_subjectsources(subjects=",".join(subject_ids))["source"].tolist()
+            filter_conditions.append(('source_id', 'in', source_ids))
+        else:
+            raise NotImplementedError("Query by subjectsource_ids is not implemented yet!")
+
+        self.logger.info(f"Downloading Observations...")
+        #print(filter_conditions)
+        observations = pq.read_table(path, columns=return_columns, filters=filter_conditions).to_pandas()
+        observations["geometry"] = observations["location"].apply(wkb.loads)
+        observations.rename(columns={ "source_id": "source", "additional":"observation_details"}, inplace=True)
+
+        if observations.empty:
+            return gpd.GeoDataFrame()
+
+        observations = clean_time_cols(observations)
+        observations["created_at"] = observations["created_at"].dt.tz_localize(tz)
+        observations["recorded_at"] = observations["recorded_at"].dt.tz_localize(tz)
+
+        observations.sort_values("recorded_at", inplace=True)
+        return gpd.GeoDataFrame(observations, geometry="geometry", crs="EPSG:4326")
 
     def get_source_observations(self, source_ids, include_source_details=False, relocations=True, **kwargs):
         """
