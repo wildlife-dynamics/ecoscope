@@ -762,7 +762,7 @@ class EarthRangerIO(ERClient):
             for segment in row.get("patrol_segments", []):
                 for event in segment.get("events", []):
                     if (
-                        event_type and event.get("event_type") in event_type
+                        event_type is None or event_type == [] or event.get("event_type") in event_type
                     ):  # need to double check event_type is the key
                         event["patrol_id"] = row.get("id")
                         event["patrol_segment_id"] = segment.get("id")
