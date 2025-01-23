@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 import typing
@@ -19,6 +20,8 @@ except ModuleNotFoundError:
         'Missing optional dependencies required by this module. \
          Please run pip install ecoscope["analysis"]'
     )
+
+logger = logging.getLogger(__name__)
 
 
 @nb.cfunc("double(intc, CPointer(double))")
@@ -91,6 +94,7 @@ def calculate_etd_range(
     raster_profile: raster.RasterProfile = None,
     expansion_factor: float = 1.3,
     weibull_pdf: typing.Union[Weibull2Parameter, Weibull3Parameter] = Weibull2Parameter(),
+    grid_threshold: int = 100,
 ) -> raster.RasterData:
     """
     The ETDRange class provides a trajectory-based, nonparametric approach to estimate the utilization distribution (UD)
@@ -107,6 +111,7 @@ def calculate_etd_range(
     raster_profile : raster.RasterProfile
     expansion_factor : float
     weibull_pdf : Weibull2Parameter or Weibull3Parameter
+    grid_threshold: int
 
     Returns
     -------
@@ -171,6 +176,13 @@ def calculate_etd_range(
 
     centroids_coords = np.dot(grid_centroids, np.mgrid[1:2, :num_columns, :num_rows].T.reshape(-1, 3, 1))
     centroids_coords = centroids_coords.squeeze().T
+
+    if centroids_coords.size < grid_threshold:
+        logger.warning(
+            f"Current data size {centroids_coords.size}  is too small to calculate density."
+            f"The threshold value is {grid_threshold}."
+        )
+        return raster.RasterData(data=np.array([]), crs=raster_profile.crs, transform=raster_profile.transform)
 
     if centroids_coords.ndim != 2:
         centroids_coords = centroids_coords.reshape(1, -1)

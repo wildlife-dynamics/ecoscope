@@ -67,7 +67,6 @@ def test_etd_range_without_tif_file(movebank_trajectory_gdf, raster_profile):
     try:
         raster_data = UD.calculate_etd_range(
             trajectory_gdf=movebank_trajectory_gdf,
-            output_path=file.name,
             max_speed_kmhr=1.05 * movebank_trajectory_gdf.speed_kmhr.max(),
             raster_profile=raster_profile,
             expansion_factor=1.3,
