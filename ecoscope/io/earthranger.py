@@ -1186,7 +1186,7 @@ class EarthRangerIO(ERClient):
                     "records"
                 )
                 del obs["geometry"]
-                obs = pack_columns(obs, columns=["source", "recorded_at", "location"])
+                obs = pack_columns(obs, columns=["source", "recorded_at", "location", "exclusion_flags", "additional"])
                 post_data = obs.to_dict("records")
                 results = super(EarthRangerIO, self).post_observation(post_data)
             except ERClientException as exc:
