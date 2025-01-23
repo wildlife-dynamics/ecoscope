@@ -179,8 +179,8 @@ def calculate_etd_range(
 
     if centroids_coords.size < grid_threshold:
         logger.warning(
-            f"Centroid size {centroids_coords.size}  is too small to calculate density."
-            f"The threshold value is {grid_threshold}."
+            f"Centroid size {centroids_coords.size} is too small to calculate density. "
+            f"The threshold value is {grid_threshold}. "
             "Check if there’s a data issue or decrease pixel size"
         )
         return raster.RasterData(data=np.array([]), crs=raster_profile.crs, transform=raster_profile.transform)
