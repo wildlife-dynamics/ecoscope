@@ -35,8 +35,9 @@ def get_percentile_area(
 
     """
     shapes = []
-    data_array = raster_data.data
     for percentile in percentile_levels:
+        data_array = raster_data.data.copy()
+
         # calculate percentile value
         values = np.sort(data_array[~np.isnan(data_array)]).flatten()
         if len(values) == 0:
