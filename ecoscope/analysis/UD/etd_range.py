@@ -85,13 +85,13 @@ class Weibull3Parameter(WeibullPDF):
 
 def calculate_etd_range(
     trajectory_gdf: Trajectory,
-    output_path: typing.Union[str, bytes, os.PathLike],
+    output_path: typing.Union[str, bytes, os.PathLike, None] = None,
     max_speed_kmhr: float = 0.0,
     max_speed_percentage: float = 0.9999,
     raster_profile: raster.RasterProfile = None,
     expansion_factor: float = 1.3,
     weibull_pdf: typing.Union[Weibull2Parameter, Weibull3Parameter] = Weibull2Parameter(),
-) -> None:
+) -> raster.RasterData:
     """
     The ETDRange class provides a trajectory-based, nonparametric approach to estimate the utilization distribution (UD)
     of an animal, using model parameters derived directly from the movement behaviour of the species.
@@ -101,7 +101,7 @@ def calculate_etd_range(
     Parameters
     ----------
     trajectory_gdf : geopandas.GeoDataFrame
-    output_path : str or PathLike
+    output_path : str or PathLike or None
     max_speed_kmhr : float
     max_speed_percentage : 0.999
     raster_profile : raster.RasterProfile
@@ -211,12 +211,17 @@ def calculate_etd_range(
     # Normalize the grid values
     raster_ndarray = raster_ndarray / raster_ndarray.sum()
 
-    # Set the null data values
-    raster_ndarray[np.isnan(raster_ndarray) | (raster_ndarray == 0)] = raster_profile.nodata_value
+    ndarray = raster_ndarray.reshape(num_rows, num_columns)
 
     # write raster_ndarray to GeoTIFF file.
-    raster.RasterPy.write(
-        ndarray=raster_ndarray.reshape(num_rows, num_columns),
-        fp=output_path,
-        **raster_profile,
-    )
+    if output_path:
+        # Set the null data values
+        raster_ndarray[np.isnan(raster_ndarray) | (raster_ndarray == 0)] = raster_profile.nodata_value
+
+        raster.RasterPy.write(
+            ndarray,
+            fp=output_path,
+            **raster_profile,
+        )
+
+    return raster.RasterData(data=ndarray.astype("float32"), crs=raster_profile.crs, transform=raster_profile.transform)

@@ -4,13 +4,15 @@ from tempfile import NamedTemporaryFile
 import geopandas as gpd
 import geopandas.testing
 import numpy as np
+import pytest
 
 import ecoscope
 from ecoscope.analysis import UD
 from ecoscope.analysis.percentile import get_percentile_area
 
 
-def test_etd_range(movebank_relocations):
+@pytest.fixture
+def movebank_trajectory_gdf(movebank_relocations):
     # apply relocation coordinate filter to movebank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
@@ -23,15 +25,20 @@ def test_etd_range(movebank_relocations):
     movebank_relocations.remove_filtered(inplace=True)
 
     # Create Trajectory
-    movebank_trajectory_gdf = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    return ecoscope.base.Trajectory.from_relocations(movebank_relocations)
 
-    raster_profile = ecoscope.io.raster.RasterProfile(
+
+@pytest.fixture
+def raster_profile():
+    return ecoscope.io.raster.RasterProfile(
         pixel_size=250.0,
         crs="ESRI:102022",
         nodata_value=np.nan,
         band_count=1,  # Albers Africa Equal Area Conic
     )
 
+
+def test_etd_range_with_tif_file(movebank_trajectory_gdf, raster_profile):
     file = NamedTemporaryFile(delete=False)
     try:
         UD.calculate_etd_range(
@@ -42,8 +49,32 @@ def test_etd_range(movebank_relocations):
             expansion_factor=1.3,
         )
 
+        raster_data = ecoscope.io.raster.RasterData.from_raster_file(file.name)
+
         percentile_area = get_percentile_area(
-            percentile_levels=[99.9], raster_path=file.name, subject_id="Salif_Keita"
+            percentile_levels=[99.9], raster_data=raster_data, subject_id="Salif_Keita"
+        ).to_crs(4326)
+    finally:
+        file.close()
+        os.unlink(file.name)
+
+    expected_percentile_area = gpd.read_feather("tests/test_output/etd_percentile_area.feather")
+    gpd.testing.geom_almost_equals(percentile_area, expected_percentile_area)
+
+
+def test_etd_range_without_tif_file(movebank_trajectory_gdf, raster_profile):
+    file = NamedTemporaryFile(delete=False)
+    try:
+        raster_data = UD.calculate_etd_range(
+            trajectory_gdf=movebank_trajectory_gdf,
+            output_path=file.name,
+            max_speed_kmhr=1.05 * movebank_trajectory_gdf.speed_kmhr.max(),
+            raster_profile=raster_profile,
+            expansion_factor=1.3,
+        )
+
+        percentile_area = get_percentile_area(
+            percentile_levels=[99.9], raster_data=raster_data, subject_id="Salif_Keita"
         ).to_crs(4326)
     finally:
         file.close()
