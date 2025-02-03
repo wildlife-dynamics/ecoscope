@@ -1,23 +1,27 @@
+import logging
 import math
 import os
 import typing
 from dataclasses import dataclass
 
 import numpy as np
+
 from ecoscope.base import Trajectory
 from ecoscope.io import raster
 
 try:
     import numba as nb
     import scipy
-    from sklearn import neighbors
     from scipy.optimize import minimize
     from scipy.stats import weibull_min
+    from sklearn import neighbors
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
          Please run pip install ecoscope["analysis"]'
     )
+
+logger = logging.getLogger(__name__)
 
 
 @nb.cfunc("double(intc, CPointer(double))")
@@ -84,13 +88,14 @@ class Weibull3Parameter(WeibullPDF):
 
 def calculate_etd_range(
     trajectory_gdf: Trajectory,
-    output_path: typing.Union[str, bytes, os.PathLike],
+    output_path: typing.Union[str, bytes, os.PathLike, None] = None,
     max_speed_kmhr: float = 0.0,
     max_speed_percentage: float = 0.9999,
     raster_profile: raster.RasterProfile = None,
     expansion_factor: float = 1.3,
     weibull_pdf: typing.Union[Weibull2Parameter, Weibull3Parameter] = Weibull2Parameter(),
-) -> None:
+    grid_threshold: int = 100,
+) -> raster.RasterData:
     """
     The ETDRange class provides a trajectory-based, nonparametric approach to estimate the utilization distribution (UD)
     of an animal, using model parameters derived directly from the movement behaviour of the species.
@@ -100,12 +105,13 @@ def calculate_etd_range(
     Parameters
     ----------
     trajectory_gdf : geopandas.GeoDataFrame
-    output_path : str or PathLike
+    output_path : str or PathLike or None
     max_speed_kmhr : float
     max_speed_percentage : 0.999
     raster_profile : raster.RasterProfile
     expansion_factor : float
     weibull_pdf : Weibull2Parameter or Weibull3Parameter
+    grid_threshold: int
 
     Returns
     -------
@@ -169,8 +175,20 @@ def calculate_etd_range(
     grid_centroids[1, 0] = y_max - raster_profile.pixel_size * 0.5
 
     centroids_coords = np.dot(grid_centroids, np.mgrid[1:2, :num_columns, :num_rows].T.reshape(-1, 3, 1))
+    centroids_coords = centroids_coords.squeeze().T
 
-    tr = neighbors.KDTree(centroids_coords.squeeze().T)
+    if centroids_coords.size < grid_threshold:
+        logger.warning(
+            f"Centroid size {centroids_coords.size} is too small to calculate density. "
+            f"The threshold value is {grid_threshold}. "
+            "Check if there’s a data issue or decrease pixel size"
+        )
+        return raster.RasterData(data=np.array([]), crs=raster_profile.crs, transform=raster_profile.transform)
+
+    if centroids_coords.ndim != 2:
+        centroids_coords = centroids_coords.reshape(1, -1)
+
+    tr = neighbors.KDTree(centroids_coords)
 
     del centroids_coords
 
@@ -206,12 +224,17 @@ def calculate_etd_range(
     # Normalize the grid values
     raster_ndarray = raster_ndarray / raster_ndarray.sum()
 
-    # Set the null data values
-    raster_ndarray[raster_ndarray == 0] = raster_profile.nodata_value
+    ndarray = raster_ndarray.reshape(num_rows, num_columns)
 
     # write raster_ndarray to GeoTIFF file.
-    raster.RasterPy.write(
-        ndarray=raster_ndarray.reshape(num_rows, num_columns),
-        fp=output_path,
-        **raster_profile,
-    )
+    if output_path:
+        # Set the null data values
+        raster_ndarray[np.isnan(raster_ndarray) | (raster_ndarray == 0)] = raster_profile.nodata_value
+
+        raster.RasterPy.write(
+            ndarray,
+            fp=output_path,
+            **raster_profile,
+        )
+
+    return raster.RasterData(data=ndarray.astype("float32"), crs=raster_profile.crs, transform=raster_profile.transform)

@@ -2,6 +2,7 @@ import logging
 import math
 import os
 from collections import UserDict
+from dataclasses import dataclass
 
 import geopandas as gpd
 import numpy as np
@@ -100,6 +101,20 @@ class RasterProfile(UserDict):
     def __setitem__(self, key, item):
         self.data[key] = item
         self._recompute_transform_(key)
+
+
+@dataclass
+class RasterData:
+    data: np.ndarray
+    crs: str
+    transform: rio.Affine
+
+    @classmethod
+    def from_raster_file(cls, raster_path):
+        with rasterio.open(raster_path) as src:
+            data_array = src.read(1).astype(np.float32)
+            data_array[data_array == src.nodata] = np.nan
+            return cls(data_array, src.crs.to_wkt(), src.transform)
 
 
 class RasterPy:
@@ -249,3 +264,14 @@ def grid_to_raster(grid=None, val_column="", out_dir="", raster_name=None, xlen=
         ).write(vals, 1)
 
         return memfile
+
+
+def raster_to_grid(raster_path):
+    with rasterio.open(raster_path) as src:
+        data_array = src.read(1).astype(np.float32)
+        data_array[data_array == src.nodata] = np.nan
+
+
+def get_crs(raster_path):
+    with rasterio.open(raster_path) as src:
+        return src.crs.to_wkt()
