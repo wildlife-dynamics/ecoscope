@@ -22,10 +22,9 @@ def pytest_configure(config):
             EE_ACCOUNT = os.getenv("EE_ACCOUNT")
             EE_PRIVATE_KEY_DATA = os.getenv("EE_PRIVATE_KEY_DATA")
             if EE_ACCOUNT and EE_PRIVATE_KEY_DATA:
-                ee.Initialize(credentials=ee.ServiceAccountCredentials(EE_ACCOUNT, key_data=EE_PRIVATE_KEY_DATA))
-            else:
-                ee.Initialize()
-            pytest.earthengine = True
+                credentials = ee.ServiceAccountCredentials(EE_ACCOUNT, key_data=EE_PRIVATE_KEY_DATA)
+                ee.Initialize(credentials=credentials, project=credentials.project_id)
+                pytest.earthengine = True
         except Exception:
             warnings.warn(Warning("Earth Engine can not be initialized."))
 
