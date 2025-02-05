@@ -7,8 +7,8 @@ on:
 env:
   ER_USERNAME: ${{ secrets.ER_USERNAME }}
   ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
-  EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
-  EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+  EE_ACCOUNT: ${{ secrets.EE_ACCOUNT_NEW }}
+  EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA_NEW }}
 
 
 jobs:
@@ -32,5 +32,5 @@ jobs:
     env:
       ER_USERNAME: ${{ secrets.ER_USERNAME }}
       ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
-      EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
-      EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+      EE_ACCOUNT: ${{ secrets.EE_ACCOUNT_NEW }}
+      EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA_NEW }}
