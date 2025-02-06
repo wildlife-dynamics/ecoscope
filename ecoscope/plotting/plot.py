@@ -427,6 +427,8 @@ def draw_historic_timeseries(
         The title shown in the plot legend for historic mean values
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)
+    time_column: str
+        The time column. Default: "img_date"
     Returns
     -------
     fig : plotly.graph_objects.Figure
