@@ -340,6 +340,52 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
     return fig
 
 
+def bar_chart(
+    data: pd.DataFrame,
+    columns: list[str],
+    agg_funcs: list[str],
+    labels: list[str],
+    category: str,
+    layout_kwargs: dict = None,
+):
+    """
+    Creates a bar chart from the provided dataframe
+    Parameters
+    ----------
+    data: pd.DataFrame
+        The data to plot
+    columns: list[str]
+        The name of the dataframe columns to pull bar values from
+    agg_funcs: list[str]
+        The pandas.Dataframe.aggregate() function to run ie; 'count', 'sum'
+    category_columns: str
+        The name of the dataframe columns to group values
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly bar chart
+    """
+    fig = go.Figure(layout=layout_kwargs)
+
+    named_aggs = {label: (col, func) for col, func, label in zip(columns, agg_funcs, labels)}
+
+    result_data = data.groupby(category).agg(**named_aggs).reset_index()
+
+    for _, label in enumerate(labels):
+        fig.add_trace(
+            go.Bar(
+                name=label,
+                x=result_data[category],
+                y=result_data[label],
+            )
+        )
+
+    fig.update_layout(barmode="group")
+    return fig
+
+
 def pie_chart(
     data: pd.DataFrame,
     value_column: str,
