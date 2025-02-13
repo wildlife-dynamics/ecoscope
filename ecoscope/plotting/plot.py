@@ -401,6 +401,7 @@ def draw_historic_timeseries(
     upper_lower_band_style: dict = {"mode": "lines", "line_color": "green"},
     historic_mean_style: dict = {"mode": "lines", "line": {"color": "green", "dash": "dot"}},
     current_value_style: dict = {"mode": "lines", "line_color": "navy"},
+    time_column: str = "img_date",
 ):
     """
     Creates a timeseries plot compared with historical values
@@ -426,6 +427,8 @@ def draw_historic_timeseries(
         The title shown in the plot legend for historic mean values
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)
+    time_column: str
+        The time column. Default: "img_date"
     Returns
     -------
     fig : plotly.graph_objects.Figure
@@ -438,7 +441,7 @@ def draw_historic_timeseries(
         # add the upper bound
         fig.add_trace(
             go.Scatter(
-                x=df.img_date,
+                x=df[time_column],
                 y=df[historic_max_column],
                 fill=None,
                 name="",
@@ -450,7 +453,7 @@ def draw_historic_timeseries(
         # lower band
         fig.add_trace(
             go.Scatter(
-                x=df.img_date,
+                x=df[time_column],
                 y=df[historic_min_column],
                 fill="tonexty",
                 name=historic_band_title,
@@ -462,7 +465,7 @@ def draw_historic_timeseries(
         # add the historic mean
         fig.add_trace(
             go.Scatter(
-                x=df.img_date,
+                x=df[time_column],
                 y=df[historic_mean_column],
                 fill=None,
                 name=historic_mean_title,
@@ -473,7 +476,7 @@ def draw_historic_timeseries(
     # add current values
     fig.add_trace(
         go.Scatter(
-            x=df.img_date,
+            x=df[time_column],
             y=df[current_value_column],
             fill=None,
             name=current_value_title,
