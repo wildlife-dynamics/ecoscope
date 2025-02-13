@@ -635,7 +635,7 @@ class EarthRangerIO(ERClient):
             if df.empty:
                 return gpd.GeoDataFrame()
 
-            df["geometry"] = gpd.GeoDataFrame.from_features(df["geojson"])["geometry"]
+            df["geometry"] = df["geojson"].apply(lambda x: shape(x.get("geometry")))
             gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
             gdf.sort_values("time", inplace=True)
             gdf.set_index("id", inplace=True)
