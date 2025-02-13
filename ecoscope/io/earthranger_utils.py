@@ -94,6 +94,6 @@ def gdf_from_geojson(df: pd.DataFrame):
     if df.empty:
         return gpd.GeoDataFrame()
 
-    df["geometry"] = ["geojson"].apply(lambda x: shape(x.get("geometry")))
+    df["geometry"] = df["geojson"].apply(lambda x: shape(x.get("geometry")))
     gdf = gpd.GeoDataFrame(df)
     return gdf

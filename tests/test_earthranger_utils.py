@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from ecoscope.io.earthranger_utils import clean_time_cols
+from ecoscope.io.earthranger_utils import clean_time_cols, gdf_from_geojson
 
 
 @pytest.fixture
@@ -51,3 +51,8 @@ def test_clean_time_cols(df_with_times):
     # check the nan separately from the array equality
     assert np.array_equal(expected_times, cleaned["time"].array[:-1])
     assert pd.isnull(cleaned["time"]["H"])
+
+
+def test_gdf_from_geojson(sample_events_df_with_bad_geojson, sample_patrol_events_with_bad_geojson):
+    events = gdf_from_geojson(sample_events_df_with_bad_geojson)
+    assert len(events) == 4
