@@ -16,31 +16,6 @@ from ecoscope.io.earthranger_utils import TIME_COLS
 pytestmark = pytest.mark.io
 
 
-@pytest.fixture
-def sample_bad_events_geojson():
-    """
-    A mock get_events response with intentionally bad geojson:
-    There are 6 events in this mock
-    event 0: 'geometry' is None
-    event 5: 'geomtery' and 'properties' are None
-    """
-    return pd.read_feather("tests/sample_data/io/get_events_bad_geojson.feather")
-
-
-@pytest.fixture
-def sample_bad_patrol_events_geojson():
-    """
-    A mock get_patrol_events response with intentionally bad geojson:
-    There's a single patrol in this mock with events that have the following problems in their json
-        event 0: 'geometry' key is not present
-        event 1: 'properties' key is not present
-        event 2: 'datetime' key is not present within 'properties
-        event 3: is untouched
-        event 4: 'geojson' is an empty dict
-    """
-    return pd.read_json("tests/sample_data/io/get_patrol_events_bad_geojson.json")
-
-
 def check_time_is_parsed(df):
     for col in TIME_COLS:
         if col in df.columns:
@@ -423,8 +398,8 @@ def test_get_patrol_observations_with_patrol_filter(er_io):
 
 
 @patch("erclient.client.ERClient.get_objects_multithreaded")
-def test_get_events_bad_geojson(get_objects_mock, sample_bad_events_geojson, er_io):
-    get_objects_mock.return_value = sample_bad_events_geojson
+def test_get_events_bad_geojson(get_objects_mock, sample_events_df_with_bad_geojson, er_io):
+    get_objects_mock.return_value = sample_events_df_with_bad_geojson
 
     events = er_io.get_events(event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"])
     assert not events.empty
@@ -438,8 +413,8 @@ def test_get_events_bad_geojson(get_objects_mock, sample_bad_events_geojson, er_
 
 
 @patch("erclient.client.ERClient.get_objects_multithreaded")
-def test_get_patrol_events_bad_geojson(get_objects_mock, sample_bad_patrol_events_geojson, er_io):
-    get_objects_mock.return_value = sample_bad_patrol_events_geojson
+def test_get_patrol_events_bad_geojson(get_objects_mock, sample_patrol_events_with_bad_geojson, er_io):
+    get_objects_mock.return_value = sample_patrol_events_with_bad_geojson
 
     patrol_events = er_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
