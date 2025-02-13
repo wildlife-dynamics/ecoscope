@@ -630,13 +630,13 @@ class EarthRangerIO(ERClient):
 
         if not df.empty:
             df = clean_time_cols(df)
-            if df.loc[0, "location"] is not None:
-                df = filter_bad_geojson(df)
-                if df.empty:
-                    return gpd.GeoDataFrame()
+            df = filter_bad_geojson(df)
 
-                df["geometry"] = gpd.GeoDataFrame.from_features(df["geojson"])["geometry"]
-                gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
+            if df.empty:
+                return gpd.GeoDataFrame()
+
+            df["geometry"] = gpd.GeoDataFrame.from_features(df["geojson"])["geometry"]
+            gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
             gdf.sort_values("time", inplace=True)
             gdf.set_index("id", inplace=True)
             return gdf
