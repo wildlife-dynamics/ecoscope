@@ -89,11 +89,16 @@ def filter_bad_geojson(dataframe: pd.DataFrame, reset_index=True):
 
 
 def gdf_from_geojson(df: pd.DataFrame):
-    df = filter_bad_geojson(df, reset_index=True)
-
     if df.empty:
         return gpd.GeoDataFrame()
 
-    df["geometry"] = df["geojson"].apply(lambda x: shape(x.get("geometry")))
-    gdf = gpd.GeoDataFrame(df)
+    # do this for times as well
+    def geometry_from_geojson(row):
+        try:
+            return shape(row.get("geometry"))
+        except Exception:
+            return None
+
+    df["geometry"] = df["geojson"].apply(geometry_from_geojson)
+    gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
     return gdf

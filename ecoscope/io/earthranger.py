@@ -15,6 +15,7 @@ from ecoscope.io.earthranger_utils import (
     dataframe_to_dict,
     filter_bad_geojson,
     format_iso_time,
+    gdf_from_geojson,
     pack_columns,
     to_gdf,
     to_hex,
@@ -630,13 +631,7 @@ class EarthRangerIO(ERClient):
 
         if not df.empty:
             df = clean_time_cols(df)
-            df = filter_bad_geojson(df)
-
-            if df.empty:
-                return gpd.GeoDataFrame()
-
-            df["geometry"] = df["geojson"].apply(lambda x: shape(x.get("geometry")))
-            gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
+            gdf = gdf_from_geojson(df)
             gdf.sort_values("time", inplace=True)
             gdf.set_index("id", inplace=True)
             return gdf
