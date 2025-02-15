@@ -190,6 +190,7 @@ def test_get_patrol_events(er_io):
     assert "patrol_segment_id" in events
     assert "patrol_start_time" in events
     assert "patrol_type" in events
+    assert "patrol_serial_number" in events
     assert "time" in events
     check_time_is_parsed(events)
 
