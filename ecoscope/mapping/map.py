@@ -133,6 +133,8 @@ class EcoMap(Map):
         ----------
         gdf : gpd.GeoDataFrame
             The data to be cleaned
+        keep_columns:
+            A list of dataframe columns to keep (geometry column will always be kept)
         """
         gdf.to_crs(4326, inplace=True)
         gdf = gdf.loc[(~gdf.geometry.isna()) & (~gdf.geometry.is_empty)]
