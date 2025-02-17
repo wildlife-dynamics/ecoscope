@@ -531,6 +531,12 @@ class EcoMap(Map):
                 "name": "Esri.WorldTopoMap",
                 "max_zoom": 17,
             },
+            "LANDDX": {
+                "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer",
+                "attribution": "landDx",
+                "name": "landDx",
+                "max_zoom": 17,
+            },
         }
 
         layer = xyz_tiles.get(layer)
