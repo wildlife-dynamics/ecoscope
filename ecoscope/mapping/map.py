@@ -91,17 +91,22 @@ class EcoMap(Map):
         self.deck_widgets = update
 
     @staticmethod
-    def layers_from_gdf(gdf: gpd.GeoDataFrame, **kwargs) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
+    def layers_from_gdf(
+        gdf: gpd.GeoDataFrame, tooltip_columns: list[str] = None, **kwargs
+    ) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
         """
         Creates map layers from the provided gdf, returns multiple layers when geometry is mixed
         Style kwargs are provided to all created layers
         Parameters
         ----------
         gdf : gpd.GeoDataFrame
-            The data to be cleaned
+            The data used to create the visualization layer
+        tooltip_columns:
+            A list of dataframe columns to be included in the map picking tooltip
+            Will default to all columns if no list is provided
         kwargs: Additional kwargs passed to lonboard
         """
-        gdf = EcoMap._clean_gdf(gdf)
+        gdf = EcoMap._clean_gdf(gdf, keep_columns=tooltip_columns)
 
         # Take from **kwargs the valid kwargs for each underlying layer
         # Allows a param set to be passed for a potentially multi-geometry GDF
@@ -121,13 +126,15 @@ class EcoMap(Map):
         )
 
     @staticmethod
-    def _clean_gdf(gdf: gpd.GeoDataFrame) -> gpd.geodataframe:
+    def _clean_gdf(gdf: gpd.GeoDataFrame, keep_columns: list[str] = None) -> gpd.geodataframe:
         """
         Cleans a gdf for use in a map layer, ensures EPSG:4326 and removes any empty geometry
         Parameters
         ----------
         gdf : gpd.GeoDataFrame
             The data to be cleaned
+        keep_columns:
+            A list of dataframe columns to keep (geometry column will always be kept)
         """
         gdf.to_crs(4326, inplace=True)
         gdf = gdf.loc[(~gdf.geometry.isna()) & (~gdf.geometry.is_empty)]
@@ -135,16 +142,28 @@ class EcoMap(Map):
         for col in gdf:
             if pd.api.types.is_datetime64_any_dtype(gdf[col]):
                 gdf[col] = gdf[col].astype("string")
+
+        if keep_columns is not None:
+            if "geometry" not in keep_columns:
+                keep_columns.append("geometry")
+            drop = [column for column in gdf.columns if column not in keep_columns]
+            gdf = gdf.drop(columns=drop)
+
         return gdf
 
     @staticmethod
-    def polyline_layer(gdf: gpd.GeoDataFrame, color_column: str = None, **kwargs) -> PathLayer:
+    def polyline_layer(
+        gdf: gpd.GeoDataFrame, color_column: str = None, tooltip_columns: list[str] = None, **kwargs
+    ) -> PathLayer:
         """
         Creates a polyline layer to add to a map
         Parameters
         ----------
         gdf : gpd.GeoDataFrame
-            The data used to create the visualization layer
+            The data used to create the polyline layer
+        tooltip_columns:
+            A list of dataframe columns to be included in the map picking tooltip
+            Will default to all columns if no list is provided
         kwargs:
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/path-layer/
@@ -152,19 +171,26 @@ class EcoMap(Map):
         if not kwargs.get("get_color") and color_column:
             kwargs["get_color"] = np.array([color for color in gdf[color_column].values], dtype="uint8")
 
-        gdf = EcoMap._clean_gdf(gdf)
+        gdf = EcoMap._clean_gdf(gdf, keep_columns=tooltip_columns)
         return PathLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
     def polygon_layer(
-        gdf: gpd.GeoDataFrame, fill_color_column: str = None, line_color_column: str = None, **kwargs
+        gdf: gpd.GeoDataFrame,
+        fill_color_column: str = None,
+        line_color_column: str = None,
+        tooltip_columns: list[str] = None,
+        **kwargs,
     ) -> PolygonLayer:
         """
         Creates a polygon layer to add to a map
         Parameters
         ----------
         gdf : gpd.GeoDataFrame
-            The data used to create the visualization layer
+            The data used to create the polygon layer
+        tooltip_columns:
+            A list of dataframe columns to be included in the map picking tooltip
+            Will default to all columns if no list is provided
         kwargs:
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/polygon-layer/
@@ -174,19 +200,26 @@ class EcoMap(Map):
         if not kwargs.get("get_line_color") and line_color_column:
             kwargs["get_line_color"] = np.array([color for color in gdf[line_color_column].values], dtype="uint8")
 
-        gdf = EcoMap._clean_gdf(gdf)
+        gdf = EcoMap._clean_gdf(gdf, keep_columns=tooltip_columns)
         return PolygonLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
     def point_layer(
-        gdf: gpd.GeoDataFrame, fill_color_column: str = None, line_color_column: str = None, **kwargs
+        gdf: gpd.GeoDataFrame,
+        fill_color_column: str = None,
+        line_color_column: str = None,
+        tooltip_columns: list[str] = None,
+        **kwargs,
     ) -> ScatterplotLayer:
         """
         Creates a polygon layer to add to a map
         Parameters
         ----------
         gdf : gpd.GeoDataFrame
-            The data used to create the visualization layer
+            The data used to create the point layer
+        tooltip_columns:
+            A list of dataframe columns to be included in the map picking tooltip
+            Will default to all columns if no list is provided
         kwargs:
             Additional kwargs passed to lonboard.ScatterplotLayer:
             http://developmentseed.org/lonboard/latest/api/layers/scatterplot-layer/
@@ -196,7 +229,7 @@ class EcoMap(Map):
         if not kwargs.get("get_line_color") and line_color_column:
             kwargs["get_line_color"] = np.array([color for color in gdf[line_color_column].values], dtype="uint8")
 
-        gdf = EcoMap._clean_gdf(gdf)
+        gdf = EcoMap._clean_gdf(gdf, keep_columns=tooltip_columns)
         return ScatterplotLayer.from_geopandas(gdf, **kwargs)
 
     def add_legend(self, labels: list | pd.Series, colors: list | pd.Series, **kwargs):

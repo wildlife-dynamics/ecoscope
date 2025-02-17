@@ -327,12 +327,15 @@ def test_add_polyline_with_color(movebank_relocations):
     apply_color_map(trajectory, "speed_bins", cmap=cmap, output_column_name="speed_colors")
 
     m = EcoMap()
-    m.add_layer(m.polyline_layer(trajectory, color_column="speed_colors", get_width=2000))
+    m.add_layer(
+        m.polyline_layer(trajectory, tooltip_columns=["speed_kmhr"], color_column="speed_colors", get_width=2000)
+    )
     m.add_legend(labels=trajectory["speed_bins"], colors=trajectory["speed_colors"])
 
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], PathLayer)
     assert m.layers[0].get_width == 2000
+    assert m.layers[0].table.column_names == ["speed_kmhr", "event-id", "geometry"]
 
 
 def test_add_point_with_color(point_gdf):
@@ -341,10 +344,13 @@ def test_add_point_with_color(point_gdf):
     apply_color_map(point_gdf, "time_classified", "viridis", output_column_name="time_cmap")
 
     m = EcoMap()
-    m.add_layer(m.point_layer(point_gdf, fill_color_column="time_cmap", get_radius=10000))
+    m.add_layer(
+        m.point_layer(point_gdf, tooltip_columns=["source_id", "time"], fill_color_column="time_cmap", get_radius=10000)
+    )
 
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], ScatterplotLayer)
+    assert m.layers[0].table.column_names == ["source_id", "time", "geometry"]
 
 
 def test_add_polygon_with_color(poly_gdf):
@@ -352,7 +358,10 @@ def test_add_polygon_with_color(poly_gdf):
 
     m = EcoMap()
     m.add_layer(
-        m.polygon_layer(poly_gdf, fill_color_column="ZoneID_colormap", extruded=True, get_line_width=35), zoom=True
+        m.polygon_layer(
+            poly_gdf, tooltip_columns=[], fill_color_column="ZoneID_colormap", extruded=True, get_line_width=35
+        ),
+        zoom=True,
     )
 
     assert len(m.layers) == 1
@@ -362,6 +371,7 @@ def test_add_polygon_with_color(poly_gdf):
     # validating zoom param by checking view state is non-default
     assert m.view_state.longitude != 10
     assert m.view_state.latitude != 0
+    assert m.layers[0].table.column_names == ["geometry"]
 
 
 def test_add_named_tile_layer():
