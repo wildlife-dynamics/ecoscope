@@ -139,7 +139,7 @@ def test_stacked_bar_chart_numerical(chart_df):
     assert chart.data[1].marker.color == "green"
 
 
-def test_bar_plot(chart_df):
+def test_bar_chart(chart_df):
     spec = [
         BarChartSpec(
             column="value",
