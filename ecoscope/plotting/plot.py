@@ -378,6 +378,8 @@ def bar_chart(
         The data to plot
     spec: BarChartSpec
         Specification for the bar chart, including labels, columns, and functions for aggregation.
+    category: str
+        The column name in the dataframe to group by and use as the x-axis categories.
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)
     Returns
