@@ -1,5 +1,5 @@
 from ecoscope.plotting.plot import (
-    BarChartSpec,
+    BarConfig,
     EcoPlotData,
     add_seasons,
     bar_chart,
@@ -22,6 +22,6 @@ __all__ = [
     "plot_seasonal_dist",
     "stacked_bar_chart",
     "pie_chart",
-    "BarChartSpec",
+    "BarConfig",
     "bar_chart",
 ]

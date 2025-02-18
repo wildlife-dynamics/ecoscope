@@ -5,7 +5,7 @@ import pytest
 from ecoscope.analysis.classifier import apply_color_map
 from ecoscope.base import Trajectory
 from ecoscope.plotting.plot import (
-    BarChartSpec,
+    BarConfig,
     EcoPlotData,
     bar_chart,
     draw_historic_timeseries,
@@ -141,12 +141,12 @@ def test_stacked_bar_chart_numerical(chart_df):
 
 def test_bar_chart(chart_df):
     specs = [
-        BarChartSpec(
+        BarConfig(
             column="value",
             agg_func="mean",
             label="Mean",
         ),
-        BarChartSpec(
+        BarConfig(
             column="value",
             agg_func="sum",
             label="Sum",

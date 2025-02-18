@@ -343,7 +343,7 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
 
 
 @dataclass
-class BarChartSpec:
+class BarConfig:
     """
     A class to represent spec for a bar chart.
     Attributes:
@@ -366,7 +366,7 @@ class BarChartSpec:
 
 def bar_chart(
     data: pd.DataFrame,
-    specs: list[BarChartSpec],
+    specs: list[BarConfig],
     category: str,
     layout_kwargs: dict = None,
 ):
@@ -376,7 +376,7 @@ def bar_chart(
     ----------
     data: pd.DataFrame
         The data to plot
-    spec: BarChartSpec
+    spec: BarConfig
         Specification for the bar chart, including labels, columns, and functions for aggregation.
     category: str
         The column name in the dataframe to group by and use as the x-axis categories.
