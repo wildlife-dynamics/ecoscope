@@ -366,7 +366,7 @@ class BarChartSpec:
 
 def bar_chart(
     data: pd.DataFrame,
-    spec: BarChartSpec,
+    specs: list[BarChartSpec],
     category: str,
     layout_kwargs: dict = None,
 ):
@@ -389,11 +389,11 @@ def bar_chart(
     """
     fig = go.Figure(layout=layout_kwargs)
 
-    named_aggs = {x.label: (x.column, x.agg_func) for x in spec}
+    named_aggs = {x.label: (x.column, x.agg_func) for x in specs}
 
     result_data = data.groupby(category).agg(**named_aggs).reset_index()
 
-    for x in spec:
+    for x in specs:
         fig.add_trace(
             go.Bar(
                 name=x.label,
