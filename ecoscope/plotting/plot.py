@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 import shapely
@@ -340,11 +342,31 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
     return fig
 
 
+@dataclass
+class BarChartSpec:
+    """
+    A class to represent spec for a bar chart.
+    Attributes:
+    ----------
+    column : str
+        The name of the column to be used for the bar chart.
+    agg_func : str
+        The aggregation function to be applied to the data.
+    label : str
+        The label for the bar chart.
+    style : dict, optional
+        A dictionary containing style options for the bar chart (default is empty).
+    """
+
+    column: str
+    agg_func: str
+    label: str
+    style: dict = None
+
+
 def bar_chart(
     data: pd.DataFrame,
-    columns: list[str],
-    agg_funcs: list[str],
-    labels: list[str],
+    spec: BarChartSpec,
     category: str,
     layout_kwargs: dict = None,
 ):
@@ -354,12 +376,8 @@ def bar_chart(
     ----------
     data: pd.DataFrame
         The data to plot
-    columns: list[str]
-        The name of the dataframe columns to pull bar values from
-    agg_funcs: list[str]
-        The pandas.Dataframe.aggregate() function to run ie; 'count', 'sum'
-    category_columns: str
-        The name of the dataframe columns to group values
+    spec: BarChartSpec
+        Specification for the bar chart, including labels, columns, and functions for aggregation.
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)
     Returns
@@ -369,16 +387,17 @@ def bar_chart(
     """
     fig = go.Figure(layout=layout_kwargs)
 
-    named_aggs = {label: (col, func) for col, func, label in zip(columns, agg_funcs, labels)}
+    named_aggs = {x.label: (x.column, x.agg_func) for x in spec}
 
     result_data = data.groupby(category).agg(**named_aggs).reset_index()
 
-    for _, label in enumerate(labels):
+    for x in spec:
         fig.add_trace(
             go.Bar(
-                name=label,
+                name=x.label,
                 x=result_data[category],
-                y=result_data[label],
+                y=result_data[x.label],
+                **(x.style or {}),
             )
         )
 
