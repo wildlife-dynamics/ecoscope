@@ -140,7 +140,7 @@ def test_stacked_bar_chart_numerical(chart_df):
 
 
 def test_bar_chart(chart_df):
-    specs = [
+    bar_configs = [
         BarConfig(
             column="value",
             agg_func="mean",
@@ -152,7 +152,7 @@ def test_bar_chart(chart_df):
             label="Sum",
         ),
     ]
-    chart = bar_chart(chart_df, specs=specs, category="category")
+    chart = bar_chart(chart_df, bar_configs=bar_configs, category="category")
 
     assert chart.data[0].name == "Mean"
     assert (chart.data[0].x == ["A", "B"]).all()
