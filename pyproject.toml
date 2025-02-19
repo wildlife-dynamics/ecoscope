@@ -58,7 +58,7 @@ mapping = [
   "matplotlib",
   "mapclassify",
 ]
-plotting = ["kaleido", "plotly<6.0.0", "scikit-learn"]
+plotting = ["kaleido", "plotly", "scikit-learn"]
 test = [
   "pytest",
   "pytest-asyncio",

@@ -44,11 +44,11 @@ def test_ecoplot(movebank_relocations):
     assert len(figure.data) == 2
 
     assert figure.data[0].name == "Habiba"
-    assert np.equal(figure.data[0].x, habiba["segment_start"].array).all()
+    assert np.equal(figure.data[0].x, habiba["segment_start"].apply(lambda x: x.asm8)).all()
     assert np.equal(figure.data[0].y, habiba["speed_kmhr"].array).all()
 
     assert figure.data[1].name == "Salif Keita"
-    assert np.equal(figure.data[1].x, salif["segment_start"].array).all()
+    assert np.equal(figure.data[1].x, salif["segment_start"].apply(lambda x: x.asm8)).all()
     assert np.equal(figure.data[1].y, salif["speed_kmhr"].array).all()
 
 
