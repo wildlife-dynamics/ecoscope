@@ -143,6 +143,9 @@ class EcoMap(Map):
             if pd.api.types.is_datetime64_any_dtype(gdf[col]):
                 gdf[col] = gdf[col].astype("string")
 
+        # If the index is named, convert it to a column
+        gdf = gdf.reset_index(drop=False) if gdf.index.name else gdf.reset_index()
+
         if keep_columns is not None:
             if "geometry" not in keep_columns:
                 keep_columns.append("geometry")
