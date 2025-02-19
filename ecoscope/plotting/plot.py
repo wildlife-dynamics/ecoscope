@@ -345,17 +345,17 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
 @dataclass
 class BarConfig:
     """
-    A class to represent spec for a bar chart.
+    A class to represent configs for an individual bar in a bar chart.
     Attributes:
     ----------
     column : str
-        The name of the column to be used for the bar chart.
+        The name of the column to be used for the bar.
     agg_func : str
-        The aggregation function to be applied to the data.
+        The aggregation function to be applied to the column data.
     label : str
-        The label for the bar chart.
+        The label for the bar.
     style : dict, optional
-        A dictionary containing style options for the bar chart (default is empty).
+        A dictionary containing style options for the individual bar (default is None).
     """
 
     column: str
@@ -366,7 +366,7 @@ class BarConfig:
 
 def bar_chart(
     data: pd.DataFrame,
-    specs: list[BarConfig],
+    bar_configs: list[BarConfig],
     category: str,
     layout_kwargs: dict = None,
 ):
@@ -376,7 +376,7 @@ def bar_chart(
     ----------
     data: pd.DataFrame
         The data to plot
-    spec: BarConfig
+    bar_configs: a list of BarConfigs
         Specification for the bar chart, including labels, columns, and functions for aggregation.
     category: str
         The column name in the dataframe to group by and use as the x-axis categories.
@@ -389,11 +389,11 @@ def bar_chart(
     """
     fig = go.Figure(layout=layout_kwargs)
 
-    named_aggs = {x.label: (x.column, x.agg_func) for x in specs}
+    named_aggs = {x.label: (x.column, x.agg_func) for x in bar_configs}
 
     result_data = data.groupby(category).agg(**named_aggs).reset_index()
 
-    for x in specs:
+    for x in bar_configs:
         fig.add_trace(
             go.Bar(
                 name=x.label,
