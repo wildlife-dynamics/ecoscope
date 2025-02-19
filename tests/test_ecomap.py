@@ -328,14 +328,16 @@ def test_add_polyline_with_color(movebank_relocations):
 
     m = EcoMap()
     m.add_layer(
-        m.polyline_layer(trajectory, tooltip_columns=["speed_kmhr"], color_column="speed_colors", get_width=2000)
+        m.polyline_layer(
+            trajectory, tooltip_columns=["event-id", "speed_kmhr"], color_column="speed_colors", get_width=2000
+        )
     )
     m.add_legend(labels=trajectory["speed_bins"], colors=trajectory["speed_colors"])
 
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], PathLayer)
     assert m.layers[0].get_width == 2000
-    assert m.layers[0].table.column_names == ["speed_kmhr", "event-id", "geometry"]
+    assert m.layers[0].table.column_names == ["event-id", "speed_kmhr", "geometry"]
 
 
 def test_add_point_with_color(point_gdf):
