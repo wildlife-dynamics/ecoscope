@@ -5,7 +5,9 @@ import pytest
 from ecoscope.analysis.classifier import apply_color_map
 from ecoscope.base import Trajectory
 from ecoscope.plotting.plot import (
+    BarConfig,
     EcoPlotData,
+    bar_chart,
     draw_historic_timeseries,
     ecoplot,
     mcp,
@@ -42,11 +44,11 @@ def test_ecoplot(movebank_relocations):
     assert len(figure.data) == 2
 
     assert figure.data[0].name == "Habiba"
-    assert np.equal(figure.data[0].x, habiba["segment_start"].array).all()
+    assert np.equal(figure.data[0].x, habiba["segment_start"].apply(lambda x: x.asm8)).all()
     assert np.equal(figure.data[0].y, habiba["speed_kmhr"].array).all()
 
     assert figure.data[1].name == "Salif Keita"
-    assert np.equal(figure.data[1].x, salif["segment_start"].array).all()
+    assert np.equal(figure.data[1].x, salif["segment_start"].apply(lambda x: x.asm8)).all()
     assert np.equal(figure.data[1].y, salif["speed_kmhr"].array).all()
 
 
@@ -135,6 +137,30 @@ def test_stacked_bar_chart_numerical(chart_df):
     assert chart.data[0].xperiodalignment == chart.data[1].xperiodalignment == "middle"
     assert chart.data[0].marker.line.color == chart.data[1].marker.line.color == "black"
     assert chart.data[1].marker.color == "green"
+
+
+def test_bar_chart(chart_df):
+    bar_configs = [
+        BarConfig(
+            column="value",
+            agg_func="mean",
+            label="Mean",
+        ),
+        BarConfig(
+            column="value",
+            agg_func="sum",
+            label="Sum",
+        ),
+    ]
+    chart = bar_chart(chart_df, bar_configs=bar_configs, category="category")
+
+    assert chart.data[0].name == "Mean"
+    assert (chart.data[0].x == ["A", "B"]).all()
+    assert (chart.data[0].y == [25, 85]).all()
+
+    assert chart.data[1].name == "Sum"
+    assert (chart.data[1].x == ["A", "B"]).all()
+    assert (chart.data[1].y == [25, 255]).all()
 
 
 def test_pie_chart_no_style(chart_df):

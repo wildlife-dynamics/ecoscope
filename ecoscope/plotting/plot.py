@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
 import shapely
@@ -337,6 +339,71 @@ def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, l
         )
 
     fig.update_layout(barmode="stack")
+    return fig
+
+
+@dataclass
+class BarConfig:
+    """
+    A class to represent configs for an individual bar in a bar chart.
+    Attributes:
+    ----------
+    column : str
+        The name of the column to be used for the bar.
+    agg_func : str
+        The aggregation function to be applied to the column data.
+    label : str
+        The label for the bar.
+    style : dict, optional
+        A dictionary containing style options for the individual bar (default is None).
+    """
+
+    column: str
+    agg_func: str
+    label: str
+    style: dict = None
+
+
+def bar_chart(
+    data: pd.DataFrame,
+    bar_configs: list[BarConfig],
+    category: str,
+    layout_kwargs: dict = None,
+):
+    """
+    Creates a bar chart from the provided dataframe
+    Parameters
+    ----------
+    data: pd.DataFrame
+        The data to plot
+    bar_configs: a list of BarConfigs
+        Specification for the bar chart, including labels, columns, and functions for aggregation.
+    category: str
+        The column name in the dataframe to group by and use as the x-axis categories.
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly bar chart
+    """
+    fig = go.Figure(layout=layout_kwargs)
+
+    named_aggs = {x.label: (x.column, x.agg_func) for x in bar_configs}
+
+    result_data = data.groupby(category).agg(**named_aggs).reset_index()
+
+    for x in bar_configs:
+        fig.add_trace(
+            go.Bar(
+                name=x.label,
+                x=result_data[category],
+                y=result_data[x.label],
+                **(x.style or {}),
+            )
+        )
+
+    fig.update_layout(barmode="group")
     return fig
 
 
