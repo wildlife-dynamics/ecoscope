@@ -326,8 +326,8 @@ def test_patch_event(er_io):
 
 def test_get_patrol_observations(er_io):
     patrols = er_io.get_patrols(
-        since=pd.Timestamp("2017-01-01").isoformat(),
-        until=pd.Timestamp("2017-04-01").isoformat(),
+        since=pd.Timestamp("2024-01-01").isoformat(),
+        until=pd.Timestamp("2024-12-01").isoformat(),
     )
 
     observations = er_io.get_patrol_observations(

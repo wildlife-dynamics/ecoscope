@@ -887,7 +887,11 @@ class EarthRangerIO(ERClient):
                 patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
                 patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
-                patrol_type = df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
+                patrol_type = (
+                    df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
+                    if patrol_segment.get("patrol_type")
+                    else None
+                )
 
                 if None in {subject_id, patrol_start_time}:
                     continue
