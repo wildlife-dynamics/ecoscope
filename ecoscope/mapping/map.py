@@ -535,10 +535,10 @@ class EcoMap(Map):
                 "max_zoom": 17,
             },
             "LANDDX": {
-                "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer",
+                "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
                 "attribution": "landDx",
                 "name": "landDx",
-                "max_zoom": 17,
+                "max_zoom": 10,
             },
         }
 
