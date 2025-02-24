@@ -1,41 +1,35 @@
-import ee
 import base64
-import rasterio
 import json
-import geopandas as gpd
+from io import BytesIO
+from pathlib import Path
+from typing import IO, Dict, List, Optional, TextIO, Union
 
+import ee
+import geopandas as gpd
 import numpy as np
 import pandas as pd
+import rasterio
 import rasterio as rio
+
 from ecoscope.base.utils import color_tuple_to_css, hex_to_rgba
-from io import BytesIO
-from typing import Dict, IO, List, Optional, TextIO, Union
-from pathlib import Path
 
 try:
     import matplotlib as mpl
     from lonboard import Map
-    from lonboard.types.layer import PathLayerKwargs, PolygonLayerKwargs, ScatterplotLayerKwargs
-    from lonboard._geoarrow.ops.bbox import Bbox
-    from lonboard._viewport import compute_view, bbox_to_zoom_level
-    from lonboard._viz import viz_layer
-    from lonboard._layer import (
-        BaseLayer,
-        BitmapLayer,
-        BitmapTileLayer,
-        PathLayer,
-        PolygonLayer,
-        ScatterplotLayer,
-    )
     from lonboard._deck_widget import (
         BaseDeckWidget,
-        NorthArrowWidget,
-        ScaleWidget,
-        LegendWidget,
-        TitleWidget,
-        SaveImageWidget,
         FullscreenWidget,
+        LegendWidget,
+        NorthArrowWidget,
+        SaveImageWidget,
+        ScaleWidget,
+        TitleWidget,
     )
+    from lonboard._geoarrow.ops.bbox import Bbox
+    from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
+    from lonboard._viewport import bbox_to_zoom_level, compute_view
+    from lonboard._viz import viz_layer
+    from lonboard.types.layer import PathLayerKwargs, PolygonLayerKwargs, ScatterplotLayerKwargs
 
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
@@ -406,6 +400,7 @@ class EcoMap(Map):
         else:
             view_state = compute_view(feat)
 
+        view_state["zoom"] = min(view_state["zoom"], max_zoom)
         self.set_view_state(**view_state)
 
     @staticmethod
@@ -535,10 +530,10 @@ class EcoMap(Map):
                 "max_zoom": 17,
             },
             "LANDDX": {
-                "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer",
+                "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
                 "attribution": "landDx",
                 "name": "landDx",
-                "max_zoom": 17,
+                "max_zoom": 15,
             },
         }
 
