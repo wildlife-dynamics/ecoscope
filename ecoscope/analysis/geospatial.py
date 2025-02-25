@@ -7,7 +7,7 @@ except ModuleNotFoundError:
     )
 
 
-def datashade_gdf(gdf, geom_type, width=600, height=600, cmap=["lightblue", "darkblue"], ds_agg=None, **kwargs):
+def datashade_gdf(gdf, geom_type, width=600, height=600, cmap=None, ds_agg=None, **kwargs):
     """
     Creates a raster of the given gdf using Datashader
 
@@ -36,6 +36,9 @@ def datashade_gdf(gdf, geom_type, width=600, height=600, cmap=["lightblue", "dar
     gdf = gdf.to_crs(epsg=4326)
     bounds = gdf.geometry.total_bounds
     canvas = ds.Canvas(width, height)
+
+    if cmap is None:
+        cmap = ["lightblue", "darkblue"]
 
     if geom_type == "polygon":
         func = canvas.polygons
