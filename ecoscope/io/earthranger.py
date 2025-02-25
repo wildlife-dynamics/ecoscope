@@ -13,7 +13,6 @@ from ecoscope.io.earthranger_utils import (
     clean_kwargs,
     clean_time_cols,
     dataframe_to_dict,
-    filter_bad_geojson,
     format_iso_time,
     geometry_from_event_geojson,
     pack_columns,
@@ -636,9 +635,9 @@ class EarthRangerIO(ERClient):
 
         if not df.empty:
             df = clean_time_cols(df)
-            if not allow_null_geometry:
-                df = filter_bad_geojson(df)
             df = geometry_from_event_geojson(df, force_point_geometry=force_point_geometry)
+            if not allow_null_geometry:
+                df = df.dropna(subset="geometry")
             gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
             gdf.sort_values("time", inplace=True)
             gdf.set_index("id", inplace=True)
@@ -782,14 +781,14 @@ class EarthRangerIO(ERClient):
         if events_df.empty:
             return events_df
 
-        events_df = filter_bad_geojson(events_df)
-        if events_df.empty:
-            return gpd.GeoDataFrame()
-
-        events_df = filter_bad_geojson(events_df)
         events_df = geometry_from_event_geojson(events_df, force_point_geometry=force_point_geometry)
-        events_df["time"] = events_df["geojson"].apply(lambda x: x.get("properties", {}).get("datetime"))
-        events_df = events_df.loc[events_df["time"].notnull()]
+        if not allow_null_geometry:
+            events_df = events_df.dropna(subset="geometry")
+
+        events_df["time"] = events_df["geojson"].apply(
+            lambda x: x.get("properties", {}).get("datetime") if isinstance(x, dict) else None
+        )
+        events_df = events_df.dropna(subset="time")
         events_df = clean_time_cols(events_df)
 
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
