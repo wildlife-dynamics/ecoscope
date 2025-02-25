@@ -544,7 +544,7 @@ class EarthRangerIO(ERClient):
         since=None,
         until=None,
         force_point_geometry=True,
-        allow_null_geometry=True,
+        allow_null_geometry=False,
         **addl_kwargs,
     ):
         """
@@ -730,7 +730,7 @@ class EarthRangerIO(ERClient):
         event_type=None,
         status=None,
         force_point_geometry=True,
-        allow_null_geometry=True,
+        allow_null_geometry=False,
         **addl_kwargs,
     ):
         """
