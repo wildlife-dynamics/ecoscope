@@ -92,7 +92,7 @@ def geometry_from_event_geojson(df: pd.DataFrame, force_point_geometry=True):
     if df.empty:
         return gpd.GeoDataFrame()
 
-    def shape_from_geojson(geojson: dict):
+    def shape_from_geojson(geojson):
         result = shape(geojson.get("geometry"))
         return result.centroid if force_point_geometry else result
 

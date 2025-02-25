@@ -544,6 +544,8 @@ class EarthRangerIO(ERClient):
         event_category=None,
         since=None,
         until=None,
+        force_point_geometry=True,
+        allow_null_geometry=True,
         **addl_kwargs,
     ):
         """
@@ -583,6 +585,10 @@ class EarthRangerIO(ERClient):
         event_category
         since
         until
+        force_point_geometry: bool, default True
+            If true, non point geometry (ie polys) will be converted to a single point via Shape.centroid
+        allow_null_geometry: bool, default True
+            If true, events with no geometry will be included in output
         Returns
         -------
         events : gpd.GeoDataFrame
@@ -630,8 +636,9 @@ class EarthRangerIO(ERClient):
 
         if not df.empty:
             df = clean_time_cols(df)
-            df = filter_bad_geojson(df)
-            df = geometry_from_event_geojson(df, force_point_geometry=True)
+            if not allow_null_geometry:
+                df = filter_bad_geojson(df)
+            df = geometry_from_event_geojson(df, force_point_geometry=force_point_geometry)
             gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
             gdf.sort_values("time", inplace=True)
             gdf.set_index("id", inplace=True)
@@ -723,6 +730,8 @@ class EarthRangerIO(ERClient):
         patrol_type_value=None,
         event_type=None,
         status=None,
+        force_point_geometry=True,
+        allow_null_geometry=True,
         **addl_kwargs,
     ):
         """
@@ -739,6 +748,10 @@ class EarthRangerIO(ERClient):
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
+        force_point_geometry: bool, default True
+            If true, non point geometry (ie polys) will be converted to a single point via Shape.centroid
+        allow_null_geometry: bool, default True
+            If true, events with no geometry will be included in output
         Returns
         -------
         events : pd.DataFrame
@@ -774,7 +787,7 @@ class EarthRangerIO(ERClient):
             return gpd.GeoDataFrame()
 
         events_df = filter_bad_geojson(events_df)
-        events_df = geometry_from_event_geojson(events_df, force_point_geometry=True)
+        events_df = geometry_from_event_geojson(events_df, force_point_geometry=force_point_geometry)
         events_df["time"] = events_df["geojson"].apply(lambda x: x.get("properties", {}).get("datetime"))
         events_df = events_df.loc[events_df["time"].notnull()]
         events_df = clean_time_cols(events_df)
