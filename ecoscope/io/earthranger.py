@@ -15,13 +15,12 @@ from ecoscope.io.earthranger_utils import (
     dataframe_to_dict,
     filter_bad_geojson,
     format_iso_time,
-    gdf_from_geojson,
+    geometry_from_event_geojson,
     pack_columns,
     to_gdf,
     to_hex,
 )
 from erclient.client import ERClient, ERClientException, ERClientNotFound
-from shapely.geometry import shape
 from tqdm.auto import tqdm
 
 
@@ -631,7 +630,9 @@ class EarthRangerIO(ERClient):
 
         if not df.empty:
             df = clean_time_cols(df)
-            gdf = gdf_from_geojson(df)
+            df = filter_bad_geojson(df)
+            df = geometry_from_event_geojson(df, force_point_geometry=True)
+            gdf = gpd.GeoDataFrame(df, geometry="geometry", crs=4326)
             gdf.sort_values("time", inplace=True)
             gdf.set_index("id", inplace=True)
             return gdf
@@ -772,7 +773,8 @@ class EarthRangerIO(ERClient):
         if events_df.empty:
             return gpd.GeoDataFrame()
 
-        events_df["geometry"] = events_df["geojson"].apply(lambda x: shape(x.get("geometry")))
+        events_df = filter_bad_geojson(events_df)
+        events_df = geometry_from_event_geojson(events_df, force_point_geometry=True)
         events_df["time"] = events_df["geojson"].apply(lambda x: x.get("properties", {}).get("datetime"))
         events_df = events_df.loc[events_df["time"].notnull()]
         events_df = clean_time_cols(events_df)
