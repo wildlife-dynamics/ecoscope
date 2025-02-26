@@ -411,6 +411,11 @@ def test_get_events_bad_geojson(get_objects_mock, sample_events_df_with_bad_geoj
         "bcb01505-c635-48eb-b176-2b1390a0a5bf",
     ]
 
+    events_with_null_geoms = er_io.get_events(
+        event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"], allow_null_geometry=True
+    )
+    assert len(events_with_null_geoms) == 6
+
 
 @patch("erclient.client.ERClient.get_objects_multithreaded")
 def test_get_patrol_events_bad_geojson(get_objects_mock, sample_patrol_events_with_bad_geojson, er_io):
@@ -421,8 +426,15 @@ def test_get_patrol_events_bad_geojson(get_objects_mock, sample_patrol_events_wi
         until=pd.Timestamp("2017-04-01").isoformat(),
     )
     assert not patrol_events.empty
-    # We're rejecting any geojson that's missing geometry or a timestamp
+    # By default, we're rejecting any geojson that's missing geometry or a timestamp
     assert patrol_events.id.to_list() == ["ebf812f5-e616-40e4-8fcf-ebb3ef6a6364"]
+
+    patrol_events_with_null_geoms = er_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+        allow_null_geometry=True,
+    )
+    assert len(patrol_events_with_null_geoms) == 5
 
 
 @pytest.mark.parametrize(
