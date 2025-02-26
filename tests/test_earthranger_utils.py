@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from ecoscope.io.earthranger_utils import clean_time_cols, gdf_from_geojson
+from ecoscope.io.earthranger_utils import clean_time_cols, geometry_from_event_geojson
 
 
 @pytest.fixture
@@ -53,8 +53,8 @@ def test_clean_time_cols(df_with_times):
     assert pd.isnull(cleaned["time"]["H"])
 
 
-def geometry_from_event_geojson(sample_events_df_with_bad_geojson, sample_patrol_events_with_bad_geojson):
-    events = gdf_from_geojson(sample_events_df_with_bad_geojson)
-    patrol_events = gdf_from_geojson(sample_patrol_events_with_bad_geojson)
+def test_geometry_from_event_geojson(sample_events_df_with_bad_geojson, sample_patrol_events_with_bad_geojson):
+    events = geometry_from_event_geojson(sample_events_df_with_bad_geojson)
+    patrol_events = geometry_from_event_geojson(sample_patrol_events_with_bad_geojson)
     assert len(events[events["geometry"].isna()]) == 2
     assert len(patrol_events[patrol_events["geometry"].isna()]) == 4
