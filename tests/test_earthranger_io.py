@@ -412,7 +412,7 @@ def test_get_events_bad_geojson(get_objects_mock, sample_events_df_with_bad_geoj
     ]
 
     events_with_null_geoms = er_io.get_events(
-        event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"], allow_null_geometry=True
+        event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"], drop_null_geometry=False
     )
     assert len(events_with_null_geoms) == 6
 
@@ -432,7 +432,7 @@ def test_get_patrol_events_bad_geojson(get_objects_mock, sample_patrol_events_wi
     patrol_events_with_null_geoms = er_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
         until=pd.Timestamp("2017-04-01").isoformat(),
-        allow_null_geometry=True,
+        drop_null_geometry=False,
     )
     assert len(patrol_events_with_null_geoms) == 2
 
@@ -441,22 +441,22 @@ def test_get_patrol_events_bad_geojson(get_objects_mock, sample_patrol_events_wi
 def test_get_patrol_events_mixed_geom(get_objects_mock, sample_patrol_events_with_poly, er_io):
     get_objects_mock.return_value = sample_patrol_events_with_poly
 
-    patrol_events = er_io.get_patrol_events(
+    patrol_events_mixed = er_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
         until=pd.Timestamp("2017-04-01").isoformat(),
         force_point_geometry=False,
     )
-    assert not patrol_events.empty
-    assert len(patrol_events.geom_type.unique()) == 3
+    assert not patrol_events_mixed.empty
+    assert len(patrol_events_mixed.geom_type.unique()) == 3
 
-    patrol_events = er_io.get_patrol_events(
+    patrol_events_points = er_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
         until=pd.Timestamp("2017-04-01").isoformat(),
         force_point_geometry=True,
     )
-    assert not patrol_events.empty
-    assert len(patrol_events.geom_type.unique()) == 1
-    assert patrol_events.geom_type[0] == "Point"
+    assert not patrol_events_points.empty
+    assert len(patrol_events_points.geom_type.unique()) == 1
+    assert patrol_events_points.geom_type[0] == "Point"
 
 
 @pytest.mark.parametrize(
