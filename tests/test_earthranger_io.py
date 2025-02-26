@@ -434,7 +434,29 @@ def test_get_patrol_events_bad_geojson(get_objects_mock, sample_patrol_events_wi
         until=pd.Timestamp("2017-04-01").isoformat(),
         allow_null_geometry=True,
     )
-    assert len(patrol_events_with_null_geoms) == 5
+    assert len(patrol_events_with_null_geoms) == 2
+
+
+@patch("erclient.client.ERClient.get_objects_multithreaded")
+def test_get_patrol_events_mixed_geom(get_objects_mock, sample_patrol_events_with_poly, er_io):
+    get_objects_mock.return_value = sample_patrol_events_with_poly
+
+    patrol_events = er_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+        force_point_geometry=False,
+    )
+    assert not patrol_events.empty
+    assert len(patrol_events.geom_type.unique()) == 3
+
+    patrol_events = er_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+        force_point_geometry=True,
+    )
+    assert not patrol_events.empty
+    assert len(patrol_events.geom_type.unique()) == 1
+    assert patrol_events.geom_type[0] == "Point"
 
 
 @pytest.mark.parametrize(

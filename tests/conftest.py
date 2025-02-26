@@ -122,3 +122,11 @@ def sample_patrol_events_with_bad_geojson():
         event 4: 'geojson' is an empty dict
     """
     return pd.read_json("tests/sample_data/io/get_patrol_events_bad_geojson.json")
+
+
+@pytest.fixture
+def sample_patrol_events_with_poly():
+    """
+    A mock get_patrol_events response that includes non-point geometry
+    """
+    return pd.read_json("tests/sample_data/io/get_patrol_events_with_poly_geojson.json")
