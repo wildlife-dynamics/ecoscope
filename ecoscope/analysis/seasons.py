@@ -118,9 +118,11 @@ def seasonal_windows(ndvi_vals, cuts, season_labels):
 
 
 def add_seasonal_index(
-    df, index_name, start_date, end_date, time_col, aoi_geom_filter=None, seasons=2, season_labels=["dry", "wet"]
+    df, index_name, start_date, end_date, time_col, aoi_geom_filter=None, seasons=2, season_labels=None
 ):
     aoi_ = None
+    if season_labels is None:
+        season_labels = ["dry", "wet"]
     try:
         aoi_ = aoi_geom_filter.dissolve().iloc[0]["geometry"]
     except AttributeError:
