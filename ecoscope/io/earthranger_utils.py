@@ -81,7 +81,9 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
     return dataframe
 
 
-def geometry_from_event_geojson(df: pd.DataFrame, force_point_geometry=True, drop_null_geometry=True):
+def geometry_from_event_geojson(
+    df: pd.DataFrame, geojson_column="geojson", force_point_geometry=True, drop_null_geometry=True
+):
     if df.empty:
         return gpd.GeoDataFrame()
 
@@ -93,7 +95,7 @@ def geometry_from_event_geojson(df: pd.DataFrame, force_point_geometry=True, dro
 
         return result.centroid if force_point_geometry else result
 
-    df["geometry"] = df["geojson"].apply(shape_from_geojson)
+    df["geometry"] = df[geojson_column].apply(shape_from_geojson)
     if drop_null_geometry:
         df = df.dropna(subset="geometry").reset_index()
 
