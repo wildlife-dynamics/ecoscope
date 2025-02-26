@@ -88,7 +88,7 @@ def filter_bad_geojson(dataframe: pd.DataFrame, reset_index=True):
     return filtered.reset_index(drop=True) if reset_index else filtered
 
 
-def geometry_from_event_geojson(df: pd.DataFrame, force_point_geometry=True):
+def geometry_from_event_geojson(df: pd.DataFrame, force_point_geometry=True, drop_null_geometry=True):
     if df.empty:
         return gpd.GeoDataFrame()
 
@@ -101,5 +101,7 @@ def geometry_from_event_geojson(df: pd.DataFrame, force_point_geometry=True):
         return result.centroid if force_point_geometry else result
 
     df["geometry"] = df["geojson"].apply(shape_from_geojson)
+    if drop_null_geometry:
+        df = df.dropna(subset="geometry").reset_index()
 
     return df
