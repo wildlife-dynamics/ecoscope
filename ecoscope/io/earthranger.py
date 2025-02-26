@@ -769,10 +769,9 @@ class EarthRangerIO(ERClient):
         for _, row in patrol_df.iterrows():
             for segment in row.get("patrol_segments", []):
                 for event in segment.get("events", []):
-                    if (
-                        event_type is None or event_type == [] or event.get("event_type") in event_type
-                    ):  # need to double check event_type is the key
+                    if event_type is None or event_type == [] or event.get("event_type") in event_type:
                         event["patrol_id"] = row.get("id")
+                        event["patrol_serial_number"] = row.get("serial_number")
                         event["patrol_segment_id"] = segment.get("id")
                         event["patrol_start_time"] = (segment.get("time_range") or {}).get("start_time")
                         event["patrol_type"] = segment.get("patrol_type")
@@ -896,7 +895,11 @@ class EarthRangerIO(ERClient):
                 patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
                 patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
-                patrol_type = df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
+                patrol_type = (
+                    df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
+                    if patrol_segment.get("patrol_type")
+                    else None
+                )
 
                 if None in {subject_id, patrol_start_time}:
                     continue
