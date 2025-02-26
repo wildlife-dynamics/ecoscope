@@ -81,13 +81,6 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
     return dataframe
 
 
-def filter_bad_geojson(dataframe: pd.DataFrame, reset_index=True):
-    filtered = dataframe[
-        dataframe["geojson"].apply(lambda x: True if isinstance(x, dict) and x.get("geometry") else False)
-    ]
-    return filtered.reset_index(drop=True) if reset_index else filtered
-
-
 def geometry_from_event_geojson(df: pd.DataFrame, force_point_geometry=True, drop_null_geometry=True):
     if df.empty:
         return gpd.GeoDataFrame()
