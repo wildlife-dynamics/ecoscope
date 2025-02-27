@@ -410,10 +410,10 @@ def bar_chart(
 def pie_chart(
     data: pd.DataFrame,
     value_column: str,
-    label_column: str = None,
-    color_column: str = None,
-    style_kwargs: dict = {},
-    layout_kwargs: dict = None,
+    label_column: str | None = None,
+    color_column: str | None = None,
+    style_kwargs: dict | None = None,
+    layout_kwargs: dict | None = None,
 ):
     """
     Creates a pie chart from the provided dataframe
@@ -436,6 +436,8 @@ def pie_chart(
     fig : plotly.graph_objects.Figure
         The plotly bar chart
     """
+    if style_kwargs is None:
+        style_kwargs = {}
 
     if pd.api.types.is_numeric_dtype(data[value_column]):
         if label_column is not None:
@@ -459,15 +461,15 @@ def draw_historic_timeseries(
     df: pd.DataFrame,
     current_value_column: str,
     current_value_title: str,
-    historic_min_column: str = None,
-    historic_max_column: str = None,
+    historic_min_column: str | None = None,
+    historic_max_column: str | None = None,
     historic_band_title: str = "Historic Min-Max",
-    historic_mean_column: str = None,
+    historic_mean_column: str | None = None,
     historic_mean_title: str = "Historic Mean",
-    layout_kwargs: dict = None,
-    upper_lower_band_style: dict = {"mode": "lines", "line_color": "green"},
-    historic_mean_style: dict = {"mode": "lines", "line": {"color": "green", "dash": "dot"}},
-    current_value_style: dict = {"mode": "lines", "line_color": "navy"},
+    layout_kwargs: dict | None = None,
+    upper_lower_band_style: dict | None = None,
+    historic_mean_style: dict | None = None,
+    current_value_style: dict | None = None,
     time_column: str = "img_date",
 ):
     """
@@ -501,6 +503,12 @@ def draw_historic_timeseries(
     fig : plotly.graph_objects.Figure
         The plotly bar chart
     """
+    if upper_lower_band_style is None:
+        upper_lower_band_style = {"mode": "lines", "line_color": "green"}
+    if historic_mean_style is None:
+        historic_mean_style = {"mode": "lines", "line": {"color": "green", "dash": "dot"}}
+    if current_value_style is None:
+        current_value_style = {"mode": "lines", "line_color": "navy"}
 
     fig = go.Figure(layout=layout_kwargs)
 
