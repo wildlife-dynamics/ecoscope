@@ -96,3 +96,36 @@ def sample_relocs():
     gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
 
     return ecoscope.base.Relocations.from_gdf(gdf)
+
+
+@pytest.fixture
+def sample_events_df_with_bad_geojson():
+    """
+    A mock get_events response with intentionally bad geojson:
+    There are 6 events in this mock
+    event 0: 'geometry' is None
+    event 5: 'geomtery' and 'properties' are None
+    """
+    return pd.read_feather("tests/sample_data/io/get_events_bad_geojson.feather")
+
+
+@pytest.fixture
+def sample_patrol_events_with_bad_geojson():
+    """
+    A mock get_patrol_events response with intentionally bad geojson:
+    There's a single patrol in this mock with events that have the following problems in their json
+        event 0: 'geometry' key is not present
+        event 1: 'properties' key is not present
+        event 2: 'datetime' key is not present within 'properties
+        event 3: is untouched
+        event 4: 'geojson' is an empty dict
+    """
+    return pd.read_json("tests/sample_data/io/get_patrol_events_bad_geojson.json")
+
+
+@pytest.fixture
+def sample_patrol_events_with_poly():
+    """
+    A mock get_patrol_events response that includes non-point geometry
+    """
+    return pd.read_json("tests/sample_data/io/get_patrol_events_with_poly_geojson.json")

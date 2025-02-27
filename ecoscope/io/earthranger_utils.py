@@ -2,6 +2,7 @@ import typing
 import geopandas as gpd
 import pandas as pd
 from dateutil import parser
+from shapely.geometry import shape
 
 TIME_COLS = [
     "time",
@@ -83,5 +84,22 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
     return dataframe
 
 
-def filter_bad_geojson(dataframe: pd.DataFrame):
-    return dataframe[dataframe["geojson"].apply(lambda x: True if isinstance(x, dict) and x.get("geometry") else False)]
+def geometry_from_event_geojson(
+    df: pd.DataFrame, geojson_column="geojson", force_point_geometry=True, drop_null_geometry=True
+):
+    if df.empty:
+        return gpd.GeoDataFrame()
+
+    def shape_from_geojson(geojson):
+        try:
+            result = shape(geojson.get("geometry"))
+        except Exception:
+            return None
+
+        return result.centroid if force_point_geometry else result
+
+    df["geometry"] = df[geojson_column].apply(shape_from_geojson)
+    if drop_null_geometry:
+        df = df.dropna(subset="geometry").reset_index()
+
+    return df
