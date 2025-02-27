@@ -14,7 +14,10 @@ TIME_COLS = [
 ]
 
 
-def clean_kwargs(addl_kwargs={}, **kwargs):
+def clean_kwargs(addl_kwargs=None, **kwargs):
+    if addl_kwargs is None:
+        addl_kwargs = {}
+
     for k in addl_kwargs.keys():
         print(f"Warning: {k} is a non-standard parameter. Results may be unexpected.")
     return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}

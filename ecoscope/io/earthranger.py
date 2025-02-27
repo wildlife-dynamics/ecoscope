@@ -1035,7 +1035,7 @@ class EarthRangerIO(ERClient):
         manufacturer_id: str,
         model_name: str,
         provider: str = "default",
-        additional: typing.Dict = {},
+        additional: typing.Dict | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         """
@@ -1056,7 +1056,7 @@ class EarthRangerIO(ERClient):
             "source_type": source_type,
             "manufacturer_id": manufacturer_id,
             "model_name": model_name,
-            "additional": additional,
+            "additional": additional if additional else {},
             "provider": provider,
         }
 
@@ -1070,7 +1070,7 @@ class EarthRangerIO(ERClient):
         self,
         provider_key: str,
         display_name: str,
-        additional: typing.Dict = {},
+        additional: typing.Dict | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         """
@@ -1087,7 +1087,7 @@ class EarthRangerIO(ERClient):
         payload = {
             "provider_key": provider_key,
             "display_name": display_name,
-            "additional": additional,
+            "additional": additional if additional else {},
         }
 
         if kwargs:
