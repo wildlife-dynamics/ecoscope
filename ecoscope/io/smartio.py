@@ -242,18 +242,13 @@ class SmartIO:
         else:
             logger.warning('"category" column does not exist in events_df')
 
-        events_df = self.extract_event_attributes(events_df)
+        events_df["extracted_attributes"] = events_df["attributes"].apply(self.extract_event_attributes)
         return events_df
 
-    def extract_event_attribute_str(self, attr_str):
+    def extract_event_attributes(self, attr_str):
         attr_list = json.loads(attr_str)
         values = {}
         for attr in attr_list:
             values[attr["attribute"]] = attr["value"]
 
         return values
-
-    def extract_event_attributes(self, df):
-        df["extracted_attributes"] = df["attributes"].apply(self.extract_event_attribute_str)
-
-        return df
