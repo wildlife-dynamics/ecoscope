@@ -1,3 +1,8 @@
+import pytest
+
+pytestmark = pytest.mark.io
+
+
 def test_smart_get_events(smart_io):
     events = smart_io.get_events(
         ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
