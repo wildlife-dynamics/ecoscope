@@ -38,10 +38,13 @@ class SmartIO:
             self._token = response.json()["access_token"]
             return
 
-    def query_data(self, url, params={}):
+    def query_data(self, url, params=None):
         headers = {
             "Authorization": f"Bearer {self._token}",
         }
+
+        if params is None:
+            params = {}
 
         session = requests.Session()
         r = session.get(
@@ -54,10 +57,13 @@ class SmartIO:
         r.raise_for_status()
         return pd.DataFrame(r.json())
 
-    def query_geojson_data(self, url, params={}) -> gpd.GeoDataFrame | None:
+    def query_geojson_data(self, url, params=None) -> gpd.GeoDataFrame | None:
         headers = {
             "Authorization": f"Bearer {self._token}",
         }
+
+        if params is None:
+            params = {}
 
         session = requests.Session()
         r = session.get(
