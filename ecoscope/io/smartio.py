@@ -169,7 +169,7 @@ class SmartIO:
 
         result = pd.concat(all_coords, ignore_index=True)
 
-        result["patrol_type__display"] = "SMART Patrol"  # ???
+        result["patrol_type__display"] = "SMART Patrol"  # todo: update it with the real patrol type
 
         result = gpd.GeoDataFrame(
             result,
