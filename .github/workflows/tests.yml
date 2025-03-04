@@ -40,6 +40,8 @@ jobs:
           ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
           EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
           EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+          SMART_USERNAME: ${{ secrets.SMART_USERNAME }}
+          SMART_PASSWORD: ${{ secrets.SMART_PASSWORD }}
         run: |
           pytest -v -r s -m "${{ inputs.io }}" --color=yes --cov=ecoscope --cov-append --cov-report=xml
       

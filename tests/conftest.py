@@ -48,6 +48,17 @@ def er_io():
 
 @pytest.mark.io
 @pytest.fixture(scope="session")
+def smart_io():
+    SMART_SERVER = "https://smartapitest.smartconservationtools.org/smartapi/"
+    SMART_USERNAME = os.getenv("SMART_USERNAME")
+    SMART_PASSWORD = os.getenv("SMART_PASSWORD")
+    smart_io = ecoscope.io.SmartIO(urlBase=SMART_SERVER, username=SMART_USERNAME, password=SMART_PASSWORD)
+
+    return smart_io
+
+
+@pytest.mark.io
+@pytest.fixture(scope="session")
 def er_events_io():
     ER_SERVER = "https://mep-dev.pamdas.org"
     ER_USERNAME = os.getenv("ER_USERNAME")
@@ -55,12 +66,6 @@ def er_events_io():
     er_events_io = ecoscope.io.EarthRangerIO(
         server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD, tcp_limit=5, sub_page_size=100
     )
-
-    er_events_io.GROUP_NAME = "Elephants"
-    er_events_io.SUBJECT_IDS = er_events_io.get_subjects(subject_group_name=er_events_io.GROUP_NAME).id.tolist()
-    er_events_io.SUBJECTSOURCE_IDS, er_events_io.SOURCE_IDS = er_events_io.get_subjectsources(
-        subjects=",".join(er_events_io.SUBJECT_IDS)
-    )[["id", "source"]].values.T.tolist()
 
     return er_events_io
 
