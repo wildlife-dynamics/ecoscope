@@ -76,12 +76,14 @@ class SmartIO:
         r.raise_for_status()
         return gpd.GeoDataFrame.from_features(r.json(), crs=4326)
 
-    def get_patrols_list(self, ca_uuid, language_uuid, start, end):
+    def get_patrols_list(self, ca_uuid, language_uuid, start, end, patrol_mandate, patrol_transport):
         params = {}
         params["ca_uuid"] = ca_uuid
         params["language_uuid"] = language_uuid
         params["start_date"] = start
         params["end_date"] = end
+        params["patrol_mandate"] = patrol_mandate
+        params["patrol_transport"] = patrol_transport
 
         return self.query_geojson_data(url="patrol/", params=params)
 
@@ -141,8 +143,6 @@ class SmartIO:
 
         all_coords = []
 
-        static_columns = ["uuid", "id", "patrol_leg_day_start", "patrol_leg_day_end"]
-
         for index, row in df.iterrows():
             geometry = row["geometry"]
             if geometry is None:
@@ -158,7 +158,7 @@ class SmartIO:
 
             coords_data = pd.DataFrame({"longitude": longitudes, "latitude": latitudes, "time": times})
 
-            static_data = {col: row[col] for col in static_columns if col in df.columns}
+            static_data = {col: row[col] for col in df.columns}
             for col, value in static_data.items():
                 coords_data[col] = value
 
@@ -168,42 +168,33 @@ class SmartIO:
             return gpd.GeoDataFrame()
 
         result = pd.concat(all_coords, ignore_index=True)
-
-        result["patrol_type__display"] = "SMART Patrol"  # todo: update it with the real patrol type
-
         result = gpd.GeoDataFrame(
             result,
             geometry=gpd.points_from_xy(x=result["longitude"], y=result["latitude"]),
             crs="EPSG:4326",
         )
-        result = result[
-            [
-                "uuid",
-                "patrol_leg_day_start",
-                "patrol_leg_day_end",
-                "patrol_type__display",
-                "id",
-                "time",
-                "geometry",
-            ]
-        ]
-
-        result.columns = pd.Index(
-            [
-                "patrol_id",
-                "patrol_start_time",
-                "patrol_end_time",
-                "patrol_type__display",
-                "groupby_col",
-                "fixtime",
-                "geometry",
-            ]
+        result = result.rename(
+            columns={
+                "uuid": "patrol_id",
+                "patrol_leg_day_start": "patrol_start_time",
+                "patrol_leg_day_end": "patrol_end_time",
+                "id": "groupby_col",
+                "time": "fixtime",
+            }
         )
+        result["patrol_type__display"] = result["patrol_mandate"]
 
         return result
 
-    def get_patrol_observations(self, ca_uuid, language_uuid, start, end):
-        df = self.get_patrols_list(ca_uuid=ca_uuid, language_uuid=language_uuid, start=start, end=end)
+    def get_patrol_observations(self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None):
+        df = self.get_patrols_list(
+            ca_uuid=ca_uuid,
+            language_uuid=language_uuid,
+            start=start,
+            end=end,
+            patrol_mandate=patrol_mandate,
+            patrol_transport=patrol_transport,
+        )
         try:
             patrols_df = self.process_patrols_gdf(df)
 
