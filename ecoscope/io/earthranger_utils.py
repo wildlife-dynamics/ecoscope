@@ -1,4 +1,5 @@
 import typing
+
 import geopandas as gpd
 import pandas as pd
 from dateutil import parser
@@ -80,7 +81,16 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
     if metadata_cols:
         dataframe["metadata"] = dataframe[metadata_cols].to_dict(orient="records")
         dataframe.drop(metadata_cols, inplace=True, axis=1)
-        dataframe.rename(columns={"metadata": "additional"}, inplace=True)
+        if "additional" in dataframe.columns:
+            result = []
+            for _, row in dataframe.iterrows():
+                add_dict = row["additional"]
+                meta_dict = row["metadata"]
+                merged = {**add_dict, **meta_dict}
+                result.append(merged)
+            dataframe["additional"] = result
+        else:
+            dataframe.rename(columns={"metadata": "additional"}, inplace=True)
     return dataframe
 
 

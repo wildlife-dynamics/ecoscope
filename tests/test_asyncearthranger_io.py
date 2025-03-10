@@ -3,8 +3,9 @@ import os
 import pandas as pd
 import pytest
 import pytest_asyncio
-import ecoscope
 from erclient import ERClientException
+
+import ecoscope
 
 pytestmark = pytest.mark.io
 
@@ -98,6 +99,7 @@ def get_subjects_fields():
         "additional",
         "created_at",
         "updated_at",
+        "is_static",
         "is_active",
         "user",
         "tracks_available",

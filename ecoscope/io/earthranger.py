@@ -3,12 +3,15 @@ import json
 import math
 import typing
 
-import ecoscope
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pytz
 import requests
+from erclient.client import ERClient, ERClientException, ERClientNotFound
+from tqdm.auto import tqdm
+
+import ecoscope
 from ecoscope.io.earthranger_utils import (
     clean_kwargs,
     clean_time_cols,
@@ -19,8 +22,6 @@ from ecoscope.io.earthranger_utils import (
     to_gdf,
     to_hex,
 )
-from erclient.client import ERClient, ERClientException, ERClientNotFound
-from tqdm.auto import tqdm
 
 
 class EarthRangerIO(ERClient):
@@ -1197,11 +1198,25 @@ class EarthRangerIO(ERClient):
         def upload(obs):
             try:
                 obs = obs.rename(columns={source_id_col: "source", recorded_at_col: "recorded_at"})
-                obs["location"] = pd.DataFrame({"longitude": obs.geometry.x, "latitude": obs.geometry.y}).to_dict(
-                    "records"
+                if "location" not in obs.columns:
+                    obs["location"] = pd.DataFrame({"longitude": obs.geometry.x, "latitude": obs.geometry.y}).to_dict(
+                        "records"
+                    )
+
+                if "geometry" in obs.columns:
+                    del obs["geometry"]
+
+                obs = pack_columns(
+                    obs,
+                    columns=[
+                        "source",
+                        "recorded_at",
+                        "location",
+                        "exclusion_flags",
+                        "additional",
+                        "device_status_properties",
+                    ],
                 )
-                del obs["geometry"]
-                obs = pack_columns(obs, columns=["source", "recorded_at", "location", "exclusion_flags", "additional"])
                 post_data = obs.to_dict("records")
                 results = super(EarthRangerIO, self).post_observation(post_data)
             except ERClientException as exc:
