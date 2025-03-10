@@ -156,7 +156,7 @@ class SmartIO:
 
             times = pd.to_datetime(timestamps, unit="ms", utc=True)
 
-            coords_data = pd.DataFrame({"longitude": longitudes, "latitude": latitudes, "time": times})
+            coords_data = pd.DataFrame({"longitude": longitudes, "latitude": latitudes, "fixtime": times})
 
             static_data = {col: row[col] for col in df.columns}
             for col, value in static_data.items():
@@ -168,23 +168,22 @@ class SmartIO:
             return gpd.GeoDataFrame()
 
         result = pd.concat(all_coords, ignore_index=True)
-        result = gpd.GeoDataFrame(
+        result_df = gpd.GeoDataFrame(
             result,
             geometry=gpd.points_from_xy(x=result["longitude"], y=result["latitude"]),
             crs="EPSG:4326",
         )
-        result = result.rename(
+        result_df = result_df.rename(
             columns={
                 "uuid": "patrol_id",
                 "patrol_leg_day_start": "patrol_start_time",
                 "patrol_leg_day_end": "patrol_end_time",
                 "id": "groupby_col",
-                "time": "fixtime",
             }
         )
-        result["patrol_type__display"] = result["patrol_mandate"]
+        result_df["patrol_type__display"] = result_df["patrol_mandate"]
 
-        return result
+        return result_df
 
     def get_patrol_observations(self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None):
         df = self.get_patrols_list(
