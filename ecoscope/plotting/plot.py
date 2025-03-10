@@ -50,6 +50,7 @@ def ecoplot(
     annotate_name_pos=(0.01, 0.99),
     y_title_2=None,
     layout_kwargs=None,
+    tickformat="%b-%Y",
     **make_subplots_kwargs,
 ):
     groups = sorted(list(set.union(*[set(datum.grouped.groups.keys()) for datum in data])))
@@ -99,7 +100,7 @@ def ecoplot(
                 secondary_y=datum.y_col is not datum_1.y_col,
             )
 
-    fig.update_xaxes(tickformat="%b-%Y")
+    fig.update_xaxes(tickformat=tickformat)
 
     fig.layout.annotations[1]["font"]["color"] = datum_1.style.get("line", {}).get("color", "black")
 
