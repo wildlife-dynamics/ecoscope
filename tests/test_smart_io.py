@@ -1,6 +1,6 @@
 import pytest
 
-pytestmark = pytest.mark.io
+pytestmark = pytest.mark.smart_io
 
 
 def test_smart_get_events(smart_io):

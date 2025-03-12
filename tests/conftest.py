@@ -46,7 +46,7 @@ def er_io():
     return er_io
 
 
-@pytest.mark.io
+@pytest.mark.smart_io
 @pytest.fixture(scope="session")
 def smart_io():
     SMART_SERVER = "https://smartapitest.smartconservationtools.org/smartapi/"
