@@ -17,7 +17,7 @@ def pytest_configure(config):
 
     os.makedirs("tests/outputs", exist_ok=True)
 
-    if config.inicfg.get("markers") == ["io"]:
+    if "io" in config.inicfg.get("markers"):
         try:
             EE_ACCOUNT = os.getenv("EE_ACCOUNT")
             EE_PRIVATE_KEY_DATA = os.getenv("EE_PRIVATE_KEY_DATA")
