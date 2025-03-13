@@ -333,6 +333,7 @@ def test_get_patrol_observations_with_patrol_details(er_io):
     assert "patrol_title" in observations.columns
     assert "patrol_type" in observations.columns
     assert "patrol_status" in observations.columns
+    assert "patrol_subject" in observations.columns
     pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
     check_time_is_parsed(observations)
 
