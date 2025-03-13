@@ -922,6 +922,7 @@ class EarthRangerIO(ERClient):
                             observation["patrol_start_time"] = patrol_start_time
                             observation["patrol_end_time"] = patrol_end_time
                             observation["patrol_type"] = patrol_type
+                            observation["patrol_status"] = patrol["state"]
                             observation = (
                                 observation.reset_index()
                                 .merge(
