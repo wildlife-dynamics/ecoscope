@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
   "backoff",
-  "earthengine-api<=1.4.5",
+  "earthengine-api",
   "earthranger-client",
   "fiona<1.10.0",
   "geopandas<=0.14.2",
@@ -81,7 +81,7 @@ filterwarnings = [
   "ignore:distutils Version classes are deprecated. Use packaging.version instead.:DeprecationWarning",
   'ignore:Feature.geometry\(\) is deprecated. Use Element.geometry\(\):DeprecationWarning',
 ]
-markers = ["io"]
+markers = ["io", "smart_io"]
 
 [tool.black]
 include = '\.pyi?$'
