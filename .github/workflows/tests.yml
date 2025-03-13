@@ -43,7 +43,7 @@ jobs:
           SMART_USERNAME: ${{ secrets.SMART_USERNAME }}
           SMART_PASSWORD: ${{ secrets.SMART_PASSWORD }}
         run: |
-          pytest -v -r s -m "${{ inputs.io }} and not smart_io" --color=yes --cov=ecoscope --cov-append --cov-report=xml
+          pytest -v -r s -m "${{ inputs.io }}" --color=yes --cov=ecoscope --cov-append --cov-report=xml
       
       - name: Codecov
         uses: codecov/codecov-action@v5
