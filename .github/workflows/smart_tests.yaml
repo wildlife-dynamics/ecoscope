@@ -1,0 +1,16 @@
+name: Test Smart IO
+
+on:
+  pull_request:
+    paths:
+      - "ecoscope/io/smartio.py"
+      - "tests/test_smart_io.py"
+
+jobs:
+  dev:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    uses: ./.github/workflows/tests.yml
+    with:
+      io: "smart_io"
+      os: "ubuntu-latest"
+    secrets: inherit
