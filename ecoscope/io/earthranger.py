@@ -893,6 +893,7 @@ class EarthRangerIO(ERClient):
         for _, patrol in patrols_df.iterrows():
             for patrol_segment in patrol["patrol_segments"]:
                 subject_id = (patrol_segment.get("leader") or {}).get("id")
+                subject_name = (patrol_segment.get("leader") or {}).get("name")
                 patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
                 patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
@@ -922,6 +923,8 @@ class EarthRangerIO(ERClient):
                             observation["patrol_start_time"] = patrol_start_time
                             observation["patrol_end_time"] = patrol_end_time
                             observation["patrol_type"] = patrol_type
+                            observation["patrol_status"] = patrol["state"]
+                            observation["patrol_subject"] = subject_name
                             observation = (
                                 observation.reset_index()
                                 .merge(
