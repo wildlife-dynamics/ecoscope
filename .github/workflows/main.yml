@@ -10,5 +10,5 @@ jobs:
   dev:
     uses: ./.github/workflows/tests.yml
     with:
-      io: "not io"
+      io: "not io and not smart_io"
       os: "ubuntu-latest"
