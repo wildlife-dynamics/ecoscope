@@ -248,6 +248,3 @@ class SmartIO:
             values[attr["attribute"]] = attr["value"]
 
         return values
-
-    def test():
-        return True
