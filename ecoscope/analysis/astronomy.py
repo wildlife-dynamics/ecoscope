@@ -1,8 +1,9 @@
 import warnings
 from datetime import datetime, timedelta
-
+from shapely import Geometry
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 import pyproj
 import pytz
 
@@ -17,7 +18,7 @@ except ModuleNotFoundError:
     )
 
 
-def to_EarthLocation(geometry):
+def to_EarthLocation(geometry: gpd.GeoSeries) -> EarthLocation:
     """
     Location on Earth, initialized from geocentric coordinates.
 
@@ -40,13 +41,13 @@ def to_EarthLocation(geometry):
     )
 
 
-def is_night(geometry, time):
+def is_night(geometry: gpd.GeoSeries, time: pd.Series) -> bool:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Geometry is in a geographic CRS.", UserWarning)
         return astroplan.Observer(to_EarthLocation(geometry.centroid)).is_night(time)
 
 
-def sun_time(date, geometry):
+def sun_time(date: datetime, geometry: Geometry) -> pd.Series:
     midnight = Time(
         datetime(date.year, date.month, date.day) + timedelta(seconds=1), scale="utc"
     )  # add 1 second shift to avoid leap_second_strict warning
@@ -56,7 +57,9 @@ def sun_time(date, geometry):
     return pd.Series({"sunrise": sunrise, "sunset": sunset})
 
 
-def calculate_day_night_distance(date, segment_start, segment_end, dist_meters, daily_summary):
+def calculate_day_night_distance(
+    date: datetime, segment_start: datetime, segment_end: datetime, dist_meters: int, daily_summary: pd.DataFrame
+) -> None:
     sunrise = daily_summary.loc[date, "sunrise"]
     sunset = daily_summary.loc[date, "sunset"]
 
@@ -79,7 +82,7 @@ def calculate_day_night_distance(date, segment_start, segment_end, dist_meters, 
     daily_summary.loc[date, "night_distance"] += (1 - day_percent) * dist_meters
 
 
-def get_nightday_ratio(gdf):
+def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
     gdf["date"] = pd.to_datetime(gdf["segment_start"]).dt.date
 
     daily_summary = gdf.groupby("date").first()["geometry"].reset_index()
