@@ -204,7 +204,7 @@ class SmartIO:
         else:
             current_start = start_dt
             while current_start < end_dt:
-                segment_end = min(current_start + timedelta(days=7), end_dt)
+                segment_end = min(current_start + timedelta(days=2), end_dt)
                 patrols = self.get_patrols_list(
                     ca_uuid=ca_uuid,
                     language_uuid=language_uuid,
