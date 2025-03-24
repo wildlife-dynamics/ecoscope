@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from datetime import timedelta
 
 import geopandas as gpd
 import pandas as pd
@@ -185,15 +186,38 @@ class SmartIO:
 
         return result_df
 
-    def get_patrol_observations(self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None):
-        df = self.get_patrols_list(
-            ca_uuid=ca_uuid,
-            language_uuid=language_uuid,
-            start=start,
-            end=end,
-            patrol_mandate=patrol_mandate,
-            patrol_transport=patrol_transport,
-        )
+    def get_patrol_observations(
+        self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None, window_size_in_days=7
+    ):
+        df = gpd.GeoDataFrame()
+        start_dt = pd.to_datetime(start)
+        end_dt = pd.to_datetime(end)
+        total_duration = end_dt - start_dt
+
+        if total_duration <= timedelta(days=window_size_in_days):
+            df = self.get_patrols_list(
+                ca_uuid=ca_uuid,
+                language_uuid=language_uuid,
+                start=start,
+                end=end,
+                patrol_mandate=patrol_mandate,
+                patrol_transport=patrol_transport,
+            )
+        else:
+            current_start = start_dt
+            while current_start < end_dt:
+                segment_end = min(current_start + timedelta(days=window_size_in_days), end_dt)
+                patrols = self.get_patrols_list(
+                    ca_uuid=ca_uuid,
+                    language_uuid=language_uuid,
+                    start=current_start.isoformat(),
+                    end=segment_end.isoformat(),
+                    patrol_mandate=patrol_mandate,
+                    patrol_transport=patrol_transport,
+                )
+                df = pd.concat([df, patrols])
+                current_start = segment_end
+
         try:
             patrols_df = self.process_patrols_gdf(df)
 
