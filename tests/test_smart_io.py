@@ -37,6 +37,7 @@ def test_smart_get_patrol_observations_paginates(smart_io):
         language_uuid="13451893-86af-4ec0-beac-2b8e0c2482b5",
         start="2021-12-01",
         end="2021-12-07",
+        window_size_in_days=2,
     )
 
     assert len(result) > 0

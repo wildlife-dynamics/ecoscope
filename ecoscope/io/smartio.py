@@ -186,13 +186,15 @@ class SmartIO:
 
         return result_df
 
-    def get_patrol_observations(self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None):
+    def get_patrol_observations(
+        self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None, window_size_in_days=7
+    ):
         df = gpd.GeoDataFrame()
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
         total_duration = end_dt - start_dt
 
-        if total_duration <= timedelta(days=7):
+        if total_duration <= timedelta(days=window_size_in_days):
             df = self.get_patrols_list(
                 ca_uuid=ca_uuid,
                 language_uuid=language_uuid,
@@ -204,7 +206,7 @@ class SmartIO:
         else:
             current_start = start_dt
             while current_start < end_dt:
-                segment_end = min(current_start + timedelta(days=2), end_dt)
+                segment_end = min(current_start + timedelta(days=window_size_in_days), end_dt)
                 patrols = self.get_patrols_list(
                     ca_uuid=ca_uuid,
                     language_uuid=language_uuid,
