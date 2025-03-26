@@ -535,6 +535,12 @@ class EcoMap(Map):
                 "name": "landDx",
                 "max_zoom": 15,
             },
+            "HILLSHADE": {
+                "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+                "attribution": "USGS",
+                "name": "USGS",
+                "max_zoom": 13,
+            },
         }
 
         layer = xyz_tiles.get(layer)
