@@ -37,6 +37,47 @@ except ModuleNotFoundError:
          Please run pip install ecoscope["mapping"]'
     )
 
+# From Leafmap
+# https://github.com/opengeos/leafmap/blob/master/leafmap/basemaps.py
+TILE_LAYERS = {
+    "OpenStreetMap": {
+        "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "attribution": "OpenStreetMap",
+        "name": "OpenStreetMap",
+        "max_requests": -1,
+    },
+    "ROADMAP": {
+        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",  # noqa
+        "attribution": "Esri",
+        "name": "Esri.WorldStreetMap",
+        "max_zoom": 18,
+    },
+    "SATELLITE": {
+        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "Esri",
+        "name": "Esri.WorldImagery",
+        "max_zoom": 17,
+    },
+    "TERRAIN": {
+        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "Esri",
+        "name": "Esri.WorldTopoMap",
+        "max_zoom": 17,
+    },
+    "LANDDX": {
+        "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "landDx",
+        "name": "landDx",
+        "max_zoom": 15,
+    },
+    "USGS HILLSHADE": {
+        "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+        "attribution": "USGS",
+        "name": "USGS",
+        "max_zoom": 13,
+    },
+}
+
 
 class EcoMap(Map):
     def __init__(self, static=False, default_widgets=True, *args, **kwargs):
@@ -251,19 +292,18 @@ class EcoMap(Map):
         if isinstance(colors, pd.Series):
             colors = colors.tolist()
 
-        labels = list(dict.fromkeys(labels))
-        colors = list(dict.fromkeys(colors))
         if len(labels) != len(colors):
-            raise ValueError("Unique label and color values must be of equal number")
+            raise ValueError("label and color values must be of equal number")
+        pairs = {labels[index]: colors[index] for index in range(len(labels))}
 
         filtered_labels = []
         filtered_colors = []
-        for index, value in enumerate(colors):
-            if isinstance(value, str):
-                value = hex_to_rgba(value)
-            if len(value) == 4 and value[3] > 0:
-                filtered_labels.append(labels[index])
-                filtered_colors.append(colors[index])
+        for label, color in pairs.items():
+            if isinstance(color, str):
+                color = hex_to_rgba(color)
+            if len(color) == 4 and color[3] > 0:
+                filtered_labels.append(label)
+                filtered_colors.append(color)
 
         widget_labels = [str(label) for label in filtered_labels]
         widget_colors = [color_tuple_to_css(color) if isinstance(color, tuple) else color for color in filtered_colors]
@@ -502,44 +542,9 @@ class EcoMap(Map):
 
     @staticmethod
     def get_named_tile_layer(layer: str, opacity: float = 1) -> BitmapTileLayer:
-        # From Leafmap
-        # https://github.com/opengeos/leafmap/blob/master/leafmap/basemaps.py
-        xyz_tiles = {
-            "OpenStreetMap": {
-                "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "attribution": "OpenStreetMap",
-                "name": "OpenStreetMap",
-                "max_requests": -1,
-            },
-            "ROADMAP": {
-                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",  # noqa
-                "attribution": "Esri",
-                "name": "Esri.WorldStreetMap",
-                "max_zoom": 18,
-            },
-            "SATELLITE": {
-                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                "attribution": "Esri",
-                "name": "Esri.WorldImagery",
-                "max_zoom": 17,
-            },
-            "TERRAIN": {
-                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-                "attribution": "Esri",
-                "name": "Esri.WorldTopoMap",
-                "max_zoom": 17,
-            },
-            "LANDDX": {
-                "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
-                "attribution": "landDx",
-                "name": "landDx",
-                "max_zoom": 15,
-            },
-        }
-
-        layer = xyz_tiles.get(layer)
+        layer = TILE_LAYERS.get(layer)
         if not layer:
-            raise ValueError("string layer name must be in  {}".format(", ".join(xyz_tiles.keys())))
+            raise ValueError("layer name must be in  {}".format(", ".join(TILE_LAYERS.keys())))
         return BitmapTileLayer(
             data=layer.get("url"),
             tile_size=layer.get("tile_size", 256),
