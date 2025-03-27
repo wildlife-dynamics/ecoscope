@@ -101,18 +101,10 @@ def test_add_legend_series_with_transparent():
     assert legend.colors == ["rgba(0, 0, 0, 1.0)", "rgba(255, 255, 255, 1.0)", "rgba(100, 100, 100, 1.0)"]
 
 
-def test_add_legend_series_unbalanced_good():
+def test_add_legend_series_unbalanced():
     m = EcoMap(default_widgets=False)
-    m.add_legend(
-        labels=pd.Series(["Black", "White", "White"]),
-        colors=pd.Series([(0, 0, 0, 255), (255, 255, 255, 255), (255, 255, 255, 255)]),
-    )
-
-
-def test_add_legend_series_unbalanced_bad():
-    m = EcoMap(default_widgets=False)
-    with pytest.raises(ValueError, match="Unique label and color values must be of equal number"):
-        m.add_legend(labels=pd.Series(["Black", "White"]), colors=pd.Series([(0, 0, 0, 255), (0, 0, 0, 255)]))
+    m.add_legend(labels=pd.Series(["Class A", "Class B"]), colors=pd.Series([(0, 0, 0, 255), (0, 0, 0, 255)]))
+    m.to_html("testoutput.html")
 
 
 def test_add_north_arrow():

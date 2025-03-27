@@ -292,19 +292,18 @@ class EcoMap(Map):
         if isinstance(colors, pd.Series):
             colors = colors.tolist()
 
-        labels = list(dict.fromkeys(labels))
-        colors = list(dict.fromkeys(colors))
         if len(labels) != len(colors):
-            raise ValueError("Unique label and color values must be of equal number")
+            raise ValueError("label and color values must be of equal number")
+        pairs = {labels[index]: colors[index] for index in range(len(labels))}
 
         filtered_labels = []
         filtered_colors = []
-        for index, value in enumerate(colors):
-            if isinstance(value, str):
-                value = hex_to_rgba(value)
-            if len(value) == 4 and value[3] > 0:
-                filtered_labels.append(labels[index])
-                filtered_colors.append(colors[index])
+        for label, color in pairs.items():
+            if isinstance(color, str):
+                color = hex_to_rgba(color)
+            if len(color) == 4 and color[3] > 0:
+                filtered_labels.append(label)
+                filtered_colors.append(color)
 
         widget_labels = [str(label) for label in filtered_labels]
         widget_colors = [color_tuple_to_css(color) if isinstance(color, tuple) else color for color in filtered_colors]
