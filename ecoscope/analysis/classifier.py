@@ -126,32 +126,34 @@ def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None)
     """
     assert input_column_name in dataframe.columns, "input column must exist on dataframe"
 
+    nunique = dataframe[input_column_name].nunique()
+    unique = dataframe[input_column_name].unique()
     if isinstance(cmap, list):
-        nunique = dataframe[input_column_name].nunique()
-        assert len(cmap) >= nunique, f"cmap list must contain at least as many values as unique in {input_column_name}"
         cmap = [hex_to_rgba(x) for x in cmap]
-        cmap = pd.Series(cmap[:nunique], index=dataframe[input_column_name].unique())
+        cmap_colors = [cmap[i % len(cmap)] for i in range(nunique)]
+        cmap = pd.Series(cmap_colors, index=unique)
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
-        cmap = cmap.resampled(dataframe[input_column_name].nunique())
+        if nunique < cmap.N:
+            cmap = cmap.resampled(nunique)
 
         if pd.api.types.is_numeric_dtype(dataframe[input_column_name].dtype):
             cmap_colors = []
             val_min = dataframe[input_column_name].min()
             val_max = dataframe[input_column_name].max()
-            for val in dataframe[input_column_name].unique():
+            for val in unique:
                 cmap_colors.append(cmap((val - val_min) / (val_max - val_min)))
         else:
-            cmap_colors = cmap(range(len(dataframe[input_column_name].unique())))
+            cmap_colors = cmap(range(len(unique)))
+            cmap_colors = [cmap(i % cmap.N) for i in range(nunique)]
 
         color_list = []
         for color in cmap_colors:
             color_list.append(tuple([round(val * 255) for val in color]))
 
-        # convert to hex first to put values in range(0,255), then to an RGBA tuple
         cmap = pd.Series(
             color_list,
-            index=dataframe[input_column_name].unique(),
+            index=unique,
         )
 
     if not output_column_name:
