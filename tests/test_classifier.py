@@ -69,6 +69,16 @@ def test_apply_colormap(sample_df, cmap):
     assert len(sample_df["colormap"].unique()) == len(sample_df["value_classified"].unique())
 
 
+def test_apply_mpl_colormap_loops():
+    more_classes_than_colors = pd.DataFrame(
+        data={"value": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]},
+        index=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    )
+    apply_color_map(more_classes_than_colors, "value", "Accent", output_column_name="colormap")
+
+    assert len(more_classes_than_colors["colormap"].unique()) != len(more_classes_than_colors["value"].unique())
+
+
 def test_apply_colormap_with_nan():
     df = pd.DataFrame(
         data={"value": [1, 2, 3, 4, np.nan]},
@@ -107,16 +117,20 @@ def test_apply_colormap_user_defined(movebank_relocations):
     assert len(trajectory["speed_bins_colormap"].unique()) == len(trajectory["speed_bins"].unique())
 
 
-def test_apply_colormap_cmap_user_defined_bad(movebank_relocations):
+def test_apply_colormap_user_defined_loops(movebank_relocations):
     trajectory = Trajectory.from_relocations(movebank_relocations)
-    classified = apply_classification(
-        trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval"
-    )
+    apply_classification(trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval")
 
-    cmap = ["#1a9850"]
+    # With len(cmap)==7 we're also testing that the input cmap can be larger than the number of categories
+    cmap = [
+        "#1a9850",
+        "#91cf60",
+        "#d9ef8b",
+        "#fee08b",
+    ]
 
-    with pytest.raises(AssertionError):
-        apply_color_map(classified, "speed_bins", cmap)
+    apply_color_map(trajectory, "speed_bins", cmap)
+    assert len(trajectory["speed_bins_colormap"].unique()) == len(cmap)
 
 
 def test_classify_with_ranges(sample_df):
