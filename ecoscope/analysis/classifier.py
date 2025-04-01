@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, List
 import pandas as pd
 import matplotlib as mpl
 from ecoscope.base.utils import hex_to_rgba
@@ -29,7 +29,7 @@ def apply_classification(
     dataframe: pd.DataFrame,
     input_column_name: str,
     output_column_name: str = None,
-    labels: list[str] = None,
+    labels: List[str] = None,
     scheme: Literal[
         "equal_interval", "natural_breaks", "quantile", "std_mean", "max_breaks", "fisher_jenks"
     ] = "natural_breaks",
@@ -114,7 +114,7 @@ def apply_classification(
 
 
 def apply_color_map(
-    dataframe: pd.DataFrame, input_column_name: str, cmap: str | list[str], output_column_name: bool = None
+    dataframe: pd.DataFrame, input_column_name: str, cmap: str | List[str], output_column_name: bool = None
 ) -> pd.DataFrame:
     """
     Creates a new column on the provided dataframe with the given cmap applied over the specified input column
