@@ -1,3 +1,8 @@
+from typing import Literal, List, Tuple
+
+import geopandas as gpd
+from PIL.Image import Image
+
 try:
     import datashader as ds
 except ModuleNotFoundError:
@@ -7,7 +12,15 @@ except ModuleNotFoundError:
     )
 
 
-def datashade_gdf(gdf, geom_type, width=600, height=600, cmap=None, ds_agg=None, **kwargs):
+def datashade_gdf(
+    gdf: gpd.GeoDataFrame,
+    geom_type: Literal["polygon", "line", "point"],
+    width: int = 600,
+    height: int = 600,
+    cmap: str | List[str] = None,
+    ds_agg=None,
+    **kwargs,
+) -> Tuple[Image, Tuple[float, float, float, float]]:
     """
     Creates a raster of the given gdf using Datashader
 
