@@ -1,7 +1,11 @@
+from typing import Literal
 import numpy as np
+import geopandas as gpd
 
 
-def calculate_feature_density(selection, grid, geometry_type="point"):
+def calculate_feature_density(
+    selection: gpd.GeoDataFrame, grid: gpd.GeoDataFrame, geometry_type: Literal["point", "line"] = "point"
+) -> gpd.GeoDataFrame:
     def clip_density(cell):
         if geometry_type == "point":
             result = selection.geometry.within(cell)
