@@ -7,6 +7,8 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
+import ecoscope
+
 
 @dataclass
 class SpatialFeature:
@@ -26,7 +28,11 @@ class ProximityProfile:
 
 class Proximity:
     @classmethod
-    def calculate_proximity(cls, proximity_profile, trajectory):
+    def calculate_proximity(
+        cls,
+        proximity_profile: ProximityProfile,
+        trajectory: ecoscope.base.Trajectory,
+    ):
         """
         A function to analyze the trajectory of a subject in relation to a set of spatial features and regions to
         determine where/when the subject was proximal to the spatial feature.
