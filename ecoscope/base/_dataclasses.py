@@ -1,8 +1,7 @@
 import datetime
-import typing
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, List
+from typing import Any, List, Union
 
 import geopandas
 import shapely
@@ -17,9 +16,7 @@ class RelocsCoordinateFilter:
     max_x: float = 180.0
     min_y: float = -90.0
     max_y: float = 90.0
-    filter_point_coords: typing.Union[typing.List[typing.List[float]], geopandas.GeoSeries] = field(
-        default_factory=[[0.0, 0.0]]
-    )
+    filter_point_coords: Union[List[List[float]], geopandas.GeoSeries] = field(default_factory=[[0.0, 0.0]])
 
     def __post_init__(self):
         if isinstance(self.filter_point_coords, list):
