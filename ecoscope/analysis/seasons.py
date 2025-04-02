@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import shapely
+from shapely.geometry.base import BaseGeometry
 
 try:
     import sklearn.mixture
@@ -30,7 +31,7 @@ def _min_max_scaler(x):
 
 
 def std_ndvi_vals(
-    aoi=gpd.GeoDataFrame | gpd.GeoSeries | shapely.BaseGeometry,
+    aoi=gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry,
     img_coll: str = None,
     nir_band: str = None,
     red_band: str = None,
