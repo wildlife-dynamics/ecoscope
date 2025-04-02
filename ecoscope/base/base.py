@@ -1,9 +1,6 @@
 import itertools
-import uuid
 import warnings
 from functools import cached_property
-from dataclasses import dataclass, field
-from typing import Any, List
 
 import geopandas as gpd
 import numpy as np
@@ -12,28 +9,13 @@ import shapely
 from pyproj import Geod
 
 from ecoscope.base._dataclasses import (
+    ProximityProfile,
     RelocsCoordinateFilter,
     RelocsDateRangeFilter,
     RelocsDistFilter,
     RelocsSpeedFilter,
     TrajSegFilter,
 )
-
-
-@dataclass
-class SpatialFeature:
-    """
-    A spatial geometry with an associated name and unique ID. Becomes a useful construct in several movdata calculations
-    """
-
-    name: str = ""
-    unique_id: Any = uuid.uuid4()
-    geometry: Any = None
-
-
-@dataclass
-class ProximityProfile:
-    spatial_features: List[SpatialFeature] = field(default=list)
 
 
 class EcoDataFrame(gpd.GeoDataFrame):

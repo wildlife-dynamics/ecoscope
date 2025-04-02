@@ -7,7 +7,6 @@ __all__ = [
     "geospatial",
     "immobility",
     "percentile",
-    "proximity",
     "seasons",
     "apply_classification",
     "calculate_feature_density",

@@ -1,6 +1,8 @@
 import datetime
 import typing
+import uuid
 from dataclasses import dataclass, field
+from typing import Any, List
 
 import geopandas
 import shapely
@@ -69,3 +71,19 @@ class TrajSegFilter:
     max_time_secs: float = float("inf")
     min_speed_kmhr: float = 0.0
     max_speed_kmhr: float = float("inf")
+
+
+@dataclass
+class SpatialFeature:
+    """
+    A spatial geometry with an associated name and unique ID. Becomes a useful construct in several movdata calculations
+    """
+
+    name: str = ""
+    unique_id: Any = uuid.uuid4()
+    geometry: Any = None
+
+
+@dataclass
+class ProximityProfile:
+    spatial_features: List[SpatialFeature] = field(default=list)
