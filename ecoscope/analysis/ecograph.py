@@ -1,9 +1,12 @@
+import os
 from math import ceil, floor
+from typing import Hashable, Literal, List, Tuple
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import rasterio
+from shapely.coords import CoordinateSequence
 from shapely.geometry import shape
 from affine import Affine
 
@@ -19,6 +22,8 @@ except ModuleNotFoundError:
         'Missing optional dependencies required by this module. \
          Please run pip install ecoscope["analysis"]'
     )
+
+InterpolationOption = Literal["max", "mean", "median", "min"]
 
 
 class Ecograph:
@@ -40,7 +45,14 @@ class Ecograph:
         The number of steps used to compute the two tortuosity metrics (Default : 3 steps)
     """
 
-    def __init__(self, trajectory, resolution=15, radius=2, cutoff=None, tortuosity_length=3):
+    def __init__(
+        self,
+        trajectory: ecoscope.base.Trajectory,
+        resolution: int = 15,
+        radius: float = 2,
+        cutoff: float | None = None,
+        tortuosity_length: int = 3,
+    ):
         self.graphs = {}
         self.trajectory = trajectory
         self.resolution = ceil(resolution)
@@ -82,12 +94,12 @@ class Ecograph:
         def compute(df):
             subject_name = df.name
             print(f"Computing EcoGraph for subject {subject_name}")
-            G = self._get_ecograph(df, subject_name, radius, cutoff, tortuosity_length)
+            G = self._get_ecograph(df, radius, cutoff, tortuosity_length)
             self.graphs[subject_name] = G
 
         self.trajectory.groupby("groupby_col")[self.trajectory.columns].apply(compute)
 
-    def to_csv(self, output_path):
+    def to_csv(self, output_path: str | os.PathLike) -> None:
         """
         Saves the features of all nodes in a CSV file
 
@@ -107,7 +119,14 @@ class Ecograph:
                     df[feature].append(G.nodes[node][feature])
         (pd.DataFrame.from_dict(df)).to_csv(output_path, index=False)
 
-    def to_geotiff(self, feature, output_path, individual="all", interpolation=None, transform=None):
+    def to_geotiff(
+        self,
+        feature: str,
+        output_path: str | os.PathLike,
+        individual: str = "all",
+        interpolation: str | None = None,
+        transform: sklearn.base.TransformerMixin | None = None,
+    ) -> None:
         """
         Saves a specific node feature as a GeoTIFF
 
@@ -158,7 +177,13 @@ class Ecograph:
             **raster_profile,
         )
 
-    def _get_ecograph(self, trajectory_gdf, individual_name, radius, cutoff, tortuosity_length):
+    def _get_ecograph(
+        self,
+        trajectory_gdf: ecoscope.base.Trajectory,
+        radius: float,
+        cutoff: float | None,
+        tortuosity_length: int,
+    ) -> nx.Graph:
         G = nx.Graph()
         geom = trajectory_gdf["geometry"]
         for i in range(len(geom) - (tortuosity_length - 1)):
@@ -212,21 +237,25 @@ class Ecograph:
         return G
 
     @staticmethod
-    def _update_node(G, node_id, attributes):
+    def _update_node(
+        G: nx.Graph,
+        node_id: Hashable,
+        attributes: dict,
+    ) -> None:
         G.add_node(node_id)
         G.nodes[node_id]["weight"] += 1
         for key, value in attributes.items():
             G.nodes[node_id][key].append(value)
 
     @staticmethod
-    def _get_day_night_value(day_night_value):
+    def _get_day_night_value(day_night_value: Literal["day", "night"]) -> None:
         if day_night_value == "day":
             return 0
         elif day_night_value == "night":
             return 1
 
     @staticmethod
-    def _initialize_node(G, node_id, attributes, empty=False):
+    def _initialize_node(G: nx.Graph, node_id: Hashable, attributes: dict, empty: bool = False) -> None:
         G.add_node(node_id)
         G.nodes[node_id]["weight"] = 1
         for key, value in attributes.items():
@@ -236,7 +265,7 @@ class Ecograph:
                 G.nodes[node_id][key] = [value]
 
     @staticmethod
-    def _get_dot_product(x, y, z, w):
+    def _get_dot_product(x: list[float], y: list[float], z: list[float], w: list[float]) -> float:
         if (floor(y[0]) == floor(w[0])) and (floor(y[1]) == floor(w[1])):
             v = [y[0] - x[0], y[1] - x[1]]
             w = [z[0] - y[0], z[1] - y[1]]
@@ -250,7 +279,11 @@ class Ecograph:
         else:
             return np.nan
 
-    def _get_tortuosities(self, lines, time_delta):
+    def _get_tortuosities(
+        self,
+        lines: List[List[CoordinateSequence]],
+        time_delta: float,
+    ) -> Tuple[float, float]:
         point1, point2 = lines[0][0], lines[len(lines) - 1][1]
         beeline_dist = np.sqrt((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2)
         total_length = 0
@@ -275,22 +308,35 @@ class Ecograph:
         else:
             return np.nan, np.nan
 
-    def _compute_network_metrics(self, G, radius, cutoff):
+    def _compute_network_metrics(
+        self,
+        G: nx.Graph,
+        radius: float,
+        cutoff: float,
+    ) -> None:
         self._compute_degree(G)
         self._compute_betweenness(G, cutoff)
         self._compute_collective_influence(G, radius)
 
     @staticmethod
-    def _compute_degree(G):
+    def _compute_degree(G: nx.Graph) -> None:
         for node in G.nodes():
             G.nodes[node]["degree"] = G.degree[node]
 
-    def _compute_collective_influence(self, G, radius):
+    def _compute_collective_influence(
+        self,
+        G: nx.Graph,
+        radius: float,
+    ) -> None:
         for node in G.nodes():
             G.nodes[node]["collective_influence"] = self._get_collective_influence(G, node, radius)
 
     @staticmethod
-    def _get_collective_influence(G, start, radius):
+    def _get_collective_influence(
+        G: nx.Graph,
+        start: Hashable,
+        radius: float,
+    ) -> float:
         sub_g = nx.generators.ego_graph(G, start, radius=radius)
         collective_influence = 0
         for n in sub_g.nodes():
@@ -299,14 +345,17 @@ class Ecograph:
         return (G.degree[start]) * collective_influence
 
     @staticmethod
-    def _compute_betweenness(G, cutoff):
+    def _compute_betweenness(
+        G: nx.Graph,
+        cutoff: float,
+    ) -> None:
         g = igraph.Graph.from_networkx(G)
         btw_idx = g.betweenness(cutoff=cutoff)
         for v in g.vs:
             node = v["_nx_name"]
             G.nodes[node]["betweenness"] = btw_idx[v.index]
 
-    def _get_feature_mosaic(self, feature, interpolation=None):
+    def _get_feature_mosaic(self, feature: str, interpolation: InterpolationOption = None) -> np.typing.NDArray:
         features = []
         for individual in self.graphs.keys():
             features.append(self._get_feature_map(feature, individual, interpolation))
@@ -324,19 +373,33 @@ class Ecograph:
                     mosaic[i][j] = values[0]
         return mosaic
 
-    def _get_feature_map(self, feature, individual, interpolation):
+    def _get_feature_map(
+        self,
+        feature: str,
+        individual: str,
+        interpolation: InterpolationOption,
+    ) -> np.typing.NDArray:
         if interpolation is not None:
             return self._get_interpolated_feature_map(feature, individual, interpolation)
         else:
             return self._get_regular_feature_map(feature, individual)
 
-    def _get_regular_feature_map(self, feature, individual):
+    def _get_regular_feature_map(
+        self,
+        feature: str,
+        individual: str,
+    ) -> np.typing.NDArray:
         feature_ndarray = np.full((self.n_cols, self.n_rows), np.nan)
         for node in self.graphs[individual].nodes():
             feature_ndarray[node[1]][node[0]] = (self.graphs[individual]).nodes[node][feature]
         return feature_ndarray
 
-    def _get_interpolated_feature_map(self, feature, individual, interpolation):
+    def _get_interpolated_feature_map(
+        self,
+        feature: str,
+        individual: str,
+        interpolation: InterpolationOption,
+    ) -> np.typing.NDArray:
         feature_ndarray = self._get_regular_feature_map(feature, individual)
         individual_trajectory = self.trajectory[self.trajectory["groupby_col"] == individual]
         geom = individual_trajectory["geometry"]
@@ -369,7 +432,7 @@ class Ecograph:
         return feature_ndarray
 
 
-def get_feature_gdf(input_path):
+def get_feature_gdf(input_path: str | os.PathLike) -> gpd.GeoDataFrame:
     """
     Convert a GeoTIFF feature map into a GeoDataFrame
 
