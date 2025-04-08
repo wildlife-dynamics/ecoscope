@@ -1,9 +1,12 @@
 from dataclasses import dataclass
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from pandas.core.groupby.generic import DataFrameGroupBy
 import shapely
 
+import ecoscope
 from ecoscope.base.utils import color_tuple_to_css
 
 try:
@@ -18,7 +21,15 @@ except ModuleNotFoundError:
 
 
 class EcoPlotData:
-    def __init__(self, grouped, x_col="x", y_col="y", color_col=None, groupby_style=None, **style):
+    def __init__(
+        self,
+        grouped: DataFrameGroupBy,
+        x_col: str = "x",
+        y_col: str = "y",
+        color_col: str | None = None,
+        groupby_style: dict | None = None,
+        **style,
+    ):
         self.grouped = grouped
         self.x_col = x_col
         self.y_col = y_col
@@ -41,18 +52,18 @@ class EcoPlotData:
 
 
 def ecoplot(
-    data,
-    title="",
-    out_path=None,
-    subplot_height=100,
-    subplot_width=700,
-    vertical_spacing=0.001,
-    annotate_name_pos=(0.01, 0.99),
-    y_title_2=None,
-    layout_kwargs=None,
-    tickformat="%b-%Y",
+    data: list[EcoPlotData],
+    title: str = "",
+    out_path: str | None = None,
+    subplot_height: int = 100,
+    subplot_width: int = 700,
+    vertical_spacing: float = 0.001,
+    annotate_name_pos: Tuple[float, float] = (0.01, 0.99),
+    y_title_2: str | None = None,
+    layout_kwargs: dict | None = None,
+    tickformat: str = "%b-%Y",
     **make_subplots_kwargs,
-):
+) -> go.Figure:
     groups = sorted(list(set.union(*[set(datum.grouped.groups.keys()) for datum in data])))
     datum_1 = data[0]
     datum_2 = None
@@ -155,7 +166,7 @@ def ecoplot(
     return fig
 
 
-def add_seasons(fig, season_df):
+def add_seasons(fig: go.Figure, season_df: pd.DataFrame) -> go.Figure:
     fig = make_subplots(figure=fig, specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -171,7 +182,7 @@ def add_seasons(fig, season_df):
     return fig
 
 
-def mcp(relocations):
+def mcp(relocations: ecoscope.base.Relocations) -> go.Figure:
     relocations = relocations.to_crs(relocations.estimate_utm_crs())
 
     areas = []
@@ -205,7 +216,7 @@ def mcp(relocations):
     return fig
 
 
-def nsd(relocations):
+def nsd(relocations: ecoscope.base.Relocations) -> go.Figure:
     relocations = relocations.to_crs(relocations.estimate_utm_crs())
 
     times = relocations["fixtime"]
@@ -228,7 +239,7 @@ def nsd(relocations):
     return fig
 
 
-def speed(trajectory):
+def speed(trajectory: ecoscope.base.Trajectory) -> go.Figure:
     times = np.column_stack(
         [
             trajectory["segment_start"],
@@ -263,7 +274,9 @@ def speed(trajectory):
     return fig
 
 
-def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
+def plot_seasonal_dist(
+    ndvi_vals: pd.Series, cuts: list[float], bandwidth: float = 0.05, output_file: str = None
+) -> go.Figure:
     x = ndvi_vals.sort_values().to_numpy().reshape(-1, 1)
     kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(x)
     dens = np.exp(kde.score_samples(x))
@@ -293,7 +306,7 @@ def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
     return fig
 
 
-def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, layout_kwargs: dict = None):
+def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, layout_kwargs: dict = None) -> go.Figure:
     """
     Creates a stacked bar chart from the provided EcoPlotData object
     Parameters
@@ -370,7 +383,7 @@ def bar_chart(
     bar_configs: list[BarConfig],
     category: str,
     layout_kwargs: dict = None,
-):
+) -> go.Figure:
     """
     Creates a bar chart from the provided dataframe
     Parameters
@@ -415,7 +428,7 @@ def pie_chart(
     color_column: str | None = None,
     style_kwargs: dict | None = None,
     layout_kwargs: dict | None = None,
-):
+) -> go.Figure:
     """
     Creates a pie chart from the provided dataframe
     Parameters
@@ -472,7 +485,7 @@ def draw_historic_timeseries(
     historic_mean_style: dict | None = None,
     current_value_style: dict | None = None,
     time_column: str = "img_date",
-):
+) -> go.Figure:
     """
     Creates a timeseries plot compared with historical values
     Parameters
