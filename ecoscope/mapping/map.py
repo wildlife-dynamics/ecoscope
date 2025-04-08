@@ -2,7 +2,7 @@ import base64
 import json
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Dict, List, Optional, TextIO, Union
+from typing import IO, Dict, Optional, TextIO, Union
 
 import ee
 import geopandas as gpd
@@ -56,7 +56,7 @@ class EcoMap(Map):
 
         super().__init__(*args, **kwargs)
 
-    def add_layer(self, layer: Union[BaseLayer, List[BaseLayer]], zoom: bool = False):
+    def add_layer(self, layer: Union[BaseLayer, list[BaseLayer]], zoom: bool = False):
         """
         Adds a layer or list of layers to the map
         Parameters
@@ -87,7 +87,7 @@ class EcoMap(Map):
     @staticmethod
     def layers_from_gdf(
         gdf: gpd.GeoDataFrame, tooltip_columns: list[str] = None, **kwargs
-    ) -> List[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
+    ) -> list[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
         """
         Creates map layers from the provided gdf, returns multiple layers when geometry is mixed
         Style kwargs are provided to all created layers
@@ -371,13 +371,13 @@ class EcoMap(Map):
 
         return ee_layer
 
-    def zoom_to_bounds(self, feat: Union[BaseLayer, List[BaseLayer], gpd.GeoDataFrame], max_zoom: int = 20):
+    def zoom_to_bounds(self, feat: Union[BaseLayer, list[BaseLayer], gpd.GeoDataFrame], max_zoom: int = 20):
         """
         Zooms the map to the bounds of a dataframe or layer.
 
         Parameters
         ----------
-        feat : BaseLayer, List[lonboard.BaseLayer], gpd.GeoDataFrame
+        feat : BaseLayer, list[lonboard.BaseLayer], gpd.GeoDataFrame
             The feature to zoom to
         """
         if feat is None:

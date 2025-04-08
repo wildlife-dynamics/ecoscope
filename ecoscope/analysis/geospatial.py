@@ -1,4 +1,4 @@
-from typing import Literal, List, Tuple
+from typing import Literal, Tuple
 
 import geopandas as gpd
 from PIL.Image import Image
@@ -17,7 +17,7 @@ def datashade_gdf(
     geom_type: Literal["polygon", "line", "point"],
     width: int = 600,
     height: int = 600,
-    cmap: str | List[str] = None,
+    cmap: str | list[str] = None,
     ds_agg=None,
     **kwargs,
 ) -> Tuple[Image, Tuple[float, float, float, float]]:

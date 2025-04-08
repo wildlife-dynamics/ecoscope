@@ -1233,7 +1233,7 @@ class EarthRangerIO(ERClient):
 
     def post_event(
         self,
-        events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]],
+        events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, list[typing.Dict]],
     ) -> pd.DataFrame:
         """
         Parameters
@@ -1390,7 +1390,7 @@ class EarthRangerIO(ERClient):
     def patch_event(
         self,
         event_id: str,
-        events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, typing.List[typing.Dict]],
+        events: typing.Union[gpd.GeoDataFrame, pd.DataFrame, typing.Dict, list[typing.Dict]],
     ) -> pd.DataFrame:
         """
         Parameters

@@ -1,5 +1,3 @@
-import typing
-
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 from dateutil import parser
@@ -73,7 +71,7 @@ def to_hex(val, default="#ff0000"):
     return default
 
 
-def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
+def pack_columns(dataframe: pd.DataFrame, columns: list):
     """This method would add all extra columns to single column"""
     metadata_cols = list(set(dataframe.columns).difference(set(columns)))
 

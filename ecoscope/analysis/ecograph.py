@@ -1,6 +1,6 @@
 import os
 from math import ceil, floor
-from typing import Hashable, Literal, List, Tuple
+from typing import Hashable, Literal, Tuple
 
 import geopandas as gpd
 import numpy as np
@@ -281,7 +281,7 @@ class Ecograph:
 
     def _get_tortuosities(
         self,
-        lines: List[List[CoordinateSequence]],
+        lines: list[list[CoordinateSequence]],
         time_delta: float,
     ) -> Tuple[float, float]:
         point1, point2 = lines[0][0], lines[len(lines) - 1][1]

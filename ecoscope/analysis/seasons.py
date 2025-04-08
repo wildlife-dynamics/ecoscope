@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from typing import List
 
 import ee
 import numpy as np
@@ -70,7 +69,7 @@ def std_ndvi_vals(
 def val_cuts(
     vals: pd.DataFrame,
     num_seasons: int = 2,
-) -> List[float]:
+) -> list[float]:
     distr = sklearn.mixture.GaussianMixture(n_components=num_seasons, max_iter=500)
     vals = vals["NDVI"].to_numpy().reshape(-1, 1)
     distr.fit(vals)
@@ -110,8 +109,8 @@ def val_cuts(
 
 def seasonal_windows(
     ndvi_vals: pd.DataFrame,
-    cuts: List[float],
-    season_labels: List[str],
+    cuts: list[float],
+    season_labels: list[str],
 ) -> pd.DataFrame:
     enc = LabelEncoder()
     ndvi_vals["season"] = pd.cut(ndvi_vals["NDVI"], bins=cuts, labels=season_labels)
@@ -142,7 +141,7 @@ def add_seasonal_index(
     time_col: str,
     aoi_geom_filter: gpd.GeoDataFrame = None,
     seasons: int = 2,
-    season_labels: List[str] = None,
+    season_labels: list[str] = None,
 ) -> pd.DataFrame:
     aoi_ = None
     if season_labels is None:
