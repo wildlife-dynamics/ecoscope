@@ -16,13 +16,15 @@ class RelocsCoordinateFilter:
     max_x: float = 180.0
     min_y: float = -90.0
     max_y: float = 90.0
-    filter_point_coords: list[list[float]] | geopandas.GeoSeries = [[0.0, 0.0]]
+    filter_point_coords: list[list[float]] | geopandas.GeoSeries | None = None
 
     def __post_init__(self):
         if isinstance(self.filter_point_coords, list):
             self.filter_point_coords = geopandas.GeoSeries(
                 shapely.geometry.Point(coord) for coord in self.filter_point_coords
             )
+        if self.filter_point_coords is None:
+            self.filter_point_coords = [[0.0, 0.0]]
 
 
 @dataclass
@@ -83,4 +85,4 @@ class SpatialFeature:
 
 @dataclass
 class ProximityProfile:
-    spatial_features: list[SpatialFeature] = []
+    spatial_features: list[SpatialFeature]
