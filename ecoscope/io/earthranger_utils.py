@@ -1,6 +1,6 @@
 import typing
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 from dateutil import parser
 from shapely.geometry import shape

@@ -2,7 +2,7 @@ import json
 import logging
 import uuid
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import requests
 import shapely

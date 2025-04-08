@@ -69,7 +69,7 @@ def ee_initialize(
     if ee.data._credentials is None:
         ee_token = os.environ.get(token_name)
         if in_colab_shell():
-            from google.colab import userdata
+            from google.colab import userdata  # type: ignore[import-untyped]
 
             try:
                 ee_token = userdata.get(token_name)

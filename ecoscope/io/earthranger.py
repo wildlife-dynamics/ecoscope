@@ -3,12 +3,12 @@ import json
 import math
 import typing
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pytz
 import requests
-from erclient.client import ERClient, ERClientException, ERClientNotFound
+from erclient.client import ERClient, ERClientException, ERClientNotFound  # type: ignore[import-untyped]
 from tqdm.auto import tqdm
 
 import ecoscope

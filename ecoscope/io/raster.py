@@ -4,12 +4,12 @@ import os
 from collections import UserDict
 from dataclasses import dataclass
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pyproj
-import rasterio as rio
-import rasterio.mask
+import rasterio as rio  # type: ignore[import-untyped]
+import rasterio.mask  # type: ignore[import-untyped]
 import tqdm.auto as tqdm
 
 import ecoscope

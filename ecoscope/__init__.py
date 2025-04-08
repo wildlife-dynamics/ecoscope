@@ -49,7 +49,7 @@ def init(silent=False, force=False):
     warnings.filterwarnings(action="ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", message=".*initial implementation of Parquet.*")
 
-    import plotly.io as pio
+    import plotly.io as pio  # type: ignore[import-untyped]
 
     pio.templates.default = "seaborn"
 

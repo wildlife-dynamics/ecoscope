@@ -1,11 +1,11 @@
 import json
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import asyncio
 
 import ecoscope
 from ecoscope.io.earthranger_utils import clean_kwargs, to_gdf, clean_time_cols, to_hex
-from erclient.client import ERClientException, ERClientNotFound
+from erclient.client import ERClientException, ERClientNotFound  # type: ignore[import-untyped]
 
 try:
     from erclient.client import AsyncERClient

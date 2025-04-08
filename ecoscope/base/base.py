@@ -2,7 +2,7 @@ import itertools
 import warnings
 from functools import cached_property
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import shapely

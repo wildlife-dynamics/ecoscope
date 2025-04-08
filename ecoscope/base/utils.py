@@ -1,4 +1,4 @@
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 from shapely.geometry import box
@@ -152,7 +152,7 @@ class ModisBegin(pd._libs.tslibs.offsets.SingleConstructorOffset):
 
     def apply(self, other: pd.Timestamp) -> pd.Timestamp:
         assert other.tz is not None, "Timestamp must be timezone-aware"
-        other = other.astimezone("UTC").round("d")
+        other = other.astimezone("UTC").round("d")  # type: ignore[arg-type]
         for i in range(self.n):
             other = min(other + pd.offsets.YearBegin(), other + pd.DateOffset(days=(16 - (other.dayofyear - 1) % 16)))
         return other
