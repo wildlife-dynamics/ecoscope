@@ -24,7 +24,7 @@ class SmartIO:
 
         self.login()
 
-    def login(self):
+    def login(self) -> None:
         login_data = {
             "username": self._username,
             "password": self._password,
@@ -38,7 +38,7 @@ class SmartIO:
             self._token = response.json()["access_token"]
             return
 
-    def query_data(self, url, params=None):
+    def query_data(self, url: str, params: dict | None = None) -> pd.DataFrame:
         headers = {
             "Authorization": f"Bearer {self._token}",
         }
@@ -57,7 +57,7 @@ class SmartIO:
         r.raise_for_status()
         return pd.DataFrame(r.json())
 
-    def query_geojson_data(self, url, params=None) -> gpd.GeoDataFrame | None:
+    def query_geojson_data(self, url: str, params: dict | None = None) -> gpd.GeoDataFrame | None:
         headers = {
             "Authorization": f"Bearer {self._token}",
         }
@@ -76,7 +76,15 @@ class SmartIO:
         r.raise_for_status()
         return gpd.GeoDataFrame.from_features(r.json(), crs=4326)
 
-    def get_patrols_list(self, ca_uuid, language_uuid, start, end, patrol_mandate, patrol_transport):
+    def get_patrols_list(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+        patrol_mandate: str | None,
+        patrol_transport: str | None,
+    ) -> gpd.GeoDataFrame | None:
         params = {}
         params["ca_uuid"] = ca_uuid
         params["language_uuid"] = language_uuid
@@ -185,7 +193,15 @@ class SmartIO:
 
         return result_df
 
-    def get_patrol_observations(self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None):
+    def get_patrol_observations(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+        patrol_mandate: str | None = None,
+        patrol_transport: str | None = None,
+    ) -> ecoscope.base.Relocations:
         df = self.get_patrols_list(
             ca_uuid=ca_uuid,
             language_uuid=language_uuid,
@@ -214,7 +230,13 @@ class SmartIO:
             logger.error(f"Error processing patrol data: {e}")
             return None
 
-    def get_events(self, ca_uuid, language_uuid, start, end):
+    def get_events(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+    ) -> gpd.GeoDataFrame:
         params = {}
         params["ca_uuid"] = ca_uuid
         params["language_uuid"] = language_uuid
@@ -241,7 +263,7 @@ class SmartIO:
         events_df["extracted_attributes"] = events_df["attributes"].apply(self.extract_event_attributes)
         return events_df
 
-    def extract_event_attributes(self, attr_str):
+    def extract_event_attributes(self, attr_str: str) -> dict:
         attr_list = json.loads(attr_str)
         values = {}
         for attr in attr_list:
