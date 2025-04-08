@@ -9,7 +9,15 @@ from tqdm.auto import tqdm
 from urllib3.util import Retry
 
 
-def download_file(url, path, retries=2, overwrite_existing=False, chunk_size=1024, unzip=False, **request_kwargs):
+def download_file(
+    url: str,
+    path: str,
+    retries: int = 2,
+    overwrite_existing: bool = False,
+    chunk_size: int = 1024,
+    unzip: bool = False,
+    **request_kwargs,
+) -> None:
     """
     Download a file from a URL to a local path. If the path is a directory, the filename will be inferred from
     the response header
@@ -51,20 +59,20 @@ def download_file(url, path, retries=2, overwrite_existing=False, chunk_size=102
             zip_ref.extractall(os.path.dirname(path))
 
 
-def __is_gdrive_url(url):
+def __is_gdrive_url(url: str) -> re.Match | None:
     pattern = r"https://drive\.google\.com/file/d/(.*?)"
     return re.match(pattern, url)
 
 
-def __is_dropbox_url(url):
+def __is_dropbox_url(url: str) -> re.Match | None:
     pattern = r"https://www\.dropbox\.com/scl/fi/(.*?)/(.*?)\?rlkey=(.*?)"
     return re.match(pattern, url)
 
 
-def __transform_gdrive_url(url):
+def __transform_gdrive_url(url: str) -> str:
     file_id = url.split("/d/")[1].split("/")[0]
     return "https://drive.google.com/uc?export=download&id=" + file_id
 
 
-def __transform_dropbox_url(url):
+def __transform_dropbox_url(url: str) -> str:
     return url[:-1] + "1"
