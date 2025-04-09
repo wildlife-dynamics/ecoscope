@@ -86,7 +86,7 @@ class SmartIO:
         patrol_mandate: str | None,
         patrol_transport: str | None,
     ) -> gpd.GeoDataFrame | None:
-        params = {}
+        params: dict[str, str | None] = {}
         params["ca_uuid"] = ca_uuid
         params["language_uuid"] = language_uuid
         params["start_date"] = start
@@ -203,7 +203,7 @@ class SmartIO:
         patrol_mandate: str | None = None,
         patrol_transport: str | None = None,
         window_size_in_days: int = 7,
-    ) -> ecoscope.base.Relocations:
+    ) -> ecoscope.base.Relocations | None:
         df = gpd.GeoDataFrame()
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
@@ -269,7 +269,7 @@ class SmartIO:
         events_df = self.query_geojson_data(url="observation/", params=params)
         events_df = gpd.GeoDataFrame(
             events_df,
-            geometry=gpd.points_from_xy(x=events_df["X"], y=events_df["Y"]),
+            geometry=gpd.points_from_xy(x=events_df["X"], y=events_df["Y"]),  # type: ignore[index]
             crs="EPSG:4326",
         )
 
