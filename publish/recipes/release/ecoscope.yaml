@@ -23,7 +23,7 @@ requirements:
   run:
     - python
     - backoff
-    - earthengine-api <=1.4.5
+    - earthengine-api
     - earthranger-client
     - fiona <1.10.0
     - geopandas <=0.14.2
