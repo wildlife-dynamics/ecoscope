@@ -25,27 +25,26 @@ def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
 
 def normalize_column(df: pd.DataFrame, col: str) -> None:
     print(col)
-    for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").items():
+    for k, v in pd.json_normalize(df.pop(col).to_list(), sep="__").add_prefix(f"{col}__").items():
         df[k] = v.values
 
 
-def dataframe_to_dict(events: pd.DataFrame) -> dict:
+def dataframe_to_dict(events: pd.DataFrame) -> list[dict]:
     if isinstance(events, gpd.GeoDataFrame):
         events["location"] = pd.DataFrame({"longitude": events.geometry.x, "latitude": events.geometry.y}).to_dict(
             "records"
         )
         del events["geometry"]
 
-    if isinstance(events, pd.DataFrame):
-        events = events.to_dict("records")
-    return events
+    events_dict = events.to_dict("records")
+    return events_dict
 
 
 def to_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
     longitude, latitude = (0, 1) if isinstance(df["location"].iat[0], list) else ("longitude", "latitude")
     return gpd.GeoDataFrame(
         df,
-        geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
+        geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),  # type: ignore[index]
         crs=4326,
     )
 

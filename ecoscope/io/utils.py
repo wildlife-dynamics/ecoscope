@@ -24,8 +24,8 @@ def download_file(
     """
 
     s = requests.Session()
-    retries = Retry(total=retries, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
-    s.mount("https://", HTTPAdapter(max_retries=retries))
+    max_retries = Retry(total=retries, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
+    s.mount("https://", HTTPAdapter(max_retries=max_retries))
 
     if __is_gdrive_url(url):
         url = __transform_gdrive_url(url)
@@ -36,11 +36,11 @@ def download_file(
 
     if os.path.isdir(path):
         m = email.message.Message()
-        m["content-type"] = r.headers.get("content-disposition")
+        m["content-type"] = r.headers.get("content-disposition", m.get_default_type())
         filename = m.get_param("filename")
         if filename is None:
             raise ValueError("URL has no RFC 6266 filename.")
-        path = os.path.join(path, filename)
+        path = os.path.join(path, filename)  # type: ignore[arg-type]
 
     if os.path.exists(path) and not overwrite_existing:
         print(f"{path} exists. Skipping...")
