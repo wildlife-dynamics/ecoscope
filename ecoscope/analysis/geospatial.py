@@ -3,6 +3,8 @@ from typing import Literal, Tuple
 import geopandas as gpd
 from PIL.Image import Image
 
+from ecoscope.base.utils import BoundingBox
+
 try:
     import datashader as ds
 except ModuleNotFoundError:
@@ -20,7 +22,7 @@ def datashade_gdf(
     cmap: str | list[str] = None,
     ds_agg=None,
     **kwargs,
-) -> Tuple[Image, Tuple[float, float, float, float]]:
+) -> Tuple[Image, BoundingBox]:
     """
     Creates a raster of the given gdf using Datashader
 

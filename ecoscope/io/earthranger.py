@@ -2,7 +2,7 @@ import datetime
 import json
 import math
 import typing
-from typing import Literal, Tuple
+from typing import Literal
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
@@ -13,6 +13,7 @@ from erclient.client import ERClient, ERClientException, ERClientNotFound  # typ
 from tqdm.auto import tqdm
 
 import ecoscope
+from ecoscope.base.utils import BoundingBox
 from ecoscope.io.earthranger_utils import (
     clean_kwargs,
     clean_time_cols,
@@ -117,7 +118,7 @@ class EarthRangerIO(ERClient):
     def get_subjects(
         self,
         include_inactive: bool | None = None,
-        bbox: Tuple[float, float, float, float] | None = None,
+        bbox: BoundingBox | None = None,
         subject_group_id: str | None = None,
         name: str | None = None,
         updated_since: str | None = None,
@@ -544,7 +545,7 @@ class EarthRangerIO(ERClient):
         is_collection: bool | None = None,
         updated_size: str | None = None,
         event_ids: list[str] | None = None,
-        bbox: Tuple[float, float, float, float] | None = None,
+        bbox: BoundingBox | None = None,
         sort_by: EventSortOptions | None = None,
         patrol_segment: str | None = None,
         state: list[StatusOptions] | None = None,

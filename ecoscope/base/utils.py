@@ -4,6 +4,8 @@ import pandas as pd
 from shapely.geometry import box
 from typing import Tuple
 
+BoundingBox = Tuple[float, float, float, float]
+
 
 def create_meshgrid(
     aoi,
