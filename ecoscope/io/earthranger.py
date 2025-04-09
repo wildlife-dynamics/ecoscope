@@ -2,6 +2,7 @@ import datetime
 import json
 import math
 import typing
+from typing import Literal, Tuple
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
@@ -22,6 +23,18 @@ from ecoscope.io.earthranger_utils import (
     to_gdf,
     to_hex,
 )
+
+EventSortOptions = Literal[
+    "event_time",
+    "updated_at",
+    "created_at",
+    "serial_number",
+    "-event_time",
+    "-updated_at",
+    "-created_at",
+    "-serial_number",
+]
+StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
 
 
 class EarthRangerIO(ERClient):
@@ -65,12 +78,12 @@ class EarthRangerIO(ERClient):
 
     def get_sources(
         self,
-        manufacturer_id=None,
-        provider_key=None,
-        provider=None,
-        id=None,
+        manufacturer_id: str | None = None,
+        provider_key: str | None = None,
+        provider: str | None = None,
+        id: str | None = None,
         **addl_kwargs,
-    ):
+    ) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -103,18 +116,18 @@ class EarthRangerIO(ERClient):
 
     def get_subjects(
         self,
-        include_inactive=None,
-        bbox=None,
-        subject_group_id=None,
-        name=None,
-        updated_since=None,
-        tracks=None,
-        id=None,
-        updated_until=None,
-        subject_group_name=None,
-        max_ids_per_request=50,
+        include_inactive: bool | None = None,
+        bbox: Tuple[float, float, float, float] | None = None,
+        subject_group_id: str | None = None,
+        name: str | None = None,
+        updated_since: str | None = None,
+        tracks: bool | None = None,
+        id: str | None = None,
+        updated_until: str | None = None,
+        subject_group_name: str | None = None,
+        max_ids_per_request: int = 50,
         **addl_kwargs,
-    ):
+    ) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -202,7 +215,9 @@ class EarthRangerIO(ERClient):
 
         return df
 
-    def get_subjectsources(self, subjects=None, sources=None, **addl_kwargs):
+    def get_subjectsources(
+        self, subjects: str | None = None, sources: str | None = None, **addl_kwargs
+    ) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -226,17 +241,17 @@ class EarthRangerIO(ERClient):
 
     def _get_observations(
         self,
-        source_ids=None,
-        subject_ids=None,
-        subjectsource_ids=None,
+        source_ids: str | None = None,
+        subject_ids: str | None = None,
+        subjectsource_ids: str | None = None,
         tz="UTC",
-        since=None,
-        until=None,
-        filter=None,
-        include_details=None,
-        created_after=None,
+        since: str | None = None,
+        until: str | None = None,
+        filter: int | None = None,
+        include_details: bool | None = None,
+        created_after: str | None = None,
         **addl_kwargs,
-    ):
+    ) -> gpd.GeoDataFrame:
         """
         Return observations matching queries. If `subject_id`, `source_id`, or `subjectsource_id` is specified, the
         index is set to the provided value.
@@ -308,7 +323,9 @@ class EarthRangerIO(ERClient):
         observations.sort_values("recorded_at", inplace=True)
         return to_gdf(observations)
 
-    def get_source_observations(self, source_ids, include_source_details=False, relocations=True, **kwargs):
+    def get_source_observations(
+        self, source_ids: str | list[str], include_source_details: bool = False, relocations: bool = True, **kwargs
+    ) -> ecoscope.base.Relocations | gpd.GeoDataFrame:
         """
         Get observations for each listed source and create a `Relocations` object.
         Parameters
@@ -352,13 +369,13 @@ class EarthRangerIO(ERClient):
 
     def get_subject_observations(
         self,
-        subject_ids,
-        include_source_details=False,
-        include_subject_details=False,
-        include_subjectsource_details=False,
-        relocations=True,
+        subject_ids: str | list[str],
+        include_source_details: bool = False,
+        include_subject_details: bool = False,
+        include_subjectsource_details: bool = False,
+        relocations: bool = True,
         **kwargs,
-    ):
+    ) -> ecoscope.base.Relocations | gpd.GeoDataFrame:
         """
         Get observations for each listed subject and create a `Relocations` object.
         Parameters
@@ -433,11 +450,11 @@ class EarthRangerIO(ERClient):
 
     def get_subjectsource_observations(
         self,
-        subjectsource_ids,
-        include_source_details=False,
-        relocations=True,
+        subjectsource_ids: str | list[str],
+        include_source_details: bool = False,
+        relocations: bool = True,
         **kwargs,
-    ):
+    ) -> ecoscope.base.Relocations | gpd.GeoDataFrame:
         """
         Get observations for each listed subjectsource and create a `Relocations` object.
         Parameters
@@ -482,11 +499,11 @@ class EarthRangerIO(ERClient):
 
     def get_subjectgroup_observations(
         self,
-        subject_group_id=None,
-        subject_group_name=None,
-        include_inactive=True,
+        subject_group_id: str | None = None,
+        subject_group_name: str | None = None,
+        include_inactive: bool = True,
         **kwargs,
-    ):
+    ) -> ecoscope.base.Relocations | gpd.GeoDataFrame:
         """
         Parameters
         ----------
@@ -517,37 +534,37 @@ class EarthRangerIO(ERClient):
 
         return self.get_subject_observations(subjects, **kwargs)
 
-    def get_event_types(self, include_inactive=False, **addl_kwargs):
+    def get_event_types(self, include_inactive: bool = False, **addl_kwargs) -> pd.DataFrame:
         params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
 
         return pd.DataFrame(self._get("activity/events/eventtypes", **params))
 
     def get_events(
         self,
-        is_collection=None,
-        updated_size=None,
-        event_ids=None,
-        bbox=None,
-        sort_by=None,
-        patrol_segment=None,
-        state=None,
-        event_type=None,
-        include_updates=False,
-        include_details=False,
-        include_notes=False,
-        include_related_events=False,
-        include_files=False,
-        max_results=None,
-        oldest_update_date=None,
-        exclude_contained=None,
-        updated_since=None,
-        event_category=None,
-        since=None,
-        until=None,
-        force_point_geometry=True,
-        drop_null_geometry=True,
+        is_collection: bool | None = None,
+        updated_size: str | None = None,
+        event_ids: list[str] | None = None,
+        bbox: Tuple[float, float, float, float] | None = None,
+        sort_by: EventSortOptions | None = None,
+        patrol_segment: str | None = None,
+        state: list[StatusOptions] | None = None,
+        event_type: list[str] = None,
+        include_updates: bool = False,
+        include_details: bool = False,
+        include_notes: bool = False,
+        include_related_events: bool = False,
+        include_files: bool = False,
+        max_results: int | None = None,
+        oldest_update_date: str | None = None,
+        exclude_contained: bool | None = None,
+        updated_since: str | None = None,
+        event_category: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        force_point_geometry: bool = True,
+        drop_null_geometry: bool = True,
         **addl_kwargs,
-    ):
+    ) -> gpd.GeoDataFrame:
         """
         Parameters
         ----------
@@ -646,7 +663,7 @@ class EarthRangerIO(ERClient):
 
         return gpd.GeoDataFrame()
 
-    def get_patrol_types(self):
+    def get_patrol_types(self) -> pd.DataFrame:
         df = pd.DataFrame(self._get("activity/patrols/types"))
         if not df.empty:
             df = df.set_index("id")
@@ -654,13 +671,13 @@ class EarthRangerIO(ERClient):
 
     def get_patrols(
         self,
-        since=None,
-        until=None,
-        patrol_type=None,
-        patrol_type_value=None,
-        status=None,
+        since: str | None = None,
+        until: str | None = None,
+        patrol_type: str | list[str] | None = None,
+        patrol_type_value: str | list[str] | None = None,
+        status: list[StatusOptions] | None = None,
         **addl_kwargs,
-    ):
+    ) -> pd.DataFrame:
         """
         Parameters
         ----------
@@ -724,16 +741,16 @@ class EarthRangerIO(ERClient):
 
     def get_patrol_events(
         self,
-        since=None,
-        until=None,
-        patrol_type=None,
-        patrol_type_value=None,
-        event_type=None,
-        status=None,
-        force_point_geometry=True,
-        drop_null_geometry=True,
+        since: str | None = None,
+        until: str | None = None,
+        patrol_type: str | list[str] | None = None,
+        patrol_type_value: str | list[str] | None = None,
+        event_type: list[str] = None,
+        status: list[StatusOptions] | None = None,
+        force_point_geometry: bool = True,
+        drop_null_geometry: bool = True,
         **addl_kwargs,
-    ):
+    ) -> gpd.GeoDataFrame | pd.DataFrame:
         """
         Parameters
         ----------
@@ -792,7 +809,7 @@ class EarthRangerIO(ERClient):
 
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
 
-    def get_patrol_segments_from_patrol_id(self, patrol_id, **addl_kwargs):
+    def get_patrol_segments_from_patrol_id(self, patrol_id: str, **addl_kwargs) -> pd.date_range:
         """
         Download patrols for a given `patrol id`.
 
@@ -818,7 +835,7 @@ class EarthRangerIO(ERClient):
 
         return pd.DataFrame(dict([(k, pd.Series(v)) for k, v in df.items()]))
 
-    def get_patrol_segments(self):
+    def get_patrol_segments(self) -> pd.DataFrame:
         object = "activity/patrols/segments/"
         return pd.DataFrame(
             self.get_objects_multithreaded(object=object, threads=self.tcp_limit, page_size=self.sub_page_size)
@@ -826,14 +843,14 @@ class EarthRangerIO(ERClient):
 
     def get_patrol_observations_with_patrol_filter(
         self,
-        since=None,
-        until=None,
-        patrol_type=None,
-        patrol_type_value=None,
-        status=None,
-        include_patrol_details=False,
+        since: str | None = None,
+        until: str | None = None,
+        patrol_type: str | list[str] | None = None,
+        patrol_type_value: str | list[str] | None = None,
+        status: list[StatusOptions] | None = None,
+        include_patrol_details: bool = False,
         **kwargs,
-    ):
+    ) -> ecoscope.base.Relocations:
         """
         Download observations for patrols with provided filters.
 
@@ -870,7 +887,9 @@ class EarthRangerIO(ERClient):
         )
         return self.get_patrol_observations(patrols_df, include_patrol_details=include_patrol_details, **kwargs)
 
-    def get_patrol_observations(self, patrols_df, include_patrol_details=False, **kwargs):
+    def get_patrol_observations(
+        self, patrols_df: pd.DataFrame, include_patrol_details: bool = False, **kwargs
+    ) -> ecoscope.base.Relocations:
         """
         Download observations for provided `patrols_df`.
 
@@ -961,13 +980,13 @@ class EarthRangerIO(ERClient):
 
     def get_patrol_segment_events(
         self,
-        patrol_segment_id=None,
-        include_details=False,
-        include_files=False,
-        include_related_events=False,
-        include_notes=False,
+        patrol_segment_id: str | None = None,
+        include_details: bool = False,
+        include_files: bool = False,
+        include_related_events: bool = False,
+        include_notes: bool = False,
         **addl_kwargs,
-    ):
+    ) -> pd.DataFrame:
         params = clean_kwargs(
             addl_kwargs,
             patrol_segment_id=patrol_segment_id,
@@ -989,7 +1008,7 @@ class EarthRangerIO(ERClient):
         df = clean_time_cols(df)
         return df
 
-    def get_spatial_features_group(self, spatial_features_group_id=None, **addl_kwargs):
+    def get_spatial_features_group(self, spatial_features_group_id: str = None, **addl_kwargs) -> gpd.GeoDataFrame:
         """
         Download spatial features in a spatial features group for a given  `spatial features group id`.
 
@@ -1015,7 +1034,7 @@ class EarthRangerIO(ERClient):
 
         return gpd.GeoDataFrame.from_features(spatial_features)
 
-    def get_spatial_feature(self, spatial_feature_id=None, **addl_kwargs):
+    def get_spatial_feature(self, spatial_feature_id: str = None, **addl_kwargs) -> gpd.GeoDataFrame:
         """
         Download spatial feature for a given  `spatial feature id`.
 
