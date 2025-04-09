@@ -278,7 +278,7 @@ def label_gdf_with_temporal_image_collection_by_feature(
 )
 def label_gdf_with_temporal_image_collection_by_timespan(
     gdf: gpd.GeoDataFrame,
-    img_coll: ee.ImageCollection = None,
+    img_coll: ee.ImageCollection,
     image_radius: int = 0,
     add_time: bool = False,
     region_reducer="toList",

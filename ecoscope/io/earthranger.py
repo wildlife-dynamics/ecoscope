@@ -549,7 +549,7 @@ class EarthRangerIO(ERClient):
         sort_by: EventSortOptions | None = None,
         patrol_segment: str | None = None,
         state: list[StatusOptions] | None = None,
-        event_type: list[str] = None,
+        event_type: list[str] | None = None,
         include_updates: bool = False,
         include_details: bool = False,
         include_notes: bool = False,
@@ -746,7 +746,7 @@ class EarthRangerIO(ERClient):
         until: str | None = None,
         patrol_type: str | list[str] | None = None,
         patrol_type_value: str | list[str] | None = None,
-        event_type: list[str] = None,
+        event_type: list[str] | None = None,
         status: list[StatusOptions] | None = None,
         force_point_geometry: bool = True,
         drop_null_geometry: bool = True,
@@ -1009,7 +1009,9 @@ class EarthRangerIO(ERClient):
         df = clean_time_cols(df)
         return df
 
-    def get_spatial_features_group(self, spatial_features_group_id: str = None, **addl_kwargs) -> gpd.GeoDataFrame:
+    def get_spatial_features_group(
+        self, spatial_features_group_id: str | None = None, **addl_kwargs
+    ) -> gpd.GeoDataFrame:
         """
         Download spatial features in a spatial features group for a given  `spatial features group id`.
 
@@ -1035,7 +1037,7 @@ class EarthRangerIO(ERClient):
 
         return gpd.GeoDataFrame.from_features(spatial_features)
 
-    def get_spatial_feature(self, spatial_feature_id: str = None, **addl_kwargs) -> gpd.GeoDataFrame:
+    def get_spatial_feature(self, spatial_feature_id: str | None = None, **addl_kwargs) -> gpd.GeoDataFrame:
         """
         Download spatial feature for a given  `spatial feature id`.
 

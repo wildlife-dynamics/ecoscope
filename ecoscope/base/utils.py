@@ -17,7 +17,7 @@ def create_meshgrid(
     xlen: int = 1000,
     ylen: int = 1000,
     return_intersecting_only: bool = True,
-    align_to_existing: bool = None,
+    align_to_existing: bool | None = None,
 ) -> gpd.GeoSeries:
     """Create a grid covering `aoi`.
 
