@@ -1,21 +1,24 @@
+from datetime import datetime
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
+from pandas.core.groupby.generic import DataFrameGroupBy
 from shapely.geometry import box
-from typing import Tuple
+from shapely.geometry.base import BaseGeometry
+from typing import Any, Literal, Tuple
 
 BoundingBox = Tuple[float, float, float, float]
 
 
 def create_meshgrid(
-    aoi,
-    in_crs,
-    out_crs,
-    xlen=1000,
-    ylen=1000,
-    return_intersecting_only=True,
-    align_to_existing=None,
-):
+    aoi: BaseGeometry,
+    in_crs: Any,
+    out_crs: Any,
+    xlen: int = 1000,
+    ylen: int = 1000,
+    return_intersecting_only: bool = True,
+    align_to_existing: bool = None,
+) -> gpd.GeoSeries:
     """Create a grid covering `aoi`.
 
     Parameters
@@ -76,7 +79,7 @@ def create_meshgrid(
     return gs.to_crs(out_crs)
 
 
-def groupby_intervals(df, col, intervals):
+def groupby_intervals(df: pd.DataFrame, col: str, intervals: pd.IntervalIndex) -> DataFrameGroupBy:
     """
     Parameters
     ----------
@@ -110,7 +113,14 @@ def groupby_intervals(df, col, intervals):
     ).groupby(level=0)
 
 
-def create_interval_index(start, intervals, freq, overlap=pd.Timedelta(0), closed="right", round_down_to_freq=False):
+def create_interval_index(
+    start: str | datetime | pd.Timestamp,
+    intervals: int,
+    freq: str | pd.Timedelta | pd.DateOffset,
+    overlap: pd.Timedelta | pd.DateOffset = pd.Timedelta(0),
+    closed: Literal["left", "right", "both", "neither"] = "right",
+    round_down_to_freq: bool = False,
+) -> pd.IntervalIndex:
     """
     Parameters
     ----------
@@ -160,7 +170,12 @@ class ModisBegin(pd._libs.tslibs.offsets.SingleConstructorOffset):
         return other
 
 
-def create_modis_interval_index(start, intervals, overlap=pd.Timedelta(0), closed="right"):
+def create_modis_interval_index(
+    start: str | datetime | pd.Timestamp,
+    intervals: int,
+    overlap: pd.Timedelta | pd.DateOffset = pd.Timedelta(0),
+    closed: Literal["left", "right", "both", "neither"] = "right",
+) -> pd.IntervalIndex:
     """
     Parameters
     ----------
@@ -191,7 +206,7 @@ def create_modis_interval_index(start, intervals, overlap=pd.Timedelta(0), close
     return pd.IntervalIndex.from_arrays(left=left, right=left + pd.Timedelta(days=16), closed=closed)
 
 
-def add_val_index(df, index_name, val):
+def add_val_index(df: pd.DataFrame, index_name: str, val: str) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -215,7 +230,7 @@ def add_val_index(df, index_name, val):
     return df
 
 
-def add_temporal_index(df, index_name, time_col, directive):
+def add_temporal_index(df: pd.DataFrame, index_name: str, time_col: str, directive: str) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -258,6 +273,6 @@ def hex_to_rgba(input: str) -> tuple:
         raise ValueError(f"Invalid hex string, {input}")
 
 
-def color_tuple_to_css(color: Tuple[int, int, int, int]):
+def color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     # eg [255,0,120,255] converts to 'rgba(255,0,120,1)'
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"
