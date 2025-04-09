@@ -29,15 +29,18 @@ def normalize_column(df: pd.DataFrame, col: str) -> None:
         df[k] = v.values
 
 
-def dataframe_to_dict(events: pd.DataFrame) -> list[dict]:
+def dataframe_to_dict_or_list(events: gpd.GeoDataFrame | pd.DataFrame | dict | list[dict]) -> dict | list[dict]:
     if isinstance(events, gpd.GeoDataFrame):
         events["location"] = pd.DataFrame({"longitude": events.geometry.x, "latitude": events.geometry.y}).to_dict(
             "records"
         )
         del events["geometry"]
 
-    events_dict = events.to_dict("records")
-    return events_dict
+    if isinstance(events, pd.DataFrame) or isinstance(events, gpd.GeoDataFrame):
+        processed_events = events.to_dict("records")
+    else:
+        processed_events = events
+    return processed_events
 
 
 def to_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:

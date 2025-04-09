@@ -2,7 +2,7 @@ import datetime
 import json
 import math
 import typing
-from typing import Literal
+from typing import Any, Literal
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
@@ -17,7 +17,7 @@ from ecoscope.base.utils import BoundingBox
 from ecoscope.io.earthranger_utils import (
     clean_kwargs,
     clean_time_cols,
-    dataframe_to_dict,
+    dataframe_to_dict_or_list,
     format_iso_time,
     geometry_from_event_geojson,
     pack_columns,
@@ -179,7 +179,7 @@ class EarthRangerIO(ERClient):
                 raise KeyError("`group_name` not found")
 
         if params.get("id") is not None:
-            params["id"] = params.get("id").split(",")
+            params["id"] = str(params.get("id")).split(",")
 
             def partial_subjects(subjects):
                 params["id"] = ",".join(subjects)
@@ -242,9 +242,9 @@ class EarthRangerIO(ERClient):
 
     def _get_observations(
         self,
-        source_ids: str | None = None,
-        subject_ids: str | None = None,
-        subjectsource_ids: str | None = None,
+        source_ids: str | list[str] | None = None,
+        subject_ids: str | list[str] | None = None,
+        subjectsource_ids: str | list[str] | None = None,
         tz="UTC",
         since: str | None = None,
         until: str | None = None,
@@ -293,7 +293,7 @@ class EarthRangerIO(ERClient):
             id_name, ids = "source_id", source_ids
         elif subject_ids:
             id_name, ids = "subject_id", subject_ids
-        else:
+        elif subjectsource_ids:
             id_name, ids = "subjectsource_id", subjectsource_ids
 
         observations = []
@@ -313,16 +313,16 @@ class EarthRangerIO(ERClient):
             dataframe[id_name] = _id
             observations.append(dataframe)
 
-        observations = pd.concat(observations)
-        if observations.empty:
+        observations_df = pd.concat(observations)
+        if observations_df.empty:
             return gpd.GeoDataFrame()
 
-        observations = clean_time_cols(observations)
-        observations["created_at"] = observations["created_at"].dt.tz_convert(tz)
-        observations["recorded_at"] = observations["recorded_at"].dt.tz_convert(tz)
+        observations_df = clean_time_cols(observations_df)
+        observations_df["created_at"] = observations_df["created_at"].dt.tz_convert(tz)
+        observations_df["recorded_at"] = observations_df["recorded_at"].dt.tz_convert(tz)
 
-        observations.sort_values("recorded_at", inplace=True)
-        return to_gdf(observations)
+        observations_df.sort_values("recorded_at", inplace=True)
+        return to_gdf(observations_df)
 
     def get_source_observations(
         self, source_ids: str | list[str], include_source_details: bool = False, relocations: bool = True, **kwargs
@@ -370,7 +370,7 @@ class EarthRangerIO(ERClient):
 
     def get_subject_observations(
         self,
-        subject_ids: str | list[str],
+        subject_ids: str | list[str] | pd.DataFrame,
         include_source_details: bool = False,
         include_subject_details: bool = False,
         include_subjectsource_details: bool = False,
@@ -635,7 +635,7 @@ class EarthRangerIO(ERClient):
             event_category=event_category,
         )
 
-        filter = {"date_range": {}}
+        filter: dict[str, Any] = {"date_range": {}}
         if since is not None:
             filter["date_range"]["lower"] = since
             params["filter"] = json.dumps(filter)
@@ -708,7 +708,7 @@ class EarthRangerIO(ERClient):
             return_data=True,
         )
 
-        filter = {"date_range": {}, "patrol_type": []}
+        filter: dict[str, Any] = {"date_range": {}, "patrol_type": []}
 
         if since is not None:
             filter["date_range"]["lower"] = format_iso_time(since)
@@ -851,7 +851,7 @@ class EarthRangerIO(ERClient):
         status: list[StatusOptions] | None = None,
         include_patrol_details: bool = False,
         **kwargs,
-    ) -> ecoscope.base.Relocations:
+    ) -> ecoscope.base.Relocations | pd.DataFrame:
         """
         Download observations for patrols with provided filters.
 
@@ -890,7 +890,7 @@ class EarthRangerIO(ERClient):
 
     def get_patrol_observations(
         self, patrols_df: pd.DataFrame, include_patrol_details: bool = False, **kwargs
-    ) -> ecoscope.base.Relocations:
+    ) -> ecoscope.base.Relocations | pd.DataFrame:
         """
         Download observations for provided `patrols_df`.
 
@@ -928,7 +928,7 @@ class EarthRangerIO(ERClient):
 
                 try:
                     observation = self.get_subject_observations(
-                        subject_ids=[subject_id],
+                        subject_ids=[subject_id],  # type: ignore[list-item]
                         since=patrol_start_time,
                         until=patrol_end_time,
                         **kwargs,
@@ -1268,7 +1268,7 @@ class EarthRangerIO(ERClient):
             New events created in EarthRanger.
         """
 
-        events = dataframe_to_dict(events)
+        events = dataframe_to_dict_or_list(events)
         results = super().post_event(event=events)
         results = results if isinstance(results, list) else [results]
         return pd.DataFrame(results)
@@ -1324,7 +1324,7 @@ class EarthRangerIO(ERClient):
         pd.DataFrame
         """
 
-        payload = {
+        payload: dict[str, str | None | dict[str, str | float | None]] = {
             "patrol": patrol_id,
             "patrol_segment": patrol_segment_id,
             "scheduled_start": scheduled_start,
@@ -1427,11 +1427,11 @@ class EarthRangerIO(ERClient):
             Updated events in EarthRanger.
         """
 
-        events = dataframe_to_dict(events)
-        if isinstance(events, list):
-            results = [self._patch(f"activity/event/{event_id}", payload=event) for event in events]
+        events_payload = dataframe_to_dict_or_list(events)
+        if isinstance(events_payload, list):
+            results = [self._patch(f"activity/event/{event_id}", payload=event) for event in events_payload]
         else:
-            results = [self._patch(f"activity/event/{event_id}", payload=events)]
+            results = [self._patch(f"activity/event/{event_id}", payload=events_payload)]
         return pd.DataFrame(results)
 
     """
