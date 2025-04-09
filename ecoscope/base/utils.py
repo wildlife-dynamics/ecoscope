@@ -114,7 +114,7 @@ def groupby_intervals(df: pd.DataFrame, col: str, intervals: pd.IntervalIndex) -
 
 
 def create_interval_index(
-    start: str | datetime | pd.Timestamp,
+    start: datetime | pd.Timestamp,
     intervals: int,
     freq: str | pd.Timedelta | pd.DateOffset,
     overlap: pd.Timedelta | pd.DateOffset = pd.Timedelta(0),
@@ -124,11 +124,11 @@ def create_interval_index(
     """
     Parameters
     ----------
-    start : str or datetime-like
+    start : Datetime or pd.Timestamp
         Left bound for creating IntervalIndex
     intervals : int, optional
         Number of intervals to create
-    freq : str, Timedelta or DateOffset
+    freq : Timedelta or DateOffset
         Length of each interval
     overlap : Timedelta or DateOffset, optional
         Length of overlap between intervals
@@ -143,18 +143,19 @@ def create_interval_index(
 
     """
 
-    freq = pd.tseries.frequencies.to_offset(freq)
-    overlap = pd.tseries.frequencies.to_offset(overlap)
+    freq_offset: pd.tseries.offsets.BaseOffset = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type]
+    overlap_offset: pd.tseries.offsets.BaseOffset = pd.tseries.frequencies.to_offset(overlap)  # type: ignore[arg-type]
+
     if round_down_to_freq:
-        start = start.round(freq)
+        start = start.round(freq_offset)  # type: ignore[arg-type, union-attr]
 
     left = [start]
     for i in range(1, intervals):
-        start = start + freq
-        left.append(start - i * overlap)
-    left = pd.DatetimeIndex(left)
+        start = start + freq_offset
+        left.append(start - i * overlap_offset)
+    left_index = pd.DatetimeIndex(left)
 
-    return pd.IntervalIndex.from_arrays(left=left, right=left + freq, closed=closed)
+    return pd.IntervalIndex.from_arrays(left=left_index, right=left_index + freq_offset, closed=closed)
 
 
 class ModisBegin(pd._libs.tslibs.offsets.SingleConstructorOffset):
@@ -195,15 +196,15 @@ def create_modis_interval_index(
     """
 
     modis = ModisBegin()
-    start = modis.apply(start)
+    start = modis.apply(pd.Timestamp(start))
 
     left = [start]
     for i in range(1, intervals):
         start = modis.apply(start)
         left.append(start - i * overlap)
-    left = pd.DatetimeIndex(left)
+    left_index = pd.DatetimeIndex(left)
 
-    return pd.IntervalIndex.from_arrays(left=left, right=left + pd.Timedelta(days=16), closed=closed)
+    return pd.IntervalIndex.from_arrays(left=left_index, right=left_index + pd.Timedelta(days=16), closed=closed)
 
 
 def add_val_index(df: pd.DataFrame, index_name: str, val: str) -> pd.DataFrame:
