@@ -5,6 +5,7 @@ import itertools
 import json
 import logging
 from collections.abc import Callable
+from typing import cast
 
 import backoff
 import ee
@@ -12,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pytz
 import tqdm.auto as tqdm
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 
 from ecoscope.contrib import geemap
 
@@ -74,7 +75,7 @@ def add_img_time(img: ee.Image) -> ee.Image:
     img = img.addBands(img.metadata("system:time_start"))
     img = img.addBands(img.metadata("system:time_end"))
     dr = ee.DateRange(ee.Date(img.get("system:time_start")), ee.Date(img.get("system:time_end")))
-    return img.set({"date_range": dr})
+    return cast(ee.Image, img.set({"date_range": dr}))
 
 
 @backoff.on_exception(
@@ -83,10 +84,10 @@ def add_img_time(img: ee.Image) -> ee.Image:
     max_tries=10,
 )
 def label_gdf_with_img(
-    gdf: gpd.GeoDataFrame, img: ee.Image, region_reducer: str | ee.Reducer, scale: float = 500.0
+    gdf: gpd.GeoDataFrame, img: ee.Image, region_reducer: str | ee.Reducer | ee.ComputedObject, scale: float = 500.0
 ) -> pd.DataFrame:
     in_fc = ee.FeatureCollection(gdf.__geo_interface__)
-    out_fc = img.reduceRegions(in_fc, region_reducer, scale)
+    out_fc = img.reduceRegions(in_fc, region_reducer, scale)  # type: ignore[arg-type]
     valid_properties = (
         out_fc.first().propertyNames().filter(ee.Filter.inList("item", in_fc.first().propertyNames()).Not())
     )
@@ -221,11 +222,11 @@ def _match_gdf_to_img_coll_ids(
 )
 def label_gdf_with_temporal_image_collection_by_feature(
     gdf: gpd.GeoDataFrame,
+    img_coll: ee.ImageCollection,
     time_col_name: str,
     n_before: int = 1,
     n_after: int = 1,
     n: str = "images",
-    img_coll: str | None = None,
     region_reducer: str | ee.Reducer | None = None,
     scale=500.0,
 ) -> pd.DataFrame:
@@ -320,22 +321,23 @@ def label_gdf_with_temporal_image_collection_by_timespan(
         results = list(tqdm.tqdm(executor.map(f, imgs, chunks), total=len(chunks)))
 
     if results:
-        results = pd.concat(results)
+        results_df = pd.concat(results)
 
         if add_time:
             img_names = np.array(img_coll.aggregate_array("system:index").getInfo())
 
-            cat = results.variable.astype("category").cat
-            results["time"] = cat.categories.str[: len(img_names[0])].map(
+            cat = results_df.variable.astype("category").cat
+            results_df["time"] = cat.categories.str[: len(img_names[0])].map(
                 pd.Series(pd.to_datetime(times, unit="ms", utc=True), index=img_names)
             )[cat.codes]
 
-        return results
+        return results_df
+    return pd.DataFrame()
 
 
 def chunk_gdf(
     gdf: gpd.GeoDataFrame,
-    label_func: Callable | None = None,
+    label_func: Callable,
     label_func_kwargs: dict | None = None,
     df_chunk_size: int = 25000,
     max_workers: int = 1,
@@ -354,6 +356,9 @@ def chunk_gdf(
     :param max_workers: the number of chunks to process concurrently
     :return: a dataframe with the same index as the input gdf and where each pixel value (or reduced value) is a row
     """
+    if label_func_kwargs is None:
+        label_func_kwargs = {}
+
     chunks = [gdf.iloc[i : i + df_chunk_size].copy() for i in range(0, len(gdf), df_chunk_size)]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
