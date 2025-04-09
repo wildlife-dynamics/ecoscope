@@ -1166,7 +1166,7 @@ class EarthRangerIO(ERClient):
         source_id: str,
         lower_bound_assigned_range: datetime.datetime,
         upper_bound_assigned_range: datetime.datetime,
-        additional: typing.Dict = None,
+        additional: typing.Dict | None = None,
     ) -> pd.DataFrame:
         """
         Parameters
@@ -1293,14 +1293,14 @@ class EarthRangerIO(ERClient):
         self,
         patrol_id: str,
         patrol_segment_id: str,
-        patrol_type: str = None,
-        tracked_subject_id: str = None,
-        scheduled_start: str = None,
-        scheduled_end: str = None,
-        start_time: str = None,
-        end_time: str = None,
-        start_location: typing.Tuple[float, float] = None,
-        end_location: typing.Tuple[float, float] = None,
+        patrol_type: str | None = None,
+        tracked_subject_id: str | None = None,
+        scheduled_start: str | None = None,
+        scheduled_end: str | None = None,
+        start_time: str | None = None,
+        end_time: str | None = None,
+        start_location: typing.Tuple[float, float] | None = None,
+        end_location: typing.Tuple[float, float] | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         """
