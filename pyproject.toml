@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
   "backoff",
   "earthengine-api",
-  "earthranger-client",
+  "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
   "fiona<1.10.0",
   "geopandas<=0.14.2",
   "numpy<2",
@@ -50,9 +50,6 @@ analysis = [
   "scikit-image",
   "scikit-learn",
 ]
-async_earthranger = [
-  "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
-]
 mapping = [
   "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.3",
   "matplotlib",
@@ -61,7 +58,6 @@ mapping = [
 plotting = ["kaleido", "plotly", "scikit-learn"]
 test = [
   "pytest",
-  "pytest-asyncio",
   "pytest-cov",
   "pytest-mock",
   "pytest-reportlog",
@@ -73,7 +69,7 @@ docs = [
   "sphinx",
   "sphinx-autoapi",
 ]
-all = ["ecoscope[analysis,async_earthranger,mapping,plotting,test,docs]"]
+all = ["ecoscope[analysis,mapping,plotting,test,docs]"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"

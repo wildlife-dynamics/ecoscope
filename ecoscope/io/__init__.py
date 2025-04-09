@@ -15,10 +15,3 @@ __all__ = [
     "SmartIO",
     "EarthEngineIO",
 ]
-
-try:
-    from ecoscope.io.async_earthranger import AsyncEarthRangerIO
-
-    __all__ += ["AsyncEarthRangerIO"]
-except ImportError:
-    pass
