@@ -20,7 +20,7 @@ def datashade_gdf(
     width: int = 600,
     height: int = 600,
     cmap: str | list[str] = None,
-    ds_agg=None,
+    ds_agg: ds.Reduction | None = None,
     **kwargs,
 ) -> Tuple[Image, BoundingBox]:
     """

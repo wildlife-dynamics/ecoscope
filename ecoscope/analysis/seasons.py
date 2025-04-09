@@ -30,7 +30,7 @@ def _min_max_scaler(x):
 
 
 def std_ndvi_vals(
-    aoi=gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry,
+    aoi: gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry,
     img_coll: str = None,
     nir_band: str = None,
     red_band: str = None,
