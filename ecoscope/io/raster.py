@@ -3,7 +3,7 @@ import math
 import os
 from collections import UserDict
 from dataclasses import dataclass
-from typing import Union
+from typing import Any, Union
 from collections.abc import Callable
 
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -13,7 +13,7 @@ import pyproj
 import rasterio as rio  # type: ignore[import-untyped]
 import rasterio.mask  # type: ignore[import-untyped]
 import tqdm.auto as tqdm
-from affine import Affine
+from affine import Affine  # type: ignore[import-untyped]
 
 import ecoscope
 
@@ -69,7 +69,7 @@ class RasterProfile(UserDict):
         self,
         pixel_size: float = 1000.0,
         pixel_dtype: str | RioPixelType = rio.float64,
-        crs: str = "EPSG:8857",  # WGS 84/Equal Earth Greenwich
+        crs: str | pyproj.CRS = "EPSG:8857",  # WGS 84/Equal Earth Greenwich
         nodata_value: float = 0.0,
         band_count: int = 1,
         raster_extent: RasterExtent | None = None,
@@ -155,7 +155,7 @@ class RasterPy:
         sharing: bool = False,
         indexes: int = 1,
         **kwargs,
-    ) -> int:
+    ) -> None:
         with rio.open(
             fp=fp,
             mode="w",
@@ -201,9 +201,9 @@ def reduce_region(gdf, raster_path_list: list[str], reduce_func: Callable) -> pd
         np.sum: np.nansum,
         np.min: np.nanmin,
         np.max: np.nanmax,
-    }.get(reduce_func, reduce_func)
+    }.get(reduce_func, reduce_func)  # type: ignore[assignment]
 
-    d = {}
+    d: dict[str, dict[str, Any]] = {}
     for raster_path in tqdm.tqdm(raster_path_list):
         d[raster_path] = {}
         with rio.open(raster_path) as src:
@@ -281,6 +281,7 @@ def grid_to_raster(
             fp=os.path.join(out_dir, raster_name),
             **raster_profile,
         )
+        return None
     else:
         memfile = rio.MemoryFile()
         memfile.open(
