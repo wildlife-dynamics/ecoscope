@@ -810,7 +810,7 @@ class EarthRangerIO(ERClient):
 
         return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
 
-    def get_patrol_segments_from_patrol_id(self, patrol_id: str, **addl_kwargs) -> pd.date_range:
+    def get_patrol_segments_from_patrol_id(self, patrol_id: str, **addl_kwargs) -> pd.DataFrame:
         """
         Download patrols for a given `patrol id`.
 
