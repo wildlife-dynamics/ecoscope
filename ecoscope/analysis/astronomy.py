@@ -1,6 +1,7 @@
+import typing
 import warnings
 from datetime import datetime, timedelta
-from shapely import Geometry
+from shapely.geometry.base import BaseGeometry
 import numpy as np
 import pandas as pd
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -24,7 +25,7 @@ def to_EarthLocation(geometry: gpd.GeoSeries) -> EarthLocation:
 
     Parameters
     ----------
-    geometry: Geometry
+    geometry: gpd.GeoSeries
         GeoDataFrame's geometry column
 
     Returns
@@ -41,13 +42,13 @@ def to_EarthLocation(geometry: gpd.GeoSeries) -> EarthLocation:
     )
 
 
-def is_night(geometry: gpd.GeoSeries, time: pd.Series) -> bool:
+def is_night(geometry: gpd.GeoSeries, time: pd.Series) -> pd.Series:
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Geometry is in a geographic CRS.", UserWarning)
         return astroplan.Observer(to_EarthLocation(geometry.centroid)).is_night(time)
 
 
-def sun_time(date: datetime, geometry: Geometry) -> pd.Series:
+def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
     midnight = Time(
         datetime(date.year, date.month, date.day) + timedelta(seconds=1), scale="utc"
     )  # add 1 second shift to avoid leap_second_strict warning
@@ -57,6 +58,7 @@ def sun_time(date: datetime, geometry: Geometry) -> pd.Series:
     return pd.Series({"sunrise": sunrise, "sunset": sunset})
 
 
+@typing.no_type_check
 def calculate_day_night_distance(
     date: datetime, segment_start: datetime, segment_end: datetime, dist_meters: int, daily_summary: pd.DataFrame
 ) -> None:
