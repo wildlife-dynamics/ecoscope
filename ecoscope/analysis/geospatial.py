@@ -19,8 +19,8 @@ def datashade_gdf(
     geom_type: Literal["polygon", "line", "point"],
     width: int = 600,
     height: int = 600,
-    cmap: str | list[str] = None,
-    ds_agg: ds.Reduction | None = None,
+    cmap: str | list[str] | None = None,
+    ds_agg: ds.reductions.Reduction | None = None,
     **kwargs,
 ) -> Tuple[Image, BoundingBox]:
     """
