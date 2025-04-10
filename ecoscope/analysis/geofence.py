@@ -10,7 +10,7 @@ import ecoscope
 
 
 class Region(collections.UserDict):
-    def __init__(self, geometry: typing.Any, unique_id: str = None, region_name: str = None):
+    def __init__(self, geometry: typing.Any, unique_id: str | None = None, region_name: str | None = None):
         super().__init__(
             geometry=geometry,
             unique_id=unique_id,
@@ -24,9 +24,9 @@ class GeoFence(collections.UserDict):
     def __init__(
         self,
         geometry: typing.Any,
-        unique_id: str = None,
-        fence_name: str = None,
-        warn_level: str = None,
+        unique_id: str | None = None,
+        fence_name: str | None = None,
+        warn_level: str | None = None,
     ):
         super().__init__(
             geometry=geometry,
