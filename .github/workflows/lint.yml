@@ -25,5 +25,4 @@ jobs:
           pre-commit run --all-files
       - name: Mypy
         run: |
-          mypy --install-types
-          mypy ecoscope
+          mypy --install-types ecoscope
