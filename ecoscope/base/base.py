@@ -1,13 +1,15 @@
+import itertools
 import warnings
 from functools import cached_property
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import shapely
 from pyproj import Geod
 
 from ecoscope.base._dataclasses import (
+    ProximityProfile,
     RelocsCoordinateFilter,
     RelocsDateRangeFilter,
     RelocsDistFilter,
@@ -653,3 +655,40 @@ class Trajectory(EcoDataFrame):
 
         instance = Properties()
         return instance
+
+    def calculate_proximity(
+        self,
+        proximity_profile: ProximityProfile,
+    ) -> pd.DataFrame:
+        """
+        A function to analyze the trajectory of a subject in relation to a set of spatial features and regions to
+        determine where/when the subject was proximal to the spatial feature.
+
+        Parameters
+        ----------
+        proximity_profile: ProximityProfile
+            proximity setting for performing calculation
+        Returns
+        -------
+        pd.DataFrame
+
+        """
+        proximity_events = []
+
+        def analysis(traj):
+            for sf in proximity_profile.spatial_features:
+                proximity_dist = traj.geometry.distance(sf.geometry)
+                start_fix = gpd.GeoSeries([shapely.Point(g.coords[0]) for g in traj.geometry])
+
+                pr = traj[["groupby_col", "speed_kmhr", "heading"]]
+                pr["proximity_distance"] = proximity_dist
+                pr["proximal_fix"] = start_fix  # TODO: figure out the estimated fix interpolated along the seg
+                pr["estimated_time"] = traj.segment_start
+                pr["geometry"] = traj.geometry
+                pr["spatialfeature_id"] = list(itertools.repeat(sf.unique_id, pr.shape[0]))
+                pr["spatialfeature_name"] = list(itertools.repeat(sf.name, pr.shape[0]))
+
+                proximity_events.append(pr)
+
+        self.groupby("groupby_col")[self.columns].apply(analysis, include_groups=False)
+        return pd.concat(proximity_events).reset_index(drop=True)

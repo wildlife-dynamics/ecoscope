@@ -1,14 +1,17 @@
 import logging
+from datetime import datetime
 
 import ee
 import numpy as np
-import pandas
+import pandas as pd
+import geopandas as gpd  # type: ignore[import-untyped]
 import shapely
+from shapely.geometry.base import BaseGeometry
 
 try:
-    import sklearn.mixture
-    from scipy.stats import norm
-    from sklearn.preprocessing import LabelEncoder
+    import sklearn.mixture  # type: ignore[import-untyped]
+    from scipy.stats import norm  # type: ignore[import-untyped]
+    from sklearn.preprocessing import LabelEncoder  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
@@ -26,7 +29,15 @@ def _min_max_scaler(x):
     return x_std
 
 
-def std_ndvi_vals(aoi=None, img_coll=None, nir_band=None, red_band=None, img_scale=1, start=None, end=None):
+def std_ndvi_vals(
+    aoi: gpd.GeoDataFrame | gpd.GeoSeries | BaseGeometry,
+    img_coll: str,
+    start: str | datetime,
+    nir_band: str | None = None,
+    red_band: str | None = None,
+    end: str | datetime | None = None,
+    img_scale: int = 1,
+) -> pd.DataFrame:
     coll = (
         ee.ImageCollection(img_coll)
         .select([nir_band, red_band])
@@ -39,12 +50,12 @@ def std_ndvi_vals(aoi=None, img_coll=None, nir_band=None, red_band=None, img_sca
     else:
         geo = None
 
-    img_dates = pandas.to_datetime(coll.aggregate_array("system:time_start").getInfo(), unit="ms", utc=True)
+    img_dates = pd.to_datetime(coll.aggregate_array("system:time_start").getInfo(), unit="ms", utc=True)
 
     coll = coll.map(lambda x: x.normalizedDifference([nir_band, red_band]))
     ndvi_vals = coll.toBands().reduceRegion("mean", geo, bestEffort=True).values().getInfo()
 
-    df = pandas.DataFrame(
+    df = pd.DataFrame(
         {
             "img_date": img_dates,
             "NDVI": ndvi_vals,
@@ -55,10 +66,13 @@ def std_ndvi_vals(aoi=None, img_coll=None, nir_band=None, red_band=None, img_sca
     return df
 
 
-def val_cuts(vals, num_seasons=2):
+def val_cuts(
+    vals: pd.DataFrame,
+    num_seasons: int = 2,
+) -> list[float]:
     distr = sklearn.mixture.GaussianMixture(n_components=num_seasons, max_iter=500)
-    vals = vals["NDVI"].to_numpy().reshape(-1, 1)
-    distr.fit(vals)
+    ndvi_vals = vals["NDVI"].to_numpy().reshape(-1, 1)
+    distr.fit(ndvi_vals)
     mu_vars = np.array(
         sorted(
             zip(distr.means_.flatten(), distr.covariances_.flatten()),
@@ -93,9 +107,13 @@ def val_cuts(vals, num_seasons=2):
     return sorted(cuts)
 
 
-def seasonal_windows(ndvi_vals, cuts, season_labels):
+def seasonal_windows(
+    ndvi_vals: pd.DataFrame,
+    cuts: list[float],
+    season_labels: list[str],
+) -> pd.DataFrame:
     enc = LabelEncoder()
-    ndvi_vals["season"] = pandas.cut(ndvi_vals["NDVI"], bins=cuts, labels=season_labels)
+    ndvi_vals["season"] = pd.cut(ndvi_vals["NDVI"], bins=cuts, labels=season_labels)
     ndvi_vals["season_code"] = enc.fit_transform(ndvi_vals["season"])
     ndvi_vals["unique_season"] = (ndvi_vals["season_code"].diff(1) != 0).astype("int").cumsum()
     ndvi_vals["end"] = ndvi_vals["img_date"].shift(-1)
@@ -105,35 +123,33 @@ def seasonal_windows(ndvi_vals, cuts, season_labels):
     # time windows. Therefore need to add 1 day to each of the end dates to make them align exactly with the next
     # successive start date
     grpd = ndvi_vals.groupby("unique_season")
-    return pandas.DataFrame(
+    return pd.DataFrame(
         {
-            "start": pandas.Series([grp["img_date"].iloc[0] for _, grp in grpd]),
-            "end": pandas.Series([grp["img_date"].iloc[-1] for _, grp in grpd]).apply(
-                lambda x: x + pandas.Timedelta(days=1)
-            ),
-            "season": pandas.Series(grp["season"].iloc[0] for name, grp in grpd),
-            "unique_season": pandas.Series([name for name, _ in grpd]),
+            "start": pd.Series([grp["img_date"].iloc[0] for _, grp in grpd]),
+            "end": pd.Series([grp["img_date"].iloc[-1] for _, grp in grpd]).apply(lambda x: x + pd.Timedelta(days=1)),
+            "season": pd.Series([grp["season"].iloc[0] for name, grp in grpd]),
+            "unique_season": pd.Series([name for name, _ in grpd]),
         }
     ).set_index("unique_season")
 
 
 def add_seasonal_index(
-    df, index_name, start_date, end_date, time_col, aoi_geom_filter=None, seasons=2, season_labels=None
-):
-    aoi_ = None
+    df: pd.DataFrame,
+    index_name: str,
+    start_date: datetime,
+    end_date: datetime,
+    time_col: str,
+    ndvi_vals: gpd.GeoDataFrame,
+    seasons: int = 2,
+    season_labels: list[str] | None = None,
+) -> pd.DataFrame:
     if season_labels is None:
         season_labels = ["dry", "wet"]
-    try:
-        aoi_ = aoi_geom_filter.dissolve().iloc[0]["geometry"]
-    except AttributeError:
-        aoi_ = aoi_geom_filter
 
     if len(season_labels) != seasons:
         raise Exception(
             f"Parameter value 'seasons' ({seasons}) must match the number of 'season_labels' elements ({season_labels})"
         )
-    # extract the standardized NDVI ndvi_vals within the AOI
-    ndvi_vals = std_ndvi_vals(aoi_, start=start_date.isoformat(), end=end_date.isoformat())
 
     # calculate the seasonal transition point
     cuts = val_cuts(ndvi_vals, seasons)
@@ -142,9 +158,9 @@ def add_seasonal_index(
     windows = seasonal_windows(ndvi_vals, cuts, season_labels)
 
     # Categorize the fixtime values according to the season
-    bins = pandas.IntervalIndex(data=windows.apply(lambda x: pandas.Interval(x["start"], x["end"]), axis=1))
+    bins: pd.IntervalIndex = pd.IntervalIndex(data=windows.apply(lambda x: pd.Interval(x["start"], x["end"]), axis=1))  # type: ignore[arg-type]
     labels = windows.season
-    df[index_name] = pandas.cut(df[time_col], bins=bins).map(dict(zip(bins, labels)))
+    df[index_name] = pd.cut(df[time_col], bins=bins).map(dict(zip(bins, labels)))
 
     # set the index
     return df.set_index(index_name, append=True)
