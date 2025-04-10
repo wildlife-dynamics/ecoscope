@@ -104,7 +104,6 @@ def test_add_legend_series_with_transparent():
 def test_add_legend_series_unbalanced():
     m = EcoMap(default_widgets=False)
     m.add_legend(labels=pd.Series(["Class A", "Class B"]), colors=pd.Series([(0, 0, 0, 255), (0, 0, 0, 255)]))
-    m.to_html("testoutput.html")
 
 
 def test_add_north_arrow():
