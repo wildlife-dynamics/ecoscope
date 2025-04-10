@@ -64,7 +64,7 @@ def ecoplot(
     tickformat: str = "%b-%Y",
     **make_subplots_kwargs,
 ) -> go.Figure:
-    groups = sorted(list(set.union(*[set(datum.grouped.groups.keys()) for datum in data])))
+    groups = sorted(list(set.union(*[set(datum.grouped.groups.keys()) for datum in data])))  # type: ignore[type-var]
     datum_1 = data[0]
     datum_2 = None
     for datum in data[1:]:
@@ -194,14 +194,14 @@ def mcp(relocations: ecoscope.base.Relocations) -> go.Figure:
             areas.append(total.area)
             times.append(time)
 
-    areas = np.array(areas)
-    times = np.array(times)
-    times[0] = relocations["fixtime"].iat[0]
-    times[-1] = relocations["fixtime"].iat[-1]
+    areas_np = np.array(areas)
+    times_np = np.array(times)
+    times_np[0] = relocations["fixtime"].iat[0]
+    times_np[-1] = relocations["fixtime"].iat[-1]
 
     fig = go.FigureWidget()
 
-    fig.add_trace(go.Scatter(x=times, y=areas / (1000**2)))
+    fig.add_trace(go.Scatter(x=times_np, y=areas_np / (1000**2)))
 
     fig.update_layout(
         margin_b=15,
@@ -275,7 +275,7 @@ def speed(trajectory: ecoscope.base.Trajectory) -> go.Figure:
 
 
 def plot_seasonal_dist(
-    ndvi_vals: pd.Series, cuts: list[float], bandwidth: float = 0.05, output_file: str = None
+    ndvi_vals: pd.Series, cuts: list[float], bandwidth: float = 0.05, output_file: str | None = None
 ) -> go.Figure:
     x = ndvi_vals.sort_values().to_numpy().reshape(-1, 1)
     kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(x)
@@ -306,7 +306,9 @@ def plot_seasonal_dist(
     return fig
 
 
-def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, layout_kwargs: dict = None) -> go.Figure:
+def stacked_bar_chart(
+    data: EcoPlotData, agg_function: str, stack_column: str, layout_kwargs: dict | None = None
+) -> go.Figure:
     """
     Creates a stacked bar chart from the provided EcoPlotData object
     Parameters
@@ -375,14 +377,14 @@ class BarConfig:
     column: str
     agg_func: str
     label: str
-    style: dict = None
+    style: dict | None = None
 
 
 def bar_chart(
     data: pd.DataFrame,
     bar_configs: list[BarConfig],
     category: str,
-    layout_kwargs: dict = None,
+    layout_kwargs: dict | None = None,
 ) -> go.Figure:
     """
     Creates a bar chart from the provided dataframe
@@ -405,7 +407,7 @@ def bar_chart(
 
     named_aggs = {x.label: (x.column, x.agg_func) for x in bar_configs}
 
-    result_data = data.groupby(category).agg(**named_aggs).reset_index()
+    result_data = data.groupby(category).agg(**named_aggs).reset_index()  # type: ignore[call-overload]
 
     for x in bar_configs:
         fig.add_trace(
@@ -453,6 +455,8 @@ def pie_chart(
     if style_kwargs is None:
         style_kwargs = {}
 
+    labels: np.typing.ArrayLike
+    values: np.typing.ArrayLike
     if pd.api.types.is_numeric_dtype(data[value_column]):
         if label_column is not None:
             labels = data[label_column]
