@@ -28,8 +28,8 @@ classification_methods = {
 def apply_classification(
     dataframe: pd.DataFrame,
     input_column_name: str,
-    output_column_name: str = None,
-    labels: list[str] = None,
+    output_column_name: str | None = None,
+    labels: list[str] | None = None,
     scheme: Literal[
         "equal_interval", "natural_breaks", "quantile", "std_mean", "max_breaks", "fisher_jenks"
     ] = "natural_breaks",
@@ -104,7 +104,7 @@ def apply_classification(
             )
             labels = ranges
         else:
-            labels = [round(label, label_decimals) for label in labels]
+            labels = [round(label, label_decimals) for label in labels]  # type: ignore[arg-type]
 
     assert len(labels) == len(classifier.bins)
     if label_prefix or label_suffix:
@@ -114,7 +114,7 @@ def apply_classification(
 
 
 def apply_color_map(
-    dataframe: pd.DataFrame, input_column_name: str, cmap: str | list[str], output_column_name: bool = None
+    dataframe: pd.DataFrame, input_column_name: str, cmap: str | list[str], output_column_name: str | None = None
 ) -> pd.DataFrame:
     """
     Creates a new column on the provided dataframe with the given cmap applied over the specified input column
@@ -134,29 +134,28 @@ def apply_color_map(
     nunique = dataframe[input_column_name].nunique()
     unique = dataframe[input_column_name].unique()
     if isinstance(cmap, list):
-        cmap = [hex_to_rgba(x) for x in cmap]
-        cmap_colors = [cmap[i % len(cmap)] for i in range(nunique)]
-        cmap = pd.Series(cmap_colors, index=unique)
+        rgba = [hex_to_rgba(x) for x in cmap]
+        normalized_cmap = [rgba[i % len(rgba)] for i in range(nunique)]
+        cmap_series = pd.Series(normalized_cmap, index=unique)
     if isinstance(cmap, str):
-        cmap = mpl.colormaps[cmap]
-        if nunique < cmap.N:
-            cmap = cmap.resampled(nunique)
+        mpl_cmap = mpl.colormaps[cmap]
+        if nunique < mpl_cmap.N:
+            mpl_cmap = mpl_cmap.resampled(nunique)
 
         if pd.api.types.is_numeric_dtype(dataframe[input_column_name].dtype):
             cmap_colors = []
             val_min = dataframe[input_column_name].min()
             val_max = dataframe[input_column_name].max()
             for val in unique:
-                cmap_colors.append(cmap((val - val_min) / (val_max - val_min)))
+                cmap_colors.append(mpl_cmap((val - val_min) / (val_max - val_min)))
         else:
-            cmap_colors = cmap(range(len(unique)))
-            cmap_colors = [cmap(i % cmap.N) for i in range(nunique)]
+            cmap_colors = [mpl_cmap(i % mpl_cmap.N) for i in range(nunique)]
 
         color_list = []
         for color in cmap_colors:
             color_list.append(tuple([round(val * 255) for val in color]))
 
-        cmap = pd.Series(
+        cmap_series = pd.Series(
             color_list,
             index=unique,
         )
@@ -164,5 +163,5 @@ def apply_color_map(
     if not output_column_name:
         output_column_name = f"{input_column_name}_colormap"
 
-    dataframe[output_column_name] = [cmap[classification] for classification in dataframe[input_column_name]]
+    dataframe[output_column_name] = [cmap_series[classification] for classification in dataframe[input_column_name]]
     return dataframe
