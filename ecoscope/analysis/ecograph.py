@@ -1,12 +1,11 @@
 import os
 from math import ceil, floor
-from typing import Hashable, Literal, Tuple
+from typing import Any, Hashable, Literal, Tuple
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import rasterio  # type: ignore[import-untyped]
-from shapely.coords import CoordinateSequence
 from shapely.geometry import shape
 from affine import Affine  # type: ignore[import-untyped]
 
@@ -53,7 +52,7 @@ class Ecograph:
         cutoff: float | None = None,
         tortuosity_length: int = 3,
     ):
-        self.graphs = {}
+        self.graphs: dict[str, nx.Graph] = {}
         self.trajectory = trajectory
         self.resolution = ceil(resolution)
 
@@ -110,7 +109,7 @@ class Ecograph:
         """
 
         features_id = ["individual_name", "grid_id"] + self.features
-        df = {feat_id: [] for feat_id in features_id}
+        df: dict[str, list] = {feat_id: [] for feat_id in features_id}
         for individual_name, G in self.graphs.items():
             for node in G.nodes():
                 df["individual_name"].append(individual_name)
@@ -124,7 +123,7 @@ class Ecograph:
         feature: str,
         output_path: str | os.PathLike,
         individual: str = "all",
-        interpolation: str | None = None,
+        interpolation: InterpolationOption | None = None,
         transform: sklearn.base.TransformerMixin | None = None,
     ) -> None:
         """
@@ -248,7 +247,7 @@ class Ecograph:
             G.nodes[node_id][key].append(value)
 
     @staticmethod
-    def _get_day_night_value(day_night_value: Literal["day", "night"]) -> None:
+    def _get_day_night_value(day_night_value: Literal["day", "night"]) -> int:
         if day_night_value == "day":
             return 0
         elif day_night_value == "night":
@@ -281,7 +280,7 @@ class Ecograph:
 
     def _get_tortuosities(
         self,
-        lines: list[list[CoordinateSequence]],
+        lines: list[list[Tuple[float, float]]],
         time_delta: float,
     ) -> Tuple[float, float]:
         point1, point2 = lines[0][0], lines[len(lines) - 1][1]
@@ -312,7 +311,7 @@ class Ecograph:
         self,
         G: nx.Graph,
         radius: float,
-        cutoff: float,
+        cutoff: float | None,
     ) -> None:
         self._compute_degree(G)
         self._compute_betweenness(G, cutoff)
@@ -347,7 +346,7 @@ class Ecograph:
     @staticmethod
     def _compute_betweenness(
         G: nx.Graph,
-        cutoff: float,
+        cutoff: float | None,
     ) -> None:
         g = igraph.Graph.from_networkx(G)
         btw_idx = g.betweenness(cutoff=cutoff)
@@ -355,7 +354,7 @@ class Ecograph:
             node = v["_nx_name"]
             G.nodes[node]["betweenness"] = btw_idx[v.index]
 
-    def _get_feature_mosaic(self, feature: str, interpolation: InterpolationOption = None) -> np.typing.NDArray:
+    def _get_feature_mosaic(self, feature: str, interpolation: InterpolationOption | None = None) -> np.typing.NDArray:
         features = []
         for individual in self.graphs.keys():
             features.append(self._get_feature_map(feature, individual, interpolation))
@@ -377,7 +376,7 @@ class Ecograph:
         self,
         feature: str,
         individual: str,
-        interpolation: InterpolationOption,
+        interpolation: InterpolationOption | None = None,
     ) -> np.typing.NDArray:
         if interpolation is not None:
             return self._get_interpolated_feature_map(feature, individual, interpolation)
@@ -403,7 +402,7 @@ class Ecograph:
         feature_ndarray = self._get_regular_feature_map(feature, individual)
         individual_trajectory = self.trajectory[self.trajectory["groupby_col"] == individual]
         geom = individual_trajectory["geometry"]
-        idxs_dict = {}
+        idxs_dict: dict[tuple, Any] = {}
         for i in range(len(geom)):
             line1 = list(geom.iloc[i].coords)
             p1, p2 = line1[0], line1[1]
@@ -448,7 +447,7 @@ def get_feature_gdf(input_path: str | os.PathLike) -> gpd.GeoDataFrame:
         data_array[data_array == src.nodata] = np.nan
         shapes.extend(rasterio.features.shapes(data_array, transform=src.transform))
 
-    data = {"value": [], "geometry": []}
+    data: dict[str, list] = {"value": [], "geometry": []}
     for geom, value in shapes:
         if not np.isnan(value):
             data["geometry"].append(shape(geom))
