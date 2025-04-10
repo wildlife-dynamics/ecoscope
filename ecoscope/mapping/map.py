@@ -2,7 +2,7 @@ import base64
 import json
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Dict, Optional, TextIO, Union
+from typing import IO, Dict, Optional, TextIO, Union, overload
 
 import ee
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -126,7 +126,7 @@ class EcoMap(Map):
 
     @staticmethod
     def layers_from_gdf(
-        gdf: gpd.GeoDataFrame, tooltip_columns: list[str] = None, **kwargs
+        gdf: gpd.GeoDataFrame, tooltip_columns: list[str] | None = None, **kwargs
     ) -> list[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
         """
         Creates map layers from the provided gdf, returns multiple layers when geometry is mixed
@@ -156,11 +156,14 @@ class EcoMap(Map):
                 path_kwargs[key] = kwargs[key]
 
         return viz_layer(
-            data=gdf, polygon_kwargs=polygon_kwargs, scatterplot_kwargs=scatterplot_kwargs, path_kwargs=path_kwargs
+            data=gdf,
+            polygon_kwargs=polygon_kwargs,  # type: ignore[arg-type]
+            scatterplot_kwargs=scatterplot_kwargs,  # type: ignore[arg-type]
+            path_kwargs=path_kwargs,  # type: ignore[arg-type]
         )
 
     @staticmethod
-    def _clean_gdf(gdf: gpd.GeoDataFrame, keep_columns: list[str] = None) -> gpd.geodataframe:
+    def _clean_gdf(gdf: gpd.GeoDataFrame, keep_columns: list[str] | None = None) -> gpd.geodataframe:
         """
         Cleans a gdf for use in a map layer, ensures EPSG:4326 and removes any empty geometry
         Parameters
@@ -190,7 +193,7 @@ class EcoMap(Map):
 
     @staticmethod
     def polyline_layer(
-        gdf: gpd.GeoDataFrame, color_column: str = None, tooltip_columns: list[str] = None, **kwargs
+        gdf: gpd.GeoDataFrame, color_column: str | None = None, tooltip_columns: list[str] | None = None, **kwargs
     ) -> PathLayer:
         """
         Creates a polyline layer to add to a map
@@ -214,9 +217,9 @@ class EcoMap(Map):
     @staticmethod
     def polygon_layer(
         gdf: gpd.GeoDataFrame,
-        fill_color_column: str = None,
-        line_color_column: str = None,
-        tooltip_columns: list[str] = None,
+        fill_color_column: str | None = None,
+        line_color_column: str | None = None,
+        tooltip_columns: list[str] | None = None,
         **kwargs,
     ) -> PolygonLayer:
         """
@@ -243,9 +246,9 @@ class EcoMap(Map):
     @staticmethod
     def point_layer(
         gdf: gpd.GeoDataFrame,
-        fill_color_column: str = None,
-        line_color_column: str = None,
-        tooltip_columns: list[str] = None,
+        fill_color_column: str | None = None,
+        line_color_column: str | None = None,
+        tooltip_columns: list[str] | None = None,
         **kwargs,
     ) -> ScatterplotLayer:
         """
@@ -293,7 +296,7 @@ class EcoMap(Map):
 
         if len(labels) != len(colors):
             raise ValueError("label and color values must be of equal number")
-        pairs = {labels[index]: colors[index] for index in range(len(labels))}
+        pairs: dict[str, str | tuple] = {labels[index]: colors[index] for index in range(len(labels))}  # type: ignore[misc]
 
         filtered_labels = []
         filtered_colors = []
@@ -388,6 +391,7 @@ class EcoMap(Map):
         kwargs
             Additional params passed to either lonboard.BitmapTileLayer or add_gdf
         """
+        ee_layer: BitmapTileLayer | list[ScatterplotLayer | PolygonLayer | PathLayer]
         kwargs["tile_size"] = kwargs.get("tile_size", 256)
         if isinstance(ee_object, ee.image.Image):
             map_id_dict = ee.Image(ee_object).getMapId(visualization_params)
@@ -445,7 +449,7 @@ class EcoMap(Map):
     @staticmethod
     def geotiff_layer(
         tiff: str | rio.MemoryFile,
-        cmap: Union[str, mpl.colors.Colormap] = None,
+        cmap: Union[str, mpl.colors.Colormap, None] = None,
         opacity: float = 0.7,
     ):
         """
@@ -472,14 +476,15 @@ class EcoMap(Map):
             # new
             bounds = rio.warp.transform_bounds(src.crs, "EPSG:4326", *src.bounds)
 
+            im: np.typing.ArrayLike
             if cmap is None:
                 im = [rio.band(src, i + 1) for i in range(src.count)]
             else:
-                cmap = mpl.colormaps[cmap]
+                mpl_cmap = mpl.colormaps[cmap] if isinstance(cmap, str) else cmap
                 rio_kwargs["count"] = 4
                 im = rio.band(src, 1)[0].read()[0]
                 im_min, im_max = np.nanmin(im), np.nanmax(im)
-                im = np.rollaxis(cmap((im - im_min) / (im_max - im_min), bytes=True), -1)
+                im = np.rollaxis(mpl_cmap((im - im_min) / (im_max - im_min), bytes=True), -1)
                 # TODO Handle Colorbar
 
             with rio.io.MemoryFile() as memfile:
@@ -514,7 +519,7 @@ class EcoMap(Map):
                             mempng.write(data)
                         url = "data:image/png;base64," + base64.b64encode(outfile.read()).decode("utf-8")
 
-                        layer = BitmapLayer(image=url, bounds=bounds, opacity=opacity)
+                        layer = BitmapLayer(image=url, bounds=bounds, opacity=opacity)  # type: ignore[arg-type]
                         return layer
 
     @staticmethod
@@ -541,17 +546,33 @@ class EcoMap(Map):
 
     @staticmethod
     def get_named_tile_layer(layer: str, opacity: float = 1) -> BitmapTileLayer:
-        layer = TILE_LAYERS.get(layer)
-        if not layer:
+        layer_def = TILE_LAYERS.get(layer)
+        if not layer_def:
             raise ValueError("layer name must be in  {}".format(", ".join(TILE_LAYERS.keys())))
         return BitmapTileLayer(
-            data=layer.get("url"),
-            tile_size=layer.get("tile_size", 256),
-            max_zoom=layer.get("max_zoom", None),
-            min_zoom=layer.get("min_zoom", None),
-            max_requests=layer.get("max_requests", None),
-            opacity=opacity,
+            data=layer_def.get("url"),  # type: ignore[arg-type]
+            tile_size=layer_def.get("tile_size", 256),  # type: ignore[arg-type]
+            max_zoom=layer_def.get("max_zoom", None),  # type: ignore[arg-type]
+            min_zoom=layer_def.get("min_zoom", None),  # type: ignore[arg-type]
+            max_requests=layer_def.get("max_requests", None),  # type: ignore[arg-type]
+            opacity=opacity,  # type: ignore[arg-type]
         )
+
+    @overload
+    def to_html(
+        self,
+        filename: None = None,
+        title: Optional[str] = None,
+        maximize: bool = True,
+    ) -> str: ...
+
+    @overload
+    def to_html(
+        self,
+        filename: Union[str, Path, TextIO, IO[str]],
+        title: Optional[str] = None,
+        maximize: bool = True,
+    ) -> None: ...
 
     def to_html(
         self,
