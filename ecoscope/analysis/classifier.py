@@ -6,7 +6,7 @@ from ecoscope.base.utils import hex_to_rgba
 # from ecoscope.base._dataclasses import ColorStyleLookup
 
 try:
-    import mapclassify
+    import mapclassify  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \

@@ -1,6 +1,6 @@
 from typing import Literal
 import numpy as np
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 
 
 def calculate_feature_density(

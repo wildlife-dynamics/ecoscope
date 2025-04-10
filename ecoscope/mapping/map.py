@@ -5,11 +5,10 @@ from pathlib import Path
 from typing import IO, Dict, Optional, TextIO, Union
 
 import ee
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
-import rasterio
-import rasterio as rio
+import rasterio as rio  # type: ignore[import-untyped]
 
 from ecoscope.base.utils import color_tuple_to_css, hex_to_rgba
 
@@ -463,48 +462,48 @@ class EcoMap(Map):
         opacity: float
             The opacity of the overlay
         """
-        with rasterio.open(tiff) as src:
-            transform, width, height = rasterio.warp.calculate_default_transform(
+        with rio.open(tiff) as src:
+            transform, width, height = rio.warp.calculate_default_transform(
                 src.crs, "EPSG:4326", src.width, src.height, *src.bounds
             )
             rio_kwargs = src.meta.copy()
             rio_kwargs.update({"crs": "EPSG:4326", "transform": transform, "width": width, "height": height})
 
             # new
-            bounds = rasterio.warp.transform_bounds(src.crs, "EPSG:4326", *src.bounds)
+            bounds = rio.warp.transform_bounds(src.crs, "EPSG:4326", *src.bounds)
 
             if cmap is None:
-                im = [rasterio.band(src, i + 1) for i in range(src.count)]
+                im = [rio.band(src, i + 1) for i in range(src.count)]
             else:
                 cmap = mpl.colormaps[cmap]
                 rio_kwargs["count"] = 4
-                im = rasterio.band(src, 1)[0].read()[0]
+                im = rio.band(src, 1)[0].read()[0]
                 im_min, im_max = np.nanmin(im), np.nanmax(im)
                 im = np.rollaxis(cmap((im - im_min) / (im_max - im_min), bytes=True), -1)
                 # TODO Handle Colorbar
 
-            with rasterio.io.MemoryFile() as memfile:
+            with rio.io.MemoryFile() as memfile:
                 with memfile.open(**rio_kwargs) as dst:
                     for i in range(rio_kwargs["count"]):
-                        rasterio.warp.reproject(
+                        rio.warp.reproject(
                             source=im[i],
-                            destination=rasterio.band(dst, i + 1),
+                            destination=rio.band(dst, i + 1),
                             src_transform=src.transform,
                             src_crs=src.crs,
                             dst_transform=transform,
                             dst_crs="EPSG:4326",
-                            resampling=rasterio.warp.Resampling.nearest,
+                            resampling=rio.warp.Resampling.nearest,
                         )
                     height = dst.height
                     width = dst.width
 
                     data = dst.read(
-                        out_dtype=rasterio.uint8,
+                        out_dtype=rio.uint8,
                         out_shape=(rio_kwargs["count"], int(height), int(width)),
-                        resampling=rasterio.enums.Resampling.bilinear,
+                        resampling=rio.enums.Resampling.bilinear,
                     )
 
-                    with rasterio.io.MemoryFile() as outfile:
+                    with rio.io.MemoryFile() as outfile:
                         with outfile.open(
                             driver="PNG",
                             height=data.shape[1],

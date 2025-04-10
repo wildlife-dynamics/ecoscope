@@ -2,7 +2,7 @@ import collections
 import dataclasses
 import typing
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import shapely
 

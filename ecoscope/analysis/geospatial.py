@@ -1,12 +1,12 @@
 from typing import Literal, Tuple
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 from PIL.Image import Image
 
 from ecoscope.base.utils import BoundingBox
 
 try:
-    import datashader as ds
+    import datashader as ds  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \

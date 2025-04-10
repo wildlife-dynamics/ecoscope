@@ -4,14 +4,14 @@ from datetime import datetime
 import ee
 import numpy as np
 import pandas as pd
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import shapely
 from shapely.geometry.base import BaseGeometry
 
 try:
-    import sklearn.mixture
-    from scipy.stats import norm
-    from sklearn.preprocessing import LabelEncoder
+    import sklearn.mixture  # type: ignore[import-untyped]
+    from scipy.stats import norm  # type: ignore[import-untyped]
+    from sklearn.preprocessing import LabelEncoder  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \

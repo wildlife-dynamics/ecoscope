@@ -10,9 +10,9 @@ import ecoscope
 from ecoscope.base.utils import color_tuple_to_css
 
 try:
-    import plotly.graph_objs as go
-    from plotly.subplots import make_subplots
-    from sklearn.neighbors import KernelDensity
+    import plotly.graph_objs as go  # type: ignore[import-untyped]
+    from plotly.subplots import make_subplots  # type: ignore[import-untyped]
+    from sklearn.neighbors import KernelDensity  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \

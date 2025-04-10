@@ -1,7 +1,7 @@
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
-import rasterio
-import rasterio.features
+import rasterio  # type: ignore[import-untyped]
+import rasterio.features  # type: ignore[import-untyped]
 from shapely.geometry import shape
 from shapely.geometry.multipolygon import MultiPolygon
 

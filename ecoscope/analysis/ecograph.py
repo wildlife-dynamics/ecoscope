@@ -2,21 +2,21 @@ import os
 from math import ceil, floor
 from typing import Hashable, Literal, Tuple
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
-import rasterio
+import rasterio  # type: ignore[import-untyped]
 from shapely.coords import CoordinateSequence
 from shapely.geometry import shape
-from affine import Affine
+from affine import Affine  # type: ignore[import-untyped]
 
 import ecoscope
 
 try:
-    import igraph
-    import networkx as nx
-    import sklearn.base
-    from skimage.draw import line
+    import igraph  # type: ignore[import-untyped]
+    import networkx as nx  # type: ignore[import-untyped]
+    import sklearn.base  # type: ignore[import-untyped]
+    from skimage.draw import line  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \

@@ -3,14 +3,14 @@ from datetime import datetime, timedelta
 from shapely import Geometry
 import numpy as np
 import pandas as pd
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pyproj
 import pytz
 
 try:
-    import astroplan
-    from astropy.coordinates import EarthLocation
-    from astropy.time import Time
+    import astroplan  # type: ignore[import-untyped]
+    from astropy.coordinates import EarthLocation  # type: ignore[import-untyped]
+    from astropy.time import Time  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
