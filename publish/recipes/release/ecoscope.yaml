@@ -48,7 +48,7 @@ requirements:
     - plotly
     # - scikit-learn  # duplicate with analysis
     # ~ mapping ~
-    - lonboard==0.0.3
+    - lonboard==0.0.4
     # - matplotlib  # duplicate with analysis
     # - mapclassify  # duplicate with analysis
 
