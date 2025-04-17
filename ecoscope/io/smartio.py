@@ -81,7 +81,7 @@ class SmartIO:
         params = {}
         params["ca_uuid"] = ca_uuid
         params["language_uuid"] = language_uuid
-        params["start_date"] = start
+        params["start_date"] = start  # todo: this has to be at 00:00:00
         params["end_date"] = end
         params["patrol_mandate"] = patrol_mandate
         params["patrol_transport"] = patrol_transport
