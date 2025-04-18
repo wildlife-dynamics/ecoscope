@@ -18,16 +18,18 @@ from ecoscope.base._dataclasses import (
 )
 
 
-class EcoDataFrame(gpd.GeoDataFrame):
+class EcoDataFrame:
     """
-    `EcoDataFrame` extends `geopandas.GeoDataFrame` to provide customizations and allow for simpler extension.
+    `EcoDataFrame` wraps `geopandas.GeoDataFrame` to provide customizations and allow for simpler extension.
     """
 
     @property
     def _constructor(self):
         return type(self)
 
-    def __init__(self, data=None, *args, **kwargs):
+    def __init__(self, gdf: gpd.GeoDataFrame, data=None, *args, **kwargs):
+        self.gdf = gdf
+
         if kwargs.get("geometry") is None:
             # Load geometry from data if not specified in kwargs
             if hasattr(data, "geometry"):
@@ -41,59 +43,48 @@ class EcoDataFrame(gpd.GeoDataFrame):
         super().__init__(data, *args, **kwargs)
 
     def __getitem__(self, key):
-        result = super().__getitem__(key)
-        if isinstance(key, (list, slice, np.ndarray, pd.Series)):
-            result.__class__ = self._constructor
+        result = self.gdf.__getitem__(key)
         return result
 
     @classmethod
     def from_file(cls, filename, **kwargs):
         result = gpd.GeoDataFrame.from_file(filename, **kwargs)
-        result.__class__ = cls
-        return result
+        return cls(result)
 
     @classmethod
     def from_features(cls, features, **kwargs):
         result = gpd.GeoDataFrame.from_features(features, **kwargs)
-        result.__class__ = cls
-        return result
+        return cls(result)
 
-    def __finalize__(self, *args, **kwargs):
-        result = super().__finalize__(*args, **kwargs)
-        result.__class__ = self._constructor
-        return result
+    # TODO check if we actually need these
+    # def astype(self, *args, **kwargs):
+    #     result = super().astype(*args, **kwargs)
+    #     result.__class__ = self._constructor
+    #     return result
 
-    def astype(self, *args, **kwargs):
-        result = super().astype(*args, **kwargs)
-        result.__class__ = self._constructor
-        return result
+    # def merge(self, *args, **kwargs):
+    #     result = super().merge(*args, **kwargs)
+    #     result.__class__ = self._constructor
+    #     return result
 
-    def merge(self, *args, **kwargs):
-        result = super().merge(*args, **kwargs)
-        result.__class__ = self._constructor
-        return result
+    # def dissolve(self, *args, **kwargs):
+    #     result = super().dissolve(*args, **kwargs)
+    #     result.__class__ = self._constructor
+    #     return result
 
-    def dissolve(self, *args, **kwargs):
-        result = super().dissolve(*args, **kwargs)
-        result.__class__ = self._constructor
-        return result
-
-    def explode(self, *args, **kwargs):
-        result = super().explode(*args, **kwargs)
-        result.__class__ = self._constructor
-        return result
+    # def explode(self, *args, **kwargs):
+    #     result = super().explode(*args, **kwargs)
+    #     result.__class__ = self._constructor
+    #     return result
 
     def plot(self, *args, **kwargs):
-        if self._geometry_column_name in self:
-            return gpd.GeoDataFrame.plot(self, *args, **kwargs)
-        else:
-            return pd.DataFrame(self).plot(*args, **kwargs)
+        return self.gdf.plot(self, *args, **kwargs)
 
     def reset_filter(self, inplace=False):
         if inplace:
-            frame = self
+            frame = self.gdf
         else:
-            frame = self.copy()
+            frame = self.gdf.copy()
 
         frame["junk_status"] = False
 
@@ -102,9 +93,9 @@ class EcoDataFrame(gpd.GeoDataFrame):
 
     def remove_filtered(self, inplace=False):
         if inplace:
-            frame = self
+            frame = self.gdf
         else:
-            frame = self.copy()
+            frame = self.gdf.copy()
 
         if not frame["junk_status"].dtype == bool:
             warnings.warn(
@@ -246,14 +237,14 @@ class Relocations(EcoDataFrame):
     def apply_reloc_filter(self, fix_filter=None, inplace=False):
         """Apply a given filter by marking the fix junk_status based on the conditions of a filter"""
 
-        if not self["fixtime"].is_monotonic_increasing:
-            self.sort_values("fixtime", inplace=True)
-        assert self["fixtime"].is_monotonic_increasing
+        if not self.gdf["fixtime"].is_monotonic_increasing:
+            self.gdf.sort_values("fixtime", inplace=True)
+        assert self.gdf["fixtime"].is_monotonic_increasing
 
         if inplace:
-            frame = self
+            frame = self.gdf
         else:
-            frame = self.copy()
+            frame = self.gdf.copy()
 
         # Identify junk fixes based on location coordinate x,y ranges or that match specific coordinates
         if isinstance(fix_filter, RelocsCoordinateFilter):
@@ -297,7 +288,7 @@ class Relocations(EcoDataFrame):
     @cached_property
     def distance_from_centroid(self):
         # calculate the distance between the centroid and the fix
-        gs = self.geometry.to_crs(crs=self.estimate_utm_crs())
+        gs = self.gdf.geometry.to_crs(crs=self.gdf.estimate_utm_crs())
         return gs.distance(gs.unary_union.centroid)
 
     @cached_property
@@ -327,7 +318,7 @@ class Relocations(EcoDataFrame):
         # Apply filter to the underlying geodataframe.
         distance = self.distance_from_centroid
         _filter = distance > threshold_dist_meters
-        self.relocations.loc[_filter, "junk_status"] = True
+        self.gdf.loc[_filter, "junk_status"] = True
 
 
 class Trajectory(EcoDataFrame):
@@ -369,10 +360,10 @@ class Trajectory(EcoDataFrame):
         """
         Get displacement in meters between first and final fixes.
         """
-        if not self["segment_start"].is_monotonic_increasing:
-            self = self.sort_values("segment_start")
-        start = self.geometry.iloc[0].coords[0]
-        end = self.geometry.iloc[-1].coords[1]
+        if not self.gdf["segment_start"].is_monotonic_increasing:
+            self.gdf = self.gdf.sort_values("segment_start")
+        start = self.gdf.geometry.iloc[0].coords[0]
+        end = self.gdf.geometry.iloc[-1].coords[1]
         return Geod(ellps="WGS84").inv(start[0], start[1], end[0], end[1])[2]
 
     def get_tortuosity(self):
@@ -381,7 +372,7 @@ class Trajectory(EcoDataFrame):
         points.
         """
 
-        return self["dist_meters"].sum() / self.get_displacement()
+        return self.gdf["dist_meters"].sum() / self.get_displacement()
 
     @staticmethod
     def _create_multitraj(df):
@@ -439,14 +430,14 @@ class Trajectory(EcoDataFrame):
         return df.join(gdf, how="left")
 
     def apply_traj_filter(self, traj_seg_filter, inplace=False):
-        if not self["segment_start"].is_monotonic_increasing:
-            self.sort_values("segment_start", inplace=True)
-        assert self["segment_start"].is_monotonic_increasing
+        if not self.gdf["segment_start"].is_monotonic_increasing:
+            self.gdf.sort_values("segment_start", inplace=True)
+        assert self.gdf["segment_start"].is_monotonic_increasing
 
         if inplace:
-            frame = self
+            frame = self.gdf
         else:
-            frame = self.copy()
+            frame = self.gdf.copy()
 
         assert type(traj_seg_filter) is TrajSegFilter
         frame.loc[
@@ -463,21 +454,21 @@ class Trajectory(EcoDataFrame):
             return frame
 
     def get_turn_angle(self):
-        if not self["segment_start"].is_monotonic_increasing:
-            self.sort_values("segment_start", inplace=True)
-        assert self["segment_start"].is_monotonic_increasing
+        if not self.gdf["segment_start"].is_monotonic_increasing:
+            self.gdf.sort_values("segment_start", inplace=True)
+        assert self.gdf["segment_start"].is_monotonic_increasing
 
         def turn_angle(traj):
             return ((traj["heading"].diff() + 540) % 360 - 180)[traj["segment_end"].shift(1) == traj["segment_start"]]
 
-        uniq = self.groupby_col.nunique()
+        uniq = self.gdf.groupby_col.nunique()
         angles = (
-            self.groupby("groupby_col")[self.columns].apply(turn_angle, include_groups=False).droplevel(0)
+            self.gdf.groupby("groupby_col")[self.gdf.columns].apply(turn_angle, include_groups=False).droplevel(0)
             if uniq > 1
-            else turn_angle(self)
+            else turn_angle(self.gdf)
         )
 
-        return angles.rename("turn_angle").reindex(self.index)
+        return angles.rename("turn_angle").reindex(self.gdf.index)
 
     def upsample(self, freq):
         """
@@ -493,11 +484,11 @@ class Trajectory(EcoDataFrame):
 
         freq = pd.tseries.frequencies.to_offset(freq)
 
-        if not self["segment_start"].is_monotonic_increasing:
-            self.sort_values("segment_start", inplace=True)
+        if not self.gdf["segment_start"].is_monotonic_increasing:
+            self.gdf.sort_values("segment_start", inplace=True)
 
         def f(traj):
-            traj.crs = self.crs  # Lost in groupby-apply due to GeoPandas bug
+            traj.crs = self.gdf.crs  # Lost in groupby-apply due to GeoPandas bug
 
             times = pd.date_range(traj["segment_start"].iat[0], traj["segment_end"].iat[-1], freq=freq)
 
@@ -519,7 +510,7 @@ class Trajectory(EcoDataFrame):
             )
 
         return Relocations.from_gdf(
-            self.groupby("groupby_col")[self.columns].apply(f, include_groups=False).reset_index(level=0)
+            self.gdf.groupby("groupby_col")[self.gdf.columns].apply(f, include_groups=False).reset_index(level=0)
         )
 
     def to_relocations(self):
@@ -531,7 +522,7 @@ class Trajectory(EcoDataFrame):
         """
 
         def f(traj):
-            traj.crs = self.crs
+            traj.crs = self.gdf.crs
             points = np.concatenate([shapely.get_point(traj.geometry, 0), shapely.get_point(traj.geometry, 1)])
             times = np.concatenate([traj["segment_start"], traj["segment_end"]])
 
@@ -546,7 +537,7 @@ class Trajectory(EcoDataFrame):
             )
 
         return Relocations.from_gdf(
-            self.groupby("groupby_col")[self.columns].apply(f, include_groups=False).reset_index(drop=True)
+            self.gdf.groupby("groupby_col")[self.gdf.columns].apply(f, include_groups=False).reset_index(drop=True)
         )
 
     def downsample(self, freq, tolerance="0S", interpolation=False):
@@ -572,7 +563,7 @@ class Trajectory(EcoDataFrame):
             tolerance = pd.tseries.frequencies.to_offset(tolerance)
 
             def f(relocs_ind):
-                relocs_ind.crs = self.crs
+                relocs_ind.crs = self.gdf.crs
                 fixtime = relocs_ind["fixtime"]
 
                 k = 1
@@ -607,19 +598,19 @@ class Trajectory(EcoDataFrame):
             return relocs.groupby("groupby_col")[relocs.columns].apply(f).reset_index(drop=True)
 
     @staticmethod
-    def _straighttrack_properties(df: gpd.GeoDataFrame):
+    def _straighttrack_properties(gdf: gpd.GeoDataFrame):
         """Private function used by Trajectory class."""
 
         class Properties:
             @property
             def start_fixes(self):
                 # unpack xy-coordinates of start fixes
-                return df["geometry"].x, df["geometry"].y
+                return gdf["geometry"].x, gdf["geometry"].y
 
             @property
             def end_fixes(self):
                 # unpack xy-coordinates of end fixes
-                return df["_geometry"].x, df["_geometry"].y
+                return gdf["_geometry"].x, gdf["_geometry"].y
 
             @property
             def inverse_transformation(self):
@@ -640,14 +631,16 @@ class Trajectory(EcoDataFrame):
 
             @property
             def nsd(self):
-                start_point = df["geometry"].iloc[0]
+                start_point = gdf["geometry"].iloc[0]
                 geod = Geod(ellps="WGS84")
-                geod_displacement = [geod.inv(start_point.x, start_point.y, geo.x, geo.y)[2] for geo in df["_geometry"]]
+                geod_displacement = [
+                    geod.inv(start_point.x, start_point.y, geo.x, geo.y)[2] for geo in gdf["_geometry"]
+                ]
                 return [(x**2) / (1000 * 2) for x in geod_displacement]
 
             @property
             def timespan_seconds(self):
-                return (df["_fixtime"] - df["fixtime"]).dt.total_seconds()
+                return (gdf["_fixtime"] - gdf["fixtime"]).dt.total_seconds()
 
             @property
             def speed_kmhr(self):
@@ -690,5 +683,5 @@ class Trajectory(EcoDataFrame):
 
                 proximity_events.append(pr)
 
-        self.groupby("groupby_col")[self.columns].apply(analysis, include_groups=False)
+        self.gdf.groupby("groupby_col")[self.gdf.columns].apply(analysis, include_groups=False)
         return pd.concat(proximity_events).reset_index(drop=True)
