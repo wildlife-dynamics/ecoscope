@@ -30,10 +30,6 @@ class EcoDataFrame:
     def __init__(self, gdf: gpd.GeoDataFrame):
         self.gdf = gdf
 
-    def __getitem__(self, key):
-        result = self.gdf.__getitem__(key)
-        return result
-
     @classmethod
     def from_file(cls, filename, **kwargs):
         result = gpd.GeoDataFrame.from_file(filename, **kwargs)
@@ -43,27 +39,6 @@ class EcoDataFrame:
     def from_features(cls, features, **kwargs):
         result = gpd.GeoDataFrame.from_features(features, **kwargs)
         return cls(result)
-
-    # TODO check if we actually need these
-    # def astype(self, *args, **kwargs):
-    #     result = super().astype(*args, **kwargs)
-    #     result.__class__ = self._constructor
-    #     return result
-
-    # def merge(self, *args, **kwargs):
-    #     result = super().merge(*args, **kwargs)
-    #     result.__class__ = self._constructor
-    #     return result
-
-    # def dissolve(self, *args, **kwargs):
-    #     result = super().dissolve(*args, **kwargs)
-    #     result.__class__ = self._constructor
-    #     return result
-
-    # def explode(self, *args, **kwargs):
-    #     result = super().explode(*args, **kwargs)
-    #     result.__class__ = self._constructor
-    #     return result
 
     def plot(self, *args, **kwargs):
         return self.gdf.plot(self, *args, **kwargs)
@@ -328,18 +303,20 @@ class Trajectory(EcoDataFrame):
         Trajectory
         """
         assert isinstance(relocs, Relocations)
-        assert {"groupby_col", "fixtime", "geometry"}.issubset(relocs)
+        assert {"groupby_col", "fixtime", "geometry"}.issubset(relocs.gdf)
 
         if kwargs.get("copy"):
-            relocs = relocs.copy()
+            relocs = Relocations(relocs.gdf.copy())
 
-        original_crs = relocs.crs
-        relocs.to_crs(4326, inplace=True)
-        relocs = relocs.groupby("groupby_col")[relocs.columns].apply(cls._create_multitraj).droplevel(level=0)
-        relocs.to_crs(original_crs, inplace=True)
+        original_crs = relocs.gdf.crs
+        relocs.gdf.to_crs(4326, inplace=True)
+        relocs.gdf = (
+            relocs.gdf.groupby("groupby_col")[relocs.gdf.columns].apply(cls._create_multitraj).droplevel(level=0)
+        )
+        relocs.gdf.to_crs(original_crs, inplace=True)
 
-        relocs.sort_values("segment_start", inplace=True)
-        return Trajectory(gdf=relocs)
+        relocs.gdf.sort_values("segment_start", inplace=True)
+        return Trajectory(gdf=relocs.gdf)
 
     def get_displacement(self):
         """

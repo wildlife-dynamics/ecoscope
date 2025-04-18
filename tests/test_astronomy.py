@@ -9,7 +9,7 @@ from ecoscope.base import Trajectory
 
 
 def test_to_EarthLocation(movebank_relocations):
-    geometry = movebank_relocations["geometry"]
+    geometry = movebank_relocations.gdf["geometry"]
     test_point = geometry.iloc[0]
 
     transformed = astronomy.to_EarthLocation(geometry)
@@ -29,7 +29,7 @@ def test_to_EarthLocation(movebank_relocations):
 
 
 def test_is_night(movebank_relocations):
-    subset = movebank_relocations.iloc[12:15].copy()
+    subset = movebank_relocations.gdf.iloc[12:15].copy()
 
     subset["is_night"] = astronomy.is_night(subset.geometry, subset.fixtime)
 
@@ -43,7 +43,9 @@ def test_nightday_ratio(movebank_relocations):
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
-        trajectory.groupby("groupby_col")[trajectory.columns].apply(astronomy.get_nightday_ratio, include_groups=False),
+        trajectory.gdf.groupby("groupby_col")[trajectory.gdf.columns].apply(
+            astronomy.get_nightday_ratio, include_groups=False
+        ),
         expected,
     )
 
