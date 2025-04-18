@@ -412,7 +412,7 @@ def line_chart(
     data: pd.DataFrame,
     x_column: str,
     y_column: str,
-    category_column: str,
+    category_column: str = None,
     line_kwargs: dict = None,
     layout_kwargs: dict = None,
 ):
@@ -439,17 +439,27 @@ def line_chart(
     """
     fig = go.Figure(layout=layout_kwargs)
 
-    for category in data[category_column].unique():
-        category_data = data[data[category_column] == category]
+    if not category_column:
         fig.add_trace(
             go.Scatter(
-                x=category_data[x_column],
-                y=category_data[y_column],
+                x=data[x_column],
+                y=data[y_column],
                 mode="lines+markers",
-                name=category,
                 line=line_kwargs,
             )
         )
+    else:
+        for category in data[category_column].unique():
+            category_data = data[data[category_column] == category]
+            fig.add_trace(
+                go.Scatter(
+                    x=category_data[x_column],
+                    y=category_data[y_column],
+                    mode="lines+markers",
+                    name=category,
+                    line=line_kwargs,
+                )
+            )
 
     fig.update_layout(layout_kwargs)
     return fig
