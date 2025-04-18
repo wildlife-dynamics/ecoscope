@@ -422,10 +422,14 @@ def line_chart(
     ----------
     data: pd.DataFrame
         The data to plot
-    line_configs: a list of LineConfigs
-        Specification for the line chart, including labels, columns, and styles.
-    category: str
+    x_column: str
+        The name of the dataframe column to pull x-axis values from
+    y_column: str
+        The name of the dataframe column to pull y-axis values from
+    category_column: str
         The column name in the dataframe to group by and use as separate traces.
+    line_kwargs: dict
+        Line style kwargs passed to plotly.go.Scatter()
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)
     Returns
