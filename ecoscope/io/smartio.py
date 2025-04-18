@@ -200,8 +200,8 @@ class SmartIO:
                 ca_uuid=ca_uuid,
                 language_uuid=language_uuid,
                 # SMART API throws error if the start/end time is not at 00:00:00
-                start=start_dt.date().isoformat(),
-                end=end_dt.date().isoformat(),
+                start=start_dt.date.isoformat(),
+                end=end_dt.date.isoformat(),
                 patrol_mandate=patrol_mandate,
                 patrol_transport=patrol_transport,
             )
@@ -213,8 +213,8 @@ class SmartIO:
                     ca_uuid=ca_uuid,
                     language_uuid=language_uuid,
                     # SMART API throws error if the start/end time is not at 00:00:00
-                    start=current_start.date().isoformat(),
-                    end=segment_end.date().isoformat(),
+                    start=current_start.date.isoformat(),
+                    end=segment_end.date.isoformat(),
                     patrol_mandate=patrol_mandate,
                     patrol_transport=patrol_transport,
                 )
