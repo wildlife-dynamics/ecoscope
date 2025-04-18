@@ -408,6 +408,49 @@ def bar_chart(
     return fig
 
 
+def line_chart(
+    data: pd.DataFrame,
+    x_column: str,
+    y_column: str,
+    category_column: str,
+    line_kwargs: dict = None,
+    layout_kwargs: dict = None,
+):
+    """
+    Creates a line chart from the provided dataframe
+    Parameters
+    ----------
+    data: pd.DataFrame
+        The data to plot
+    line_configs: a list of LineConfigs
+        Specification for the line chart, including labels, columns, and styles.
+    category: str
+        The column name in the dataframe to group by and use as separate traces.
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly line chart
+    """
+    fig = go.Figure(layout=layout_kwargs)
+
+    for category in data[category_column].unique():
+        category_data = data[data[category_column] == category]
+        fig.add_trace(
+            go.Scatter(
+                x=category_data[x_column],
+                y=category_data[y_column],
+                mode="lines+markers",
+                name=category,
+                line=line_kwargs,
+            )
+        )
+
+    fig.update_layout(layout_kwargs)
+    return fig
+
+
 def pie_chart(
     data: pd.DataFrame,
     value_column: str,

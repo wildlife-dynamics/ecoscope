@@ -190,8 +190,9 @@ class SmartIO:
         self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None, window_size_in_days=7
     ):
         df = gpd.GeoDataFrame()
-        start_dt = pd.to_datetime(start)
-        end_dt = pd.to_datetime(end)
+        # SMART API throws error if the start/end time is not at 00:00:00
+        start_dt = pd.to_datetime(start).date
+        end_dt = pd.to_datetime(end).date
         total_duration = end_dt - start_dt
 
         if total_duration <= timedelta(days=window_size_in_days):
