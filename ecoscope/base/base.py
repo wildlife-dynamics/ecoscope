@@ -23,12 +23,23 @@ class EcoDataFrame:
     `EcoDataFrame` wraps `geopandas.GeoDataFrame` to provide customizations and allow for simpler extension.
     """
 
-    @property
-    def _constructor(self):
-        return type(self)
-
     def __init__(self, gdf: gpd.GeoDataFrame):
         self.gdf = gdf
+
+    def __getattr__(self, name):
+        if hasattr(self.gdf, name):
+            gdf_attr = getattr(self.gdf, name)
+            if callable(gdf_attr):
+
+                def wrapper(*args, **kwargs):
+                    result = gdf_attr(*args, **kwargs)
+                    if isinstance(result, gpd.GeoDataFrame):
+                        return self.__class__(gdf=result)
+                    return result
+
+                return wrapper
+            return gdf_attr
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     @classmethod
     def from_file(cls, filename, **kwargs):
