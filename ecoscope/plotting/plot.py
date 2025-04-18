@@ -408,6 +408,63 @@ def bar_chart(
     return fig
 
 
+def line_chart(
+    data: pd.DataFrame,
+    x_column: str,
+    y_column: str,
+    category_column: str = None,
+    line_kwargs: dict = None,
+    layout_kwargs: dict = None,
+):
+    """
+    Creates a line chart from the provided dataframe
+    Parameters
+    ----------
+    data: pd.DataFrame
+        The data to plot
+    x_column: str
+        The name of the dataframe column to pull x-axis values from
+    y_column: str
+        The name of the dataframe column to pull y-axis values from
+    category_column: str
+        The column name in the dataframe to group by and use as separate traces.
+    line_kwargs: dict
+        Line style kwargs passed to plotly.go.Scatter()
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly line chart
+    """
+    fig = go.Figure(layout=layout_kwargs)
+
+    if not category_column:
+        fig.add_trace(
+            go.Scatter(
+                x=data[x_column],
+                y=data[y_column],
+                mode="lines+markers",
+                line=line_kwargs,
+            )
+        )
+    else:
+        for category in data[category_column].unique():
+            category_data = data[data[category_column] == category]
+            fig.add_trace(
+                go.Scatter(
+                    x=category_data[x_column],
+                    y=category_data[y_column],
+                    mode="lines+markers",
+                    name=category,
+                    line=line_kwargs,
+                )
+            )
+
+    fig.update_layout(layout_kwargs)
+    return fig
+
+
 def pie_chart(
     data: pd.DataFrame,
     value_column: str,

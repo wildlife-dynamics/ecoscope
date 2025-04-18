@@ -10,6 +10,7 @@ from ecoscope.plotting.plot import (
     bar_chart,
     draw_historic_timeseries,
     ecoplot,
+    line_chart,
     mcp,
     nsd,
     pie_chart,
@@ -161,6 +162,25 @@ def test_bar_chart(chart_df):
     assert chart.data[1].name == "Sum"
     assert (chart.data[1].x == ["A", "B"]).all()
     assert (chart.data[1].y == [25, 255]).all()
+
+
+def test_line_chart(chart_df):
+    chart = line_chart(chart_df, x_column="type", y_column="value")
+
+    assert (chart.data[0].x == ["A", "B", "C", "D"]).all()
+    assert (chart.data[0].y == [25, 40, 65, 150]).all()
+
+
+def test_line_chart_with_category(chart_df):
+    chart = line_chart(chart_df, x_column="type", y_column="value", category_column="category")
+
+    assert chart.data[0].name == "A"
+    assert (chart.data[0].x == ["A"]).all()
+    assert (chart.data[0].y == [25]).all()
+
+    assert chart.data[1].name == "B"
+    assert (chart.data[1].x == ["B", "C", "D"]).all()
+    assert (chart.data[1].y == [40, 65, 150]).all()
 
 
 def test_pie_chart_no_style(chart_df):
