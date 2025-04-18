@@ -190,17 +190,18 @@ class SmartIO:
         self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None, window_size_in_days=7
     ):
         df = gpd.GeoDataFrame()
-        # SMART API throws error if the start/end time is not at 00:00:00
-        start_dt = pd.to_datetime(start).date
-        end_dt = pd.to_datetime(end).date
+
+        start_dt = pd.to_datetime(start)
+        end_dt = pd.to_datetime(end)
         total_duration = end_dt - start_dt
 
         if total_duration <= timedelta(days=window_size_in_days):
             df = self.get_patrols_list(
                 ca_uuid=ca_uuid,
                 language_uuid=language_uuid,
-                start=start,
-                end=end,
+                # SMART API throws error if the start/end time is not at 00:00:00
+                start=start_dt.date().isoformat(),
+                end=end_dt.date().isoformat(),
                 patrol_mandate=patrol_mandate,
                 patrol_transport=patrol_transport,
             )
@@ -211,8 +212,9 @@ class SmartIO:
                 patrols = self.get_patrols_list(
                     ca_uuid=ca_uuid,
                     language_uuid=language_uuid,
-                    start=current_start.isoformat(),
-                    end=segment_end.isoformat(),
+                    # SMART API throws error if the start/end time is not at 00:00:00
+                    start=current_start.date().isoformat(),
+                    end=segment_end.date().isoformat(),
                     patrol_mandate=patrol_mandate,
                     patrol_transport=patrol_transport,
                 )
