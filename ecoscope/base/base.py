@@ -27,20 +27,8 @@ class EcoDataFrame:
     def _constructor(self):
         return type(self)
 
-    def __init__(self, gdf: gpd.GeoDataFrame, data=None, *args, **kwargs):
+    def __init__(self, gdf: gpd.GeoDataFrame):
         self.gdf = gdf
-
-        if kwargs.get("geometry") is None:
-            # Load geometry from data if not specified in kwargs
-            if hasattr(data, "geometry"):
-                kwargs["geometry"] = data.geometry.name
-
-        if kwargs.get("crs") is None:
-            # Load crs from data if not specified in kwargs
-            if hasattr(data, "crs"):
-                kwargs["crs"] = data.crs
-
-        super().__init__(data, *args, **kwargs)
 
     def __getitem__(self, key):
         result = self.gdf.__getitem__(key)
@@ -176,7 +164,7 @@ class Relocations(EcoDataFrame):
 
         gdf.rename(columns=dict(zip(extra_cols, "extra__" + extra_cols)), inplace=True)
 
-        return cls(gdf, **kwargs)
+        return Relocations(gdf=gdf)
 
     @staticmethod
     def _apply_speedfilter(df, fix_filter):
@@ -243,9 +231,6 @@ class Relocations(EcoDataFrame):
 
         if inplace:
             frame = self.gdf
-        else:
-            frame = self.gdf.copy()
-
         # Identify junk fixes based on location coordinate x,y ranges or that match specific coordinates
         if isinstance(fix_filter, RelocsCoordinateFilter):
             frame.loc[
@@ -329,12 +314,12 @@ class Trajectory(EcoDataFrame):
     """
 
     @classmethod
-    def from_relocations(cls, gdf, *args, **kwargs):
+    def from_relocations(cls, relocs: Relocations, *args, **kwargs):
         """
         Create Trajectory class from Relocation dataframe.
         Parameters
         ----------
-        gdf: Geodataframe
+        relocs: Geodataframe
             Relocation geodataframe with relevant columns
         args
         kwargs
@@ -342,19 +327,19 @@ class Trajectory(EcoDataFrame):
         -------
         Trajectory
         """
-        assert isinstance(gdf, Relocations)
-        assert {"groupby_col", "fixtime", "geometry"}.issubset(gdf)
+        assert isinstance(relocs, Relocations)
+        assert {"groupby_col", "fixtime", "geometry"}.issubset(relocs)
 
         if kwargs.get("copy"):
-            gdf = gdf.copy()
+            relocs = relocs.copy()
 
-        gdf = EcoDataFrame(gdf)
-        crs = gdf.crs
-        gdf.to_crs(4326, inplace=True)
-        gdf = gdf.groupby("groupby_col")[gdf.columns].apply(cls._create_multitraj).droplevel(level=0)
-        gdf.to_crs(crs, inplace=True)
-        gdf.sort_values("segment_start", inplace=True)
-        return cls(gdf, *args, **kwargs)
+        original_crs = relocs.crs
+        relocs.to_crs(4326, inplace=True)
+        relocs = relocs.groupby("groupby_col")[relocs.columns].apply(cls._create_multitraj).droplevel(level=0)
+        relocs.to_crs(original_crs, inplace=True)
+
+        relocs.sort_values("segment_start", inplace=True)
+        return Trajectory(gdf=relocs)
 
     def get_displacement(self):
         """
