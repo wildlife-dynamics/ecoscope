@@ -19,6 +19,21 @@ from ecoscope.base._dataclasses import (
 )
 
 
+class IndexerWrapper:
+    def __init__(self, indexer, wrapped_class):
+        self._indexer = indexer
+        self._wrapped_class = wrapped_class
+
+    def __getitem__(self, key):
+        result = self._indexer[key]
+        if isinstance(result, gpd.GeoDataFrame):
+            return self._wrapped_class(gdf=result)
+        return result
+
+    def __setitem__(self, key, value):
+        self._indexer[key] = value
+
+
 class EcoDataFrame:
     """
     `EcoDataFrame` wraps `geopandas.GeoDataFrame` to provide customizations and allow for simpler extension.
@@ -31,19 +46,28 @@ class EcoDataFrame:
         result = self.gdf.__getitem__(key)
         return result
 
+    def __len__(self):
+        return len(self.gdf)
+
+    def __setitem__(self, key, value):
+        self.gdf[key] = value
+
     def __contains__(self, item):
         return item in self.gdf
 
     def __getattr__(self, name):
         if hasattr(self.gdf, name):
             gdf_attr = getattr(self.gdf, name)
-            if callable(gdf_attr) and name not in ["loc", "iloc", "at"]:
+            if callable(gdf_attr):
+                if name in ["loc", "iloc", "at", "iat"]:
+                    wrapper = IndexerWrapper(gdf_attr, self.__class__)
+                else:
 
-                def wrapper(*args, **kwargs):
-                    result = gdf_attr(*args, **kwargs)
-                    if isinstance(result, gpd.GeoDataFrame):
-                        return self.__class__(gdf=result)
-                    return result
+                    def wrapper(*args, **kwargs):
+                        result = gdf_attr(*args, **kwargs)
+                        if isinstance(result, gpd.GeoDataFrame):
+                            return self.__class__(gdf=result)
+                        return result
 
                 return wrapper
             return gdf_attr
@@ -358,7 +382,7 @@ class Trajectory(EcoDataFrame):
         points.
         """
 
-        return gdf["dist_meters"].sum() / Trajectory.get_displacement()
+        return gdf["dist_meters"].sum() / Trajectory.get_displacement(gdf)
 
     @staticmethod
     def _create_multitraj(df):
@@ -581,7 +605,8 @@ class Trajectory(EcoDataFrame):
                 return relocs_ind
 
             relocs = self.to_relocations()
-            return relocs.groupby("groupby_col")[relocs.columns].apply(f).reset_index(drop=True)
+            relocs.gdf = relocs.gdf.groupby("groupby_col")[relocs.columns].apply(f).reset_index(drop=True)
+            return relocs
 
     @staticmethod
     def _straighttrack_properties(gdf: gpd.GeoDataFrame):

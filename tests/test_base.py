@@ -164,10 +164,16 @@ def test_sampling(movebank_relocations):
     expected_downsample_noint = gpd.read_feather("tests/test_output/downsampled_relocs_noint.feather")
     expected_downsample_int = gpd.read_feather("tests/test_output/downsampled_relocs.feather")
 
-    gpd.testing.assert_geodataframe_equal(upsampled_noncontiguous_1, expected_noncontiguous_1, check_less_precise=True)
-    gpd.testing.assert_geodataframe_equal(upsampled_noncontiguous_2, expected_noncontiguous_2, check_less_precise=True)
-    gpd.testing.assert_geodataframe_equal(downsampled_relocs_noint, expected_downsample_noint, check_less_precise=True)
-    gpd.testing.assert_geodataframe_equal(downsampled_relocs_int, expected_downsample_int, check_less_precise=True)
+    gpd.testing.assert_geodataframe_equal(
+        upsampled_noncontiguous_1.gdf, expected_noncontiguous_1, check_less_precise=True
+    )
+    gpd.testing.assert_geodataframe_equal(
+        upsampled_noncontiguous_2.gdf, expected_noncontiguous_2, check_less_precise=True
+    )
+    gpd.testing.assert_geodataframe_equal(
+        downsampled_relocs_noint.gdf, expected_downsample_noint, check_less_precise=True
+    )
+    gpd.testing.assert_geodataframe_equal(downsampled_relocs_int.gdf, expected_downsample_int, check_less_precise=True)
 
 
 def test_edf_filter(movebank_relocations):
