@@ -86,9 +86,6 @@ class EcoDataFrame:
         result = gpd.GeoDataFrame.from_features(features, **kwargs)
         return cls(result)
 
-    def plot(self, *args, **kwargs):
-        return self.gdf.plot(self, *args, **kwargs)
-
     def reset_filter(self, inplace=False):
         if inplace:
             frame = self
