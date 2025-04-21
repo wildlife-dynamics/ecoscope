@@ -7,8 +7,8 @@ dependencies:
   - git
   - jupyterlab
   - fiona<1.10.0
-  - geopandas<=0.14.2
-  - numpy<2
+  - geopandas
+  - numpy
   - ipywidgets
   - pip:
       - kaleido==0.2.1
