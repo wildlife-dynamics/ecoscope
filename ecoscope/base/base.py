@@ -26,6 +26,13 @@ class EcoDataFrame:
     def __init__(self, gdf: gpd.GeoDataFrame):
         self.gdf = gdf
 
+    def __getitem__(self, key):
+        result = self.gdf.__getitem__(key)
+        return result
+
+    def __contains__(self, item):
+        return item in self.gdf
+
     def __getattr__(self, name):
         if hasattr(self.gdf, name):
             gdf_attr = getattr(self.gdf, name)
