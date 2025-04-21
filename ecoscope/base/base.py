@@ -1,5 +1,6 @@
 import itertools
 import warnings
+from copy import deepcopy
 from functools import cached_property
 
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -63,9 +64,9 @@ class EcoDataFrame:
 
     def reset_filter(self, inplace=False):
         if inplace:
-            frame = self.gdf
+            frame = self
         else:
-            frame = self.gdf.copy()
+            frame = deepcopy(self)
 
         frame["junk_status"] = False
 
@@ -74,9 +75,9 @@ class EcoDataFrame:
 
     def remove_filtered(self, inplace=False):
         if inplace:
-            frame = self.gdf
+            frame = self
         else:
-            frame = self.gdf.copy()
+            frame = deepcopy(self)
 
         if not frame["junk_status"].dtype == bool:
             warnings.warn(
@@ -223,45 +224,48 @@ class Relocations(EcoDataFrame):
         assert self.gdf["fixtime"].is_monotonic_increasing
 
         if inplace:
-            frame = self.gdf
+            relocs = self
+        else:
+            relocs = deepcopy(self)
+
         # Identify junk fixes based on location coordinate x,y ranges or that match specific coordinates
         if isinstance(fix_filter, RelocsCoordinateFilter):
-            frame.loc[
-                (frame["geometry"].x < fix_filter.min_x)
-                | (frame["geometry"].x > fix_filter.max_x)
-                | (frame["geometry"].y < fix_filter.min_y)
-                | (frame["geometry"].y > fix_filter.max_y)
-                | (frame["geometry"].isin(fix_filter.filter_point_coords)),
+            relocs.loc[
+                (relocs["geometry"].x < fix_filter.min_x)
+                | (relocs["geometry"].x > fix_filter.max_x)
+                | (relocs["geometry"].y < fix_filter.min_y)
+                | (relocs["geometry"].y > fix_filter.max_y)
+                | (relocs["geometry"].isin(fix_filter.filter_point_coords)),
                 "junk_status",
             ] = True
 
         # Mark fixes outside this date range as junk
         elif isinstance(fix_filter, RelocsDateRangeFilter):
             if fix_filter.start is not None:
-                frame.loc[frame["fixtime"] < fix_filter.start, "junk_status"] = True
+                relocs.loc[relocs["fixtime"] < fix_filter.start, "junk_status"] = True
 
             if fix_filter.end is not None:
-                frame.loc[frame["fixtime"] > fix_filter.end, "junk_status"] = True
+                relocs.loc[relocs["fixtime"] > fix_filter.end, "junk_status"] = True
 
         else:
-            crs = frame.crs
-            frame.to_crs(4326)
+            crs = relocs.crs
+            relocs.to_crs(4326)
             if isinstance(fix_filter, RelocsSpeedFilter):
-                frame._update_inplace(
-                    frame.groupby("groupby_col")[frame.columns]
+                relocs._update_inplace(
+                    relocs.groupby("groupby_col")[relocs.columns]
                     .apply(self._apply_speedfilter, fix_filter=fix_filter)
                     .droplevel(["groupby_col"])
                 )
             elif isinstance(fix_filter, RelocsDistFilter):
-                frame._update_inplace(
-                    frame.groupby("groupby_col")[frame.columns]
+                relocs._update_inplace(
+                    relocs.groupby("groupby_col")[relocs.columns]
                     .apply(self._apply_distfilter, fix_filter=fix_filter)
                     .droplevel(["groupby_col"])
                 )
-            frame.to_crs(crs, inplace=True)
+            relocs.to_crs(crs, inplace=True)
 
         if not inplace:
-            return frame
+            return relocs
 
     @cached_property
     def distance_from_centroid(self):
@@ -415,23 +419,23 @@ class Trajectory(EcoDataFrame):
         assert self.gdf["segment_start"].is_monotonic_increasing
 
         if inplace:
-            frame = self.gdf
+            traj = self
         else:
-            frame = self.gdf.copy()
+            traj = deepcopy(self)
 
         assert type(traj_seg_filter) is TrajSegFilter
-        frame.loc[
-            (frame["dist_meters"] < traj_seg_filter.min_length_meters)
-            | (frame["dist_meters"] > traj_seg_filter.max_length_meters)
-            | (frame["timespan_seconds"] < traj_seg_filter.min_time_secs)
-            | (frame["timespan_seconds"] > traj_seg_filter.max_time_secs)
-            | (frame["speed_kmhr"] < traj_seg_filter.min_speed_kmhr)
-            | (frame["speed_kmhr"] > traj_seg_filter.max_speed_kmhr),
+        traj.loc[
+            (traj["dist_meters"] < traj_seg_filter.min_length_meters)
+            | (traj["dist_meters"] > traj_seg_filter.max_length_meters)
+            | (traj["timespan_seconds"] < traj_seg_filter.min_time_secs)
+            | (traj["timespan_seconds"] > traj_seg_filter.max_time_secs)
+            | (traj["speed_kmhr"] < traj_seg_filter.min_speed_kmhr)
+            | (traj["speed_kmhr"] > traj_seg_filter.max_speed_kmhr),
             "junk_status",
         ] = True
 
         if not inplace:
-            return frame
+            return traj
 
     def get_turn_angle(self):
         if not self.gdf["segment_start"].is_monotonic_increasing:
