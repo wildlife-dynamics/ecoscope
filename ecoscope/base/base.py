@@ -37,7 +37,7 @@ class EcoDataFrame:
     def __getattr__(self, name):
         if hasattr(self.gdf, name):
             gdf_attr = getattr(self.gdf, name)
-            if callable(gdf_attr):
+            if callable(gdf_attr) and name not in ["loc", "iloc", "at"]:
 
                 def wrapper(*args, **kwargs):
                     result = gdf_attr(*args, **kwargs)
@@ -340,23 +340,25 @@ class Trajectory(EcoDataFrame):
         relocs.gdf.sort_values("segment_start", inplace=True)
         return Trajectory(gdf=relocs.gdf)
 
-    def get_displacement(self):
+    @staticmethod
+    def get_displacement(gdf: gpd.GeoDataFrame):
         """
         Get displacement in meters between first and final fixes.
         """
-        if not self.gdf["segment_start"].is_monotonic_increasing:
-            self.gdf = self.gdf.sort_values("segment_start")
-        start = self.gdf.geometry.iloc[0].coords[0]
-        end = self.gdf.geometry.iloc[-1].coords[1]
+        if not gdf["segment_start"].is_monotonic_increasing:
+            gdf = gdf.sort_values("segment_start")
+        start = gdf.geometry.iloc[0].coords[0]
+        end = gdf.geometry.iloc[-1].coords[1]
         return Geod(ellps="WGS84").inv(start[0], start[1], end[0], end[1])[2]
 
-    def get_tortuosity(self):
+    @staticmethod
+    def get_tortuosity(gdf: gpd.GeoDataFrame):
         """
         Get tortuosity for dataframe defined as distance traveled divided by displacement between first and final
         points.
         """
 
-        return self.gdf["dist_meters"].sum() / self.get_displacement()
+        return gdf["dist_meters"].sum() / Trajectory.get_displacement()
 
     @staticmethod
     def _create_multitraj(df):

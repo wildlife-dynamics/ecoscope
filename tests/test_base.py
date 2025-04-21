@@ -45,7 +45,7 @@ def test_relocs_distancefilter(sample_relocs):
 
 
 def test_relocations_from_gdf_preserve_fields(sample_relocs):
-    gpd.testing.assert_geodataframe_equal(sample_relocs, ecoscope.base.Relocations.from_gdf(sample_relocs))
+    gpd.testing.assert_geodataframe_equal(sample_relocs.gdf, ecoscope.base.Relocations.from_gdf(sample_relocs.gdf).gdf)
 
 
 def test_trajectory_properties(movebank_relocations):
