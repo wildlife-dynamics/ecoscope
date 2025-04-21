@@ -46,7 +46,14 @@ def test_geofence_crossing():
     ]
 
     gf_profile = geofence.GeoCrossingProfile(geofences=geofences, regions=regions)
-    df = geofence.GeoFenceCrossing.analyse(geocrossing_profile=gf_profile, trajectory=trajectory)
+    edf = geofence.GeoFenceCrossing.analyse(geocrossing_profile=gf_profile, trajectory=trajectory)
     geofence_crossing_point = gpd.read_feather("tests/test_output/geofence_crossing_point.feather")
-    gpd.testing.assert_geodataframe_equal(df, geofence_crossing_point, check_less_precise=True)
-    assert df.crs == geofence_crossing_point.crs
+
+    geofence_crossing_point[["segment_start", "segment_end", "extra__recorded_at", "crossing_time"]] = (
+        geofence_crossing_point[
+            ["segment_start", "segment_end", "extra__recorded_at", "crossing_time"]
+        ].astype("datetime64[ms, UTC]")
+    )
+
+    gpd.testing.assert_geodataframe_equal(edf.gdf, geofence_crossing_point, check_less_precise=True)
+    assert edf.crs == geofence_crossing_point.crs

@@ -108,9 +108,9 @@ class GeoFenceCrossing:
                     .groupby(level=0)
                     .agg(list)
                 )
-            return traj
+            return traj.gdf
 
         fences = geocrossing_profile.geofence_df
-        df = pd.concat([apply_func(fence) for _, fence in fences.iterrows()])
-        df.drop(["start_point", "end_point"], axis=1, inplace=True)
-        return ecoscope.base.EcoDataFrame(df, geometry="geometry")
+        gdf = pd.concat([apply_func(fence) for _, fence in fences.iterrows()])
+        gdf.drop(["start_point", "end_point"], axis=1, inplace=True)
+        return ecoscope.base.EcoDataFrame(gdf=gdf)
