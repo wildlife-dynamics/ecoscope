@@ -52,6 +52,9 @@ class EcoDataFrame:
     def __setitem__(self, key, value):
         self.gdf[key] = value
 
+    def __iter__(self):
+        yield self.gdf.__iter__()
+
     def __contains__(self, item):
         return item in self.gdf
 
