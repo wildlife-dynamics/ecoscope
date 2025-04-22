@@ -186,17 +186,11 @@ class Relocations(EcoDataFrame):
 
     @staticmethod
     def _apply_speedfilter(df, fix_filter):
-        with warnings.catch_warnings():
-            """
-            Note : This warning can be removed once the version of Geopandas is updated
-            on Colab to the one that fixes this bug
-            """
-            warnings.filterwarnings("ignore", message="CRS not set for some of the concatenation inputs")
-            gdf = df.assign(
-                _fixtime=df["fixtime"].shift(-1),
-                _geometry=df["geometry"].shift(-1),
-                _junk_status=df["junk_status"].shift(-1),
-            )[:-1]
+        gdf = df.assign(
+            _fixtime=df["fixtime"].shift(-1),
+            _geometry=df["geometry"].shift(-1),
+            _junk_status=df["junk_status"].shift(-1),
+        )[:-1]
 
         straight_track = Trajectory._straighttrack_properties(gdf)
         gdf["speed_kmhr"] = straight_track.speed_kmhr
@@ -215,16 +209,10 @@ class Relocations(EcoDataFrame):
 
     @staticmethod
     def _apply_distfilter(df, fix_filter):
-        with warnings.catch_warnings():
-            """
-            Note : This warning can be removed once the version of Geopandas is updated
-            on Colab to the one that fixes this bug
-            """
-            warnings.filterwarnings("ignore", message="CRS not set for some of the concatenation inputs")
-            gdf = df.assign(
-                _junk_status=df["junk_status"].shift(-1),
-                _geometry=df["geometry"].shift(-1),
-            )[:-1]
+        gdf = df.assign(
+            _junk_status=df["junk_status"].shift(-1),
+            _geometry=df["geometry"].shift(-1),
+        )[:-1]
 
         _, _, distance_m = Geod(ellps="WGS84").inv(
             gdf["geometry"].x, gdf["geometry"].y, gdf["_geometry"].x, gdf["_geometry"].y
@@ -392,13 +380,8 @@ class Trajectory(EcoDataFrame):
                 "and will be excluded from trajectory creation"
             )
             return None
-        with warnings.catch_warnings():
-            """
-            Note : This warning can be removed once the version of Geopandas is updated
-            on Colab to the one that fixes this bug
-            """
-            warnings.filterwarnings("ignore", message="CRS not set for some of the concatenation inputs")
-            df["_geometry"] = df["geometry"].shift(-1)
+
+        df["_geometry"] = df["geometry"].shift(-1)
 
         df["_fixtime"] = df["fixtime"].shift(-1)
         return Trajectory._create_trajsegments(df[:-1])
