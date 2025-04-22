@@ -407,7 +407,7 @@ class EcoMap(Map):
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
 
         elif isinstance(ee_object, ee.geometry.Geometry):
-            geojson = ee_object.toGeoJSON()
+            geojson = ee_object.getInfo()
             gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
             ee_layer = EcoMap.layers_from_gdf(gdf=gdf, **kwargs)
 
