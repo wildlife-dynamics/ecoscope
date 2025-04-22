@@ -39,7 +39,7 @@ requirements:
     # - matplotlib  # disabling in favor of matplotlib-base which is smaller
     - matplotlib-base
     - networkx
-    - numba
+    - numpy<2.1
     - scipy
     - scikit-image
     - scikit-learn
