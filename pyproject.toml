@@ -60,6 +60,7 @@ test = [
   "pytest-cov",
   "pytest-mock",
   "pytest-reportlog",
+  "fsspec",
 ]
 docs = [
   "myst-parser",
