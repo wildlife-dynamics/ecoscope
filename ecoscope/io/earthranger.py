@@ -972,12 +972,12 @@ class EarthRangerIO(ERClient):
         if not observations:
             return pd.DataFrame()
 
-        df = pd.concat(observations)
-        df = clean_time_cols(df)
-        df = ecoscope.base.Relocations(df)
+        gdf = pd.concat(observation.gdf for observation in observations)
+        gdf = clean_time_cols(gdf)
         if include_patrol_details:
-            return df.set_index("id")
-        return df
+            gdf = gdf.set_index("id")
+        relocs = ecoscope.base.Relocations(gdf=gdf)
+        return relocs
 
     def get_patrol_segment_events(
         self,
