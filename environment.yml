@@ -6,7 +6,6 @@ dependencies:
   - pip
   - git
   - jupyterlab
-  - fiona<1.10.0
   - geopandas
   - numpy<2.1
   - ipywidgets
