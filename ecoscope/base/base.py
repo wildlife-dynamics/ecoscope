@@ -19,21 +19,6 @@ from ecoscope.base._dataclasses import (
 )
 
 
-class IndexerWrapper:
-    def __init__(self, indexer, wrapped_class):
-        self._indexer = indexer
-        self._wrapped_class = wrapped_class
-
-    def __getitem__(self, key):
-        result = self._indexer[key]
-        if isinstance(result, gpd.GeoDataFrame):
-            return self._wrapped_class(gdf=result)
-        return result
-
-    def __setitem__(self, key, value):
-        self._indexer[key] = value
-
-
 class EcoDataFrame:
     """
     `EcoDataFrame` wraps `geopandas.GeoDataFrame` to provide customizations and allow for simpler extension.
@@ -41,40 +26,6 @@ class EcoDataFrame:
 
     def __init__(self, gdf: gpd.GeoDataFrame):
         self.gdf = gdf
-
-    def __getitem__(self, key):
-        result = self.gdf.__getitem__(key)
-        return result
-
-    def __setitem__(self, key, value):
-        self.gdf[key] = value
-
-    def __len__(self):
-        return len(self.gdf)
-
-    def __iter__(self):
-        yield self.gdf.__iter__()
-
-    def __contains__(self, item):
-        return item in self.gdf
-
-    def __getattr__(self, name):
-        if hasattr(self.gdf, name):
-            gdf_attr = getattr(self.gdf, name)
-            if callable(gdf_attr):
-                if name in ["loc", "iloc", "at", "iat"]:
-                    wrapper = IndexerWrapper(gdf_attr, self.__class__)
-                else:
-
-                    def wrapper(*args, **kwargs):
-                        result = gdf_attr(*args, **kwargs)
-                        if isinstance(result, gpd.GeoDataFrame):
-                            return self.__class__(gdf=result)
-                        return result
-
-                return wrapper
-            return gdf_attr
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     @classmethod
     def from_file(cls, filename, **kwargs):
@@ -242,39 +193,39 @@ class Relocations(EcoDataFrame):
 
         # Identify junk fixes based on location coordinate x,y ranges or that match specific coordinates
         if isinstance(fix_filter, RelocsCoordinateFilter):
-            relocs.loc[
-                (relocs["geometry"].x < fix_filter.min_x)
-                | (relocs["geometry"].x > fix_filter.max_x)
-                | (relocs["geometry"].y < fix_filter.min_y)
-                | (relocs["geometry"].y > fix_filter.max_y)
-                | (relocs["geometry"].isin(fix_filter.filter_point_coords)),
+            relocs.gdf.loc[
+                (relocs.gdf["geometry"].x < fix_filter.min_x)
+                | (relocs.gdf["geometry"].x > fix_filter.max_x)
+                | (relocs.gdf["geometry"].y < fix_filter.min_y)
+                | (relocs.gdf["geometry"].y > fix_filter.max_y)
+                | (relocs.gdf["geometry"].isin(fix_filter.filter_point_coords)),
                 "junk_status",
             ] = True
 
         # Mark fixes outside this date range as junk
         elif isinstance(fix_filter, RelocsDateRangeFilter):
             if fix_filter.start is not None:
-                relocs.loc[relocs["fixtime"] < fix_filter.start, "junk_status"] = True
+                relocs.gdf.loc[relocs.gdf["fixtime"] < fix_filter.start, "junk_status"] = True
 
             if fix_filter.end is not None:
-                relocs.loc[relocs["fixtime"] > fix_filter.end, "junk_status"] = True
+                relocs.gdf.loc[relocs.gdf["fixtime"] > fix_filter.end, "junk_status"] = True
 
         else:
-            crs = relocs.crs
-            relocs.to_crs(4326)
+            crs = relocs.gdf.crs
+            relocs.gdf.to_crs(4326)
             if isinstance(fix_filter, RelocsSpeedFilter):
-                relocs._update_inplace(
-                    relocs.groupby("groupby_col")[relocs.columns]
+                relocs.gdf._update_inplace(
+                    relocs.gdf.groupby("groupby_col")[relocs.gdf.columns]
                     .apply(self._apply_speedfilter, fix_filter=fix_filter)
                     .droplevel(["groupby_col"])
                 )
             elif isinstance(fix_filter, RelocsDistFilter):
-                relocs._update_inplace(
-                    relocs.groupby("groupby_col")[relocs.columns]
+                relocs.gdf._update_inplace(
+                    relocs.gdf.groupby("groupby_col")[relocs.gdf.columns]
                     .apply(self._apply_distfilter, fix_filter=fix_filter)
                     .droplevel(["groupby_col"])
                 )
-            relocs.to_crs(crs, inplace=True)
+            relocs.gdf.to_crs(crs, inplace=True)
 
         if not inplace:
             return relocs
@@ -433,13 +384,13 @@ class Trajectory(EcoDataFrame):
             traj = deepcopy(self)
 
         assert type(traj_seg_filter) is TrajSegFilter
-        traj.loc[
-            (traj["dist_meters"] < traj_seg_filter.min_length_meters)
-            | (traj["dist_meters"] > traj_seg_filter.max_length_meters)
-            | (traj["timespan_seconds"] < traj_seg_filter.min_time_secs)
-            | (traj["timespan_seconds"] > traj_seg_filter.max_time_secs)
-            | (traj["speed_kmhr"] < traj_seg_filter.min_speed_kmhr)
-            | (traj["speed_kmhr"] > traj_seg_filter.max_speed_kmhr),
+        traj.gdf.loc[
+            (traj.gdf["dist_meters"] < traj_seg_filter.min_length_meters)
+            | (traj.gdf["dist_meters"] > traj_seg_filter.max_length_meters)
+            | (traj.gdf["timespan_seconds"] < traj_seg_filter.min_time_secs)
+            | (traj.gdf["timespan_seconds"] > traj_seg_filter.max_time_secs)
+            | (traj.gdf["speed_kmhr"] < traj_seg_filter.min_speed_kmhr)
+            | (traj.gdf["speed_kmhr"] > traj_seg_filter.max_speed_kmhr),
             "junk_status",
         ] = True
 
@@ -480,26 +431,26 @@ class Trajectory(EcoDataFrame):
         if not self.gdf["segment_start"].is_monotonic_increasing:
             self.gdf.sort_values("segment_start", inplace=True)
 
-        def f(traj):
-            traj.crs = self.gdf.crs  # Lost in groupby-apply due to GeoPandas bug
+        def f(gdf):
+            assert gdf.crs
 
-            times = pd.date_range(traj["segment_start"].iat[0], traj["segment_end"].iat[-1], freq=freq)
+            times = pd.date_range(gdf["segment_start"].iat[0], gdf["segment_end"].iat[-1], freq=freq)
 
-            start_i = traj["segment_start"].searchsorted(times, side="right") - 1
-            end_i = traj["segment_end"].searchsorted(times, side="left")
-            valid_i = (start_i == end_i) | (times == traj["segment_start"].iloc[start_i])
+            start_i = gdf["segment_start"].searchsorted(times, side="right") - 1
+            end_i = gdf["segment_end"].searchsorted(times, side="left")
+            valid_i = (start_i == end_i) | (times == gdf["segment_start"].iloc[start_i])
 
-            traj = traj.iloc[start_i[valid_i]].reset_index(drop=True)
+            gdf = gdf.iloc[start_i[valid_i]].reset_index(drop=True)
             times = times[valid_i]
 
             return gpd.GeoDataFrame(
                 {"fixtime": times},
                 geometry=shapely.line_interpolate_point(
-                    traj["geometry"].values,
-                    (times - traj["segment_start"]) / (traj["segment_end"] - traj["segment_start"]),
+                    gdf["geometry"].values,
+                    (times - gdf["segment_start"]) / (gdf["segment_end"] - gdf["segment_start"]),
                     normalized=True,
                 ),
-                crs=traj.crs,
+                crs=gdf.crs,
             )
 
         return Relocations.from_gdf(
@@ -514,16 +465,16 @@ class Trajectory(EcoDataFrame):
         ecoscope.base.Relocations
         """
 
-        def f(traj):
-            traj.crs = self.gdf.crs
-            points = np.concatenate([shapely.get_point(traj.geometry, 0), shapely.get_point(traj.geometry, 1)])
-            times = np.concatenate([traj["segment_start"], traj["segment_end"]])
+        def f(gdf):
+            assert gdf.crs
+            points = np.concatenate([shapely.get_point(gdf.geometry, 0), shapely.get_point(gdf.geometry, 1)])
+            times = np.concatenate([gdf["segment_start"], gdf["segment_end"]])
 
             return (
                 gpd.GeoDataFrame(
                     {"fixtime": times},
                     geometry=points,
-                    crs=traj.crs,
+                    crs=gdf.crs,
                 )
                 .drop_duplicates(subset=["fixtime"])
                 .sort_values("fixtime")
@@ -662,16 +613,16 @@ class Trajectory(EcoDataFrame):
         """
         proximity_events = []
 
-        def analysis(traj):
+        def analysis(gdf):
             for sf in proximity_profile.spatial_features:
-                proximity_dist = traj.geometry.distance(sf.geometry)
-                start_fix = gpd.GeoSeries([shapely.Point(g.coords[0]) for g in traj.geometry])
+                proximity_dist = gdf.geometry.distance(sf.geometry)
+                start_fix = gpd.GeoSeries([shapely.Point(g.coords[0]) for g in gdf.geometry])
 
-                pr = traj[["groupby_col", "speed_kmhr", "heading"]]
+                pr = gdf[["groupby_col", "speed_kmhr", "heading"]]
                 pr["proximity_distance"] = proximity_dist
                 pr["proximal_fix"] = start_fix  # TODO: figure out the estimated fix interpolated along the seg
-                pr["estimated_time"] = traj.segment_start
-                pr["geometry"] = traj.geometry
+                pr["estimated_time"] = gdf.segment_start
+                pr["geometry"] = gdf.geometry
                 pr["spatialfeature_id"] = list(itertools.repeat(sf.unique_id, pr.shape[0]))
                 pr["spatialfeature_name"] = list(itertools.repeat(sf.name, pr.shape[0]))
 
