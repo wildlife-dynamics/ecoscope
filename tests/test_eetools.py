@@ -115,7 +115,7 @@ def test_label_gdf_with_img(movebank_relocations):
 # includes 3 timestamps, midnight, am, pm
 @pytest.fixture
 def movebank_relocations_fixed_subset(movebank_relocations):
-    return movebank_relocations.loc[329730794:329730795]._append(movebank_relocations.loc[329730810])
+    return movebank_relocations.gdf.loc[329730794:329730795]._append(movebank_relocations.gdf.loc[329730810])
 
 
 @pytest.mark.parametrize(
