@@ -108,7 +108,7 @@ class GeoFenceCrossing:
                     .groupby(level=0)
                     .agg(list)
                 )
-            return traj.gdf
+            return traj
 
         fences = geocrossing_profile.geofence_df
         gdf = pd.concat([apply_func(fence) for _, fence in fences.iterrows()])

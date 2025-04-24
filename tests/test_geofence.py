@@ -56,4 +56,4 @@ def test_geofence_crossing():
     )
 
     gpd.testing.assert_geodataframe_equal(edf.gdf, geofence_crossing_point, check_less_precise=True)
-    assert edf.crs == geofence_crossing_point.crs
+    assert edf.gdf.crs == geofence_crossing_point.crs

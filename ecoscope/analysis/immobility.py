@@ -52,7 +52,7 @@ class Immobility:
 
         """
 
-        relocs.gdf.remove_filtered(inplace=True)
+        relocs.remove_filtered(inplace=True)
         relocs.gdf.sort_values(by="fixtime", ascending=True, inplace=True)
         ts = relocs.gdf.fixtime.iat[-1] - relocs.gdf.fixtime.iat[0]
 
@@ -62,7 +62,7 @@ class Immobility:
         relocs.gdf.sort_values(by="fixtime", ascending=False, inplace=True)
 
         cluster_pvalue = (
-            relocs.threshold_point_count(threshold_dist=immobility_profile.threshold_radius) / relocs.shape[0]
+            relocs.threshold_point_count(threshold_dist=immobility_profile.threshold_radius) / relocs.gdf.shape[0]
         )
 
         if (cluster_pvalue >= immobility_profile.threshold_probability) and (
