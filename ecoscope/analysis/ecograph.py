@@ -178,15 +178,15 @@ class Ecograph:
 
     def _get_ecograph(
         self,
-        trajectory: ecoscope.base.Trajectory,
+        gdf: gpd.GeoDataFrame,
         radius: float,
         cutoff: float | None,
         tortuosity_length: int,
     ) -> nx.Graph:
         G = nx.Graph()
-        geom = trajectory.gdf["geometry"]
+        geom = gdf["geometry"]
         for i in range(len(geom) - (tortuosity_length - 1)):
-            step_attributes = trajectory.gdf.iloc[i]
+            step_attributes = gdf.iloc[i]
             lines = [list(geom.iloc[i + j].coords) for j in range(tortuosity_length)]
             p1, p2, p3, p4 = lines[0][0], lines[0][1], lines[1][1], lines[1][0]
             pixel1, pixel2 = (
@@ -200,9 +200,7 @@ class Ecograph:
             t = step_attributes["segment_start"]
             seconds_in_day = 24 * 60 * 60
             seconds_past_midnight = (t.hour * 3600) + (t.minute * 60) + t.second + (t.microsecond / 1000000.0)
-            time_diff = pd.to_datetime(
-                trajectory.gdf.iloc[i + (tortuosity_length - 1)]["segment_end"]
-            ) - pd.to_datetime(t)
+            time_diff = pd.to_datetime(gdf.iloc[i + (tortuosity_length - 1)]["segment_end"]) - pd.to_datetime(t)
             time_delta = time_diff.total_seconds() / 3600.0
             tortuosity_1, tortuosity_2 = self._get_tortuosities(lines, time_delta)
 
