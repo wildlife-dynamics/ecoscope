@@ -10,7 +10,7 @@ from ecoscope.analysis.ecograph import Ecograph, get_feature_gdf
 
 
 @pytest.fixture
-def movebank_trajectory_gdf(movebank_relocations):
+def movebank_trajectory(movebank_relocations):
     # apply relocation coordinate filter to movebank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
@@ -27,9 +27,9 @@ def movebank_trajectory_gdf(movebank_relocations):
 
 
 @pytest.fixture
-def movebank_ecograph(movebank_trajectory_gdf):
-    mean_step_length = np.mean(np.abs(movebank_trajectory_gdf["dist_meters"]))
-    return Ecograph(movebank_trajectory_gdf, resolution=mean_step_length)
+def movebank_ecograph(movebank_trajectory):
+    mean_step_length = np.mean(np.abs(movebank_trajectory.gdf["dist_meters"]))
+    return Ecograph(movebank_trajectory, resolution=mean_step_length)
 
 
 @pytest.mark.parametrize(

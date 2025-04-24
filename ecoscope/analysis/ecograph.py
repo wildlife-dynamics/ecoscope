@@ -56,8 +56,8 @@ class Ecograph:
         self.trajectory = trajectory
         self.resolution = ceil(resolution)
 
-        self.utm_crs = trajectory.estimate_utm_crs()
-        self.trajectory.to_crs(self.utm_crs, inplace=True)
+        self.utm_crs = trajectory.gdf.estimate_utm_crs()
+        self.trajectory.gdf.to_crs(self.utm_crs, inplace=True)
         self.features = [
             "dot_product",
             "speed",
@@ -71,7 +71,7 @@ class Ecograph:
             "tortuosity_1",
             "tortuosity_2",
         ]
-        geom = self.trajectory["geometry"]
+        geom = self.trajectory.gdf["geometry"]
 
         eastings = np.array([geom.iloc[i].coords.xy[0] for i in range(len(geom))]).flatten()
         northings = np.array([geom.iloc[i].coords.xy[1] for i in range(len(geom))]).flatten()
@@ -96,7 +96,7 @@ class Ecograph:
             G = self._get_ecograph(df, radius, cutoff, tortuosity_length)
             self.graphs[subject_name] = G
 
-        self.trajectory.groupby("groupby_col")[self.trajectory.columns].apply(compute)
+        self.trajectory.gdf.groupby("groupby_col")[self.trajectory.gdf.columns].apply(compute)
 
     def to_csv(self, output_path: str | os.PathLike) -> None:
         """
@@ -178,15 +178,15 @@ class Ecograph:
 
     def _get_ecograph(
         self,
-        trajectory_gdf: ecoscope.base.Trajectory,
+        trajectory: ecoscope.base.Trajectory,
         radius: float,
         cutoff: float | None,
         tortuosity_length: int,
     ) -> nx.Graph:
         G = nx.Graph()
-        geom = trajectory_gdf["geometry"]
+        geom = trajectory.gdf["geometry"]
         for i in range(len(geom) - (tortuosity_length - 1)):
-            step_attributes = trajectory_gdf.iloc[i]
+            step_attributes = trajectory.gdf.iloc[i]
             lines = [list(geom.iloc[i + j].coords) for j in range(tortuosity_length)]
             p1, p2, p3, p4 = lines[0][0], lines[0][1], lines[1][1], lines[1][0]
             pixel1, pixel2 = (
@@ -201,7 +201,7 @@ class Ecograph:
             seconds_in_day = 24 * 60 * 60
             seconds_past_midnight = (t.hour * 3600) + (t.minute * 60) + t.second + (t.microsecond / 1000000.0)
             time_diff = pd.to_datetime(
-                trajectory_gdf.iloc[i + (tortuosity_length - 1)]["segment_end"]
+                trajectory.gdf.iloc[i + (tortuosity_length - 1)]["segment_end"]
             ) - pd.to_datetime(t)
             time_delta = time_diff.total_seconds() / 3600.0
             tortuosity_1, tortuosity_2 = self._get_tortuosities(lines, time_delta)
@@ -400,7 +400,7 @@ class Ecograph:
         interpolation: InterpolationOption,
     ) -> np.typing.NDArray:
         feature_ndarray = self._get_regular_feature_map(feature, individual)
-        individual_trajectory = self.trajectory[self.trajectory["groupby_col"] == individual]
+        individual_trajectory = self.trajectory.gdf[self.trajectory.gdf["groupby_col"] == individual]
         geom = individual_trajectory["geometry"]
         idxs_dict: dict[tuple, Any] = {}
         for i in range(len(geom)):
