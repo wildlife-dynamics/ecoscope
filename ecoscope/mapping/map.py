@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import rasterio as rio  # type: ignore[import-untyped]
 
-from ecoscope.base import Relocations, Trajectory
 from ecoscope.base.utils import color_tuple_to_css, hex_to_rgba
 
 try:
@@ -194,7 +193,7 @@ class EcoMap(Map):
 
     @staticmethod
     def polyline_layer(
-        gdf: gpd.GeoDataFrame | Trajectory,
+        gdf: gpd.GeoDataFrame,
         color_column: str | None = None,
         tooltip_columns: list[str] | None = None,
         **kwargs,
@@ -249,7 +248,7 @@ class EcoMap(Map):
 
     @staticmethod
     def point_layer(
-        gdf: gpd.GeoDataFrame | Relocations,
+        gdf: gpd.GeoDataFrame,
         fill_color_column: str | None = None,
         line_color_column: str | None = None,
         tooltip_columns: list[str] | None = None,
