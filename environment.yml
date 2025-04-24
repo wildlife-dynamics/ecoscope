@@ -6,7 +6,7 @@ dependencies:
   - pip
   - git
   - jupyterlab
-  - geopandas
+  - geopandas>1
   - numpy<2.1
   - ipywidgets
   - pip:

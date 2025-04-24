@@ -24,7 +24,7 @@ dependencies = [
   "backoff",
   "earthengine-api",
   "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
-  "geopandas",
+  "geopandas>1",
   "numpy<2.1",
   "pyproj",
   "rasterio",

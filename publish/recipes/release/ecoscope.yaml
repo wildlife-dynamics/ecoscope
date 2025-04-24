@@ -25,7 +25,7 @@ requirements:
     - backoff
     - earthengine-api
     - earthranger-client
-    - geopandas
+    - geopandas>1
     - numpy
     - pyproj
     - rasterio
