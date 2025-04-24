@@ -68,7 +68,7 @@ def test_label_gdf_with_temporal_image_collection_by_features_aois(aoi_gdf):
 
 
 def test_label_gdf_with_temporal_image_collection_by_features_relocations(movebank_relocations):
-    tmp_gdf = movebank_relocations[["fixtime", "geometry"]].iloc[0:1000]
+    tmp_gdf = movebank_relocations.gdf[["fixtime", "geometry"]].iloc[0:1000]
 
     img_coll = ee.ImageCollection("MODIS/MCD43A4_006_NDVI").select("NDVI")  # Daily NDVI images
 
@@ -93,7 +93,7 @@ def test_label_gdf_with_temporal_image_collection_by_features_relocations(moveba
 
 
 def test_label_gdf_with_img(movebank_relocations):
-    tmp_gdf = movebank_relocations[["geometry"]]
+    tmp_gdf = movebank_relocations.gdf[["geometry"]]
     tmp_gdf = tmp_gdf[0:1000]
 
     img = ee.Image("USGS/SRTMGL1_003").select("elevation")

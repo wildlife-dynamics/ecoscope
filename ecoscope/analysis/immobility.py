@@ -52,14 +52,14 @@ class Immobility:
 
         """
 
-        relocs.remove_filtered(inplace=True)
-        relocs.sort_values(by="fixtime", ascending=True, inplace=True)
-        ts = relocs.fixtime.iat[-1] - relocs.fixtime.iat[0]
+        relocs.gdf.remove_filtered(inplace=True)
+        relocs.gdf.sort_values(by="fixtime", ascending=True, inplace=True)
+        ts = relocs.gdf.fixtime.iat[-1] - relocs.gdf.fixtime.iat[0]
 
         if ts < datetime.timedelta(seconds=immobility_profile.threshold_time):
             raise Exception("Insufficient Data")
 
-        relocs.sort_values(by="fixtime", ascending=False, inplace=True)
+        relocs.gdf.sort_values(by="fixtime", ascending=False, inplace=True)
 
         cluster_pvalue = (
             relocs.threshold_point_count(threshold_dist=immobility_profile.threshold_radius) / relocs.shape[0]
@@ -72,7 +72,7 @@ class Immobility:
                 "probability_value": cluster_pvalue,
                 "cluster_radius": relocs.cluster_radius,
                 "cluster_fix_count": relocs.threshold_point_count(immobility_profile.threshold_radius),
-                "total_fix_count": relocs.shape[0],
+                "total_fix_count": relocs.gdf.shape[0],
                 "immobility_time": ts,
             }
         return None

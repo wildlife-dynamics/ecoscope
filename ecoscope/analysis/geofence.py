@@ -74,13 +74,13 @@ class GeoFenceCrossing:
             ecoscope.base.EcoDataFrame
 
         """
-        trajectory = trajectory.copy()
-        trajectory["start_point"] = shapely.get_point(trajectory.geometry, 0)
-        trajectory["end_point"] = shapely.get_point(trajectory.geometry, 1)
+        traj_gdf = trajectory.gdf.copy()
+        traj_gdf["start_point"] = shapely.get_point(traj_gdf.geometry, 0)
+        traj_gdf["end_point"] = shapely.get_point(traj_gdf.geometry, 1)
 
         def apply_func(fence):
             geofence = fence.geometry
-            traj = trajectory.loc[trajectory.intersects(geofence)].copy()
+            traj = traj_gdf.loc[traj_gdf.intersects(geofence)].copy()
             traj["segment_geometry"] = traj["geometry"]
             traj.set_geometry(traj.intersection(geofence), inplace=True)
             traj = traj.explode(index_parts=False)
