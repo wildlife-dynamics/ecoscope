@@ -279,8 +279,8 @@ class Trajectory(EcoDataFrame):
         Create Trajectory class from Relocation dataframe.
         Parameters
         ----------
-        relocs: Geodataframe
-            Relocation geodataframe with relevant columns
+        relocs: Relocations
+            A `Relocations` instance.
         args
         kwargs
         Returns
