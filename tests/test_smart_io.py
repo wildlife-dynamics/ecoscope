@@ -25,10 +25,10 @@ def test_smart_get_patrol_observations(smart_io):
         end="2021-12-22",
     )
 
-    assert len(result) > 0
-    assert "geometry" in result
-    assert "groupby_col" in result
-    assert "fixtime" in result
+    assert len(result.gdf) > 0
+    assert "geometry" in result.gdf
+    assert "groupby_col" in result.gdf
+    assert "fixtime" in result.gdf
 
 
 def test_smart_get_patrol_observations_paginates(smart_io):
@@ -40,7 +40,7 @@ def test_smart_get_patrol_observations_paginates(smart_io):
         window_size_in_days=2,
     )
 
-    assert len(result) > 0
-    assert "geometry" in result
-    assert "groupby_col" in result
-    assert "fixtime" in result
+    assert len(result.gdf) > 0
+    assert "geometry" in result.gdf
+    assert "groupby_col" in result.gdf
+    assert "fixtime" in result.gdf
