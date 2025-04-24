@@ -29,12 +29,12 @@ def test_get_subject_observations(er_io):
         include_source_details=True,
         include_subjectsource_details=True,
     )
-    assert not relocations.empty
+    assert not relocations.gdf.empty
     assert isinstance(relocations, ecoscope.base.Relocations)
-    assert "groupby_col" in relocations
-    assert "fixtime" in relocations
-    assert "extra__source" in relocations
-    check_time_is_parsed(relocations)
+    assert "groupby_col" in relocations.gdf
+    assert "fixtime" in relocations.gdf
+    assert "extra__source" in relocations.gdf
+    check_time_is_parsed(relocations.gdf)
 
 
 def test_get_source_observations(er_io):
@@ -43,9 +43,9 @@ def test_get_source_observations(er_io):
         include_source_details=True,
     )
     assert isinstance(relocations, ecoscope.base.Relocations)
-    assert "fixtime" in relocations
-    assert "groupby_col" in relocations
-    check_time_is_parsed(relocations)
+    assert "fixtime" in relocations.gdf
+    assert "groupby_col" in relocations.gdf
+    check_time_is_parsed(relocations.gdf)
 
 
 def test_get_source_no_observations(er_io):
@@ -53,7 +53,7 @@ def test_get_source_no_observations(er_io):
         source_ids=str(uuid.uuid4()),
         include_source_details=True,
     )
-    assert relocations.empty
+    assert relocations.gdf.empty
 
 
 def test_get_subjectsource_observations(er_io):
@@ -62,9 +62,9 @@ def test_get_subjectsource_observations(er_io):
         include_source_details=True,
     )
     assert isinstance(relocations, ecoscope.base.Relocations)
-    assert "fixtime" in relocations
-    assert "groupby_col" in relocations
-    check_time_is_parsed(relocations)  # TODO Check this
+    assert "fixtime" in relocations.gdf
+    assert "groupby_col" in relocations.gdf
+    check_time_is_parsed(relocations.gdf)
 
 
 def test_get_subjectsource_no_observations(er_io):
@@ -72,13 +72,13 @@ def test_get_subjectsource_no_observations(er_io):
         subjectsource_ids=str(uuid.uuid4()),
         include_source_details=True,
     )
-    assert relocations.empty
+    assert relocations.gdf.empty
 
 
 def test_get_subjectgroup_observations(er_io):
     relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
-    assert "groupby_col" in relocations
-    assert len(relocations["extra__subject_id"].unique()) == 2
+    assert "groupby_col" in relocations.gdf
+    assert len(relocations.gdf["extra__subject_id"].unique()) == 2
 
 
 def test_get_events(er_events_io):
@@ -311,8 +311,8 @@ def test_get_patrol_observations(er_io):
         include_subject_details=False,
         include_subjectsource_details=False,
     )
-    assert not observations.empty
-    check_time_is_parsed(observations)
+    assert not observations.gdf.empty
+    check_time_is_parsed(observations.gdf)
 
 
 def test_get_patrol_observations_with_patrol_details(er_io):
@@ -328,14 +328,14 @@ def test_get_patrol_observations_with_patrol_details(er_io):
         include_subjectsource_details=False,
         include_patrol_details=True,
     )
-    assert not observations.empty
-    assert "patrol_id" in observations.columns
-    assert "patrol_title" in observations.columns
-    assert "patrol_type" in observations.columns
-    assert "patrol_status" in observations.columns
-    assert "patrol_subject" in observations.columns
-    pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
-    check_time_is_parsed(observations)
+    assert not observations.gdf.empty
+    assert "patrol_id" in observations.gdf.columns
+    assert "patrol_title" in observations.gdf.columns
+    assert "patrol_type" in observations.gdf.columns
+    assert "patrol_status" in observations.gdf.columns
+    assert "patrol_subject" in observations.gdf.columns
+    pd.testing.assert_series_equal(observations.gdf["patrol_id"], observations.gdf["groupby_col"], check_names=False)
+    check_time_is_parsed(observations.gdf)
 
 
 def test_users(er_io):
@@ -392,12 +392,12 @@ def test_get_patrol_observations_with_patrol_filter(er_io):
         include_patrol_details=True,
     )
 
-    assert not observations.empty
-    assert "patrol_id" in observations.columns
-    assert "patrol_title" in observations.columns
-    assert "patrol_start_time" in observations.columns
-    assert "patrol_type" in observations.columns
-    pd.testing.assert_series_equal(observations["patrol_id"], observations["groupby_col"], check_names=False)
+    assert not observations.gdf.empty
+    assert "patrol_id" in observations.gdf.columns
+    assert "patrol_title" in observations.gdf.columns
+    assert "patrol_start_time" in observations.gdf.columns
+    assert "patrol_type" in observations.gdf.columns
+    pd.testing.assert_series_equal(observations.gdf["patrol_id"], observations.gdf["groupby_col"], check_names=False)
 
 
 @patch("erclient.client.ERClient.get_objects_multithreaded")

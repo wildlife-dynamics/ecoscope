@@ -349,7 +349,7 @@ class EarthRangerIO(ERClient):
 
         observations = self._get_observations(source_ids=source_ids, **kwargs)
         if observations.empty:
-            return gpd.GeoDataFrame()
+            return ecoscope.base.Relocations(gdf=gpd.GeoDataFrame()) if relocations else gpd.GeoDataFrame()
 
         if include_source_details:
             observations = observations.merge(
@@ -408,7 +408,7 @@ class EarthRangerIO(ERClient):
         observations = self._get_observations(subject_ids=subject_ids, **kwargs)
 
         if observations.empty:
-            return gpd.GeoDataFrame()
+            return ecoscope.base.Relocations(gdf=gpd.GeoDataFrame()) if relocations else gpd.GeoDataFrame()
 
         if include_source_details:
             observations = observations.merge(
@@ -479,7 +479,7 @@ class EarthRangerIO(ERClient):
         observations = self._get_observations(subjectsource_ids=subjectsource_ids, **kwargs)
 
         if observations.empty:
-            return gpd.GeoDataFrame()
+            return ecoscope.base.Relocations(gdf=gpd.GeoDataFrame()) if relocations else gpd.GeoDataFrame()
 
         if include_source_details:
             observations = observations.merge(
@@ -933,20 +933,20 @@ class EarthRangerIO(ERClient):
                         until=patrol_end_time,
                         **kwargs,
                     )
-                    if len(observation) > 0:
-                        observation["groupby_col"] = patrol["id"]
+                    if len(observation.gdf) > 0:
+                        observation.gdf["groupby_col"] = patrol["id"]
 
                         if include_patrol_details:
-                            observation["patrol_id"] = patrol["id"]
-                            observation["patrol_title"] = patrol["title"]
-                            observation["patrol_serial_number"] = patrol["serial_number"]
-                            observation["patrol_start_time"] = patrol_start_time
-                            observation["patrol_end_time"] = patrol_end_time
-                            observation["patrol_type"] = patrol_type
-                            observation["patrol_status"] = patrol["state"]
-                            observation["patrol_subject"] = subject_name
-                            observation = (
-                                observation.reset_index()
+                            observation.gdf["patrol_id"] = patrol["id"]
+                            observation.gdf["patrol_title"] = patrol["title"]
+                            observation.gdf["patrol_serial_number"] = patrol["serial_number"]
+                            observation.gdf["patrol_start_time"] = patrol_start_time
+                            observation.gdf["patrol_end_time"] = patrol_end_time
+                            observation.gdf["patrol_type"] = patrol_type
+                            observation.gdf["patrol_status"] = patrol["state"]
+                            observation.gdf["patrol_subject"] = subject_name
+                            observation.gdf = (
+                                observation.gdf.reset_index()
                                 .merge(
                                     pd.DataFrame(df_pt).add_prefix("patrol_type__"),
                                     left_on="patrol_type",
