@@ -43,7 +43,7 @@ class EcoDataFrame:
         else:
             frame = deepcopy(self)
 
-        frame["junk_status"] = False
+        frame.gdf["junk_status"] = False
 
         if not inplace:
             return frame
@@ -54,14 +54,14 @@ class EcoDataFrame:
         else:
             frame = deepcopy(self)
 
-        if not frame["junk_status"].dtype == bool:
+        if not frame.gdf["junk_status"].dtype == bool:
             warnings.warn(
-                f"junk_status column is of type {frame['junk_status'].dtype}, expected `bool`. "
+                f"junk_status column is of type {frame.gdf['junk_status'].dtype}, expected `bool`. "
                 "Attempting to automatically convert."
             )
-            frame["junk_status"] = frame["junk_status"].astype(bool)
+            frame.gdf["junk_status"] = frame.gdf["junk_status"].astype(bool)
 
-        frame.query("~junk_status", inplace=True)
+        frame.gdf.query("~junk_status", inplace=True)
 
         if not inplace:
             return frame
@@ -539,7 +539,7 @@ class Trajectory(EcoDataFrame):
                 return relocs_ind
 
             relocs = self.to_relocations()
-            relocs.gdf = relocs.gdf.groupby("groupby_col")[relocs.columns].apply(f).reset_index(drop=True)
+            relocs.gdf = relocs.gdf.groupby("groupby_col")[relocs.gdf.columns].apply(f).reset_index(drop=True)
             return relocs
 
     @staticmethod
