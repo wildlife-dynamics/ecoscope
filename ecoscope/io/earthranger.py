@@ -71,7 +71,7 @@ class EarthRangerIO(ERClient):
 
         self.auth = None
         self.auth_expires = pytz.utc.localize(datetime.datetime.min)
-        raise ERClientNotFound(response.json().get("error_description", "invalid token"))
+        raise ERClientNotFound(f"{response.status_code}, {response.text}")
 
     """
     GET Functions
