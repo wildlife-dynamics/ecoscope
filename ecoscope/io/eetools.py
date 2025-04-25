@@ -4,8 +4,7 @@ import functools
 import itertools
 import json
 import logging
-from collections.abc import Callable
-from typing import cast
+from typing import Callable, cast
 
 import backoff
 import ee

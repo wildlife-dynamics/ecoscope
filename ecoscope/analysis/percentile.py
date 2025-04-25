@@ -13,14 +13,14 @@ def _multipolygon(shapes, percentile):
 
 
 def get_percentile_area(
-    percentile_levels: list,
+    percentile_levels: list[int],
     raster_data: raster.RasterData,
     subject_id: str = "",
 ) -> gpd.GeoDataFrame:
     """
     Parameters
     ----------
-    percentile_levels: list[Int]
+    percentile_levels: list[int]
         list of k-th percentile scores.
     raster_data: raster.RasterData
         array of raster values
