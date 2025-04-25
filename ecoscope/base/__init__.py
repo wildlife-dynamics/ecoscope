@@ -7,7 +7,10 @@ from ecoscope.base._dataclasses import (
     SpatialFeature,
     TrajSegFilter,
 )
-from ecoscope.base.base import EcoDataFrame, Relocations, Trajectory
+from ecoscope.base.ecodataframe import EcoDataFrame
+from ecoscope.base.relocations import Relocations
+from ecoscope.base.trajectory import Trajectory, get_displacement, get_tortuosity
+from ecoscope.base.straightrack import StraightTrackProperties
 from ecoscope.base.utils import (
     BoundingBox,
     create_meshgrid,
@@ -32,4 +35,7 @@ __all__ = [
     "groupby_intervals",
     "hex_to_rgba",
     "color_tuple_to_css",
+    "StraightTrackProperties",
+    "get_displacement",
+    "get_tortuosity",
 ]
