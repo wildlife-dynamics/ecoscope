@@ -30,8 +30,8 @@ def poly_gdf():
 def line_gdf():
     gdf = pd.read_csv("tests/sample_data/vector/KDB025Z.csv", index_col="id")
     gdf["geometry"] = gdf["geometry"].apply(lambda x: shapely.wkt.loads(x))
-    relocs = ecoscope.base.Relocations.from_gdf(gpd.GeoDataFrame(gdf, crs=4326))
-    traj = ecoscope.base.Trajectory.from_relocations(relocs)
+    relocs = ecoscope.Relocations.from_gdf(gpd.GeoDataFrame(gdf, crs=4326))
+    traj = ecoscope.Trajectory.from_relocations(relocs)
     return traj.gdf
 
 
@@ -303,7 +303,7 @@ def test_add_datashader_gdf_with_zoom(poly_gdf):
 
 
 def test_add_polyline_with_color(movebank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    trajectory = ecoscope.Trajectory.from_relocations(movebank_relocations)
     # this is effectively a reimplementation of SpeedDataFrame
     apply_classification(
         trajectory.gdf,

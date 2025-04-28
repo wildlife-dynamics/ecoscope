@@ -203,7 +203,7 @@ class SmartIO:
         patrol_mandate: str | None = None,
         patrol_transport: str | None = None,
         window_size_in_days: int = 7,
-    ) -> ecoscope.base.Relocations | None:
+    ) -> ecoscope.Relocations | None:
         df = gpd.GeoDataFrame()
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
@@ -239,7 +239,7 @@ class SmartIO:
             if patrols_df.empty:
                 return None
 
-            patrols_relocs = ecoscope.base.Relocations.from_gdf(
+            patrols_relocs = ecoscope.Relocations.from_gdf(
                 patrols_df,
                 groupby_col="groupby_col",
                 uuid_col="patrol_id",

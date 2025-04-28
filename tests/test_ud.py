@@ -25,7 +25,7 @@ def movebank_trajectory(movebank_relocations):
     movebank_relocations.remove_filtered(inplace=True)
 
     # Create Trajectory
-    return ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    return ecoscope.Trajectory.from_relocations(movebank_relocations)
 
 
 @pytest.fixture

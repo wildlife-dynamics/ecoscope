@@ -182,7 +182,7 @@ def add_seasons(fig: go.Figure, season_df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def mcp(relocations: ecoscope.base.Relocations) -> go.Figure:
+def mcp(relocations: ecoscope.Relocations) -> go.Figure:
     relocations.gdf.to_crs(relocations.gdf.estimate_utm_crs(), inplace=True)
 
     areas = []
@@ -216,7 +216,7 @@ def mcp(relocations: ecoscope.base.Relocations) -> go.Figure:
     return fig
 
 
-def nsd(relocations: ecoscope.base.Relocations) -> go.Figure:
+def nsd(relocations: ecoscope.Relocations) -> go.Figure:
     relocations.gdf.to_crs(relocations.gdf.estimate_utm_crs(), inplace=True)
 
     times = relocations.gdf["fixtime"]
@@ -239,7 +239,7 @@ def nsd(relocations: ecoscope.base.Relocations) -> go.Figure:
     return fig
 
 
-def speed(trajectory: ecoscope.base.Trajectory) -> go.Figure:
+def speed(trajectory: ecoscope.Trajectory) -> go.Figure:
     times = np.column_stack(
         [
             trajectory.gdf["segment_start"],

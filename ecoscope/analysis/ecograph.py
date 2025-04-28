@@ -31,7 +31,7 @@ class Ecograph:
 
     Parameters
     ----------
-    trajectory : ecoscope.base.Trajectory
+    trajectory : ecoscope.Trajectory
         Trajectory dataframe
     resolution : float
         Pixel size, in meters
@@ -46,7 +46,7 @@ class Ecograph:
 
     def __init__(
         self,
-        trajectory: ecoscope.base.Trajectory,
+        trajectory: ecoscope.Trajectory,
         resolution: int = 15,
         radius: float = 2,
         cutoff: float | None = None,

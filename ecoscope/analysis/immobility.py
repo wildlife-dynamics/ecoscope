@@ -23,7 +23,7 @@ class ImmobilityProfile:
 class Immobility:
     @classmethod
     def calculate_immobility(
-        cls, immobility_profile: ImmobilityProfile, relocs: ecoscope.base.Relocations
+        cls, immobility_profile: ImmobilityProfile, relocs: ecoscope.Relocations
     ) -> typing.Dict | None:
         """
         Function to search for immobility within a movement trajectory. Assumes we start with a filtered
@@ -43,7 +43,7 @@ class Immobility:
         ----------
         immobility_profile: ImmobilityProfile
             setting for immobility
-        relocs: ecoscope.base.Relocations
+        relocs: ecoscope.Relocations
             set for fixes for given subject.
 
         Returns

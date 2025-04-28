@@ -30,7 +30,7 @@ def test_get_subject_observations(er_io):
         include_subjectsource_details=True,
     )
     assert not relocations.gdf.empty
-    assert isinstance(relocations, ecoscope.base.Relocations)
+    assert isinstance(relocations, ecoscope.Relocations)
     assert "groupby_col" in relocations.gdf
     assert "fixtime" in relocations.gdf
     assert "extra__source" in relocations.gdf
@@ -42,7 +42,7 @@ def test_get_source_observations(er_io):
         source_ids=er_io.SOURCE_IDS,
         include_source_details=True,
     )
-    assert isinstance(relocations, ecoscope.base.Relocations)
+    assert isinstance(relocations, ecoscope.Relocations)
     assert "fixtime" in relocations.gdf
     assert "groupby_col" in relocations.gdf
     check_time_is_parsed(relocations.gdf)
@@ -61,7 +61,7 @@ def test_get_subjectsource_observations(er_io):
         subjectsource_ids=er_io.SUBJECTSOURCE_IDS,
         include_source_details=True,
     )
-    assert isinstance(relocations, ecoscope.base.Relocations)
+    assert isinstance(relocations, ecoscope.Relocations)
     assert "fixtime" in relocations.gdf
     assert "groupby_col" in relocations.gdf
     check_time_is_parsed(relocations.gdf)

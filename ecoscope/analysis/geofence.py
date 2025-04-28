@@ -55,7 +55,7 @@ class GeoFenceCrossing:
     def analyse(
         cls,
         geocrossing_profile: GeoCrossingProfile,
-        trajectory: ecoscope.base.Trajectory,
+        trajectory: ecoscope.Trajectory,
     ):
         """
         Analyze the trajectory of each subject in relation to set of virtual fences and regions to determine where/when
@@ -66,7 +66,7 @@ class GeoFenceCrossing:
         ----------
         geocrossing_profile: GeoCrossingProfile
             Object that contains the geonfences and regions
-        trajectory: ecoscope.base.Trajectory
+        trajectory: ecoscope.Trajectory
             Geodataframe stores goemetry, speed_kmhr, heading etc. for each subject.
 
         Returns
