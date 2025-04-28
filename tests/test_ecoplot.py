@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from ecoscope.analysis.classifier import apply_color_map
-from ecoscope.base import Trajectory
+from ecoscope import Trajectory
 from ecoscope.plotting.plot import (
     BarConfig,
     EcoPlotData,
@@ -35,11 +35,11 @@ def chart_df():
 
 def test_ecoplot(movebank_relocations):
     traj = Trajectory.from_relocations(movebank_relocations)
-    epd = EcoPlotData(traj.groupby("groupby_col"), "segment_start", "speed_kmhr", line=dict(color="blue"))
+    epd = EcoPlotData(traj.gdf.groupby("groupby_col"), "segment_start", "speed_kmhr", line=dict(color="blue"))
     figure = ecoplot([epd], "EcoPlot")
 
-    habiba = traj.loc[traj["groupby_col"] == "Habiba"]
-    salif = traj.loc[traj["groupby_col"] == "Salif Keita"]
+    habiba = traj.gdf.loc[traj.gdf["groupby_col"] == "Habiba"]
+    salif = traj.gdf.loc[traj.gdf["groupby_col"] == "Salif Keita"]
 
     assert len(figure.data) == 2
 
@@ -56,16 +56,16 @@ def test_mcp(movebank_relocations):
     figure = mcp(movebank_relocations)
 
     assert len(figure.data) == 1
-    assert movebank_relocations["fixtime"].iat[0] == figure.data[0].x[0]
-    assert movebank_relocations["fixtime"].iat[-1] == figure.data[0].x[-1]
+    assert movebank_relocations.gdf["fixtime"].iat[0] == figure.data[0].x[0]
+    assert movebank_relocations.gdf["fixtime"].iat[-1] == figure.data[0].x[-1]
 
 
 def test_nsd(movebank_relocations):
     figure = nsd(movebank_relocations)
 
     assert len(figure.data) == 1
-    assert len(figure.data[0].x) == len(movebank_relocations)
-    assert len(figure.data[0].y) == len(movebank_relocations)
+    assert len(figure.data[0].x) == len(movebank_relocations.gdf)
+    assert len(figure.data[0].y) == len(movebank_relocations.gdf)
 
 
 def test_speed(movebank_relocations):
@@ -73,8 +73,8 @@ def test_speed(movebank_relocations):
     figure = speed(traj)
 
     assert len(figure.data) == 1
-    len(figure.data[0].x) == len(traj) * 4
-    len(figure.data[0].y) == len(traj) * 4
+    len(figure.data[0].x) == len(traj.gdf) * 4
+    len(figure.data[0].y) == len(traj.gdf) * 4
 
 
 def test_stacked_no_style(chart_df):

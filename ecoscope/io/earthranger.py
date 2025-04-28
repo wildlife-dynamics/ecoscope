@@ -71,7 +71,7 @@ class EarthRangerIO(ERClient):
 
         self.auth = None
         self.auth_expires = pytz.utc.localize(datetime.datetime.min)
-        raise ERClientNotFound(response.json().get("error_description", "invalid token"))
+        raise ERClientNotFound(f"{response.status_code}, {response.text}")
 
     """
     GET Functions
@@ -326,7 +326,7 @@ class EarthRangerIO(ERClient):
 
     def get_source_observations(
         self, source_ids: str | list[str], include_source_details: bool = False, relocations: bool = True, **kwargs
-    ) -> ecoscope.base.Relocations | gpd.GeoDataFrame:
+    ) -> ecoscope.Relocations | gpd.GeoDataFrame:
         """
         Get observations for each listed source and create a `Relocations` object.
         Parameters
@@ -340,7 +340,7 @@ class EarthRangerIO(ERClient):
             info.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : ecoscope.Relocations
             Observations in `Relocations` format
         """
 
@@ -349,7 +349,7 @@ class EarthRangerIO(ERClient):
 
         observations = self._get_observations(source_ids=source_ids, **kwargs)
         if observations.empty:
-            return gpd.GeoDataFrame()
+            return ecoscope.Relocations(gdf=gpd.GeoDataFrame()) if relocations else gpd.GeoDataFrame()
 
         if include_source_details:
             observations = observations.merge(
@@ -359,7 +359,7 @@ class EarthRangerIO(ERClient):
             )
 
         if relocations:
-            return ecoscope.base.Relocations.from_gdf(
+            return ecoscope.Relocations.from_gdf(
                 observations,
                 groupby_col="source",
                 uuid_col="id",
@@ -376,7 +376,7 @@ class EarthRangerIO(ERClient):
         include_subjectsource_details: bool = False,
         relocations: bool = True,
         **kwargs,
-    ) -> ecoscope.base.Relocations | gpd.GeoDataFrame:
+    ) -> ecoscope.Relocations | gpd.GeoDataFrame:
         """
         Get observations for each listed subject and create a `Relocations` object.
         Parameters
@@ -394,7 +394,7 @@ class EarthRangerIO(ERClient):
             info.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : ecoscope.Relocations
             Observations in `Relocations` format
         """
 
@@ -408,7 +408,7 @@ class EarthRangerIO(ERClient):
         observations = self._get_observations(subject_ids=subject_ids, **kwargs)
 
         if observations.empty:
-            return gpd.GeoDataFrame()
+            return ecoscope.Relocations(gdf=gpd.GeoDataFrame()) if relocations else gpd.GeoDataFrame()
 
         if include_source_details:
             observations = observations.merge(
@@ -440,7 +440,7 @@ class EarthRangerIO(ERClient):
             )
 
         if relocations:
-            return ecoscope.base.Relocations.from_gdf(
+            return ecoscope.Relocations.from_gdf(
                 observations,
                 groupby_col="subject_id",
                 uuid_col="id",
@@ -455,7 +455,7 @@ class EarthRangerIO(ERClient):
         include_source_details: bool = False,
         relocations: bool = True,
         **kwargs,
-    ) -> ecoscope.base.Relocations | gpd.GeoDataFrame:
+    ) -> ecoscope.Relocations | gpd.GeoDataFrame:
         """
         Get observations for each listed subjectsource and create a `Relocations` object.
         Parameters
@@ -469,7 +469,7 @@ class EarthRangerIO(ERClient):
             info.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : ecoscope.Relocations
             Observations in `Relocations` format
         """
 
@@ -479,7 +479,7 @@ class EarthRangerIO(ERClient):
         observations = self._get_observations(subjectsource_ids=subjectsource_ids, **kwargs)
 
         if observations.empty:
-            return gpd.GeoDataFrame()
+            return ecoscope.Relocations(gdf=gpd.GeoDataFrame()) if relocations else gpd.GeoDataFrame()
 
         if include_source_details:
             observations = observations.merge(
@@ -489,7 +489,7 @@ class EarthRangerIO(ERClient):
             )
 
         if relocations:
-            return ecoscope.base.Relocations.from_gdf(
+            return ecoscope.Relocations.from_gdf(
                 observations,
                 groupby_col="subjectsource_id",
                 uuid_col="id",
@@ -504,7 +504,7 @@ class EarthRangerIO(ERClient):
         subject_group_name: str | None = None,
         include_inactive: bool = True,
         **kwargs,
-    ) -> ecoscope.base.Relocations | gpd.GeoDataFrame:
+    ) -> ecoscope.Relocations | gpd.GeoDataFrame:
         """
         Parameters
         ----------
@@ -519,7 +519,7 @@ class EarthRangerIO(ERClient):
             `get_subject_observations` for info.
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : ecoscope.Relocations
             Observations in `Relocations` format
         """
 
@@ -851,7 +851,7 @@ class EarthRangerIO(ERClient):
         status: list[StatusOptions] | None = None,
         include_patrol_details: bool = False,
         **kwargs,
-    ) -> ecoscope.base.Relocations | pd.DataFrame:
+    ) -> ecoscope.Relocations | pd.DataFrame:
         """
         Download observations for patrols with provided filters.
 
@@ -875,7 +875,7 @@ class EarthRangerIO(ERClient):
 
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : ecoscope.Relocations
         """
 
         patrols_df = self.get_patrols(
@@ -890,7 +890,7 @@ class EarthRangerIO(ERClient):
 
     def get_patrol_observations(
         self, patrols_df: pd.DataFrame, include_patrol_details: bool = False, **kwargs
-    ) -> ecoscope.base.Relocations | pd.DataFrame:
+    ) -> ecoscope.Relocations | pd.DataFrame:
         """
         Download observations for provided `patrols_df`.
 
@@ -905,7 +905,7 @@ class EarthRangerIO(ERClient):
 
         Returns
         -------
-        relocations : ecoscope.base.Relocations
+        relocations : ecoscope.Relocations
         """
 
         observations = []
@@ -933,20 +933,20 @@ class EarthRangerIO(ERClient):
                         until=patrol_end_time,
                         **kwargs,
                     )
-                    if len(observation) > 0:
-                        observation["groupby_col"] = patrol["id"]
+                    if len(observation.gdf) > 0:
+                        observation.gdf["groupby_col"] = patrol["id"]
 
                         if include_patrol_details:
-                            observation["patrol_id"] = patrol["id"]
-                            observation["patrol_title"] = patrol["title"]
-                            observation["patrol_serial_number"] = patrol["serial_number"]
-                            observation["patrol_start_time"] = patrol_start_time
-                            observation["patrol_end_time"] = patrol_end_time
-                            observation["patrol_type"] = patrol_type
-                            observation["patrol_status"] = patrol["state"]
-                            observation["patrol_subject"] = subject_name
-                            observation = (
-                                observation.reset_index()
+                            observation.gdf["patrol_id"] = patrol["id"]
+                            observation.gdf["patrol_title"] = patrol["title"]
+                            observation.gdf["patrol_serial_number"] = patrol["serial_number"]
+                            observation.gdf["patrol_start_time"] = patrol_start_time
+                            observation.gdf["patrol_end_time"] = patrol_end_time
+                            observation.gdf["patrol_type"] = patrol_type
+                            observation.gdf["patrol_status"] = patrol["state"]
+                            observation.gdf["patrol_subject"] = subject_name
+                            observation.gdf = (
+                                observation.gdf.reset_index()
                                 .merge(
                                     pd.DataFrame(df_pt).add_prefix("patrol_type__"),
                                     left_on="patrol_type",
@@ -972,12 +972,12 @@ class EarthRangerIO(ERClient):
         if not observations:
             return pd.DataFrame()
 
-        df = pd.concat(observations)
-        df = clean_time_cols(df)
-        df = ecoscope.base.Relocations(df)
+        gdf = pd.concat(observation.gdf for observation in observations)
+        gdf = clean_time_cols(gdf)
         if include_patrol_details:
-            return df.set_index("id")
-        return df
+            gdf = gdf.set_index("id")
+        relocs = ecoscope.Relocations(gdf=gdf)
+        return relocs
 
     def get_patrol_segment_events(
         self,

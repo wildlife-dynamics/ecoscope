@@ -1,7 +1,7 @@
 from typing import Literal, Tuple
 
 import geopandas as gpd  # type: ignore[import-untyped]
-from PIL.Image import Image
+from PIL.Image import Image  # type: ignore[import-untyped]
 
 from ecoscope.base.utils import BoundingBox
 

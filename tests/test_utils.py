@@ -38,19 +38,19 @@ def test_create_meshgrid_aligned(aoi_gdf):
 
 
 def test_groupby_intervals(movebank_relocations):
-    movebank_relocations = movebank_relocations.dropna(subset="extra__external-temperature")
+    movebank_relocations.gdf = movebank_relocations.gdf.dropna(subset="extra__external-temperature")
 
-    start_temp = movebank_relocations["extra__external-temperature"].min()
-    end_temp = movebank_relocations["extra__external-temperature"].max()
+    start_temp = movebank_relocations.gdf["extra__external-temperature"].min()
+    end_temp = movebank_relocations.gdf["extra__external-temperature"].max()
 
     intervals = pd.interval_range(start=start_temp, end=end_temp)
-    groupby = groupby_intervals(movebank_relocations, "extra__external-temperature", intervals)
+    groupby = groupby_intervals(movebank_relocations.gdf, "extra__external-temperature", intervals)
 
     # since our range is from min to max the sum of the length of each group should be equivalent to value_counts() -1
     assert len(groupby) == end_temp - start_temp - 1
     assert (
         sum(len(group) for _, group in groupby)
-        == sum(count for count in movebank_relocations["extra__external-temperature"].value_counts()) - 1
+        == sum(count for count in movebank_relocations.gdf["extra__external-temperature"].value_counts()) - 1
     )
 
 
@@ -115,11 +115,11 @@ def test_add_val_index():
 
 def test_add_temporal_index(movebank_relocations):
     with_temporal_index = add_temporal_index(
-        df=movebank_relocations, index_name="temporal", time_col="fixtime", directive="%d/%m/%y"
+        df=movebank_relocations.gdf, index_name="temporal", time_col="fixtime", directive="%d/%m/%y"
     )
 
     assert with_temporal_index.index.names == ["event-id", "temporal"]
-    assert with_temporal_index.index[0][1] == movebank_relocations["fixtime"].iloc[0].strftime("%d/%m/%y")
+    assert with_temporal_index.index[0][1] == movebank_relocations.gdf["fixtime"].iloc[0].strftime("%d/%m/%y")
 
 
 def test_modis_offset():

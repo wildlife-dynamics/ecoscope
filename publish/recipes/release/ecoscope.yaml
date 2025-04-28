@@ -25,9 +25,8 @@ requirements:
     - backoff
     - earthengine-api
     - earthranger-client
-    - fiona <1.10.0
-    - geopandas <=0.14.2
-    - numpy <2  # added by me, but should be ensured by geopandas anyway
+    - geopandas>1
+    - numpy
     - pyproj
     - rasterio
     - tqdm
@@ -39,7 +38,7 @@ requirements:
     # - matplotlib  # disabling in favor of matplotlib-base which is smaller
     - matplotlib-base
     - networkx
-    - numba
+    - numpy<2.1
     - scipy
     - scikit-image
     - scikit-learn

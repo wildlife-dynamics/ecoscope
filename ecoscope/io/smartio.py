@@ -203,7 +203,7 @@ class SmartIO:
         patrol_mandate: str | None = None,
         patrol_transport: str | None = None,
         window_size_in_days: int = 7,
-    ) -> ecoscope.base.Relocations | None:
+    ) -> ecoscope.Relocations | None:
         df = gpd.GeoDataFrame()
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
@@ -239,16 +239,18 @@ class SmartIO:
             if patrols_df.empty:
                 return None
 
-            patrols_df = ecoscope.base.Relocations.from_gdf(
+            patrols_relocs = ecoscope.Relocations.from_gdf(
                 patrols_df,
                 groupby_col="groupby_col",
                 uuid_col="patrol_id",
                 time_col="fixtime",
             )
-            patrols_df.reset_index()
-            patrols_df.columns = [col.replace("extra__", "") for col in patrols_df.columns]
-            patrols_df = patrols_df.assign(id=[str(uuid.uuid4()) for _ in range(len(patrols_df))]).set_index("id")
-            return patrols_df
+            patrols_relocs.gdf.reset_index()
+            patrols_relocs.gdf.columns = [col.replace("extra__", "") for col in patrols_relocs.gdf.columns]
+            patrols_relocs.gdf = patrols_relocs.gdf.assign(
+                id=[str(uuid.uuid4()) for _ in range(len(patrols_relocs.gdf))]
+            ).set_index("id")
+            return patrols_relocs
         except Exception as e:
             logger.error(f"Error processing patrol data: {e}")
             return None

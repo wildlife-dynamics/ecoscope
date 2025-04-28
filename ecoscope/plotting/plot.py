@@ -182,13 +182,13 @@ def add_seasons(fig: go.Figure, season_df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def mcp(relocations: ecoscope.base.Relocations) -> go.Figure:
-    relocations = relocations.to_crs(relocations.estimate_utm_crs())
+def mcp(relocations: ecoscope.Relocations) -> go.Figure:
+    relocations.gdf.to_crs(relocations.gdf.estimate_utm_crs(), inplace=True)
 
     areas = []
     times = []
     total = shapely.geometry.GeometryCollection()
-    for time, obs in relocations.groupby(pd.Grouper(key="fixtime", freq="1D"), as_index=False):
+    for time, obs in relocations.gdf.groupby(pd.Grouper(key="fixtime", freq="1D"), as_index=False):
         if obs.size:
             total = total.union(obs.geometry.unary_union).convex_hull
             areas.append(total.area)
@@ -196,8 +196,8 @@ def mcp(relocations: ecoscope.base.Relocations) -> go.Figure:
 
     areas_np = np.array(areas)
     times_np = np.array(times)
-    times_np[0] = relocations["fixtime"].iat[0]
-    times_np[-1] = relocations["fixtime"].iat[-1]
+    times_np[0] = relocations.gdf["fixtime"].iat[0]
+    times_np[-1] = relocations.gdf["fixtime"].iat[-1]
 
     fig = go.FigureWidget()
 
@@ -216,11 +216,11 @@ def mcp(relocations: ecoscope.base.Relocations) -> go.Figure:
     return fig
 
 
-def nsd(relocations: ecoscope.base.Relocations) -> go.Figure:
-    relocations = relocations.to_crs(relocations.estimate_utm_crs())
+def nsd(relocations: ecoscope.Relocations) -> go.Figure:
+    relocations.gdf.to_crs(relocations.gdf.estimate_utm_crs(), inplace=True)
 
-    times = relocations["fixtime"]
-    distances = relocations.distance(relocations.geometry.iat[0]) ** 2
+    times = relocations.gdf["fixtime"]
+    distances = relocations.gdf.distance(relocations.gdf.geometry.iat[0]) ** 2
 
     fig = go.FigureWidget()
 
@@ -239,21 +239,21 @@ def nsd(relocations: ecoscope.base.Relocations) -> go.Figure:
     return fig
 
 
-def speed(trajectory: ecoscope.base.Trajectory) -> go.Figure:
+def speed(trajectory: ecoscope.Trajectory) -> go.Figure:
     times = np.column_stack(
         [
-            trajectory["segment_start"],
-            trajectory["segment_start"],
-            trajectory["segment_end"],
-            trajectory["segment_end"],
+            trajectory.gdf["segment_start"],
+            trajectory.gdf["segment_start"],
+            trajectory.gdf["segment_end"],
+            trajectory.gdf["segment_end"],
         ]
     ).flatten()
     speeds = np.column_stack(
         [
-            np.zeros(len(trajectory)),
-            trajectory["speed_kmhr"],
-            trajectory["speed_kmhr"],
-            np.zeros(len(trajectory)),
+            np.zeros(len(trajectory.gdf)),
+            trajectory.gdf["speed_kmhr"],
+            trajectory.gdf["speed_kmhr"],
+            np.zeros(len(trajectory.gdf)),
         ]
     ).flatten()
 

@@ -12,7 +12,7 @@ from ecoscope.analysis.percentile import get_percentile_area
 
 
 @pytest.fixture
-def movebank_trajectory_gdf(movebank_relocations):
+def movebank_trajectory(movebank_relocations):
     # apply relocation coordinate filter to movebank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
@@ -25,7 +25,7 @@ def movebank_trajectory_gdf(movebank_relocations):
     movebank_relocations.remove_filtered(inplace=True)
 
     # Create Trajectory
-    return ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    return ecoscope.Trajectory.from_relocations(movebank_relocations)
 
 
 @pytest.fixture
@@ -38,13 +38,13 @@ def raster_profile():
     )
 
 
-def test_etd_range_with_tif_file(movebank_trajectory_gdf, raster_profile):
+def test_etd_range_with_tif_file(movebank_trajectory, raster_profile):
     file = NamedTemporaryFile(delete=False)
     try:
         UD.calculate_etd_range(
-            trajectory_gdf=movebank_trajectory_gdf,
+            trajectory=movebank_trajectory,
             output_path=file.name,
-            max_speed_kmhr=1.05 * movebank_trajectory_gdf.speed_kmhr.max(),
+            max_speed_kmhr=1.05 * movebank_trajectory.gdf.speed_kmhr.max(),
             raster_profile=raster_profile,
             expansion_factor=1.3,
         )
@@ -62,12 +62,12 @@ def test_etd_range_with_tif_file(movebank_trajectory_gdf, raster_profile):
     gpd.testing.geom_almost_equals(percentile_area, expected_percentile_area)
 
 
-def test_etd_range_without_tif_file(movebank_trajectory_gdf, raster_profile):
+def test_etd_range_without_tif_file(movebank_trajectory, raster_profile):
     file = NamedTemporaryFile(delete=False)
     try:
         raster_data = UD.calculate_etd_range(
-            trajectory_gdf=movebank_trajectory_gdf,
-            max_speed_kmhr=1.05 * movebank_trajectory_gdf.speed_kmhr.max(),
+            trajectory=movebank_trajectory,
+            max_speed_kmhr=1.05 * movebank_trajectory.gdf.speed_kmhr.max(),
             raster_profile=raster_profile,
             expansion_factor=1.3,
         )

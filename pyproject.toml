@@ -24,9 +24,8 @@ dependencies = [
   "backoff",
   "earthengine-api",
   "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
-  "fiona<1.10.0",
-  "geopandas<=0.14.2",
-  "numpy<2",
+  "geopandas>1",
+  "numpy<2.1",
   "pyproj",
   "rasterio",
   "tqdm",
@@ -61,6 +60,7 @@ test = [
   "pytest-cov",
   "pytest-mock",
   "pytest-reportlog",
+  "fsspec",
 ]
 docs = [
   "myst-parser",
