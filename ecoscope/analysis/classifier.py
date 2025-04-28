@@ -146,7 +146,7 @@ def apply_color_map(
             val_min = dataframe[input_column_name].min()
             val_max = dataframe[input_column_name].max()
             value_range = 1 if val_min == val_max else val_max - val_min
-            cmap_colors = [cmap((val - val_min) / value_range) for val in unique]
+            cmap_colors = [mpl_cmap((val - val_min) / value_range) for val in unique]
         else:
             cmap_colors = [mpl_cmap(i % mpl_cmap.N) for i in range(nunique)]
 
