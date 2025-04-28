@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 import ecoscope
-from ecoscope.base import Relocations
+from ecoscope import Relocations
 
 os.environ["USE_PYGEOS"] = "0"
 

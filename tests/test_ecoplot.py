@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 
 from ecoscope.analysis.classifier import apply_color_map
-from ecoscope.base import Trajectory
+from ecoscope import Trajectory
 from ecoscope.plotting.plot import (
     BarConfig,
     EcoPlotData,

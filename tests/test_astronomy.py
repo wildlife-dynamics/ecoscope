@@ -5,7 +5,7 @@ import pyproj
 import pytest
 
 from ecoscope.analysis import astronomy
-from ecoscope.base import Trajectory
+from ecoscope import Trajectory
 
 
 def test_to_EarthLocation(movebank_relocations):

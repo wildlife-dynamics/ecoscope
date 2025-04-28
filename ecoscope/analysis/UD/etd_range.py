@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import geopandas as gpd  # type: ignore[import-untyped]
 
-from ecoscope.base import Trajectory
+from ecoscope import Trajectory
 from ecoscope.io import raster
 
 try:

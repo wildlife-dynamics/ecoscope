@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from ecoscope.base import Trajectory
+from ecoscope import Trajectory
 from ecoscope.analysis.classifier import apply_classification, apply_color_map
 
 
