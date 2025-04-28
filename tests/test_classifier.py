@@ -142,3 +142,37 @@ def test_classify_with_ranges(sample_df):
         "3.4 - 4.2",
         "4.2 - 5.0",
     ]
+
+
+def test_apply_colormap_numeric_with_single_value():
+    df = pd.DataFrame(
+        data={"value": [1, np.nan, np.nan, np.nan, np.nan]},
+        index=["A", "B", "C", "D", "E"],
+    )
+    apply_color_map(df, "value", "viridis", output_column_name="colormap")
+
+    assert len(df["colormap"].unique()) == len(df["value"].unique())
+    assert df.loc["A"]["colormap"] != (0, 0, 0, 0)
+    assert df.loc["E"]["colormap"] == (0, 0, 0, 0)
+
+
+def test_apply_colormap_numeric_with_float_range():
+    df = pd.DataFrame(
+        data={"value": [0.99, 0.3, 0.001, 0.63, np.nan]},
+        index=["A", "B", "C", "D", "E"],
+    )
+    apply_color_map(df, "value", "viridis", output_column_name="colormap")
+
+    assert len(df["colormap"].unique()) == len(df["value"].unique())
+
+
+def test_apply_colormap_numeric_nan_only():
+    df = pd.DataFrame(
+        data={"value": [np.nan, np.nan]},
+        index=["A", "B"],
+    )
+    apply_color_map(df, "value", "viridis", output_column_name="colormap")
+
+    assert len(df["colormap"].unique()) == len(df["value"].unique())
+    assert df.loc["A"]["colormap"] == (0, 0, 0, 0)
+    assert df.loc["B"]["colormap"] == (0, 0, 0, 0)

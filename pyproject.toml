@@ -50,7 +50,7 @@ analysis = [
   "scikit-learn",
 ]
 mapping = [
-  "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.3",
+  "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.4",
   "matplotlib",
   "mapclassify",
 ]

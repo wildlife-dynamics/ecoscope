@@ -4,6 +4,7 @@ from ecoscope.plotting.plot import (
     add_seasons,
     bar_chart,
     ecoplot,
+    line_chart,
     mcp,
     nsd,
     pie_chart,
@@ -24,4 +25,5 @@ __all__ = [
     "pie_chart",
     "BarConfig",
     "bar_chart",
+    "line_chart",
 ]

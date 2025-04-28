@@ -143,11 +143,10 @@ def apply_color_map(
             mpl_cmap = mpl_cmap.resampled(nunique)
 
         if pd.api.types.is_numeric_dtype(dataframe[input_column_name].dtype):
-            cmap_colors = []
             val_min = dataframe[input_column_name].min()
             val_max = dataframe[input_column_name].max()
-            for val in unique:
-                cmap_colors.append(mpl_cmap((val - val_min) / (val_max - val_min)))
+            value_range = 1 if val_min == val_max else val_max - val_min
+            cmap_colors = [cmap((val - val_min) / value_range) for val in unique]
         else:
             cmap_colors = [mpl_cmap(i % mpl_cmap.N) for i in range(nunique)]
 
