@@ -44,15 +44,15 @@ class Trajectory(EcoDataFrame):
     """
 
     @classmethod
-    def from_relocations(cls, relocs: Relocations, *args, **kwargs):
+    def from_relocations(cls, relocs: Relocations, copy: bool = True):
         """
         Create Trajectory class from Relocation dataframe.
         Parameters
         ----------
         relocs: Relocations
             A `Relocations` instance.
-        args
-        kwargs
+        copy : bool, optional
+            Whether or not to copy the `gdf`. Defaults to `True`.
         Returns
         -------
         Trajectory
@@ -60,7 +60,7 @@ class Trajectory(EcoDataFrame):
         assert isinstance(relocs, Relocations)
         assert {"groupby_col", "fixtime", "geometry"}.issubset(relocs.gdf)
 
-        if kwargs.get("copy"):
+        if copy:
             relocs = Relocations(relocs.gdf.copy())
 
         original_crs = relocs.gdf.crs
@@ -71,27 +71,7 @@ class Trajectory(EcoDataFrame):
         relocs.gdf.to_crs(original_crs, inplace=True)
 
         relocs.gdf.sort_values("segment_start", inplace=True)
-        return Trajectory(gdf=relocs.gdf)
-
-    @staticmethod
-    def get_displacement(gdf: gpd.GeoDataFrame):
-        """
-        Get displacement in meters between first and final fixes.
-        """
-        if not gdf["segment_start"].is_monotonic_increasing:
-            gdf = gdf.sort_values("segment_start")
-        start = gdf.geometry.iloc[0].coords[0]
-        end = gdf.geometry.iloc[-1].coords[1]
-        return Geod(ellps="WGS84").inv(start[0], start[1], end[0], end[1])[2]
-
-    @staticmethod
-    def get_tortuosity(gdf: gpd.GeoDataFrame):
-        """
-        Get tortuosity for dataframe defined as distance traveled divided by displacement between first and final
-        points.
-        """
-
-        return gdf["dist_meters"].sum() / get_displacement(gdf)
+        return cls(gdf=relocs.gdf)
 
     @staticmethod
     def _create_multitraj(df):

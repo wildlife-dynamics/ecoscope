@@ -25,7 +25,7 @@ class Relocations(EcoDataFrame):
     """
 
     @classmethod
-    def from_gdf(cls, gdf, groupby_col=None, time_col="fixtime", uuid_col=None, **kwargs):
+    def from_gdf(cls, gdf, groupby_col=None, time_col="fixtime", uuid_col=None, copy: bool = True):
         """
         Parameters
         ----------
@@ -38,11 +38,13 @@ class Relocations(EcoDataFrame):
             Name of `gdf` column containing relocation times. Default is 'fixtime'.
         uuid_col : str, optional
             Name of `gdf` column of row identities. Used as index. Default is existing index.
+        copy : bool, optional
+            Whether or not to copy the `gdf`. Defaults to `True`.
         """
 
         assert {"geometry", time_col}.issubset(gdf)
 
-        if kwargs.get("copy") is not False:
+        if copy:
             gdf = gdf.copy()
 
         if groupby_col is None:
@@ -82,7 +84,7 @@ class Relocations(EcoDataFrame):
 
         gdf.rename(columns=dict(zip(extra_cols, "extra__" + extra_cols)), inplace=True)
 
-        return Relocations(gdf=gdf)
+        return cls(gdf=gdf)
 
     @staticmethod
     def _apply_speedfilter(df, fix_filter):
