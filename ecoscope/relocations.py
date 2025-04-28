@@ -4,7 +4,7 @@ from functools import cached_property
 
 import numpy as np
 import pandas as pd
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 from pyproj import Geod
 
 from ecoscope.base._dataclasses import (

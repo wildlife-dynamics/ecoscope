@@ -16,6 +16,7 @@ from ecoscope.base.utils import (
     hex_to_rgba,
     color_tuple_to_css,
 )
+from ecoscope.base.ecodataframe import EcoDataFrame
 
 __all__ = [
     "BoundingBox",
