@@ -1,6 +1,7 @@
 import pytest
 import geopandas as gpd
-from ecoscope.base import Trajectory, ProximityProfile, SpatialFeature
+from ecoscope import Trajectory
+from ecoscope.base import ProximityProfile, SpatialFeature
 
 
 @pytest.fixture

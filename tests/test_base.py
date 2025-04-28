@@ -79,7 +79,7 @@ def test_displacement_property(movebank_relocations):
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
-        trajectory.gdf.groupby("groupby_col")[trajectory.gdf.columns].apply(ecoscope.Trajectory.get_displacement),
+        trajectory.gdf.groupby("groupby_col")[trajectory.gdf.columns].apply(ecoscope.trajectory.get_displacement),
         expected,
     )
 
@@ -92,7 +92,7 @@ def test_tortuosity(movebank_relocations):
     )
     pd.testing.assert_series_equal(
         trajectory.gdf.groupby("groupby_col")[trajectory.gdf.columns].apply(
-            ecoscope.Trajectory.get_tortuosity, include_groups=False
+            ecoscope.trajectory.get_tortuosity, include_groups=False
         ),
         expected,
     )
