@@ -292,58 +292,6 @@ class Trajectory(EcoDataFrame):
             relocs.gdf = relocs.gdf.groupby("groupby_col")[relocs.gdf.columns].apply(f).reset_index(drop=True)
             return relocs
 
-    @staticmethod
-    def _straighttrack_properties(gdf: gpd.GeoDataFrame):
-        """Private function used by Trajectory class."""
-
-        class Properties:
-            @property
-            def start_fixes(self):
-                # unpack xy-coordinates of start fixes
-                return gdf["geometry"].x, gdf["geometry"].y
-
-            @property
-            def end_fixes(self):
-                # unpack xy-coordinates of end fixes
-                return gdf["_geometry"].x, gdf["_geometry"].y
-
-            @property
-            def inverse_transformation(self):
-                # use pyproj geodesic inverse function to compute vectorized distance & heading calculations
-                return Geod(ellps="WGS84").inv(*self.start_fixes, *self.end_fixes)
-
-            @property
-            def heading(self):
-                # Forward azimuth(s)
-                forward_azimuth, _, _ = self.inverse_transformation
-                forward_azimuth[forward_azimuth < 0] += 360
-                return forward_azimuth
-
-            @property
-            def dist_meters(self):
-                _, _, distance = self.inverse_transformation
-                return distance
-
-            @property
-            def nsd(self):
-                start_point = gdf["geometry"].iloc[0]
-                geod = Geod(ellps="WGS84")
-                geod_displacement = [
-                    geod.inv(start_point.x, start_point.y, geo.x, geo.y)[2] for geo in gdf["_geometry"]
-                ]
-                return [(x**2) / (1000 * 2) for x in geod_displacement]
-
-            @property
-            def timespan_seconds(self):
-                return (gdf["_fixtime"] - gdf["fixtime"]).dt.total_seconds()
-
-            @property
-            def speed_kmhr(self):
-                return (self.dist_meters / self.timespan_seconds) * 3.6
-
-        instance = Properties()
-        return instance
-
     def calculate_proximity(
         self,
         proximity_profile: ProximityProfile,
