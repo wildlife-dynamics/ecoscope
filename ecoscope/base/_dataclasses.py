@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Union
 
 import geopandas  # type: ignore[import-untyped]
 import shapely
@@ -86,3 +86,6 @@ class SpatialFeature:
 @dataclass
 class ProximityProfile:
     spatial_features: list[SpatialFeature]
+
+
+RelocsFilterType = Union[RelocsCoordinateFilter, RelocsDateRangeFilter, RelocsSpeedFilter, RelocsDistFilter]

@@ -4,6 +4,7 @@ from functools import cached_property
 
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from pyproj import Geod
 
 from ecoscope.base._dataclasses import (
@@ -11,6 +12,7 @@ from ecoscope.base._dataclasses import (
     RelocsDateRangeFilter,
     RelocsDistFilter,
     RelocsSpeedFilter,
+    RelocsFilterType,
 )
 from ecoscope.base.straightrack import StraightTrackProperties
 from ecoscope.base import EcoDataFrame
@@ -25,7 +27,14 @@ class Relocations(EcoDataFrame):
     """
 
     @classmethod
-    def from_gdf(cls, gdf, groupby_col=None, time_col="fixtime", uuid_col=None, copy: bool = True):
+    def from_gdf(
+        cls,
+        gdf: gpd.GeoDataFrame,
+        groupby_col: str | None = None,
+        time_col: str = "fixtime",
+        uuid_col: str | None = None,
+        copy: bool = True,
+    ):
         """
         Parameters
         ----------
@@ -87,7 +96,7 @@ class Relocations(EcoDataFrame):
         return cls(gdf=gdf)
 
     @staticmethod
-    def _apply_speedfilter(df, fix_filter):
+    def _apply_speedfilter(df: pd.DataFrame, fix_filter: RelocsSpeedFilter):
         gdf = df.assign(
             _fixtime=df["fixtime"].shift(-1),
             _geometry=df["geometry"].shift(-1),
@@ -110,7 +119,7 @@ class Relocations(EcoDataFrame):
         return gdf
 
     @staticmethod
-    def _apply_distfilter(df, fix_filter):
+    def _apply_distfilter(df: pd.DataFrame, fix_filter: RelocsDistFilter):
         gdf = df.assign(
             _junk_status=df["junk_status"].shift(-1),
             _geometry=df["geometry"].shift(-1),
@@ -130,7 +139,7 @@ class Relocations(EcoDataFrame):
         gdf.drop(["_geometry", "_junk_status", "distance_km"], axis=1, inplace=True)
         return gdf
 
-    def apply_reloc_filter(self, fix_filter=None, inplace=False):
+    def apply_reloc_filter(self, fix_filter: RelocsFilterType | None = None, inplace: bool = False):
         """Apply a given filter by marking the fix junk_status based on the conditions of a filter"""
 
         if not self.gdf["fixtime"].is_monotonic_increasing:
@@ -205,12 +214,12 @@ class Relocations(EcoDataFrame):
         distance = self.distance_from_centroid
         return np.std(distance)
 
-    def threshold_point_count(self, threshold_dist):
+    def threshold_point_count(self, threshold_dist: float):
         """Counts the number of points in the cluster that are within a threshold distance of the geographic centre"""
         distance = self.distance_from_centroid
         return distance[distance <= threshold_dist].size
 
-    def apply_threshold_filter(self, threshold_dist_meters=float("Inf")):
+    def apply_threshold_filter(self, threshold_dist_meters: float = float("Inf")):
         # Apply filter to the underlying geodataframe.
         distance = self.distance_from_centroid
         _filter = distance > threshold_dist_meters

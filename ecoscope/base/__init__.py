@@ -4,6 +4,7 @@ from ecoscope.base._dataclasses import (
     RelocsDateRangeFilter,
     RelocsDistFilter,
     RelocsSpeedFilter,
+    RelocsFilterType,
     SpatialFeature,
     TrajSegFilter,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "RelocsDateRangeFilter",
     "RelocsDistFilter",
     "RelocsSpeedFilter",
+    "RelocsFilterType",
     "SpatialFeature",
     "TrajSegFilter",
     "create_meshgrid",

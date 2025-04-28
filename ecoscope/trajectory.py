@@ -13,7 +13,8 @@ from ecoscope.base._dataclasses import (
     TrajSegFilter,
 )
 from ecoscope.base.straightrack import StraightTrackProperties
-from ecoscope.base import EcoDataFrame, Relocations
+from ecoscope.base import EcoDataFrame
+from ecoscope import Relocations
 
 
 def get_displacement(gdf: gpd.GeoDataFrame):
@@ -74,21 +75,21 @@ class Trajectory(EcoDataFrame):
         return cls(gdf=relocs.gdf)
 
     @staticmethod
-    def _create_multitraj(df):
-        if len(df) == 1:
+    def _create_multitraj(gdf: gpd.GeoDataFrame):
+        if len(gdf) == 1:
             warnings.warn(
-                f"Subject id {df.get('groupby_col')} has only one relocation "
+                f"Subject id {gdf.get('groupby_col')} has only one relocation "
                 "and will be excluded from trajectory creation"
             )
             return None
 
-        df["_geometry"] = df["geometry"].shift(-1)
+        gdf["_geometry"] = gdf["geometry"].shift(-1)
 
-        df["_fixtime"] = df["fixtime"].shift(-1)
-        return Trajectory._create_trajsegments(df[:-1])
+        gdf["_fixtime"] = gdf["fixtime"].shift(-1)
+        return Trajectory._create_trajsegments(gdf[:-1])
 
     @staticmethod
-    def _create_trajsegments(gdf):
+    def _create_trajsegments(gdf: gpd.GeoDataFrame):
         track_properties = StraightTrackProperties(gdf)
 
         coords = np.column_stack(
@@ -123,7 +124,7 @@ class Trajectory(EcoDataFrame):
 
         return df.join(gdf, how="left")
 
-    def apply_traj_filter(self, traj_seg_filter, inplace=False):
+    def apply_traj_filter(self, traj_seg_filter: TrajSegFilter, inplace: bool = False):
         if not self.gdf["segment_start"].is_monotonic_increasing:
             self.gdf.sort_values("segment_start", inplace=True)
         assert self.gdf["segment_start"].is_monotonic_increasing
@@ -164,7 +165,7 @@ class Trajectory(EcoDataFrame):
 
         return angles.rename("turn_angle").reindex(self.gdf.index)
 
-    def upsample(self, freq):
+    def upsample(self, freq: str | pd.Timedelta | pd.DateOffset):
         """
         Interpolate to create upsampled Relocations
         Parameters
@@ -234,7 +235,12 @@ class Trajectory(EcoDataFrame):
             self.gdf.groupby("groupby_col")[self.gdf.columns].apply(f, include_groups=False).reset_index(drop=True)
         )
 
-    def downsample(self, freq, tolerance="0S", interpolation=False):
+    def downsample(
+        self,
+        freq: str | pd.Timedelta | pd.DateOffset,
+        tolerance: str | pd.Timedelta | pd.DateOffset = "0S",
+        interpolation: bool = False,
+    ):
         """
         Function to downsample relocations.
         Parameters
