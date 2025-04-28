@@ -1,4 +1,6 @@
 from ecoscope import base, io
+from ecoscope.relocations import Relocations
+from ecoscope.trajectory import Trajectory, get_displacement, get_tortuosity
 
 ASCII = """\
  _____
@@ -58,4 +60,16 @@ def init(silent=False, force=False):
         print(ASCII)
 
 
-__all__ = ["analysis", "base", "contrib", "init", "io", "mapping", "plotting"]
+__all__ = [
+    "analysis",
+    "base",
+    "contrib",
+    "init",
+    "io",
+    "mapping",
+    "plotting",
+    "Relocations",
+    "Trajectory",
+    "get_displacement",
+    "get_tortuosity",
+]
