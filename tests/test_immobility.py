@@ -5,7 +5,7 @@ from ecoscope.analysis import immobility
 
 
 def test_immobility(movebank_relocations):
-    movebank_relocations = movebank_relocations.loc[movebank_relocations.groupby_col == "Salif Keita"][:100]
+    movebank_relocations.gdf = movebank_relocations.gdf.loc[movebank_relocations.gdf.groupby_col == "Salif Keita"][:100]
     immobility_profile = immobility.ImmobilityProfile(
         threshold_time=130, threshold_probability=0.5, threshold_radius=1000
     )

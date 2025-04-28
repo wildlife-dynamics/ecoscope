@@ -1,5 +1,12 @@
+from typing import Literal, Tuple
+
+import geopandas as gpd  # type: ignore[import-untyped]
+from PIL.Image import Image  # type: ignore[import-untyped]
+
+from ecoscope.base.utils import BoundingBox
+
 try:
-    import datashader as ds
+    import datashader as ds  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
@@ -7,7 +14,15 @@ except ModuleNotFoundError:
     )
 
 
-def datashade_gdf(gdf, geom_type, width=600, height=600, cmap=None, ds_agg=None, **kwargs):
+def datashade_gdf(
+    gdf: gpd.GeoDataFrame,
+    geom_type: Literal["polygon", "line", "point"],
+    width: int = 600,
+    height: int = 600,
+    cmap: str | list[str] | None = None,
+    ds_agg: ds.reductions.Reduction | None = None,
+    **kwargs,
+) -> Tuple[Image, BoundingBox]:
     """
     Creates a raster of the given gdf using Datashader
 

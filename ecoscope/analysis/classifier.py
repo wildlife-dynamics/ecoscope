@@ -1,3 +1,4 @@
+from typing import Literal
 import pandas as pd
 import matplotlib as mpl
 from ecoscope.base.utils import hex_to_rgba
@@ -5,7 +6,7 @@ from ecoscope.base.utils import hex_to_rgba
 # from ecoscope.base._dataclasses import ColorStyleLookup
 
 try:
-    import mapclassify
+    import mapclassify  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
@@ -25,17 +26,19 @@ classification_methods = {
 
 # pass in a dataframe and output a series
 def apply_classification(
-    dataframe,
-    input_column_name,
-    output_column_name=None,
-    labels=None,
-    scheme="natural_breaks",
-    label_prefix="",
-    label_suffix="",
-    label_ranges=False,
-    label_decimals=1,
+    dataframe: pd.DataFrame,
+    input_column_name: str,
+    output_column_name: str | None = None,
+    labels: list[str] | None = None,
+    scheme: Literal[
+        "equal_interval", "natural_breaks", "quantile", "std_mean", "max_breaks", "fisher_jenks"
+    ] = "natural_breaks",
+    label_prefix: str = "",
+    label_suffix: str = "",
+    label_ranges: bool = False,
+    label_decimals: int = 1,
     **kwargs,
-):
+) -> pd.DataFrame:
     """
     Classifies the data in a DataFrame column using specified classification scheme.
 
@@ -101,7 +104,7 @@ def apply_classification(
             )
             labels = ranges
         else:
-            labels = [round(label, label_decimals) for label in labels]
+            labels = [round(label, label_decimals) for label in labels]  # type: ignore[arg-type]
 
     assert len(labels) == len(classifier.bins)
     if label_prefix or label_suffix:
@@ -110,7 +113,9 @@ def apply_classification(
     return dataframe
 
 
-def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None):
+def apply_color_map(
+    dataframe: pd.DataFrame, input_column_name: str, cmap: str | list[str], output_column_name: str | None = None
+) -> pd.DataFrame:
     """
     Creates a new column on the provided dataframe with the given cmap applied over the specified input column
 
@@ -129,28 +134,27 @@ def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None)
     nunique = dataframe[input_column_name].nunique()
     unique = dataframe[input_column_name].unique()
     if isinstance(cmap, list):
-        cmap = [hex_to_rgba(x) for x in cmap]
-        cmap_colors = [cmap[i % len(cmap)] for i in range(nunique)]
-        cmap = pd.Series(cmap_colors, index=unique)
+        rgba = [hex_to_rgba(x) for x in cmap]
+        normalized_cmap = [rgba[i % len(rgba)] for i in range(nunique)]
+        cmap_series = pd.Series(normalized_cmap, index=unique)
     if isinstance(cmap, str):
-        cmap = mpl.colormaps[cmap]
-        if nunique < cmap.N:
-            cmap = cmap.resampled(nunique)
+        mpl_cmap = mpl.colormaps[cmap]
+        if nunique < mpl_cmap.N:
+            mpl_cmap = mpl_cmap.resampled(nunique)
 
         if pd.api.types.is_numeric_dtype(dataframe[input_column_name].dtype):
             val_min = dataframe[input_column_name].min()
             val_max = dataframe[input_column_name].max()
             value_range = 1 if val_min == val_max else val_max - val_min
-            cmap_colors = [cmap((val - val_min) / value_range) for val in unique]
+            cmap_colors = [mpl_cmap((val - val_min) / value_range) for val in unique]
         else:
-            cmap_colors = cmap(range(len(unique)))
-            cmap_colors = [cmap(i % cmap.N) for i in range(nunique)]
+            cmap_colors = [mpl_cmap(i % mpl_cmap.N) for i in range(nunique)]
 
         color_list = []
         for color in cmap_colors:
             color_list.append(tuple([round(val * 255) for val in color]))
 
-        cmap = pd.Series(
+        cmap_series = pd.Series(
             color_list,
             index=unique,
         )
@@ -158,5 +162,5 @@ def apply_color_map(dataframe, input_column_name, cmap, output_column_name=None)
     if not output_column_name:
         output_column_name = f"{input_column_name}_colormap"
 
-    dataframe[output_column_name] = [cmap[classification] for classification in dataframe[input_column_name]]
+    dataframe[output_column_name] = [cmap_series[classification] for classification in dataframe[input_column_name]]
     return dataframe

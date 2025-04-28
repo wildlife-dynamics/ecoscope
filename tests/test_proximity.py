@@ -1,7 +1,7 @@
 import pytest
 import geopandas as gpd
-from ecoscope.analysis.proximity import SpatialFeature, Proximity, ProximityProfile
-from ecoscope.base import Trajectory
+from ecoscope import Trajectory
+from ecoscope.base import ProximityProfile, SpatialFeature
 
 
 @pytest.fixture
@@ -17,6 +17,6 @@ def test_proximity(sample_relocs, sample_spatial_features):
 
     trajectory = Trajectory.from_relocations(sample_relocs)
 
-    proximity_events = Proximity.calculate_proximity(proximity_profile=prox_profile, trajectory=trajectory)
+    proximity_events = trajectory.calculate_proximity(proximity_profile=prox_profile)
 
     assert len(proximity_events["spatialfeature_id"].unique()) == len(prox_profile.spatial_features)

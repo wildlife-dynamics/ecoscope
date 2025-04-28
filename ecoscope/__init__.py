@@ -1,3 +1,5 @@
+from ecoscope.relocations import Relocations
+from ecoscope.trajectory import Trajectory, get_displacement, get_tortuosity
 from ecoscope import base, io
 
 ASCII = """\
@@ -49,7 +51,7 @@ def init(silent=False, force=False):
     warnings.filterwarnings(action="ignore", category=FutureWarning)
     warnings.filterwarnings("ignore", message=".*initial implementation of Parquet.*")
 
-    import plotly.io as pio
+    import plotly.io as pio  # type: ignore[import-untyped]
 
     pio.templates.default = "seaborn"
 
@@ -58,4 +60,16 @@ def init(silent=False, force=False):
         print(ASCII)
 
 
-__all__ = ["analysis", "base", "contrib", "init", "io", "mapping", "plotting"]
+__all__ = [
+    "analysis",
+    "base",
+    "contrib",
+    "init",
+    "io",
+    "mapping",
+    "plotting",
+    "Relocations",
+    "Trajectory",
+    "get_displacement",
+    "get_tortuosity",
+]

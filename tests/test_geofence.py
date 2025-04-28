@@ -10,8 +10,8 @@ from ecoscope.analysis import geofence
 def test_geofence_crossing():
     obs = gpd.read_file("tests/sample_data/vector/observations.geojson")
     obs["recorded_at"] = pd.to_datetime(obs["recorded_at"], utc=True)
-    relocations = ecoscope.base.Relocations.from_gdf(obs, groupby_col="source_id", time_col="recorded_at")
-    trajectory = ecoscope.base.Trajectory.from_relocations(relocations)
+    relocations = ecoscope.Relocations.from_gdf(obs, groupby_col="source_id", time_col="recorded_at")
+    trajectory = ecoscope.Trajectory.from_relocations(relocations)
 
     region = Polygon(
         [
@@ -46,7 +46,14 @@ def test_geofence_crossing():
     ]
 
     gf_profile = geofence.GeoCrossingProfile(geofences=geofences, regions=regions)
-    df = geofence.GeoFenceCrossing.analyse(geocrossing_profile=gf_profile, trajectory=trajectory)
+    edf = geofence.GeoFenceCrossing.analyse(geocrossing_profile=gf_profile, trajectory=trajectory)
     geofence_crossing_point = gpd.read_feather("tests/test_output/geofence_crossing_point.feather")
-    gpd.testing.assert_geodataframe_equal(df, geofence_crossing_point, check_less_precise=True)
-    assert df.crs == geofence_crossing_point.crs
+
+    geofence_crossing_point[["segment_start", "segment_end", "extra__recorded_at", "crossing_time"]] = (
+        geofence_crossing_point[
+            ["segment_start", "segment_end", "extra__recorded_at", "crossing_time"]
+        ].astype("datetime64[ms, UTC]")
+    )
+
+    gpd.testing.assert_geodataframe_equal(edf.gdf, geofence_crossing_point, check_less_precise=True)
+    assert edf.gdf.crs == geofence_crossing_point.crs

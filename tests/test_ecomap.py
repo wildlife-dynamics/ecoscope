@@ -30,9 +30,9 @@ def poly_gdf():
 def line_gdf():
     gdf = pd.read_csv("tests/sample_data/vector/KDB025Z.csv", index_col="id")
     gdf["geometry"] = gdf["geometry"].apply(lambda x: shapely.wkt.loads(x))
-    gdf = ecoscope.base.Relocations.from_gdf(gpd.GeoDataFrame(gdf, crs=4326))
-    gdf = ecoscope.base.Trajectory.from_relocations(gdf)
-    return gdf
+    relocs = ecoscope.Relocations.from_gdf(gpd.GeoDataFrame(gdf, crs=4326))
+    traj = ecoscope.Trajectory.from_relocations(relocs)
+    return traj.gdf
 
 
 @pytest.fixture
@@ -104,7 +104,6 @@ def test_add_legend_series_with_transparent():
 def test_add_legend_series_unbalanced():
     m = EcoMap(default_widgets=False)
     m.add_legend(labels=pd.Series(["Class A", "Class B"]), colors=pd.Series([(0, 0, 0, 255), (0, 0, 0, 255)]))
-    m.to_html("testoutput.html")
 
 
 def test_add_north_arrow():
@@ -304,10 +303,10 @@ def test_add_datashader_gdf_with_zoom(poly_gdf):
 
 
 def test_add_polyline_with_color(movebank_relocations):
-    trajectory = ecoscope.base.Trajectory.from_relocations(movebank_relocations)
+    trajectory = ecoscope.Trajectory.from_relocations(movebank_relocations)
     # this is effectively a reimplementation of SpeedDataFrame
     apply_classification(
-        trajectory,
+        trajectory.gdf,
         input_column_name="speed_kmhr",
         output_column_name="speed_bins",
         scheme="equal_interval",
@@ -316,15 +315,15 @@ def test_add_polyline_with_color(movebank_relocations):
         k=6,
     )
     cmap = ["#1a9850", "#91cf60", "#d9ef8b", "#fee08b", "#fc8d59", "#d73027"]
-    apply_color_map(trajectory, "speed_bins", cmap=cmap, output_column_name="speed_colors")
+    apply_color_map(trajectory.gdf, "speed_bins", cmap=cmap, output_column_name="speed_colors")
 
     m = EcoMap()
     m.add_layer(
         m.polyline_layer(
-            trajectory, tooltip_columns=["event-id", "speed_kmhr"], color_column="speed_colors", get_width=2000
+            trajectory.gdf, tooltip_columns=["event-id", "speed_kmhr"], color_column="speed_colors", get_width=2000
         )
     )
-    m.add_legend(labels=trajectory["speed_bins"], colors=trajectory["speed_colors"])
+    m.add_legend(labels=trajectory.gdf["speed_bins"], colors=trajectory.gdf["speed_colors"])
 
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], PathLayer)

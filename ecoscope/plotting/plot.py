@@ -1,15 +1,18 @@
 from dataclasses import dataclass
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
+from pandas.core.groupby.generic import DataFrameGroupBy
 import shapely
 
+import ecoscope
 from ecoscope.base.utils import color_tuple_to_css
 
 try:
-    import plotly.graph_objs as go
-    from plotly.subplots import make_subplots
-    from sklearn.neighbors import KernelDensity
+    import plotly.graph_objs as go  # type: ignore[import-untyped]
+    from plotly.subplots import make_subplots  # type: ignore[import-untyped]
+    from sklearn.neighbors import KernelDensity  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
@@ -18,7 +21,15 @@ except ModuleNotFoundError:
 
 
 class EcoPlotData:
-    def __init__(self, grouped, x_col="x", y_col="y", color_col=None, groupby_style=None, **style):
+    def __init__(
+        self,
+        grouped: DataFrameGroupBy,
+        x_col: str = "x",
+        y_col: str = "y",
+        color_col: str | None = None,
+        groupby_style: dict | None = None,
+        **style,
+    ):
         self.grouped = grouped
         self.x_col = x_col
         self.y_col = y_col
@@ -41,19 +52,19 @@ class EcoPlotData:
 
 
 def ecoplot(
-    data,
-    title="",
-    out_path=None,
-    subplot_height=100,
-    subplot_width=700,
-    vertical_spacing=0.001,
-    annotate_name_pos=(0.01, 0.99),
-    y_title_2=None,
-    layout_kwargs=None,
-    tickformat="%b-%Y",
+    data: list[EcoPlotData],
+    title: str = "",
+    out_path: str | None = None,
+    subplot_height: int = 100,
+    subplot_width: int = 700,
+    vertical_spacing: float = 0.001,
+    annotate_name_pos: Tuple[float, float] = (0.01, 0.99),
+    y_title_2: str | None = None,
+    layout_kwargs: dict | None = None,
+    tickformat: str = "%b-%Y",
     **make_subplots_kwargs,
-):
-    groups = sorted(list(set.union(*[set(datum.grouped.groups.keys()) for datum in data])))
+) -> go.Figure:
+    groups = sorted(list(set.union(*[set(datum.grouped.groups.keys()) for datum in data])))  # type: ignore[type-var]
     datum_1 = data[0]
     datum_2 = None
     for datum in data[1:]:
@@ -155,7 +166,7 @@ def ecoplot(
     return fig
 
 
-def add_seasons(fig, season_df):
+def add_seasons(fig: go.Figure, season_df: pd.DataFrame) -> go.Figure:
     fig = make_subplots(figure=fig, specs=[[{"secondary_y": True}]])
     fig.add_trace(
         go.Scatter(
@@ -171,26 +182,26 @@ def add_seasons(fig, season_df):
     return fig
 
 
-def mcp(relocations):
-    relocations = relocations.to_crs(relocations.estimate_utm_crs())
+def mcp(relocations: ecoscope.Relocations) -> go.Figure:
+    relocations.gdf.to_crs(relocations.gdf.estimate_utm_crs(), inplace=True)
 
     areas = []
     times = []
     total = shapely.geometry.GeometryCollection()
-    for time, obs in relocations.groupby(pd.Grouper(key="fixtime", freq="1D"), as_index=False):
+    for time, obs in relocations.gdf.groupby(pd.Grouper(key="fixtime", freq="1D"), as_index=False):
         if obs.size:
             total = total.union(obs.geometry.unary_union).convex_hull
             areas.append(total.area)
             times.append(time)
 
-    areas = np.array(areas)
-    times = np.array(times)
-    times[0] = relocations["fixtime"].iat[0]
-    times[-1] = relocations["fixtime"].iat[-1]
+    areas_np = np.array(areas)
+    times_np = np.array(times)
+    times_np[0] = relocations.gdf["fixtime"].iat[0]
+    times_np[-1] = relocations.gdf["fixtime"].iat[-1]
 
     fig = go.FigureWidget()
 
-    fig.add_trace(go.Scatter(x=times, y=areas / (1000**2)))
+    fig.add_trace(go.Scatter(x=times_np, y=areas_np / (1000**2)))
 
     fig.update_layout(
         margin_b=15,
@@ -205,11 +216,11 @@ def mcp(relocations):
     return fig
 
 
-def nsd(relocations):
-    relocations = relocations.to_crs(relocations.estimate_utm_crs())
+def nsd(relocations: ecoscope.Relocations) -> go.Figure:
+    relocations.gdf.to_crs(relocations.gdf.estimate_utm_crs(), inplace=True)
 
-    times = relocations["fixtime"]
-    distances = relocations.distance(relocations.geometry.iat[0]) ** 2
+    times = relocations.gdf["fixtime"]
+    distances = relocations.gdf.distance(relocations.gdf.geometry.iat[0]) ** 2
 
     fig = go.FigureWidget()
 
@@ -228,21 +239,21 @@ def nsd(relocations):
     return fig
 
 
-def speed(trajectory):
+def speed(trajectory: ecoscope.Trajectory) -> go.Figure:
     times = np.column_stack(
         [
-            trajectory["segment_start"],
-            trajectory["segment_start"],
-            trajectory["segment_end"],
-            trajectory["segment_end"],
+            trajectory.gdf["segment_start"],
+            trajectory.gdf["segment_start"],
+            trajectory.gdf["segment_end"],
+            trajectory.gdf["segment_end"],
         ]
     ).flatten()
     speeds = np.column_stack(
         [
-            np.zeros(len(trajectory)),
-            trajectory["speed_kmhr"],
-            trajectory["speed_kmhr"],
-            np.zeros(len(trajectory)),
+            np.zeros(len(trajectory.gdf)),
+            trajectory.gdf["speed_kmhr"],
+            trajectory.gdf["speed_kmhr"],
+            np.zeros(len(trajectory.gdf)),
         ]
     ).flatten()
 
@@ -263,7 +274,9 @@ def speed(trajectory):
     return fig
 
 
-def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
+def plot_seasonal_dist(
+    ndvi_vals: pd.Series, cuts: list[float], bandwidth: float = 0.05, output_file: str | None = None
+) -> go.Figure:
     x = ndvi_vals.sort_values().to_numpy().reshape(-1, 1)
     kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(x)
     dens = np.exp(kde.score_samples(x))
@@ -293,7 +306,9 @@ def plot_seasonal_dist(ndvi_vals, cuts, bandwidth=0.05, output_file=None):
     return fig
 
 
-def stacked_bar_chart(data: EcoPlotData, agg_function: str, stack_column: str, layout_kwargs: dict = None):
+def stacked_bar_chart(
+    data: EcoPlotData, agg_function: str, stack_column: str, layout_kwargs: dict | None = None
+) -> go.Figure:
     """
     Creates a stacked bar chart from the provided EcoPlotData object
     Parameters
@@ -362,15 +377,15 @@ class BarConfig:
     column: str
     agg_func: str
     label: str
-    style: dict = None
+    style: dict | None = None
 
 
 def bar_chart(
     data: pd.DataFrame,
     bar_configs: list[BarConfig],
     category: str,
-    layout_kwargs: dict = None,
-):
+    layout_kwargs: dict | None = None,
+) -> go.Figure:
     """
     Creates a bar chart from the provided dataframe
     Parameters
@@ -392,7 +407,7 @@ def bar_chart(
 
     named_aggs = {x.label: (x.column, x.agg_func) for x in bar_configs}
 
-    result_data = data.groupby(category).agg(**named_aggs).reset_index()
+    result_data = data.groupby(category).agg(**named_aggs).reset_index()  # type: ignore[call-overload]
 
     for x in bar_configs:
         fig.add_trace(
@@ -412,9 +427,9 @@ def line_chart(
     data: pd.DataFrame,
     x_column: str,
     y_column: str,
-    category_column: str = None,
-    line_kwargs: dict = None,
-    layout_kwargs: dict = None,
+    category_column: str | None = None,
+    line_kwargs: dict | None = None,
+    layout_kwargs: dict | None = None,
 ):
     """
     Creates a line chart from the provided dataframe
@@ -472,7 +487,7 @@ def pie_chart(
     color_column: str | None = None,
     style_kwargs: dict | None = None,
     layout_kwargs: dict | None = None,
-):
+) -> go.Figure:
     """
     Creates a pie chart from the provided dataframe
     Parameters
@@ -497,6 +512,8 @@ def pie_chart(
     if style_kwargs is None:
         style_kwargs = {}
 
+    labels: np.typing.ArrayLike
+    values: np.typing.ArrayLike
     if pd.api.types.is_numeric_dtype(data[value_column]):
         if label_column is not None:
             labels = data[label_column]
@@ -529,7 +546,7 @@ def draw_historic_timeseries(
     historic_mean_style: dict | None = None,
     current_value_style: dict | None = None,
     time_column: str = "img_date",
-):
+) -> go.Figure:
     """
     Creates a timeseries plot compared with historical values
     Parameters

@@ -22,14 +22,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Micromamba
-        uses: mamba-org/setup-micromamba@v2.0.4
-        with:
-          environment-file: environment.yml
-          cache-environment: true
-          init-shell: bash powershell
-
       - name: Install our package
         run: |
           python -m pip install ".[all]"

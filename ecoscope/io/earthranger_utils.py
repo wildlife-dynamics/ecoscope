@@ -1,6 +1,4 @@
-import typing
-
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 from dateutil import parser
 from shapely.geometry import shape
@@ -16,7 +14,7 @@ TIME_COLS = [
 ]
 
 
-def clean_kwargs(addl_kwargs=None, **kwargs):
+def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
     if addl_kwargs is None:
         addl_kwargs = {}
 
@@ -25,34 +23,36 @@ def clean_kwargs(addl_kwargs=None, **kwargs):
     return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
 
 
-def normalize_column(df, col):
+def normalize_column(df: pd.DataFrame, col: str) -> None:
     print(col)
-    for k, v in pd.json_normalize(df.pop(col), sep="__").add_prefix(f"{col}__").items():
+    for k, v in pd.json_normalize(df.pop(col).to_list(), sep="__").add_prefix(f"{col}__").items():
         df[k] = v.values
 
 
-def dataframe_to_dict(events):
+def dataframe_to_dict_or_list(events: gpd.GeoDataFrame | pd.DataFrame | dict | list[dict]) -> dict | list[dict]:
     if isinstance(events, gpd.GeoDataFrame):
         events["location"] = pd.DataFrame({"longitude": events.geometry.x, "latitude": events.geometry.y}).to_dict(
             "records"
         )
         del events["geometry"]
 
-    if isinstance(events, pd.DataFrame):
-        events = events.to_dict("records")
-    return events
+    if isinstance(events, pd.DataFrame) or isinstance(events, gpd.GeoDataFrame):
+        processed_events = events.to_dict("records")
+    else:
+        processed_events = events
+    return processed_events
 
 
-def to_gdf(df):
+def to_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
     longitude, latitude = (0, 1) if isinstance(df["location"].iat[0], list) else ("longitude", "latitude")
     return gpd.GeoDataFrame(
         df,
-        geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),
+        geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),  # type: ignore[index]
         crs=4326,
     )
 
 
-def clean_time_cols(df):
+def clean_time_cols(df: pd.DataFrame | gpd.GeoDataFrame) -> pd.DataFrame | gpd.GeoDataFrame:
     for col in TIME_COLS:
         if col in df.columns and not pd.api.types.is_datetime64_ns_dtype(df[col]):
             # convert x is not None to pd.isna(x) is False
@@ -67,13 +67,13 @@ def format_iso_time(date_string: str) -> str:
         raise ValueError(f"Failed to parse timestamp'{date_string}'")
 
 
-def to_hex(val, default="#ff0000"):
+def to_hex(val: str | None, default: str = "#ff0000") -> str:
     if val and not pd.isnull(val):
         return "#{:02X}{:02X}{:02X}".format(*[int(i) for i in val.split(",")])
     return default
 
 
-def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
+def pack_columns(dataframe: pd.DataFrame, columns: list) -> pd.DataFrame:
     """This method would add all extra columns to single column"""
     metadata_cols = list(set(dataframe.columns).difference(set(columns)))
 
@@ -95,8 +95,11 @@ def pack_columns(dataframe: pd.DataFrame, columns: typing.List):
 
 
 def geometry_from_event_geojson(
-    df: pd.DataFrame, geojson_column="geojson", force_point_geometry=True, drop_null_geometry=True
-):
+    df: pd.DataFrame,
+    geojson_column: str = "geojson",
+    force_point_geometry: bool = True,
+    drop_null_geometry: bool = True,
+) -> gpd.GeoDataFrame:
     if df.empty:
         return gpd.GeoDataFrame()
 

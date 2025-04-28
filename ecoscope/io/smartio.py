@@ -3,7 +3,7 @@ import logging
 import uuid
 from datetime import timedelta
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import requests
 import shapely
@@ -25,7 +25,7 @@ class SmartIO:
 
         self.login()
 
-    def login(self):
+    def login(self) -> None:
         login_data = {
             "username": self._username,
             "password": self._password,
@@ -39,7 +39,7 @@ class SmartIO:
             self._token = response.json()["access_token"]
             return
 
-    def query_data(self, url, params=None):
+    def query_data(self, url: str, params: dict | None = None) -> pd.DataFrame:
         headers = {
             "Authorization": f"Bearer {self._token}",
         }
@@ -58,7 +58,7 @@ class SmartIO:
         r.raise_for_status()
         return pd.DataFrame(r.json())
 
-    def query_geojson_data(self, url, params=None) -> gpd.GeoDataFrame | None:
+    def query_geojson_data(self, url: str, params: dict | None = None) -> gpd.GeoDataFrame | None:
         headers = {
             "Authorization": f"Bearer {self._token}",
         }
@@ -77,8 +77,16 @@ class SmartIO:
         r.raise_for_status()
         return gpd.GeoDataFrame.from_features(r.json(), crs=4326)
 
-    def get_patrols_list(self, ca_uuid, language_uuid, start, end, patrol_mandate, patrol_transport):
-        params = {}
+    def get_patrols_list(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+        patrol_mandate: str | None,
+        patrol_transport: str | None,
+    ) -> gpd.GeoDataFrame | None:
+        params: dict[str, str | None] = {}
         params["ca_uuid"] = ca_uuid
         params["language_uuid"] = language_uuid
         params["start_date"] = start
@@ -187,8 +195,15 @@ class SmartIO:
         return result_df
 
     def get_patrol_observations(
-        self, ca_uuid, language_uuid, start, end, patrol_mandate=None, patrol_transport=None, window_size_in_days=7
-    ):
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+        patrol_mandate: str | None = None,
+        patrol_transport: str | None = None,
+        window_size_in_days: int = 7,
+    ) -> ecoscope.Relocations | None:
         df = gpd.GeoDataFrame()
 
         start_dt = pd.to_datetime(start)
@@ -227,21 +242,29 @@ class SmartIO:
             if patrols_df.empty:
                 return None
 
-            patrols_df = ecoscope.base.Relocations.from_gdf(
+            patrols_relocs = ecoscope.Relocations.from_gdf(
                 patrols_df,
                 groupby_col="groupby_col",
                 uuid_col="patrol_id",
                 time_col="fixtime",
             )
-            patrols_df.reset_index()
-            patrols_df.columns = [col.replace("extra__", "") for col in patrols_df.columns]
-            patrols_df = patrols_df.assign(id=[str(uuid.uuid4()) for _ in range(len(patrols_df))]).set_index("id")
-            return patrols_df
+            patrols_relocs.gdf.reset_index()
+            patrols_relocs.gdf.columns = [col.replace("extra__", "") for col in patrols_relocs.gdf.columns]
+            patrols_relocs.gdf = patrols_relocs.gdf.assign(
+                id=[str(uuid.uuid4()) for _ in range(len(patrols_relocs.gdf))]
+            ).set_index("id")
+            return patrols_relocs
         except Exception as e:
             logger.error(f"Error processing patrol data: {e}")
             return None
 
-    def get_events(self, ca_uuid, language_uuid, start, end):
+    def get_events(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+    ) -> gpd.GeoDataFrame:
         params = {}
         params["ca_uuid"] = ca_uuid
         params["language_uuid"] = language_uuid
@@ -251,7 +274,7 @@ class SmartIO:
         events_df = self.query_geojson_data(url="observation/", params=params)
         events_df = gpd.GeoDataFrame(
             events_df,
-            geometry=gpd.points_from_xy(x=events_df["X"], y=events_df["Y"]),
+            geometry=gpd.points_from_xy(x=events_df["X"], y=events_df["Y"]),  # type: ignore[index]
             crs="EPSG:4326",
         )
 
@@ -268,7 +291,7 @@ class SmartIO:
         events_df["extracted_attributes"] = events_df["attributes"].apply(self.extract_event_attributes)
         return events_df
 
-    def extract_event_attributes(self, attr_str):
+    def extract_event_attributes(self, attr_str: str) -> dict:
         attr_list = json.loads(attr_str)
         values = {}
         for attr in attr_list:

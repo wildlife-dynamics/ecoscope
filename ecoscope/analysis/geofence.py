@@ -2,7 +2,7 @@ import collections
 import dataclasses
 import typing
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import shapely
 
@@ -10,7 +10,7 @@ import ecoscope
 
 
 class Region(collections.UserDict):
-    def __init__(self, geometry: typing.Any, unique_id: str = None, region_name: str = None):
+    def __init__(self, geometry: typing.Any, unique_id: str | None = None, region_name: str | None = None):
         super().__init__(
             geometry=geometry,
             unique_id=unique_id,
@@ -24,9 +24,9 @@ class GeoFence(collections.UserDict):
     def __init__(
         self,
         geometry: typing.Any,
-        unique_id: str = None,
-        fence_name: str = None,
-        warn_level: str = None,
+        unique_id: str | None = None,
+        fence_name: str | None = None,
+        warn_level: str | None = None,
     ):
         super().__init__(
             geometry=geometry,
@@ -55,7 +55,7 @@ class GeoFenceCrossing:
     def analyse(
         cls,
         geocrossing_profile: GeoCrossingProfile,
-        trajectory: ecoscope.base.Trajectory,
+        trajectory: ecoscope.Trajectory,
     ):
         """
         Analyze the trajectory of each subject in relation to set of virtual fences and regions to determine where/when
@@ -66,7 +66,7 @@ class GeoFenceCrossing:
         ----------
         geocrossing_profile: GeoCrossingProfile
             Object that contains the geonfences and regions
-        trajectory: ecoscope.base.Trajectory
+        trajectory: ecoscope.Trajectory
             Geodataframe stores goemetry, speed_kmhr, heading etc. for each subject.
 
         Returns
@@ -74,13 +74,13 @@ class GeoFenceCrossing:
             ecoscope.base.EcoDataFrame
 
         """
-        trajectory = trajectory.copy()
-        trajectory["start_point"] = shapely.get_point(trajectory.geometry, 0)
-        trajectory["end_point"] = shapely.get_point(trajectory.geometry, 1)
+        traj_gdf = trajectory.gdf.copy()
+        traj_gdf["start_point"] = shapely.get_point(traj_gdf.geometry, 0)
+        traj_gdf["end_point"] = shapely.get_point(traj_gdf.geometry, 1)
 
         def apply_func(fence):
             geofence = fence.geometry
-            traj = trajectory.loc[trajectory.intersects(geofence)].copy()
+            traj = traj_gdf.loc[traj_gdf.intersects(geofence)].copy()
             traj["segment_geometry"] = traj["geometry"]
             traj.set_geometry(traj.intersection(geofence), inplace=True)
             traj = traj.explode(index_parts=False)
@@ -111,6 +111,6 @@ class GeoFenceCrossing:
             return traj
 
         fences = geocrossing_profile.geofence_df
-        df = pd.concat([apply_func(fence) for _, fence in fences.iterrows()])
-        df.drop(["start_point", "end_point"], axis=1, inplace=True)
-        return ecoscope.base.EcoDataFrame(df, geometry="geometry")
+        gdf = pd.concat([apply_func(fence) for _, fence in fences.iterrows()])
+        gdf.drop(["start_point", "end_point"], axis=1, inplace=True)
+        return ecoscope.base.EcoDataFrame(gdf=gdf)

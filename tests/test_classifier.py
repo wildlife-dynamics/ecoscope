@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from ecoscope.base import Trajectory
+from ecoscope import Trajectory
 from ecoscope.analysis.classifier import apply_classification, apply_color_map
 
 
@@ -100,7 +100,7 @@ def test_apply_colormap_k2(sample_df):
 
 def test_apply_colormap_user_defined(movebank_relocations):
     trajectory = Trajectory.from_relocations(movebank_relocations)
-    apply_classification(trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval")
+    apply_classification(trajectory.gdf, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval")
 
     # With len(cmap)==7 we're also testing that the input cmap can be larger than the number of categories
     cmap = [
@@ -113,13 +113,13 @@ def test_apply_colormap_user_defined(movebank_relocations):
         "#FFFFFF",
     ]
 
-    apply_color_map(trajectory, "speed_bins", cmap)
-    assert len(trajectory["speed_bins_colormap"].unique()) == len(trajectory["speed_bins"].unique())
+    apply_color_map(trajectory.gdf, "speed_bins", cmap)
+    assert len(trajectory.gdf["speed_bins_colormap"].unique()) == len(trajectory.gdf["speed_bins"].unique())
 
 
 def test_apply_colormap_user_defined_loops(movebank_relocations):
     trajectory = Trajectory.from_relocations(movebank_relocations)
-    apply_classification(trajectory, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval")
+    apply_classification(trajectory.gdf, "speed_kmhr", output_column_name="speed_bins", k=6, scheme="equal_interval")
 
     # With len(cmap)==7 we're also testing that the input cmap can be larger than the number of categories
     cmap = [
@@ -129,8 +129,8 @@ def test_apply_colormap_user_defined_loops(movebank_relocations):
         "#fee08b",
     ]
 
-    apply_color_map(trajectory, "speed_bins", cmap)
-    assert len(trajectory["speed_bins_colormap"].unique()) == len(cmap)
+    apply_color_map(trajectory.gdf, "speed_bins", cmap)
+    assert len(trajectory.gdf["speed_bins_colormap"].unique()) == len(cmap)
 
 
 def test_classify_with_ranges(sample_df):

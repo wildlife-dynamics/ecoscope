@@ -1,9 +1,7 @@
-import typing
-
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
-import rasterio
-import rasterio.features
+import rasterio  # type: ignore[import-untyped]
+import rasterio.features  # type: ignore[import-untyped]
 from shapely.geometry import shape
 from shapely.geometry.multipolygon import MultiPolygon
 
@@ -15,14 +13,14 @@ def _multipolygon(shapes, percentile):
 
 
 def get_percentile_area(
-    percentile_levels: typing.List,
+    percentile_levels: list[int],
     raster_data: raster.RasterData,
     subject_id: str = "",
 ) -> gpd.GeoDataFrame:
     """
     Parameters
     ----------
-    percentile_levels: Typing.List[Int]
+    percentile_levels: list[int]
         list of k-th percentile scores.
     raster_data: raster.RasterData
         array of raster values

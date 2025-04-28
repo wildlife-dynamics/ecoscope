@@ -4,6 +4,7 @@ import functools
 import itertools
 import json
 import logging
+from typing import Callable, cast
 
 import backoff
 import ee
@@ -11,6 +12,7 @@ import numpy as np
 import pandas as pd
 import pytz
 import tqdm.auto as tqdm
+import geopandas as gpd  # type: ignore[import-untyped]
 
 from ecoscope.contrib import geemap
 
@@ -56,14 +58,14 @@ def initialize_earthengine(key_dict):
         logger.debug("Earth Engine has been initialized.")
 
 
-def convert_millisecs_datetime(unix_time):
+def convert_millisecs_datetime(unix_time: float) -> dt.datetime:
     # Define the UNIX Epoch start date
     epoch = dt.datetime(1970, 1, 1, 0, 0, 0)
     t = epoch + dt.timedelta(milliseconds=unix_time)
     return t
 
 
-def add_img_time(img):
+def add_img_time(img: ee.Image) -> ee.Image:
     """
     A function to add the date range of the image as one of its properties and the start and end values as new bands
     """
@@ -72,7 +74,7 @@ def add_img_time(img):
     img = img.addBands(img.metadata("system:time_start"))
     img = img.addBands(img.metadata("system:time_end"))
     dr = ee.DateRange(ee.Date(img.get("system:time_start")), ee.Date(img.get("system:time_end")))
-    return img.set({"date_range": dr})
+    return cast(ee.Image, img.set({"date_range": dr}))
 
 
 @backoff.on_exception(
@@ -80,9 +82,11 @@ def add_img_time(img):
     ee.EEException,
     max_tries=10,
 )
-def label_gdf_with_img(gdf=None, img=None, region_reducer=None, scale=500.0):
+def label_gdf_with_img(
+    gdf: gpd.GeoDataFrame, img: ee.Image, region_reducer: str | ee.Reducer | ee.ComputedObject, scale: float = 500.0
+) -> pd.DataFrame:
     in_fc = ee.FeatureCollection(gdf.__geo_interface__)
-    out_fc = img.reduceRegions(in_fc, region_reducer, scale)
+    out_fc = img.reduceRegions(in_fc, region_reducer, scale)  # type: ignore[arg-type]
     valid_properties = (
         out_fc.first().propertyNames().filter(ee.Filter.inList("item", in_fc.first().propertyNames()).Not())
     )
@@ -96,7 +100,15 @@ def label_gdf_with_img(gdf=None, img=None, region_reducer=None, scale=500.0):
     ).apply(pd.Series.explode)
 
 
-def _match_gdf_to_img_coll_ids(gdf, time_col, img_coll, output_col_name="img_ids", n_before=1, n_after=1, n="images"):
+def _match_gdf_to_img_coll_ids(
+    gdf: gpd.GeoDataFrame,
+    time_col: str,
+    img_coll: ee.ImageCollection,
+    output_col_name: str = "img_ids",
+    n_before: int = 1,
+    n_after: int = 1,
+    n: str = "images",
+) -> gpd.GeoDataFrame:
     """
     A function that will add a column to a gdf (output_col_name) that contains
     the n_before -> n_after temporally closest image IDs from an image collection.
@@ -208,15 +220,15 @@ def _match_gdf_to_img_coll_ids(gdf, time_col, img_coll, output_col_name="img_ids
     max_tries=10,
 )
 def label_gdf_with_temporal_image_collection_by_feature(
-    gdf=None,
-    time_col_name=None,
-    n_before=1,
-    n_after=1,
-    n="images",
-    img_coll=None,
-    region_reducer=None,
+    gdf: gpd.GeoDataFrame,
+    img_coll: ee.ImageCollection,
+    time_col_name: str,
+    n_before: int = 1,
+    n_after: int = 1,
+    n: str = "images",
+    region_reducer: str | ee.Reducer | None = None,
     scale=500.0,
-):
+) -> pd.DataFrame:
     # Match the features to the necessary image collection images
     _match_gdf_to_img_coll_ids(
         gdf=gdf,
@@ -265,14 +277,14 @@ def label_gdf_with_temporal_image_collection_by_feature(
     max_tries=10,
 )
 def label_gdf_with_temporal_image_collection_by_timespan(
-    gdf=None,
-    img_coll=None,
-    image_radius=0,
-    add_time=False,
+    gdf: gpd.GeoDataFrame,
+    img_coll: ee.ImageCollection,
+    image_radius: int = 0,
+    add_time: bool = False,
     region_reducer="toList",
     df_chunk_size=25000,
     max_workers=1,
-):
+) -> pd.DataFrame:
     img_list = img_coll.toList(img_coll.size())
 
     # @TODO sort. Current code assumes img_coll is sorted by `system:time_start`
@@ -308,25 +320,26 @@ def label_gdf_with_temporal_image_collection_by_timespan(
         results = list(tqdm.tqdm(executor.map(f, imgs, chunks), total=len(chunks)))
 
     if results:
-        results = pd.concat(results)
+        results_df = pd.concat(results)
 
         if add_time:
             img_names = np.array(img_coll.aggregate_array("system:index").getInfo())
 
-            cat = results.variable.astype("category").cat
-            results["time"] = cat.categories.str[: len(img_names[0])].map(
+            cat = results_df.variable.astype("category").cat
+            results_df["time"] = cat.categories.str[: len(img_names[0])].map(
                 pd.Series(pd.to_datetime(times, unit="ms", utc=True), index=img_names)
             )[cat.codes]
 
-        return results
+        return results_df
+    return pd.DataFrame()
 
 
 def chunk_gdf(
-    gdf=None,
-    label_func=None,
-    label_func_kwargs=None,
-    df_chunk_size=25000,
-    max_workers=1,
+    gdf: gpd.GeoDataFrame,
+    label_func: Callable,
+    label_func_kwargs: dict | None = None,
+    df_chunk_size: int = 25000,
+    max_workers: int = 1,
 ):
     """
     A function that will process the input gdf in chunks and apply the input label_func function over the chunks.
@@ -342,6 +355,9 @@ def chunk_gdf(
     :param max_workers: the number of chunks to process concurrently
     :return: a dataframe with the same index as the input gdf and where each pixel value (or reduced value) is a row
     """
+    if label_func_kwargs is None:
+        label_func_kwargs = {}
+
     chunks = [gdf.iloc[i : i + df_chunk_size].copy() for i in range(0, len(gdf), df_chunk_size)]
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -354,13 +370,13 @@ def chunk_gdf(
 
 
 def calculate_anomaly(
-    gdf=None,
-    img_coll=None,
-    historical_start="2000-01-01",
-    start="2010-01-01",
-    end="2022-01-01",
-    scale=5000.0,
-):
+    gdf: gpd.GeoDataFrame,
+    img_coll: ee.ImageCollection,
+    historical_start: str | dt.datetime,
+    start: str | dt.datetime,
+    end: str | dt.datetime,
+    scale: float = 5000.0,
+) -> pd.DataFrame:
     """
     Compute anomalies by subtracting the historical_start mean from each image in a collection of start->end images.
     :param gdf: the input geodataframe

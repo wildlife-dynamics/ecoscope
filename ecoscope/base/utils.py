@@ -1,19 +1,24 @@
-import geopandas as gpd
+from datetime import datetime
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
+from pandas.core.groupby.generic import DataFrameGroupBy
 from shapely.geometry import box
-from typing import Tuple
+from shapely.geometry.base import BaseGeometry
+from typing import Any, Literal, Tuple
+
+BoundingBox = Tuple[float, float, float, float]
 
 
 def create_meshgrid(
-    aoi,
-    in_crs,
-    out_crs,
-    xlen=1000,
-    ylen=1000,
-    return_intersecting_only=True,
-    align_to_existing=None,
-):
+    aoi: BaseGeometry,
+    in_crs: Any,
+    out_crs: Any,
+    xlen: int = 1000,
+    ylen: int = 1000,
+    return_intersecting_only: bool = True,
+    align_to_existing: gpd.GeoSeries | gpd.GeoDataFrame | None = None,
+) -> gpd.GeoSeries:
     """Create a grid covering `aoi`.
 
     Parameters
@@ -74,7 +79,7 @@ def create_meshgrid(
     return gs.to_crs(out_crs)
 
 
-def groupby_intervals(df, col, intervals):
+def groupby_intervals(df: pd.DataFrame, col: str, intervals: pd.IntervalIndex) -> DataFrameGroupBy:
     """
     Parameters
     ----------
@@ -108,15 +113,22 @@ def groupby_intervals(df, col, intervals):
     ).groupby(level=0)
 
 
-def create_interval_index(start, intervals, freq, overlap=pd.Timedelta(0), closed="right", round_down_to_freq=False):
+def create_interval_index(
+    start: datetime | pd.Timestamp,
+    intervals: int,
+    freq: str | pd.Timedelta | pd.DateOffset,
+    overlap: pd.Timedelta | pd.DateOffset = pd.Timedelta(0),
+    closed: Literal["left", "right", "both", "neither"] = "right",
+    round_down_to_freq: bool = False,
+) -> pd.IntervalIndex:
     """
     Parameters
     ----------
-    start : str or datetime-like
+    start : Datetime or pd.Timestamp
         Left bound for creating IntervalIndex
     intervals : int, optional
         Number of intervals to create
-    freq : str, Timedelta or DateOffset
+    freq : Timedelta or DateOffset
         Length of each interval
     overlap : Timedelta or DateOffset, optional
         Length of overlap between intervals
@@ -131,18 +143,19 @@ def create_interval_index(start, intervals, freq, overlap=pd.Timedelta(0), close
 
     """
 
-    freq = pd.tseries.frequencies.to_offset(freq)
-    overlap = pd.tseries.frequencies.to_offset(overlap)
+    freq_offset: pd.tseries.offsets.BaseOffset = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type]
+    overlap_offset: pd.tseries.offsets.BaseOffset = pd.tseries.frequencies.to_offset(overlap)  # type: ignore[arg-type]
+
     if round_down_to_freq:
-        start = start.round(freq)
+        start = start.round(freq_offset)  # type: ignore[arg-type, union-attr]
 
     left = [start]
     for i in range(1, intervals):
-        start = start + freq
-        left.append(start - i * overlap)
-    left = pd.DatetimeIndex(left)
+        start = start + freq_offset
+        left.append(start - i * overlap_offset)
+    left_index = pd.DatetimeIndex(left)
 
-    return pd.IntervalIndex.from_arrays(left=left, right=left + freq, closed=closed)
+    return pd.IntervalIndex.from_arrays(left=left_index, right=left_index + freq_offset, closed=closed)
 
 
 class ModisBegin(pd._libs.tslibs.offsets.SingleConstructorOffset):
@@ -152,13 +165,18 @@ class ModisBegin(pd._libs.tslibs.offsets.SingleConstructorOffset):
 
     def apply(self, other: pd.Timestamp) -> pd.Timestamp:
         assert other.tz is not None, "Timestamp must be timezone-aware"
-        other = other.astimezone("UTC").round("d")
+        other = other.astimezone("UTC").round("d")  # type: ignore[arg-type]
         for i in range(self.n):
             other = min(other + pd.offsets.YearBegin(), other + pd.DateOffset(days=(16 - (other.dayofyear - 1) % 16)))
         return other
 
 
-def create_modis_interval_index(start, intervals, overlap=pd.Timedelta(0), closed="right"):
+def create_modis_interval_index(
+    start: str | datetime | pd.Timestamp,
+    intervals: int,
+    overlap: pd.Timedelta | pd.DateOffset = pd.Timedelta(0),
+    closed: Literal["left", "right", "both", "neither"] = "right",
+) -> pd.IntervalIndex:
     """
     Parameters
     ----------
@@ -178,18 +196,18 @@ def create_modis_interval_index(start, intervals, overlap=pd.Timedelta(0), close
     """
 
     modis = ModisBegin()
-    start = modis.apply(start)
+    start = modis.apply(pd.Timestamp(start))
 
     left = [start]
     for i in range(1, intervals):
         start = modis.apply(start)
         left.append(start - i * overlap)
-    left = pd.DatetimeIndex(left)
+    left_index = pd.DatetimeIndex(left)
 
-    return pd.IntervalIndex.from_arrays(left=left, right=left + pd.Timedelta(days=16), closed=closed)
+    return pd.IntervalIndex.from_arrays(left=left_index, right=left_index + pd.Timedelta(days=16), closed=closed)
 
 
-def add_val_index(df, index_name, val):
+def add_val_index(df: pd.DataFrame, index_name: str, val: str) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -213,7 +231,7 @@ def add_val_index(df, index_name, val):
     return df
 
 
-def add_temporal_index(df, index_name, time_col, directive):
+def add_temporal_index(df: pd.DataFrame, index_name: str, time_col: str, directive: str) -> pd.DataFrame:
     """
     Parameters
     ----------
@@ -256,6 +274,6 @@ def hex_to_rgba(input: str) -> tuple:
         raise ValueError(f"Invalid hex string, {input}")
 
 
-def color_tuple_to_css(color: Tuple[int, int, int, int]):
+def color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     # eg [255,0,120,255] converts to 'rgba(255,0,120,1)'
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"

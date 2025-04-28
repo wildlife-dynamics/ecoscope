@@ -1,8 +1,9 @@
 import datetime
-import typing
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import dataclass
+from typing import Any, Union
 
-import geopandas
+import geopandas  # type: ignore[import-untyped]
 import shapely
 import shapely.geometry
 
@@ -15,15 +16,15 @@ class RelocsCoordinateFilter:
     max_x: float = 180.0
     min_y: float = -90.0
     max_y: float = 90.0
-    filter_point_coords: typing.Union[typing.List[typing.List[float]], geopandas.GeoSeries] = field(
-        default_factory=[[0.0, 0.0]]
-    )
+    filter_point_coords: list[list[float]] | geopandas.GeoSeries | None = None
 
     def __post_init__(self):
         if isinstance(self.filter_point_coords, list):
             self.filter_point_coords = geopandas.GeoSeries(
                 shapely.geometry.Point(coord) for coord in self.filter_point_coords
             )
+        if self.filter_point_coords is None:
+            self.filter_point_coords = [[0.0, 0.0]]
 
 
 @dataclass
@@ -69,3 +70,22 @@ class TrajSegFilter:
     max_time_secs: float = float("inf")
     min_speed_kmhr: float = 0.0
     max_speed_kmhr: float = float("inf")
+
+
+@dataclass
+class SpatialFeature:
+    """
+    A spatial geometry with an associated name and unique ID. Becomes a useful construct in several movdata calculations
+    """
+
+    name: str = ""
+    unique_id: Any = uuid.uuid4()
+    geometry: Any = None
+
+
+@dataclass
+class ProximityProfile:
+    spatial_features: list[SpatialFeature]
+
+
+RelocsFilterType = Union[RelocsCoordinateFilter, RelocsDateRangeFilter, RelocsSpeedFilter, RelocsDistFilter]

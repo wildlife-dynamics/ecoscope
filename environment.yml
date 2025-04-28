@@ -6,19 +6,18 @@ dependencies:
   - pip
   - git
   - jupyterlab
-  - fiona<1.10.0
-  - geopandas<=0.14.2
-  - numpy<2
+  - geopandas>1
+  - numpy<2.1
   - ipywidgets
   - pip:
       - kaleido==0.2.1
       - pre-commit>=3
       - coverage[toml]
-      - earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3
+      - earthranger-client@ git+https://github.com/PADAS/er-client@v1.3.3
       - ecoscope
       - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.4
+      - mypy
       - nbsphinx
       - sphinx-autoapi
       - dask[dataframe]
       - fsspec
-      - pytest-asyncio

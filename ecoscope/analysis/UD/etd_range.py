@@ -5,16 +5,17 @@ import typing
 from dataclasses import dataclass
 
 import numpy as np
+import geopandas as gpd  # type: ignore[import-untyped]
 
-from ecoscope.base import Trajectory
+from ecoscope import Trajectory
 from ecoscope.io import raster
 
 try:
-    import numba as nb
-    import scipy
-    from scipy.optimize import minimize
-    from scipy.stats import weibull_min
-    from sklearn import neighbors
+    import numba as nb  # type: ignore[import-untyped]
+    import scipy  # type: ignore[import-untyped]
+    from scipy.optimize import minimize  # type: ignore[import-untyped]
+    from scipy.stats import weibull_min  # type: ignore[import-untyped]
+    from sklearn import neighbors  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
@@ -87,13 +88,13 @@ class Weibull3Parameter(WeibullPDF):
 
 
 def calculate_etd_range(
-    trajectory_gdf: Trajectory,
+    trajectory: Trajectory | gpd.GeoDataFrame,
+    raster_profile: raster.RasterProfile,
     output_path: typing.Union[str, bytes, os.PathLike, None] = None,
     max_speed_kmhr: float = 0.0,
     max_speed_percentage: float = 0.9999,
-    raster_profile: raster.RasterProfile = None,
     expansion_factor: float = 1.3,
-    weibull_pdf: typing.Union[Weibull2Parameter, Weibull3Parameter] = Weibull2Parameter(),
+    weibull_pdf: Weibull2Parameter = Weibull2Parameter(),
     grid_threshold: int = 100,
 ) -> raster.RasterData:
     """
@@ -118,6 +119,7 @@ def calculate_etd_range(
     output_path : str
     """
 
+    trajectory_gdf = trajectory.gdf if isinstance(trajectory, Trajectory) else trajectory
     # if two-parameter weibull has default values; run an optimization routine to auto-determine parameters
     if isinstance(weibull_pdf, Weibull2Parameter) and all([weibull_pdf.shape == 1.0, weibull_pdf.scale == 1.0]):
         speed_kmhr = trajectory_gdf.speed_kmhr
