@@ -427,9 +427,9 @@ def line_chart(
     data: pd.DataFrame,
     x_column: str,
     y_column: str,
-    category_column: str = None,
-    line_kwargs: dict = None,
-    layout_kwargs: dict = None,
+    category_column: str | None = None,
+    line_kwargs: dict | None = None,
+    layout_kwargs: dict | None = None,
 ):
     """
     Creates a line chart from the provided dataframe
