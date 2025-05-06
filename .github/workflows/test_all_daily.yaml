@@ -6,7 +6,8 @@ on:
     # Make this a weird time
     - cron: "23 5 * * *"
   workflow_dispatch: {}
-  
+  pull-request:
+    branches: [ "**" ]
 
 jobs:
   ubuntu:
