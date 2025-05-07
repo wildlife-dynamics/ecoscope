@@ -78,7 +78,7 @@ TILE_LAYERS = {
 }
 
 
-def _keep_columns(gdf: gpd.GeoDataFrame, keep_columns: list[str]) -> gpd.GeoDataFrame:
+def _keep_columns(gdf: gpd.GeoDataFrame, keep_columns: list[str] | None) -> gpd.GeoDataFrame:
     if keep_columns is not None:
         if "geometry" not in keep_columns:
             keep_columns.append("geometry")
