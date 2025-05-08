@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 import ecoscope
 import shapely
-from ecoscope.mapping import EcoMap
+from ecoscope.mapping.map import EcoMap, _clean_gdf
 from ecoscope.analysis.geospatial import datashade_gdf
 from ecoscope.analysis.classifier import apply_classification, apply_color_map
 from lonboard._layer import BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
@@ -374,3 +374,12 @@ def test_add_named_tile_layer():
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], BitmapTileLayer)
     assert m.layers[0].opacity == 0.3
+
+
+def test_clean_gdf(point_gdf):
+    dirty_gdf = point_gdf.copy(deep=True)
+    dirty_gdf.at[0, "geometry"] = None
+
+    clean_gdf = _clean_gdf(dirty_gdf)
+    assert len(clean_gdf) == len(dirty_gdf) - 1
+    assert clean_gdf.recorded_at.dtype == "string"
