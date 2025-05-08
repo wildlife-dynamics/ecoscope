@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "**" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
+
 jobs:
   dev:
     if: github.event.pull_request.user.login != 'dependabot[bot]'

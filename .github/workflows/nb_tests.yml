@@ -10,6 +10,9 @@ env:
   EE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
   EE_PRIVATE_KEY_DATA: ${{ secrets.EE_PRIVATE_KEY_DATA }}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
 
 jobs:
   run_unit_tests:
