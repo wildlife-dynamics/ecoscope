@@ -96,20 +96,16 @@ class EcoMap(Map):
 
         super().__init__(*args, **kwargs)
 
-    def add_layer(self, layer: Union[BaseLayer, list[BaseLayer]], zoom: bool = False):
+    def add_layer(self, layer: Union[BaseLayer], zoom: bool = False):
         """
         Adds a layer or list of layers to the map
         Parameters
         ----------
-        layer : lonboard.BaseLayer or list[lonboard.BaseLayer]
+        layer : lonboard.BaseLayer
         zoom: bool
             Whether to zoom the map to the new layer
         """
-        update = self.layers.copy()
-        if not isinstance(layer, list):
-            layer = [layer]
-        update.extend(layer)
-        self.layers = update
+        self.layers += (layer,)
         if zoom:
             self.zoom_to_bounds(layer)
 
@@ -120,9 +116,7 @@ class EcoMap(Map):
         ----------
         widget : lonboard.BaseDeckWidget or list[lonboard.BaseDeckWidget]
         """
-        update = self.deck_widgets.copy()
-        update.append(widget)
-        self.deck_widgets = update
+        self.deck_widgets += (widget,)
 
     @staticmethod
     def layers_from_gdf(
@@ -444,7 +438,7 @@ class EcoMap(Map):
                 "bearing": 0,
             }
         else:
-            view_state = compute_view(feat)
+            view_state = compute_view([feat] if isinstance(feat, BaseLayer) else feat)
 
         view_state["zoom"] = min(view_state["zoom"], max_zoom)
         self.set_view_state(**view_state)
