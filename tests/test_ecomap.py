@@ -184,7 +184,7 @@ def test_add_point(point_gdf):
 
 def test_add_polygon(poly_gdf):
     m = EcoMap()
-    m.add_layer(m.polygon_layer(poly_gdf, extruded=True, get_line_width=35), zoom=True)
+    m.add_layer(m.polygon_layer(poly_gdf, extruded=True, get_line_width=35), focus=True)
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], PolygonLayer)
     assert m.layers[0].extruded
@@ -262,7 +262,7 @@ def test_add_datashader_gdf(point_gdf):
 def test_add_datashader_gdf_with_zoom(poly_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(poly_gdf, "polygon")
-    m.add_layer(EcoMap.pil_layer(img, bounds), zoom=True)
+    m.add_layer(EcoMap.pil_layer(img, bounds), focus=True)
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], BitmapLayer)
     assert m.view_state.longitude == (bounds[0] + bounds[2]) / 2
@@ -322,7 +322,7 @@ def test_add_polygon_with_color(poly_gdf):
         m.polygon_layer(
             poly_gdf, tooltip_columns=[], fill_color_column="ZoneID_colormap", extruded=True, get_line_width=35
         ),
-        zoom=True,
+        focus=True,
     )
 
     assert len(m.layers) == 1

@@ -125,19 +125,6 @@ class EcoMap(Map):
 
         super().__init__(*args, **kwargs)
 
-    def add_layer(self, layer: Union[BaseLayer] | Sequence[BaseLayer], zoom: bool = False):
-        """
-        Adds a layer or list of layers to the map
-        Parameters
-        ----------
-        layer : lonboard.BaseLayer or Sequence[lonboard.BaseLayer]
-        zoom: bool
-            Whether to zoom the map to the new layer
-        """
-        self.layers += (layer,) if isinstance(layer, BaseLayer) else layer
-        if zoom:
-            self.zoom_to_bounds(layer)
-
     def add_widget(self, widget: BaseDeckWidget):
         """
         Adds a deck widget to the map
