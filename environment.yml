@@ -15,7 +15,7 @@ dependencies:
       - coverage[toml]
       - earthranger-client@ git+https://github.com/PADAS/er-client@v1.3.3
       - ecoscope
-      - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.4
+      - lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.5
       - mypy
       - nbsphinx
       - sphinx-autoapi
