@@ -1,5 +1,4 @@
 import base64
-import json
 from io import BytesIO
 from pathlib import Path
 from typing import IO, Dict, Optional, TextIO, Union, overload
@@ -27,8 +26,6 @@ try:
     from lonboard._geoarrow.ops.bbox import Bbox
     from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
     from lonboard._viewport import bbox_to_zoom_level, compute_view
-    from lonboard._viz import viz_layer
-    from lonboard.types.layer import PathLayerKwargs, PolygonLayerKwargs, ScatterplotLayerKwargs
 
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
@@ -117,44 +114,6 @@ class EcoMap(Map):
         widget : lonboard.BaseDeckWidget or list[lonboard.BaseDeckWidget]
         """
         self.deck_widgets += (widget,)
-
-    @staticmethod
-    def layers_from_gdf(
-        gdf: gpd.GeoDataFrame, tooltip_columns: list[str] | None = None, **kwargs
-    ) -> list[Union[ScatterplotLayer, PathLayer, PolygonLayer]]:
-        """
-        Creates map layers from the provided gdf, returns multiple layers when geometry is mixed
-        Style kwargs are provided to all created layers
-        Parameters
-        ----------
-        gdf : gpd.GeoDataFrame
-            The data used to create the visualization layer
-        tooltip_columns:
-            A list of dataframe columns to be included in the map picking tooltip
-            Will default to all columns if no list is provided
-        kwargs: Additional kwargs passed to lonboard
-        """
-        gdf = EcoMap._clean_gdf(gdf, keep_columns=tooltip_columns)
-
-        # Take from **kwargs the valid kwargs for each underlying layer
-        # Allows a param set to be passed for a potentially multi-geometry GDF
-        polygon_kwargs = {}
-        scatterplot_kwargs = {}
-        path_kwargs = {}
-        for key in kwargs:
-            if key in PolygonLayerKwargs.__optional_keys__:
-                polygon_kwargs[key] = kwargs[key]
-            if key in ScatterplotLayerKwargs.__optional_keys__:
-                scatterplot_kwargs[key] = kwargs[key]
-            if key in PathLayerKwargs.__optional_keys__:
-                path_kwargs[key] = kwargs[key]
-
-        return viz_layer(
-            data=gdf,
-            polygon_kwargs=polygon_kwargs,  # type: ignore[arg-type]
-            scatterplot_kwargs=scatterplot_kwargs,  # type: ignore[arg-type]
-            path_kwargs=path_kwargs,  # type: ignore[arg-type]
-        )
 
     @staticmethod
     def _clean_gdf(gdf: gpd.GeoDataFrame, keep_columns: list[str] | None = None) -> gpd.geodataframe:
@@ -398,11 +357,6 @@ class EcoMap(Map):
             ee_object_new = ee_object.mosaic()
             map_id_dict = ee.Image(ee_object_new).getMapId(visualization_params)
             ee_layer = BitmapTileLayer(data=map_id_dict["tile_fetcher"].url_format, **kwargs)
-
-        elif isinstance(ee_object, ee.geometry.Geometry):
-            geojson = ee_object.getInfo()
-            gdf = gpd.read_file(json.dumps(geojson), driver="GeoJSON")
-            ee_layer = EcoMap.layers_from_gdf(gdf=gdf, **kwargs)
 
         elif isinstance(ee_object, ee.featurecollection.FeatureCollection):
             ee_object_new = ee.Image().paint(ee_object, 0, 2)
