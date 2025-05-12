@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 import ecoscope
 import shapely
-from ecoscope.mapping import EcoMap
+from ecoscope.mapping.map import EcoMap, _clean_gdf
 from ecoscope.analysis.geospatial import datashade_gdf
 from ecoscope.analysis.classifier import apply_classification, apply_color_map
 from lonboard._layer import BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
@@ -165,15 +165,6 @@ def test_add_ee_layer_feature_collection():
     assert isinstance(m.layers[0], BitmapTileLayer)
 
 
-@pytest.mark.io
-def test_add_ee_layer_geometry():
-    m = EcoMap()
-    rectangle = ee.Geometry.Rectangle([-40, -20, 40, 20])
-    m.add_layer(EcoMap.ee_layer(rectangle, None))
-    assert len(m.layers) == 1
-    assert isinstance(m.layers[0], PolygonLayer)
-
-
 def test_add_polyline(line_gdf):
     m = EcoMap()
     m.add_layer(m.polyline_layer(line_gdf, get_width=200))
@@ -193,7 +184,7 @@ def test_add_point(point_gdf):
 
 def test_add_polygon(poly_gdf):
     m = EcoMap()
-    m.add_layer(m.polygon_layer(poly_gdf, extruded=True, get_line_width=35), zoom=True)
+    m.add_layer(m.polygon_layer(poly_gdf, extruded=True, get_line_width=35), focus=True)
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], PolygonLayer)
     assert m.layers[0].extruded
@@ -201,30 +192,6 @@ def test_add_polygon(poly_gdf):
     # validating zoom param by checking view state is non-default
     assert m.view_state.longitude != 10
     assert m.view_state.latitude != 0
-
-
-def test_layers_from_gdf(poly_gdf, line_gdf, point_gdf):
-    joint_kwargs = {
-        "get_width": 130,
-        "get_line_width": 35,
-        "get_radius": 200,
-        "get_fill_color": [25, 100, 25, 100],
-        "get_bananas": 2134,
-    }
-
-    poly_gdf.to_crs(4326, inplace=True)
-    point_gdf.to_crs(4326, inplace=True)
-
-    together = gpd.GeoDataFrame(pd.concat([poly_gdf.geometry, line_gdf.geometry, point_gdf.geometry]))
-    layers = EcoMap.layers_from_gdf(gdf=together, **joint_kwargs)
-
-    m = EcoMap(layers=layers)
-    assert len(m.layers) == 3
-    assert m.layers[0].get_fill_color == [25, 100, 25, 100]
-    assert m.layers[0].get_line_width == 35
-    assert m.layers[1].get_width == 130
-    assert m.layers[2].get_radius == 200
-    assert m.layers[2].get_fill_color == [25, 100, 25, 100]
 
 
 def test_zoom_to_gdf():
@@ -295,7 +262,7 @@ def test_add_datashader_gdf(point_gdf):
 def test_add_datashader_gdf_with_zoom(poly_gdf):
     m = EcoMap()
     img, bounds = datashade_gdf(poly_gdf, "polygon")
-    m.add_layer(EcoMap.pil_layer(img, bounds), zoom=True)
+    m.add_layer(EcoMap.pil_layer(img, bounds), focus=True)
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], BitmapLayer)
     assert m.view_state.longitude == (bounds[0] + bounds[2]) / 2
@@ -354,7 +321,7 @@ def test_add_polygon_with_color(poly_gdf):
         m.polygon_layer(
             poly_gdf, tooltip_columns=[], fill_color_column="ZoneID_colormap", extruded=True, get_line_width=35
         ),
-        zoom=True,
+        focus=True,
     )
 
     assert len(m.layers) == 1
@@ -374,3 +341,12 @@ def test_add_named_tile_layer():
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], BitmapTileLayer)
     assert m.layers[0].opacity == 0.3
+
+
+def test_clean_gdf(point_gdf):
+    dirty_gdf = point_gdf.copy(deep=True)
+    dirty_gdf.at[0, "geometry"] = None
+
+    clean_gdf = _clean_gdf(dirty_gdf)
+    assert len(clean_gdf) == len(dirty_gdf) - 1
+    assert clean_gdf.recorded_at.dtype == "string"
