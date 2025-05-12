@@ -54,6 +54,7 @@ mapping = [
   "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.5",
   "matplotlib",
   "mapclassify",
+  "pyarrow",
 ]
 plotting = ["kaleido", "plotly", "scikit-learn"]
 test = [
