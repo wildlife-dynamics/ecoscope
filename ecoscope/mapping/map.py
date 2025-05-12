@@ -1,7 +1,7 @@
 import base64
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Dict, Optional, TextIO, Union, overload
+from typing import IO, Dict, Optional, TextIO, Union, overload, Sequence
 
 import ee
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -125,16 +125,16 @@ class EcoMap(Map):
 
         super().__init__(*args, **kwargs)
 
-    def add_layer(self, layer: Union[BaseLayer], zoom: bool = False):
+    def add_layer(self, layer: Union[BaseLayer] | Sequence[BaseLayer], zoom: bool = False):
         """
         Adds a layer or list of layers to the map
         Parameters
         ----------
-        layer : lonboard.BaseLayer
+        layer : lonboard.BaseLayer or Sequence[lonboard.BaseLayer]
         zoom: bool
             Whether to zoom the map to the new layer
         """
-        self.layers += (layer,)
+        self.layers += (layer,) if isinstance(layer, BaseLayer) else layer
         if zoom:
             self.zoom_to_bounds(layer)
 
@@ -371,7 +371,7 @@ class EcoMap(Map):
 
         return ee_layer
 
-    def zoom_to_bounds(self, feat: Union[BaseLayer, list[BaseLayer], gpd.GeoDataFrame], max_zoom: int = 20):
+    def zoom_to_bounds(self, feat: Union[BaseLayer, Sequence[BaseLayer], gpd.GeoDataFrame], max_zoom: int = 20):
         """
         Zooms the map to the bounds of a dataframe or layer.
 
