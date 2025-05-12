@@ -75,6 +75,38 @@ TILE_LAYERS = {
 }
 
 
+def _keep_columns(gdf: gpd.GeoDataFrame, keep_columns: list[str] | None) -> gpd.GeoDataFrame:
+    if keep_columns is not None:
+        if "geometry" not in keep_columns:
+            keep_columns.append("geometry")
+        drop = [column for column in gdf.columns if column not in keep_columns]
+        gdf = gdf.drop(columns=drop)
+    return gdf
+
+
+def _clean_gdf(gdf: gpd.GeoDataFrame) -> gpd.geodataframe:
+    """
+    Cleans a gdf for use in a map layer, ensures EPSG:4326 and removes any empty geometry
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        The data to be cleaned
+    keep_columns:
+        A list of dataframe columns to keep (geometry column will always be kept)
+    """
+    gdf.to_crs(4326, inplace=True)
+    gdf = gdf.loc[(~gdf.geometry.isna()) & (~gdf.geometry.is_empty)]
+
+    for col in gdf:
+        if pd.api.types.is_datetime64_any_dtype(gdf[col]):
+            gdf[col] = gdf[col].astype("string")
+
+    # If the index is named, convert it to a column
+    gdf = gdf.reset_index(drop=False) if gdf.index.name else gdf.reset_index()
+
+    return gdf
+
+
 class EcoMap(Map):
     def __init__(self, static=False, default_widgets=True, *args, **kwargs):
         kwargs["height"] = kwargs.get("height", 600)
@@ -116,35 +148,6 @@ class EcoMap(Map):
         self.deck_widgets += (widget,)
 
     @staticmethod
-    def _clean_gdf(gdf: gpd.GeoDataFrame, keep_columns: list[str] | None = None) -> gpd.geodataframe:
-        """
-        Cleans a gdf for use in a map layer, ensures EPSG:4326 and removes any empty geometry
-        Parameters
-        ----------
-        gdf : gpd.GeoDataFrame
-            The data to be cleaned
-        keep_columns:
-            A list of dataframe columns to keep (geometry column will always be kept)
-        """
-        gdf.to_crs(4326, inplace=True)
-        gdf = gdf.loc[(~gdf.geometry.isna()) & (~gdf.geometry.is_empty)]
-
-        for col in gdf:
-            if pd.api.types.is_datetime64_any_dtype(gdf[col]):
-                gdf[col] = gdf[col].astype("string")
-
-        # If the index is named, convert it to a column
-        gdf = gdf.reset_index(drop=False) if gdf.index.name else gdf.reset_index()
-
-        if keep_columns is not None:
-            if "geometry" not in keep_columns:
-                keep_columns.append("geometry")
-            drop = [column for column in gdf.columns if column not in keep_columns]
-            gdf = gdf.drop(columns=drop)
-
-        return gdf
-
-    @staticmethod
     def polyline_layer(
         gdf: gpd.GeoDataFrame,
         color_column: str | None = None,
@@ -164,10 +167,11 @@ class EcoMap(Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/path-layer/
         """
+        gdf = _clean_gdf(gdf)
         if not kwargs.get("get_color") and color_column:
             kwargs["get_color"] = np.array([color for color in gdf[color_column].values], dtype="uint8")
 
-        gdf = EcoMap._clean_gdf(gdf, keep_columns=tooltip_columns)
+        gdf = _keep_columns(gdf, tooltip_columns)
         return PathLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
@@ -191,12 +195,13 @@ class EcoMap(Map):
             Additional kwargs passed to lonboard.PathLayer:
             http://developmentseed.org/lonboard/latest/api/layers/polygon-layer/
         """
+        gdf = _clean_gdf(gdf)
         if not kwargs.get("get_fill_color") and fill_color_column:
             kwargs["get_fill_color"] = np.array([color for color in gdf[fill_color_column].values], dtype="uint8")
         if not kwargs.get("get_line_color") and line_color_column:
             kwargs["get_line_color"] = np.array([color for color in gdf[line_color_column].values], dtype="uint8")
 
-        gdf = EcoMap._clean_gdf(gdf, keep_columns=tooltip_columns)
+        gdf = _keep_columns(gdf, tooltip_columns)
         return PolygonLayer.from_geopandas(gdf, **kwargs)
 
     @staticmethod
@@ -220,12 +225,13 @@ class EcoMap(Map):
             Additional kwargs passed to lonboard.ScatterplotLayer:
             http://developmentseed.org/lonboard/latest/api/layers/scatterplot-layer/
         """
+        gdf = _clean_gdf(gdf)
         if not kwargs.get("get_fill_color") and fill_color_column:
             kwargs["get_fill_color"] = np.array([color for color in gdf[fill_color_column].values], dtype="uint8")
         if not kwargs.get("get_line_color") and line_color_column:
             kwargs["get_line_color"] = np.array([color for color in gdf[line_color_column].values], dtype="uint8")
 
-        gdf = EcoMap._clean_gdf(gdf, keep_columns=tooltip_columns)
+        gdf = _keep_columns(gdf, tooltip_columns)
         return ScatterplotLayer.from_geopandas(gdf, **kwargs)
 
     def add_legend(self, labels: list | pd.Series, colors: list | pd.Series, **kwargs):
