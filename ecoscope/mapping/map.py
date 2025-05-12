@@ -259,7 +259,7 @@ class EcoMap(Map):
         widget_labels = [str(label) for label in filtered_labels]
         widget_colors = [color_tuple_to_css(color) if isinstance(color, tuple) else color for color in filtered_colors]
 
-        self.add_widget(LegendWidget(labels=widget_labels, colors=widget_colors, **kwargs))
+        self.add_widget(LegendWidget(labels=widget_labels, colors=widget_colors, **kwargs))  # type: ignore[arg-type]
 
     def add_north_arrow(self, **kwargs):
         """
