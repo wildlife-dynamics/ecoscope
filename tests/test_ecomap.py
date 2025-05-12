@@ -311,7 +311,6 @@ def test_add_point_with_color(point_gdf):
     assert len(m.layers) == 1
     assert isinstance(m.layers[0], ScatterplotLayer)
     assert m.layers[0].table.column_names == ["source_id", "time", "geometry"]
-    m.to_html("testoutput.html")
 
 
 def test_add_polygon_with_color(poly_gdf):
