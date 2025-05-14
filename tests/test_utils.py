@@ -10,6 +10,7 @@ from ecoscope.base.utils import (
     add_val_index,
     add_temporal_index,
     grid_size_from_geographic_extent,
+    utm_grid_size_from_geographic_extent,
     ModisBegin,
 )
 
@@ -158,10 +159,79 @@ def test_grid_size_from_geographic_extent(movebank_relocations, aoi_gdf):
     relocs_gdf = movebank_relocations.gdf
     points_worldwide = gpd.read_file("tests/sample_data/vector/points_worldwide.geojson")
     points_worldwide.set_crs("EPSG:4326", inplace=True)
+    lines_worldwide = gpd.read_file("tests/sample_data/vector/lines-worldwide.geojson")
+    lines_worldwide.set_crs("EPSG:4326", inplace=True)
 
-    assert (
-        grid_size_from_geographic_extent(relocs_gdf)
-        < grid_size_from_geographic_extent(aoi_gdf)
-        < grid_size_from_geographic_extent(points_worldwide)
+    relocs_cell_size = grid_size_from_geographic_extent(relocs_gdf)
+    aoi_gdf_cell_size = grid_size_from_geographic_extent(aoi_gdf)
+    points_worldwide_cell_size = grid_size_from_geographic_extent(points_worldwide)
+    lines_worldwide_cell_size = grid_size_from_geographic_extent(lines_worldwide)
+
+    utm_relocs_cell_size = utm_grid_size_from_geographic_extent(relocs_gdf)
+    utm_aoi_gdf_cell_size = utm_grid_size_from_geographic_extent(aoi_gdf)
+    utm_points_worldwide_cell_size = utm_grid_size_from_geographic_extent(points_worldwide)
+    utm_lines_worldwide_cell_size = utm_grid_size_from_geographic_extent(lines_worldwide)
+
+    assert relocs_cell_size < aoi_gdf_cell_size < points_worldwide_cell_size
+
+    relocs_grid = create_meshgrid(
+        aoi=relocs_gdf.union_all(),
+        in_crs=relocs_gdf.crs,
+        out_crs=relocs_gdf.crs,
+        xlen=relocs_cell_size,
+        ylen=relocs_cell_size,
     )
-    print()
+    aoi_gdf_grid = create_meshgrid(
+        aoi=aoi_gdf.union_all(), in_crs=aoi_gdf.crs, out_crs=aoi_gdf.crs, xlen=aoi_gdf_cell_size, ylen=aoi_gdf_cell_size
+    )
+    points_worldwide_grid = create_meshgrid(
+        aoi=points_worldwide.union_all(),
+        in_crs=points_worldwide.crs,
+        out_crs=points_worldwide.crs,
+        xlen=points_worldwide_cell_size,
+        ylen=points_worldwide_cell_size,
+    )
+    lines_worldwide_grid = create_meshgrid(
+        aoi=points_worldwide.union_all(),
+        in_crs=lines_worldwide.crs,
+        out_crs=lines_worldwide.crs,
+        xlen=lines_worldwide_cell_size,
+        ylen=lines_worldwide_cell_size,
+    )
+    open("TESTS/relocs_grid.geojson", "w").write(relocs_grid.to_json())
+    open("TESTS/aoi_gdf_grid.geojson", "w").write(aoi_gdf_grid.to_json())
+    open("TESTS/points_worldwide_grid.geojson", "w").write(points_worldwide_grid.to_json())
+    open("TESTS/lines_worldwide_grid.geojson", "w").write(lines_worldwide_grid.to_json())
+
+    utm_relocs_grid = create_meshgrid(
+        aoi=relocs_gdf.union_all(),
+        in_crs=relocs_gdf.crs,
+        out_crs=relocs_gdf.crs,
+        xlen=utm_relocs_cell_size,
+        ylen=utm_relocs_cell_size,
+    )
+    utm_aoi_gdf_grid = create_meshgrid(
+        aoi=aoi_gdf.union_all(),
+        in_crs=aoi_gdf.crs,
+        out_crs=aoi_gdf.crs,
+        xlen=utm_aoi_gdf_cell_size,
+        ylen=utm_aoi_gdf_cell_size,
+    )
+    utm_points_worldwide_grid = create_meshgrid(
+        aoi=points_worldwide.union_all(),
+        in_crs=points_worldwide.crs,
+        out_crs=points_worldwide.crs,
+        xlen=utm_points_worldwide_cell_size,
+        ylen=utm_points_worldwide_cell_size,
+    )
+    utm_lines_worldwide_grid = create_meshgrid(
+        aoi=points_worldwide.union_all(),
+        in_crs=lines_worldwide.crs,
+        out_crs=lines_worldwide.crs,
+        xlen=utm_lines_worldwide_cell_size,
+        ylen=utm_lines_worldwide_cell_size,
+    )
+    open("TESTS/utm_relocs_grid.geojson", "w").write(utm_relocs_grid.to_json())
+    open("TESTS/utm_aoi_gdf_grid.geojson", "w").write(utm_aoi_gdf_grid.to_json())
+    open("TESTS/utm_points_worldwide_grid.geojson", "w").write(utm_points_worldwide_grid.to_json())
+    open("TESTS/utm_lines_worldwide_grid.geojson", "w").write(utm_lines_worldwide_grid.to_json())

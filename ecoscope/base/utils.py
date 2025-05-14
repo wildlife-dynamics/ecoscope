@@ -281,7 +281,7 @@ def color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
 
 
 def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
-    MAX_CELLS = 500  # TODO name this better
+    MAX_CELLS = 100000  # TODO name this better
 
     def _diagonal(bbox: BoundingBox):
         length = bbox[2] - bbox[1]
@@ -293,5 +293,23 @@ def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
 
     local_bounds = tuple(gdf.geometry.total_bounds.tolist())
     local_cell_size = round(_diagonal(local_bounds) / max_cell_size, 2)
+
+    return local_cell_size
+
+
+def utm_grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
+    MAX_CELLS = 10000  # TODO name this better
+    gdf = gdf.to_crs(gdf.estimate_utm_crs())
+
+    def _diagonal(bbox: BoundingBox):
+        length = bbox[2] - bbox[1]
+        width = bbox[3] - bbox[0]
+        return math.sqrt(length**2 + width**2)
+
+    crs_bounds = gdf.crs.area_of_use.bounds
+    scale_factor = _diagonal(crs_bounds) / MAX_CELLS
+
+    local_bounds = tuple(gdf.geometry.total_bounds.tolist())
+    local_cell_size = round(_diagonal(local_bounds) * scale_factor, 2)
 
     return local_cell_size
