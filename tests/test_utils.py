@@ -1,5 +1,6 @@
 import pytest
 import pandas as pd
+import geopandas as gpd
 from ecoscope.base.utils import hex_to_rgba
 from ecoscope.base.utils import (
     create_meshgrid,
@@ -8,6 +9,7 @@ from ecoscope.base.utils import (
     create_modis_interval_index,
     add_val_index,
     add_temporal_index,
+    grid_size_from_geographic_extent,
     ModisBegin,
 )
 
@@ -150,3 +152,16 @@ def test_hex_to_rgba(hex_str, expected):
 def test_hex_to_rgba_invalid(hex_str):
     with pytest.raises(ValueError):
         hex_to_rgba(hex_str)
+
+
+def test_grid_size_from_geographic_extent(movebank_relocations, aoi_gdf):
+    relocs_gdf = movebank_relocations.gdf
+    points_worldwide = gpd.read_file("tests/sample_data/vector/points_worldwide.geojson")
+    points_worldwide.set_crs("EPSG:4326", inplace=True)
+
+    assert (
+        grid_size_from_geographic_extent(relocs_gdf)
+        < grid_size_from_geographic_extent(aoi_gdf)
+        < grid_size_from_geographic_extent(points_worldwide)
+    )
+    print()
