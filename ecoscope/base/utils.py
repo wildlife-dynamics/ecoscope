@@ -279,7 +279,7 @@ def color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"
 
 
-def haversine_grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
+def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
     MAX_CELLS = 10  # TODO name this better
     gdf = gdf.to_crs("EPSG:4326")
 
