@@ -1,4 +1,3 @@
-import math
 from datetime import datetime
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
@@ -280,36 +279,22 @@ def color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"
 
 
-def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
-    MAX_CELLS = 100000  # TODO name this better
+def haversine_grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
+    MAX_CELLS = 10  # TODO name this better
+    gdf = gdf.to_crs("EPSG:4326")
 
-    def _diagonal(bbox: BoundingBox):
-        length = bbox[2] - bbox[1]
-        width = bbox[3] - bbox[0]
-        return math.sqrt(length**2 + width**2)
+    def _haversine_diagonal(bbox: BoundingBox):
+        from sklearn.metrics.pairwise import haversine_distances
+        from math import radians
 
-    crs_bounds = gdf.crs.area_of_use.bounds
-    max_cell_size = _diagonal(crs_bounds) / MAX_CELLS
-
-    local_bounds = tuple(gdf.geometry.total_bounds.tolist())
-    local_cell_size = round(_diagonal(local_bounds) / max_cell_size, 2)
-
-    return local_cell_size
-
-
-def utm_grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
-    MAX_CELLS = 10000  # TODO name this better
-    gdf = gdf.to_crs(gdf.estimate_utm_crs())
-
-    def _diagonal(bbox: BoundingBox):
-        length = bbox[2] - bbox[1]
-        width = bbox[3] - bbox[0]
-        return math.sqrt(length**2 + width**2)
-
-    crs_bounds = gdf.crs.area_of_use.bounds
-    scale_factor = _diagonal(crs_bounds) / MAX_CELLS
+        bbox_radians = [radians(x) for x in bbox]
+        min_point = [bbox_radians[0], bbox_radians[1]]
+        max_point = [bbox_radians[2], bbox_radians[3]]
+        result = haversine_distances([min_point, max_point])
+        result = result * 6371000 / 100  # multiply by Earth radius to get metres
+        return result[0][1]
 
     local_bounds = tuple(gdf.geometry.total_bounds.tolist())
-    local_cell_size = round(_diagonal(local_bounds) * scale_factor, 2)
+    local_cell_size = round(_haversine_diagonal(local_bounds) / MAX_CELLS, 0)
 
     return local_cell_size
