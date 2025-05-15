@@ -279,8 +279,7 @@ def color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"
 
 
-def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
-    MAX_CELLS = 10  # TODO name this better
+def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 10) -> float:
     gdf = gdf.to_crs("EPSG:4326")
 
     def _haversine_diagonal(bbox: BoundingBox):
@@ -295,6 +294,6 @@ def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame) -> float:
         return result[0][1]
 
     local_bounds = tuple(gdf.geometry.total_bounds.tolist())
-    local_cell_size = round(_haversine_diagonal(local_bounds) / MAX_CELLS, 0)
+    local_cell_size = int(round(_haversine_diagonal(local_bounds) / scale_factor, 0))
 
     return local_cell_size
