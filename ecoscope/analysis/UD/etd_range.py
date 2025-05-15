@@ -8,6 +8,7 @@ import numpy as np
 import geopandas as gpd  # type: ignore[import-untyped]
 
 from ecoscope import Trajectory
+from ecoscope.base.utils import BoundingBox
 from ecoscope.io import raster
 
 try:
@@ -16,6 +17,7 @@ try:
     from scipy.optimize import minimize  # type: ignore[import-untyped]
     from scipy.stats import weibull_min  # type: ignore[import-untyped]
     from sklearn import neighbors  # type: ignore[import-untyped]
+    from sklearn.metrics.pairwise import haversine_distances  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
@@ -240,3 +242,21 @@ def calculate_etd_range(
         )
 
     return raster.RasterData(data=ndarray.astype("float32"), crs=raster_profile.crs, transform=raster_profile.transform)
+
+
+def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 10) -> float:
+    gdf = gdf.to_crs("EPSG:4326")
+
+    def _haversine_diagonal(bbox: BoundingBox):
+        # From https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.haversine_distances.html
+        bbox_radians = [math.radians(x) for x in bbox]
+        min_point = [bbox_radians[0], bbox_radians[1]]
+        max_point = [bbox_radians[2], bbox_radians[3]]
+        result = haversine_distances([min_point, max_point])
+        result = result * 6371000 / 100  # multiply by Earth radius to get metres
+        return result[0][1]
+
+    local_bounds = tuple(gdf.geometry.total_bounds.tolist())
+    local_cell_size = int(round(_haversine_diagonal(local_bounds) / scale_factor, 0))
+
+    return local_cell_size
