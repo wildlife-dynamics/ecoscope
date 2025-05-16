@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import ecoscope
-from ecoscope.analysis import UD
+from ecoscope.analysis.UD import calculate_etd_range, grid_size_from_geographic_extent
 from ecoscope.analysis.percentile import get_percentile_area
 
 
@@ -41,7 +41,7 @@ def raster_profile():
 def test_etd_range_with_tif_file(movebank_trajectory, raster_profile):
     file = NamedTemporaryFile(delete=False)
     try:
-        UD.calculate_etd_range(
+        calculate_etd_range(
             trajectory=movebank_trajectory,
             output_path=file.name,
             max_speed_kmhr=1.05 * movebank_trajectory.gdf.speed_kmhr.max(),
@@ -65,7 +65,7 @@ def test_etd_range_with_tif_file(movebank_trajectory, raster_profile):
 def test_etd_range_without_tif_file(movebank_trajectory, raster_profile):
     file = NamedTemporaryFile(delete=False)
     try:
-        raster_data = UD.calculate_etd_range(
+        raster_data = calculate_etd_range(
             trajectory=movebank_trajectory,
             max_speed_kmhr=1.05 * movebank_trajectory.gdf.speed_kmhr.max(),
             raster_profile=raster_profile,
@@ -87,3 +87,15 @@ def test_reduce_regions(aoi_gdf):
     raster_names = ["tests/sample_data/raster/mara_dem.tif"]
     result = ecoscope.io.raster.reduce_region(aoi_gdf, raster_names, np.mean)
     assert result[raster_names[0]].sum() > 0
+
+
+def test_grid_size_from_geographic_extent(movebank_relocations, aoi_gdf, sample_observations):
+    relocs_gdf = movebank_relocations.gdf
+    # aoi_gdf.total_bounds = [34.798, -1.901, 36.001, -0.997], smallest extent
+    aoi_gdf_cell_size = grid_size_from_geographic_extent(aoi_gdf)
+    # sample_observations.total_bounds = array([20.303, -2.197, 39.375,  2.548])
+    sample_observations_cell_size = grid_size_from_geographic_extent(sample_observations)
+    # Relocs.total_bounds = [-3.099, 0.535, 37.631, 15.736], largest extent
+    relocs_cell_size = grid_size_from_geographic_extent(relocs_gdf)
+
+    assert aoi_gdf_cell_size < sample_observations_cell_size < relocs_cell_size

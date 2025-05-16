@@ -244,7 +244,12 @@ def calculate_etd_range(
     return raster.RasterData(data=ndarray.astype("float32"), crs=raster_profile.crs, transform=raster_profile.transform)
 
 
-def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 1000) -> float:
+def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 100) -> int:
+    """
+    Intended for use as input to create_meshgrid and RasterProfile.
+    Takes the haversine distance of the diagonal across the bounds of a gdf,
+    and divides by the scale_factor to determine a 'sensible' grid size in meters
+    """
     gdf = gdf.to_crs("EPSG:4326")
 
     def _haversine_diagonal(bbox: BoundingBox):
