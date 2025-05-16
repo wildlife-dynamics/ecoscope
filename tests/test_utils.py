@@ -1,6 +1,5 @@
 import pytest
 import pandas as pd
-import geopandas as gpd
 
 from ecoscope.base.utils import (
     create_meshgrid,
@@ -12,12 +11,6 @@ from ecoscope.base.utils import (
     hex_to_rgba,
     ModisBegin,
 )
-
-
-@pytest.fixture
-def sample_observations():
-    gdf = gpd.GeoDataFrame.from_file("tests/sample_data/vector/observations.geojson")
-    return gdf
 
 
 def test_create_meshgrid(aoi_gdf):
