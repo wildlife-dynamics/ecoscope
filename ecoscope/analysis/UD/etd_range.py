@@ -244,7 +244,7 @@ def calculate_etd_range(
     return raster.RasterData(data=ndarray.astype("float32"), crs=raster_profile.crs, transform=raster_profile.transform)
 
 
-def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 10) -> float:
+def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 1000) -> float:
     gdf = gdf.to_crs("EPSG:4326")
 
     def _haversine_diagonal(bbox: BoundingBox):
@@ -253,10 +253,10 @@ def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 
         min_point = [bbox_radians[0], bbox_radians[1]]
         max_point = [bbox_radians[2], bbox_radians[3]]
         result = haversine_distances([min_point, max_point])
-        result = result * 6371000 / 100  # multiply by Earth radius to get metres
+        result = result * 6371000  # multiply by Earth radius to get metres
         return result[0][1]
 
     local_bounds = tuple(gdf.geometry.total_bounds.tolist())
-    local_cell_size = int(round(_haversine_diagonal(local_bounds) / scale_factor, 0))
+    local_cell_size = _haversine_diagonal(local_bounds) / scale_factor
 
-    return local_cell_size
+    return int(round(local_cell_size, 0))
