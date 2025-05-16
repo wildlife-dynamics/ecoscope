@@ -12,6 +12,12 @@ from ecoscope.analysis.percentile import get_percentile_area
 
 
 @pytest.fixture
+def sample_observations():
+    gdf = gpd.GeoDataFrame.from_file("tests/sample_data/vector/observations.geojson")
+    return gdf
+
+
+@pytest.fixture
 def movebank_trajectory(movebank_relocations):
     # apply relocation coordinate filter to movebank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
