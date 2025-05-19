@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from ecoscope.base.utils import hex_to_rgba
+
 from ecoscope.base.utils import (
     create_meshgrid,
     groupby_intervals,
@@ -8,6 +8,7 @@ from ecoscope.base.utils import (
     create_modis_interval_index,
     add_val_index,
     add_temporal_index,
+    hex_to_rgba,
     ModisBegin,
 )
 

@@ -3,6 +3,7 @@ import math
 import os
 import typing
 from dataclasses import dataclass
+from pyproj import Geod
 
 import numpy as np
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -99,15 +100,7 @@ def calculate_etd_range(
 ) -> raster.RasterData:
     """
     The ETDRange class provides a trajectory-based, nonparametric approach to estimate the utilization distribution (UD)
-    of an animal, using model parameters derived directly from the movement behaviour of the species.
-    The model builds on the theory of "time-geography" whereby elliptical constrain- ing regions are established
-    between temporally adjacent recorded locations.
-
-    Parameters
-    ----------
-    trajectory_gdf : geopandas.GeoDataFrame
-    output_path : str or PathLike or None
-    max_speed_kmhr : float
+    of an animal, using model parameters derived directly from the movement behaviour of the species.get_displacement
     max_speed_percentage : 0.999
     raster_profile : raster.RasterProfile
     expansion_factor : float
@@ -240,3 +233,18 @@ def calculate_etd_range(
         )
 
     return raster.RasterData(data=ndarray.astype("float32"), crs=raster_profile.crs, transform=raster_profile.transform)
+
+
+def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 100) -> int:
+    """
+    Intended for use as input to create_meshgrid and RasterProfile.
+    Uses pyproj.geod.inv to determine the distance of the diagonal across the bounds of a gdf,
+    and divides by the scale_factor to determine a 'sensible' grid size in meters
+    """
+    gdf = gdf.to_crs("EPSG:4326")
+    local_bounds = tuple(gdf.geometry.total_bounds.tolist())
+    # Inv returns a 3-tuple of (forward-azimuth, backward-azimuth, distance in metres)
+    diagonal_distance = Geod(ellps="WGS84").inv(local_bounds[0], local_bounds[1], local_bounds[2], local_bounds[3])[2]
+    local_cell_size = diagonal_distance / scale_factor
+
+    return int(round(local_cell_size, 0))
