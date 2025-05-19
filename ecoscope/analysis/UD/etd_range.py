@@ -3,12 +3,12 @@ import math
 import os
 import typing
 from dataclasses import dataclass
+from pyproj import Geod
 
 import numpy as np
 import geopandas as gpd  # type: ignore[import-untyped]
 
 from ecoscope import Trajectory
-from ecoscope.base.utils import BoundingBox
 from ecoscope.io import raster
 
 try:
@@ -17,7 +17,6 @@ try:
     from scipy.optimize import minimize  # type: ignore[import-untyped]
     from scipy.stats import weibull_min  # type: ignore[import-untyped]
     from sklearn import neighbors  # type: ignore[import-untyped]
-    from sklearn.metrics.pairwise import haversine_distances  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. \
@@ -101,15 +100,7 @@ def calculate_etd_range(
 ) -> raster.RasterData:
     """
     The ETDRange class provides a trajectory-based, nonparametric approach to estimate the utilization distribution (UD)
-    of an animal, using model parameters derived directly from the movement behaviour of the species.
-    The model builds on the theory of "time-geography" whereby elliptical constrain- ing regions are established
-    between temporally adjacent recorded locations.
-
-    Parameters
-    ----------
-    trajectory_gdf : geopandas.GeoDataFrame
-    output_path : str or PathLike or None
-    max_speed_kmhr : float
+    of an animal, using model parameters derived directly from the movement behaviour of the species.get_displacement
     max_speed_percentage : 0.999
     raster_profile : raster.RasterProfile
     expansion_factor : float
@@ -247,21 +238,13 @@ def calculate_etd_range(
 def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 100) -> int:
     """
     Intended for use as input to create_meshgrid and RasterProfile.
-    Takes the haversine distance of the diagonal across the bounds of a gdf,
+    Uses pyproj.geod.inv to determine the distance of the diagonal across the bounds of a gdf,
     and divides by the scale_factor to determine a 'sensible' grid size in meters
     """
     gdf = gdf.to_crs("EPSG:4326")
-
-    def _haversine_diagonal(bbox: BoundingBox):
-        # From https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.haversine_distances.html
-        bbox_radians = [math.radians(x) for x in bbox]
-        min_point = [bbox_radians[0], bbox_radians[1]]
-        max_point = [bbox_radians[2], bbox_radians[3]]
-        result = haversine_distances([min_point, max_point])
-        result = result * 6371000  # multiply by Earth radius to get metres
-        return result[0][1]
-
     local_bounds = tuple(gdf.geometry.total_bounds.tolist())
-    local_cell_size = _haversine_diagonal(local_bounds) / scale_factor
+    # Inv returns a 3-tuple of (forward-azimuth, backward-azimuth, distance in metres)
+    diagonal_distance = Geod(ellps="WGS84").inv(local_bounds[0], local_bounds[1], local_bounds[2], local_bounds[3])[2]
+    local_cell_size = diagonal_distance / scale_factor
 
     return int(round(local_cell_size, 0))
