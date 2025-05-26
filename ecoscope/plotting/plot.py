@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 from typing import Tuple
 
+import ecoscope
 import numpy as np
 import pandas as pd
-from pandas.core.groupby.generic import DataFrameGroupBy
 import shapely
-
-import ecoscope
 from ecoscope.base.utils import color_tuple_to_css
+from pandas.core.groupby.generic import DataFrameGroupBy
 
 try:
     import plotly.graph_objs as go  # type: ignore[import-untyped]
@@ -419,7 +418,6 @@ def bar_chart(
             )
         )
 
-    fig.update_layout(barmode="group")
     return fig
 
 
