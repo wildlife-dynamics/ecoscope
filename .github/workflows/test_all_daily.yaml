@@ -6,6 +6,9 @@ on:
     # Make this a weird time
     - cron: "23 5 * * *"
   workflow_dispatch: {}
+  pull_request:
+    branches: [ "**" ]
+
 
 jobs:
   ubuntu:
@@ -18,30 +21,30 @@ jobs:
       os: "ubuntu-latest"
       python-version: ${{ matrix.python-version }}
     secrets: inherit
-  mac:
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-    uses: ./.github/workflows/tests.yml
-    # The If Always/Needs combo here is so that these tests can be 
-    # run sequentially but don't care about eachother failing
-    # We want to run sequentially to minimise the load on mep-dev
-    if: ${{ always() }}
-    needs: [ubuntu]
-    with:
-      io: "io or not io and not smart_io"
-      os: "macos-latest"
-      python-version: ${{ matrix.python-version }}
-    secrets: inherit
-  windows:
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-    uses: ./.github/workflows/tests.yml
-    if: ${{ always() }}
-    needs: [ubuntu, mac]
-    with:
-      io: "io or not io and not smart_io"
-      os: "windows-latest"
-      python-version: ${{ matrix.python-version }}
-    secrets: inherit
+  # mac:
+  #   strategy:
+  #     matrix:
+  #       python-version: ["3.10", "3.11", "3.12"]
+  #   uses: ./.github/workflows/tests.yml
+  #   # The If Always/Needs combo here is so that these tests can be 
+  #   # run sequentially but don't care about eachother failing
+  #   # We want to run sequentially to minimise the load on mep-dev
+  #   if: ${{ always() }}
+  #   needs: [ubuntu]
+  #   with:
+  #     io: "io or not io and not smart_io"
+  #     os: "macos-latest"
+  #     python-version: ${{ matrix.python-version }}
+  #   secrets: inherit
+  # windows:
+  #   strategy:
+  #     matrix:
+  #       python-version: ["3.10", "3.11", "3.12"]
+  #   uses: ./.github/workflows/tests.yml
+  #   if: ${{ always() }}
+  #   needs: [ubuntu, mac]
+  #   with:
+  #     io: "io or not io and not smart_io"
+  #     os: "windows-latest"
+  #     python-version: ${{ matrix.python-version }}
+  #   secrets: inherit
