@@ -81,7 +81,7 @@ mypy =[
   "types-shapely",
   "types-tqdm",
 ]
-all = ["ecoscope[analysis,mapping,plotting,test,docs,mypy]"]
+all = ["ecoscope[analysis,mapping,plotting,test]"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"
