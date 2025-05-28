@@ -30,7 +30,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
       - name: Install our package
         run: |
-          python -m pip install ".[analysis,mapping,plotting,test]"
+          python -m pip install ".[all]"
 
       - name: Test
         env:
