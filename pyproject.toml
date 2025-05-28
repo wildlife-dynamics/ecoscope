@@ -65,11 +65,11 @@ test = [
   "fsspec",
 ]
 docs = [
-  "myst-parser>=0.9.0",
-  "nbsphinx>=0.9.0",
-  "pydata-sphinx-theme>=0.16.0",
-  "sphinx>=8.0.0",
-  "sphinx-autoapi>=3.0.0",
+  "myst-parser",
+  "nbsphinx",
+  "pydata-sphinx-theme",
+  "sphinx",
+  "sphinx-autoapi",
 ]
 mypy =[
   "mypy",
