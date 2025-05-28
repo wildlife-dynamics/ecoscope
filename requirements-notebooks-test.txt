@@ -1,7 +1,7 @@
 pip-tools
 pytest
 papermill
-.[all]
+.[analysis,mapping,plotting,test]
 ipykernel
 pytest-xdist
 folium
