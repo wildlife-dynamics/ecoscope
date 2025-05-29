@@ -57,6 +57,13 @@ mapping = [
   "pyarrow",
 ]
 plotting = ["kaleido", "plotly", "scikit-learn"]
+docs = [
+  "myst-parser",
+  "nbsphinx",
+  "pydata-sphinx-theme",
+  "sphinx",
+  "sphinx-autoapi",
+]
 
 [dependency-groups]
 test = [
@@ -65,13 +72,6 @@ test = [
   "pytest-mock",
   "pytest-reportlog",
   "fsspec",
-]
-docs = [
-  "myst-parser",
-  "nbsphinx",
-  "pydata-sphinx-theme",
-  "sphinx",
-  "sphinx-autoapi",
 ]
 mypy =[
   "mypy",
