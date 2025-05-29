@@ -57,6 +57,8 @@ mapping = [
   "pyarrow",
 ]
 plotting = ["kaleido", "plotly", "scikit-learn"]
+
+[dependency-groups]
 test = [
   "pytest",
   "pytest-cov",
@@ -81,7 +83,6 @@ mypy =[
   "types-shapely",
   "types-tqdm",
 ]
-all = ["ecoscope[analysis,mapping,plotting,test]"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"
