@@ -21,14 +21,14 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
 ]
 dependencies = [
-  "backoff",
-  "earthengine-api",
+  "backoff>=2",
+  "earthengine-api>=1",
   "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
-  "geopandas>1",
-  "numpy<2.1",
-  "pyproj",
-  "rasterio",
-  "tqdm",
+  "geopandas>=1",
+  "numpy>=2,<2.1",
+  "pyproj>=3.3",
+  "rasterio>=1.3",
+  "tqdm>=4",
 ]
 
 [project.urls]
@@ -57,19 +57,21 @@ mapping = [
   "pyarrow",
 ]
 plotting = ["kaleido", "plotly", "scikit-learn"]
-test = [
-  "pytest",
-  "pytest-cov",
-  "pytest-mock",
-  "pytest-reportlog",
-  "fsspec",
-]
 docs = [
   "myst-parser",
   "nbsphinx",
   "pydata-sphinx-theme",
   "sphinx",
   "sphinx-autoapi",
+]
+
+[dependency-groups]
+test = [
+  "pytest",
+  "pytest-cov",
+  "pytest-mock",
+  "pytest-reportlog",
+  "fsspec",
 ]
 mypy =[
   "mypy",
@@ -81,7 +83,6 @@ mypy =[
   "types-shapely",
   "types-tqdm",
 ]
-all = ["ecoscope[analysis,mapping,plotting,test,docs,mypy]"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"

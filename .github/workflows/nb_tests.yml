@@ -17,8 +17,6 @@ concurrency:
 jobs:
   run_unit_tests:
     if: github.event.pull_request.user.login != 'dependabot[bot]'
-    # skipping due to https://github.com/wildlife-dynamics/ecoscope/issues/484
-    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
