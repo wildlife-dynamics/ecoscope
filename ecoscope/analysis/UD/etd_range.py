@@ -247,4 +247,4 @@ def grid_size_from_geographic_extent(gdf: gpd.GeoDataFrame, scale_factor: int = 
     diagonal_distance = Geod(ellps="WGS84").inv(local_bounds[0], local_bounds[1], local_bounds[2], local_bounds[3])[2]
     local_cell_size = diagonal_distance / scale_factor
 
-    return int(round(local_cell_size, 0))
+    return max(1, int(round(local_cell_size, 0)))

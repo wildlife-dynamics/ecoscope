@@ -5,6 +5,7 @@ import geopandas as gpd
 import geopandas.testing
 import numpy as np
 import pytest
+from shapely.geometry import Point
 
 import ecoscope
 from ecoscope.analysis.UD import calculate_etd_range, grid_size_from_geographic_extent
@@ -96,6 +97,9 @@ def test_reduce_regions(aoi_gdf):
 
 
 def test_grid_size_from_geographic_extent(movebank_relocations, aoi_gdf, sample_observations):
+    small_extent = gpd.GeoDataFrame(geometry=[Point(0.0001, 0.0002), Point(0.0002, 0.0001)], crs="EPSG:4326")
+    assert 1 == grid_size_from_geographic_extent(small_extent)
+
     relocs_gdf = movebank_relocations.gdf
     # aoi_gdf.total_bounds = [34.798, -1.901, 36.001, -0.997], smallest extent
     aoi_gdf_cell_size = grid_size_from_geographic_extent(aoi_gdf)
