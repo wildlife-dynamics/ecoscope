@@ -7,6 +7,7 @@ def calculate_ltd(
     traj: Trajectory,
     grid: gpd.GeoDataFrame,
 ) -> gpd.GeoDataFrame:
+    grid = grid.reset_index().rename(columns={"index": "grid_cell_index"})
     overlay = grid.overlay(traj.gdf, how="intersection", keep_geom_type=False)
     overlay["new_distance"] = overlay["geometry"].apply(
         lambda x: Geod(ellps="WGS84").inv(*x.coords[0], *x.coords[1])[2]
