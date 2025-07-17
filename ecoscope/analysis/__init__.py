@@ -10,4 +10,5 @@ __all__ = [
     "seasons",
     "apply_classification",
     "calculate_feature_density",
+    "linear_time_density",
 ]
