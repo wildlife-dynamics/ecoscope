@@ -1,4 +1,5 @@
 import geopandas as gpd
+import numpy as np
 from shapely.geometry import box
 from ecoscope.base.utils import create_meshgrid
 from ecoscope.analysis.UD import grid_size_from_geographic_extent
@@ -33,4 +34,27 @@ def test_ltd(movebank_relocations):
     )
 
     m = EcoMap(layers=[EcoMap.polygon_layer(density_grid, fill_color_column="density_colormap")])
-    m.to_html("testouput.html")
+    m.to_html("density.html")
+
+    percentile_levels = [50, 60, 70, 80, 90, 99.9]
+    filtered = density_grid["density"][~np.isnan(density_grid["density"])]
+    percentile_values = np.percentile(filtered, percentile_levels)
+
+    def find_percentile(value):
+        for i in range(len(percentile_levels)):
+            if value >= percentile_values[i]:
+                return percentile_levels[i]
+        return np.nan
+
+    for i in range(len(percentile_levels)):
+        density_grid["percentile"] = density_grid["density"].apply(find_percentile)
+
+    percentile_colormap = apply_color_map(
+        dataframe=density_grid,
+        input_column_name="percentile",
+        output_column_name="percentile_colormap",
+        cmap="RdYlGn_r",
+    )
+
+    m = EcoMap(layers=[EcoMap.polygon_layer(percentile_colormap, fill_color_column="percentile_colormap")])
+    m.to_html("percentiles.html")
