@@ -174,6 +174,23 @@ def classify_percentile(
     input_column_name: str,
     output_column_name: str = "percentile",
 ) -> gpd.GeoDataFrame:
+    """
+    Creates a new column on the provided dataframe with the percentile bin of the input_column
+    Uses much the same methodology as `get_percentile_area` but applies
+    generally to a numeric dataframe column instead of a raster grid
+
+    Args:
+    gdf (gpd.GeoDatFrame): The data.
+    percentile_levels (list[int]): list of k-th percentile scores.
+    input_column_name (str): The column to apply classification to.
+    output_column_name (str): The dataframe column that will contain the classification.
+        Defaults to "percentile"
+
+    Returns:
+    The input dataframe with percentile classification appended.
+    """
+    assert pd.api.types.is_numeric_dtype(gdf[input_column_name]), "input column must contain numeric values"
+
     input_values = gdf[input_column_name].to_numpy()
     input_values = np.sort(input_values[~np.isnan(input_values)])
     csum = np.cumsum(input_values)
