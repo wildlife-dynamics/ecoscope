@@ -1,5 +1,7 @@
 from typing import Literal
 import pandas as pd
+import geopandas as gpd
+import numpy as np
 import matplotlib as mpl
 from ecoscope.base.utils import hex_to_rgba
 
@@ -164,3 +166,29 @@ def apply_color_map(
 
     dataframe[output_column_name] = [cmap_series[classification] for classification in dataframe[input_column_name]]
     return dataframe
+
+
+def classify_percentile(
+    gdf: gpd.GeoDataFrame,
+    percentile_levels: list[int],
+    input_column_name: str,
+    output_column_name: str = "percentile",
+) -> gpd.GeoDataFrame:
+    input_values = gdf[input_column_name].to_numpy()
+    input_values = np.sort(input_values[~np.isnan(input_values)])
+    csum = np.cumsum(input_values)
+
+    percentile_values = []
+    for percentile in percentile_levels:
+        percentile_values.append(input_values[np.argmin(np.abs(csum[-1] * (1 - percentile / 100) - csum))])
+
+    def find_percentile(value):
+        for i in range(len(percentile_levels)):
+            if value >= percentile_values[i]:
+                return percentile_levels[i]
+        return np.nan
+
+    for i in range(len(percentile_levels)):
+        gdf[output_column_name] = gdf[input_column_name].apply(find_percentile)
+
+    return gdf

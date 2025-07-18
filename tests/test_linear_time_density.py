@@ -4,7 +4,8 @@ from shapely.geometry import box
 from ecoscope.base.utils import create_meshgrid
 from ecoscope.analysis.UD import grid_size_from_geographic_extent
 from ecoscope import Trajectory
-from ecoscope.analysis.linear_time_density import calculate_ltd, classify_percentile
+from ecoscope.analysis.linear_time_density import calculate_ltd
+from ecoscope.analysis.classifier import classify_percentile
 
 
 def test_ltd_with_percentile(movebank_relocations):
