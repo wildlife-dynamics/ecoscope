@@ -22,7 +22,6 @@ def calculate_ltd(
 
     total_time = round(grid["density"].sum(), 1)
     assert total_time == traj.gdf["timespan_seconds"].sum()
-
     grid["density"] = grid["density"] / total_time
 
     return grid

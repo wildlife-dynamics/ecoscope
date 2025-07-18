@@ -37,20 +37,20 @@ def test_ltd(movebank_relocations):
     m.to_html("density.html")
 
     percentile_levels = [50, 60, 70, 80, 90, 99.9]
-    filtered = density_grid["density"][~np.isnan(density_grid["density"])]
-    percentile_values = np.percentile(filtered, percentile_levels)
+    filtered = density_grid[~np.isnan(density_grid["density"])]
+    percentile_values = np.percentile(filtered["density"], percentile_levels)
 
     def find_percentile(value):
-        for i in range(len(percentile_levels)):
+        for i in reversed(range(len(percentile_levels))):
             if value >= percentile_values[i]:
                 return percentile_levels[i]
         return np.nan
 
     for i in range(len(percentile_levels)):
-        density_grid["percentile"] = density_grid["density"].apply(find_percentile)
+        filtered["percentile"] = filtered["density"].apply(find_percentile)
 
     percentile_colormap = apply_color_map(
-        dataframe=density_grid,
+        dataframe=filtered,
         input_column_name="percentile",
         output_column_name="percentile_colormap",
         cmap="RdYlGn_r",
