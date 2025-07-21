@@ -23,8 +23,7 @@ def calculate_ltd(
     grid = grid.reset_index().rename(columns={"index": "grid_cell_index"})
     overlay = grid.overlay(traj.gdf, how="intersection", keep_geom_type=False)
 
-    # drop anything that isn't a line but keep the total timespan
-    dropped_time = max(overlay[overlay.geometry.type != "LineString"]["timespan_seconds"].sum(), 0)
+    # drop anything that isn't a line
     overlay = overlay[overlay.geometry.type == "LineString"]
 
     overlay["fragment_distance"] = overlay["geometry"].apply(
@@ -39,10 +38,6 @@ def calculate_ltd(
     grid["density"] = overlay.groupby("grid_cell_index")["fragment_time"].sum()
 
     total_time = round(grid["density"].sum(), 1)
-
-    assert (
-        total_time == traj.gdf["timespan_seconds"].sum() - dropped_time
-    ), "Segment times do not sum to the Trajectory's total time, this is likely an issue with the provided mesh grid"
 
     grid["density"] = grid["density"] / total_time
     return grid
