@@ -36,7 +36,9 @@ def calculate_ltd(
     grid["density"] = overlay.groupby("grid_cell_index")["fragment_time"].sum()
 
     total_time = round(grid["density"].sum(), 1)
-    assert total_time == traj.gdf["timespan_seconds"].sum()
+    assert (
+        total_time == traj.gdf["timespan_seconds"].sum()
+    ), "Segment times do not sum to the Trajectory's total time, this is likely an issue with the provided mesh grid"
 
     grid["density"] = grid["density"] / total_time
     return grid
