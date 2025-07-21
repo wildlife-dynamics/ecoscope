@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from ecoscope import Trajectory
-from ecoscope.analysis.classifier import apply_classification, apply_color_map
+from ecoscope.analysis.classifier import apply_classification, apply_color_map, classify_percentile
 
 
 @pytest.fixture
@@ -176,3 +176,25 @@ def test_apply_colormap_numeric_nan_only():
     assert len(df["colormap"].unique()) == len(df["value"].unique())
     assert df.loc["A"]["colormap"] == (0, 0, 0, 0)
     assert df.loc["B"]["colormap"] == (0, 0, 0, 0)
+
+
+@pytest.mark.parametrize(
+    "percentile_levels,expected_values",
+    [
+        ([10, 50, 90], [90, 90, 50, 50, 10]),
+        ([90], [90, 90, 90, 90, 90]),
+        ([10], [np.nan, np.nan, np.nan, np.nan, 10]),
+        ([], [90, 90, 50, 50, 10]),
+    ],
+)
+def test_classify_percentile(sample_df, percentile_levels, expected_values):
+    if percentile_levels:
+        sample_df["percentile"] = expected_values
+
+    test = classify_percentile(
+        sample_df,
+        percentile_levels=percentile_levels,
+        input_column_name="value",
+    )
+
+    pd.testing.assert_frame_equal(test, sample_df)
