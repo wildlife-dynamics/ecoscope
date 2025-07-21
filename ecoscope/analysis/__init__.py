@@ -9,5 +9,8 @@ __all__ = [
     "percentile",
     "seasons",
     "apply_classification",
+    "apply_colormap",
+    "classify_percentile",
     "calculate_feature_density",
+    "linear_time_density",
 ]

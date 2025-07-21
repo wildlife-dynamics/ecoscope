@@ -1,9 +1,10 @@
 from typing import Literal
 import pandas as pd
+import geopandas as gpd  # type: ignore[import-untyped]
+import numpy as np
 import matplotlib as mpl
 from ecoscope.base.utils import hex_to_rgba
 
-# from ecoscope.base._dataclasses import ColorStyleLookup
 
 try:
     import mapclassify  # type: ignore[import-untyped]
@@ -164,3 +165,46 @@ def apply_color_map(
 
     dataframe[output_column_name] = [cmap_series[classification] for classification in dataframe[input_column_name]]
     return dataframe
+
+
+def classify_percentile(
+    df: pd.DataFrame | gpd.GeoDataFrame,
+    percentile_levels: list[int],
+    input_column_name: str,
+    output_column_name: str = "percentile",
+) -> pd.DataFrame | gpd.GeoDataFrame:
+    """
+    Creates a new column on the provided dataframe with the percentile bin of the input_column
+    Uses much the same methodology as `get_percentile_area` but applies
+    generally to a numeric dataframe column instead of a raster grid
+
+    Args:
+    df (pd.DataFrame | gpd.GeoDatFrame): The data.
+    percentile_levels (list[int]): list of k-th percentile scores.
+    input_column_name (str): The column to apply classification to.
+    output_column_name (str): The dataframe column that will contain the classification.
+        Defaults to "percentile"
+
+    Returns:
+    The input dataframe with percentile classification appended.
+    """
+    assert pd.api.types.is_numeric_dtype(df[input_column_name]), "input column must contain numeric values"
+
+    input_values = df[input_column_name].to_numpy()
+    input_values = np.sort(input_values[~np.isnan(input_values)])
+    csum = np.cumsum(input_values)
+
+    percentile_values = []
+    for percentile in percentile_levels:
+        percentile_values.append(input_values[np.argmin(np.abs(csum[-1] * (1 - percentile / 100) - csum))])
+
+    def find_percentile(value):
+        for i in range(len(percentile_levels)):
+            if value >= percentile_values[i]:
+                return percentile_levels[i]
+        return np.nan
+
+    for i in range(len(percentile_levels)):
+        df[output_column_name] = df[input_column_name].apply(find_percentile)
+
+    return df
