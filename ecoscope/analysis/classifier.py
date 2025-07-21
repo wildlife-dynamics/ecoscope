@@ -168,18 +168,18 @@ def apply_color_map(
 
 
 def classify_percentile(
-    gdf: gpd.GeoDataFrame,
+    df: pd.DataFrame | gpd.GeoDataFrame,
     percentile_levels: list[int],
     input_column_name: str,
     output_column_name: str = "percentile",
-) -> gpd.GeoDataFrame:
+) -> pd.DataFrame | gpd.GeoDataFrame:
     """
     Creates a new column on the provided dataframe with the percentile bin of the input_column
     Uses much the same methodology as `get_percentile_area` but applies
     generally to a numeric dataframe column instead of a raster grid
 
     Args:
-    gdf (gpd.GeoDatFrame): The data.
+    df (pd.DataFrame | gpd.GeoDatFrame): The data.
     percentile_levels (list[int]): list of k-th percentile scores.
     input_column_name (str): The column to apply classification to.
     output_column_name (str): The dataframe column that will contain the classification.
@@ -188,9 +188,9 @@ def classify_percentile(
     Returns:
     The input dataframe with percentile classification appended.
     """
-    assert pd.api.types.is_numeric_dtype(gdf[input_column_name]), "input column must contain numeric values"
+    assert pd.api.types.is_numeric_dtype(df[input_column_name]), "input column must contain numeric values"
 
-    input_values = gdf[input_column_name].to_numpy()
+    input_values = df[input_column_name].to_numpy()
     input_values = np.sort(input_values[~np.isnan(input_values)])
     csum = np.cumsum(input_values)
 
@@ -205,6 +205,6 @@ def classify_percentile(
         return np.nan
 
     for i in range(len(percentile_levels)):
-        gdf[output_column_name] = gdf[input_column_name].apply(find_percentile)
+        df[output_column_name] = df[input_column_name].apply(find_percentile)
 
-    return gdf
+    return df

@@ -25,7 +25,7 @@ def test_ltd_with_percentile(movebank_relocations):
 
     density_grid = calculate_ltd(traj=traj, grid=grid)
     density_grid = classify_percentile(
-        gdf=density_grid,
+        df=density_grid,
         percentile_levels=[50, 60, 70, 80, 90, 99.9],
         input_column_name="density",
     )
