@@ -10,7 +10,7 @@ from ecoscope.analysis.feature_density import calculate_feature_density
 
 def test_feature_density_point():
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
-    my_crs = 32736
+    my_crs = 3857
 
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
@@ -21,6 +21,7 @@ def test_feature_density_point():
     points = gpd.GeoDataFrame(
         geometry=[Point(694000, 9765400), Point(694500, 9765400), Point(842000, 9874000)], crs=my_crs
     )
+    # todo convert points to 3857
 
     density_grid = calculate_feature_density(points, grid, geometry_type="point")
     assert density_grid["density"].sum() == 3
@@ -33,7 +34,7 @@ def test_feature_density_point():
 
 def test_feature_density_line():
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
-    my_crs = 32736
+    my_crs = 3857
 
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
