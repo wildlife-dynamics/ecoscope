@@ -47,8 +47,7 @@ def create_meshgrid(
     """
 
     a = gpd.array.from_shapely([aoi], crs=in_crs)
-    int_crs = a.estimate_utm_crs()
-    aoi = a.to_crs(int_crs)[0]
+    aoi = a.to_crs("EPSG:3857")[0]
     del a
 
     bounds = aoi.bounds
@@ -63,7 +62,7 @@ def create_meshgrid(
         assert not align_to_existing.isna().any()
         assert not align_to_existing.is_empty.any()
 
-        align_to_existing = align_to_existing.to_crs(int_crs)
+        align_to_existing = align_to_existing.to_crs("EPSG:3857")
 
         total_existing_bounds = align_to_existing.total_bounds
 
@@ -72,7 +71,7 @@ def create_meshgrid(
 
     boxes = [box(x, y, x + xlen, y + ylen) for x in np.arange(x1, x2, xlen) for y in np.arange(y1, y2, ylen)]
 
-    gs = gpd.GeoSeries(boxes, crs=int_crs)
+    gs = gpd.GeoSeries(boxes, crs="EPSG:3857")
     if return_intersecting_only:
         gs = gs[gs.intersects(aoi)]
 

@@ -34,7 +34,7 @@ def test_create_meshgrid_aligned(aoi_gdf):
 
     mesh = create_meshgrid(aoi, "EPSG:4326", "EPSG:4326", xlen=100000, ylen=100000, align_to_existing=aoi_gdf)
 
-    assert len(mesh) == 6
+    assert len(mesh) == 4
     assert mesh.intersects(aoi).all()
 
 
