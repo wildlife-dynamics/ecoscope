@@ -47,7 +47,7 @@ Ecoscope is licensed under BSD 3-Clause license. Copyright (c) 2025, Wildlife Dy
 Donate
 ------
 
-Ecoscope is currently developed and maintained by Wildlife Dynamics and the Allen Institute for AI (Ai2). If you find Ecoscope useful in your work, please consider donating to help support ongoing development and maintenance of this open-source project `Contact Wildlife Dynamics https://docs.google.com/forms/d/e/1FAIpQLSe6mMSvZH7JlIID2yjKUvPN4Cl4eddlZVZGrikHKvA21HdF1g/viewform`_
+Ecoscope is currently developed and maintained by Wildlife Dynamics and the Allen Institute for AI (Ai2). If you find Ecoscope useful in your work, please consider donating to help support ongoing development and maintenance of this open-source project `Contact Wildlife Dynamics <https://docs.google.com/forms/d/e/1FAIpQLSe6mMSvZH7JlIID2yjKUvPN4Cl4eddlZVZGrikHKvA21HdF1g/viewform>`_
 
 
 Acknowledgments
