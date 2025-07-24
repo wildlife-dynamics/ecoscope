@@ -24,7 +24,7 @@ def create_meshgrid(
     Parameters
     ----------
     aoi : shapely.geometry.base.BaseGeometry
-        The area of interest. Should be in a UTM CRS.
+        The area of interest.
     in_crs : value
         Coordinate Reference System of input `aoi`. Can be anything accepted by `pyproj.CRS.from_user_input()`.
         Geometry is automatically converted to UTM CRS as an intermediate for computation.
