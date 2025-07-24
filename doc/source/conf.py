@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath("../.."))  # Necessary for viewcode
 sys.path.insert(0, os.path.abspath(".."))
 
 project = "Ecocope"
-copyright = "2022, Wildlife Dynamics"
+copyright = "2025, Wildlife Dynamics"
 author = "Wildlife Dynamics"
 
 source_suffix = {
