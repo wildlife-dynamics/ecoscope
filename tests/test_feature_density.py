@@ -10,21 +10,20 @@ from ecoscope.analysis.feature_density import calculate_feature_density
 
 def test_feature_density_point():
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
-    my_crs = "EPSG:4326"
 
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
-            AOI.unary_union, in_crs=AOI.crs, out_crs=my_crs, xlen=5000, ylen=5000, return_intersecting_only=False
+            AOI.unary_union, in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
         )
     )
 
     points = gpd.GeoDataFrame(
         geometry=[
-            Point(35.088582161126965, -1.2849121042736442),
-            Point(35.550517503980956, -1.6017955576824079),
-            Point(35.55474755114645, -1.601769625072393),
+            Point(3906043.099, -143047.752),
+            Point(3957465.506, -178334.298),
+            Point(3957936.393, -178331.41),
         ],
-        crs=my_crs,
+        crs="EPSG:3857",
     )
 
     density_grid = calculate_feature_density(points, grid, geometry_type="point")
@@ -38,26 +37,25 @@ def test_feature_density_point():
 
 def test_feature_density_line():
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
-    my_crs = "EPSG:4326"
 
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
-            AOI.unary_union, in_crs=AOI.crs, out_crs=my_crs, xlen=5000, ylen=5000, return_intersecting_only=False
+            AOI.unary_union, in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
         )
     )
 
     lines = gpd.GeoDataFrame(
         geometry=[
-            LineString([(35.088582161126965, -1.2849121042736442), (35.550517503980956, -1.6017955576824079)]),
-            LineString([(35.55474755114645, -1.601769625072393), (35.550517503980956, -1.6017955576824079)]),
+            LineString([(3906043.099, -143047.752), (3957465.506, -178334.298)]),
+            LineString([(3957936.393, -178331.41), (3957465.506, -178334.298)]),
         ],
-        crs=my_crs,
+        crs="EPSG:3857",
     )
 
     density_grid = calculate_feature_density(lines, grid, geometry_type="line")
 
-    assert math.isclose(density_grid["density"].sum(), 0.5644081198166275)
-    assert math.isclose(density_grid["density"].max(), 0.05446827796016657)
+    assert math.isclose(density_grid["density"].sum(), 62835.98440960531)
+    assert math.isclose(density_grid["density"].max(), 6063.999352799931)
     ecoscope.io.raster.grid_to_raster(
         density_grid, val_column="density", out_dir="tests/test_output", raster_name="line_density.tif"
     )
