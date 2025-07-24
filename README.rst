@@ -25,7 +25,7 @@
 Ecoscope
 ========
 
-Ecoscope is an open-source analysis module for tracking, environmental and conservation data analyses. It provides methods and approaches for: Data I/O (EarthRanger, Google Earth Engine, Landscape Dynamics, MoveBank, Geopandas), Movement Data (Relocations, Trajectories, Home-Ranges, EcoGraph, Recurse, Geofencing, Immobility, Moving Windows, Resampling, Filtering), Visualization (EcoMap, EcoPlot), Environmental analyses (Seasons determination, Remote sensing anomalies), Covariate labeling (Day/Night, Seasonal, GEE Image Collections/Images).
+The Ecoscope core python library is built for analyses related to wildlife movement, environmental and conservation datasets. It provides methods and approaches for: Data I/O (EarthRanger, Google Earth Engine, Landscape Dynamics, MoveBank, Geopandas), Movement Data (Relocations, Trajectories, Home-Ranges, EcoGraph, Recurse, Resampling, Filtering), Visualization, Environmental analyses (Seasons determination, Remote sensing anomalies), Covariate labeling (Day/Night, Seasonal, GEE Image Collections/Images).
 
 Development & Testing
 =====================
@@ -37,15 +37,21 @@ Please configure code-quality git hooks with:
 
     >>> pre-commit install
 
+
 Copyright & License
 -------------------
 
-Ecoscope is licensed under BSD 3-Clause license. Copyright (c) 2022, wildlife-dynamics.
+Ecoscope is licensed under BSD 3-Clause license. Copyright (c) 2025, Wildlife Dynamics.
 
+  
 Donate
 ------
-Ecoscope is currently developed and maintained by the Mara Elephant Project (www.maraelephantproject.org) a not-for-profit elephant conservation organization located in the Masai Mara, Kenya. If you find Ecoscope useful in your work, please consider donating to help support ongoing development and maintenance of the project or the conservation work performed by MEP: https://maraelephantproject.org/donate/
+
+Ecoscope is currently developed and maintained by Wildlife Dynamics and the Allen Institute for AI (Ai2). If you find Ecoscope useful in your work, please consider donating to help support ongoing development and maintenance of this open-source project [Contact Wildlife Dynamics](https://docs.google.com/forms/d/e/1FAIpQLSe6mMSvZH7JlIID2yjKUvPN4Cl4eddlZVZGrikHKvA21HdF1g/viewform)
+
 
 Acknowledgments
 ---------------
-We thank the many individuals and organizations who have contributed to the development of Ecoscope: Jake Wall, Peter Kulits, Zakaria Hussein, Catherine Villeneuve, Jes Lefcourt, Chris Jones, George Wittemyer, Mara Elephant Project, Allen Institute for Artificial Intelligence, Google Earth Outreach, Save the Elephants, Elephants Alive, Berkeley Data Science Society.
+
+We thank the many individuals and organizations who have contributed to the development of Ecoscope. In particular: Jake Wall, Charles Stern, Alex Morling, Yun Wu, Ray Rao, Marcos Davidovich, Mariano Martinez, Tiffany Wong, Jes Lefcourt, Chris Jones, Chris Doehring, Juan Lescano, Anderson Arendt, Tevin Temu, Eric Gitonga, Rodney Omukuti, Peter Kulits, Zakaria Hussein, Catherine Villeneuve, Lydia Tiller, Harry Williams, India Taylor-Smith, Anil Patel, Holly Dublin, George Wittemyer, Allen Family Philanthropies, Allen Institute for Artificial Intelligence, Google Earth Outreach, Mara Elephant Project, Save the Elephants, and Elephants Alive.
+
