@@ -254,6 +254,7 @@ def grid_to_raster(
 ) -> None | rio.MemoryFile:
     """
     Save a GeoDataFrame grid to a raster.
+    The provided grid will be projected to EPSG:3857 if it is not already
     """
     grid = grid.to_crs("EPSG:3857")
     bounds = grid["geometry"].total_bounds
