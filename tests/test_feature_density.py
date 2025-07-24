@@ -31,7 +31,12 @@ def test_feature_density_point():
     assert density_grid["density"].max() == 2
 
     ecoscope.io.raster.grid_to_raster(
-        density_grid, val_column="density", out_dir="tests/test_output", raster_name="point_density.tif"
+        density_grid,
+        xlen=5000,
+        ylen=5000,
+        val_column="density",
+        out_dir="tests/test_output",
+        raster_name="point_density.tif",
     )
 
 
@@ -57,5 +62,10 @@ def test_feature_density_line():
     assert math.isclose(density_grid["density"].sum(), 62835.98440960531)
     assert math.isclose(density_grid["density"].max(), 6063.999352799931)
     ecoscope.io.raster.grid_to_raster(
-        density_grid, val_column="density", out_dir="tests/test_output", raster_name="line_density.tif"
+        density_grid,
+        xlen=5000,
+        ylen=5000,
+        val_column="density",
+        out_dir="tests/test_output",
+        raster_name="line_density.tif",
     )
