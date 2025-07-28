@@ -77,6 +77,17 @@ class SmartIO:
         r.raise_for_status()
         return gpd.GeoDataFrame.from_features(r.json(), crs=4326)
 
+    def get_patrol_stations(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+    ) -> pd.DataFrame | None:
+        params: dict[str, str | None] = {}
+        params["ca_uuid"] = ca_uuid
+        params["language_uuid"] = language_uuid
+
+        return self.query_data(url="station/", params=params)
+
     def get_patrols_list(
         self,
         ca_uuid: str,
@@ -85,6 +96,7 @@ class SmartIO:
         end: str,
         patrol_mandate: str | None,
         patrol_transport: str | None,
+        station_uuid: str | None = None,
     ) -> gpd.GeoDataFrame | None:
         params: dict[str, str | None] = {}
         params["ca_uuid"] = ca_uuid
@@ -93,6 +105,7 @@ class SmartIO:
         params["end_date"] = end
         params["patrol_mandate"] = patrol_mandate
         params["patrol_transport"] = patrol_transport
+        params["station_uuid"] = station_uuid
 
         return self.query_geojson_data(url="patrol/", params=params)
 
@@ -202,6 +215,7 @@ class SmartIO:
         end: str,
         patrol_mandate: str | None = None,
         patrol_transport: str | None = None,
+        station_uuid: str | None = None,
         window_size_in_days: int = 7,
     ) -> Relocations | None:
         df = gpd.GeoDataFrame()
@@ -219,6 +233,7 @@ class SmartIO:
                 end=pd.Timestamp(end_dt.date()).isoformat(),
                 patrol_mandate=patrol_mandate,
                 patrol_transport=patrol_transport,
+                station_uuid=station_uuid,
             )
         else:
             current_start = start_dt
@@ -232,6 +247,7 @@ class SmartIO:
                     end=pd.Timestamp(segment_end.date()).isoformat(),
                     patrol_mandate=patrol_mandate,
                     patrol_transport=patrol_transport,
+                    station_uuid=station_uuid,
                 )
                 df = pd.concat([df, patrols])
                 current_start = segment_end
