@@ -19,8 +19,8 @@ def calculate_ltd(
     -------
     grid : gpd.GeoDatFrame
     """
-    if grid.crs.is_projected:
-        assert grid.crs.axis_info[0].unit_name == "metre", "projected grid crs must be in metres"
+    if grid.crs.is_projected and grid.crs.axis_info[0].unit_name != "metre":
+        raise ValueError("Projected grid crs must be in metres")
 
     # project traj to the crs of the provided grid
     traj.gdf = traj.gdf.to_crs(grid.crs)
