@@ -19,6 +19,9 @@ def calculate_ltd(
     -------
     grid : gpd.GeoDatFrame
     """
+    if grid.crs.is_projected:
+        assert grid.crs.axis_info[0].unit_name == "metre", "projected grid crs must be in metres"
+
     # project traj to the crs of the provided grid
     traj.gdf = traj.gdf.to_crs(grid.crs)
     # We need the grid cell index later to count density values
@@ -28,9 +31,14 @@ def calculate_ltd(
     # drop anything that isn't a line
     overlay = overlay[overlay.geometry.type == "LineString"]
 
-    overlay["fragment_distance"] = overlay["geometry"].apply(
-        lambda x: Geod(ellps="WGS84").inv(*x.coords[0], *x.coords[1])[2]
-    )  # Geod.inv returns tuple where the 3rd value is the distance in metres
+    # use the length of the linestring if our crs is projected
+    # otherwise get great circle distance from Geod
+    if overlay.crs.is_projected:
+        overlay["fragment_distance"] = overlay["geometry"].apply(lambda x: x.length)
+    else:
+        overlay["fragment_distance"] = overlay["geometry"].apply(
+            lambda x: Geod(ellps="WGS84").inv(*x.coords[0], *x.coords[1])[2]
+        )  # Geod.inv returns tuple where the 3rd value is the distance in metres
 
     # fragment_distance is in metres so convert speed to 'meters per hour'
     # then multiply by 3600 to get time in seconds

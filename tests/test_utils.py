@@ -15,27 +15,31 @@ from ecoscope.base.utils import (
 
 def test_create_meshgrid(aoi_gdf):
     aoi = aoi_gdf.dissolve().iloc[0]["geometry"]
+    out_crs = "EPSG:3857"
 
     mesh = create_meshgrid(
         aoi,
-        "EPSG:4326",
-        "EPSG:4326",
+        in_crs="EPSG:4326",
+        out_crs=out_crs,
         xlen=100000,
         ylen=100000,
     )
 
     # at 100kms resolution, we should have 4 big squares
     assert len(mesh) == 4
-    assert mesh.intersects(aoi).all()
+    assert mesh.intersects(aoi_gdf.to_crs(out_crs).dissolve().iloc[0]["geometry"]).all()
 
 
 def test_create_meshgrid_aligned(aoi_gdf):
     aoi = aoi_gdf.dissolve().iloc[0]["geometry"]
+    out_crs = "EPSG:3857"
 
-    mesh = create_meshgrid(aoi, "EPSG:4326", "EPSG:4326", xlen=100000, ylen=100000, align_to_existing=aoi_gdf)
+    mesh = create_meshgrid(
+        aoi, in_crs="EPSG:4326", out_crs=out_crs, xlen=100000, ylen=100000, align_to_existing=aoi_gdf
+    )
 
     assert len(mesh) == 4
-    assert mesh.intersects(aoi).all()
+    assert mesh.intersects(aoi_gdf.to_crs(out_crs).dissolve().iloc[0]["geometry"]).all()
 
 
 def test_groupby_intervals(movebank_relocations):

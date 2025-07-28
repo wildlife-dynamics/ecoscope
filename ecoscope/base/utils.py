@@ -30,11 +30,11 @@ def create_meshgrid(
         Geometry is automatically converted to UTM CRS as an intermediate for computation.
     out_crs : value
         Coordinate Reference System of output `gs`. Can be anything accepted by `pyproj.CRS.from_user_input()`.
-        Geometry is automatically converted to UTM CRS as an intermediate for computation.
+        Geometry is automatically converted to UTM CRS as an intermediate for computation. Defaults to EPSG:3857
     xlen : int, optional
-        The width of a grid cell in meters.
+        The width of a grid cell in units of out_crs
     ylen : int, optional
-        The height of a grid cell in meters.
+        The height of a grid cell in units of out_crs
     return_intersecting_only : bool, optional
         Whether to return only grid cells intersecting with the aoi.
     align_to_existing : geopandas.GeoSeries or geopandas.GeoDataFrame, optional

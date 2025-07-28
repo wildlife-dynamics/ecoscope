@@ -16,12 +16,11 @@ def test_ltd_with_percentile(movebank_relocations):
     grid = create_meshgrid(
         box(*traj.gdf.total_bounds),
         in_crs=traj.gdf.crs,
-        out_crs=traj.gdf.crs,
         xlen=cell_size,
         ylen=cell_size,
         return_intersecting_only=False,
     )
-    grid = gpd.GeoDataFrame(geometry=grid, crs=traj.gdf.crs)
+    grid = gpd.GeoDataFrame(geometry=grid, crs=grid.crs)
 
     density_grid = calculate_ltd(traj=traj, grid=grid)
     density_grid = classify_percentile(
