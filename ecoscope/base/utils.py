@@ -13,7 +13,7 @@ BoundingBox = Tuple[float, float, float, float]
 def create_meshgrid(
     aoi: BaseGeometry,
     in_crs: Any,
-    out_crs: Any,
+    out_crs: Any = "EPSG:3857",
     xlen: int = 1000,
     ylen: int = 1000,
     return_intersecting_only: bool = True,
@@ -46,8 +46,7 @@ def create_meshgrid(
         Grid of boxes. CRS is converted to `out_crs`.
     """
     a = gpd.array.from_shapely([aoi], crs=in_crs)
-    int_crs = "EPSG:3857"
-    aoi = a.to_crs(int_crs)[0]
+    aoi = a.to_crs(out_crs)[0]
     del a
 
     bounds = aoi.bounds
@@ -62,7 +61,7 @@ def create_meshgrid(
         assert not align_to_existing.isna().any()
         assert not align_to_existing.is_empty.any()
 
-        align_to_existing = align_to_existing.to_crs(int_crs)
+        align_to_existing = align_to_existing.to_crs(out_crs)
 
         total_existing_bounds = align_to_existing.total_bounds
 
@@ -71,11 +70,11 @@ def create_meshgrid(
 
     boxes = [box(x, y, x + xlen, y + ylen) for x in np.arange(x1, x2, xlen) for y in np.arange(y1, y2, ylen)]
 
-    gs = gpd.GeoSeries(boxes, crs=int_crs)
+    gs = gpd.GeoSeries(boxes, crs=out_crs)
     if return_intersecting_only:
         gs = gs[gs.intersects(aoi)]
 
-    return gs.to_crs(out_crs)
+    return gs
 
 
 def groupby_intervals(df: pd.DataFrame, col: str, intervals: pd.IntervalIndex) -> DataFrameGroupBy:
