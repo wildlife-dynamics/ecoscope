@@ -133,8 +133,8 @@ def apply_color_map(
     """
     assert input_column_name in dataframe.columns, "input column must exist on dataframe"
 
-    nunique = dataframe[input_column_name].nunique()
-    unique = dataframe[input_column_name].unique()
+    nunique = dataframe[input_column_name].nunique()  # This does not count NaN value
+    unique = dataframe[input_column_name].unique()  # This does count NaN values
     if nunique == 0:
         # nunique == 0 when input_column contains only nan values
         # in this case we manually set the color values to transparent

@@ -1,7 +1,6 @@
 import json
 import logging
 import uuid
-from datetime import timedelta
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
@@ -216,44 +215,22 @@ class SmartIO:
         patrol_mandate: str | None = None,
         patrol_transport: str | None = None,
         station_uuid: str | None = None,
-        window_size_in_days: int = 7,
-    ) -> Relocations | None:
-        df = gpd.GeoDataFrame()
-
+    ) -> ecoscope.Relocations | None:
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
-        total_duration = end_dt - start_dt
-
-        if total_duration <= timedelta(days=window_size_in_days):
-            df = self.get_patrols_list(
-                ca_uuid=ca_uuid,
-                language_uuid=language_uuid,
-                # SMART API throws error if the start/end time is not at 00:00:00
-                start=pd.Timestamp(start_dt.date()).isoformat(),
-                end=pd.Timestamp(end_dt.date()).isoformat(),
-                patrol_mandate=patrol_mandate,
-                patrol_transport=patrol_transport,
-                station_uuid=station_uuid,
-            )
-        else:
-            current_start = start_dt
-            while current_start < end_dt:
-                segment_end = min(current_start + timedelta(days=window_size_in_days), end_dt)
-                patrols = self.get_patrols_list(
-                    ca_uuid=ca_uuid,
-                    language_uuid=language_uuid,
-                    # SMART API throws error if the start/end time is not at 00:00:00
-                    start=pd.Timestamp(current_start.date()).isoformat(),
-                    end=pd.Timestamp(segment_end.date()).isoformat(),
-                    patrol_mandate=patrol_mandate,
-                    patrol_transport=patrol_transport,
-                    station_uuid=station_uuid,
-                )
-                df = pd.concat([df, patrols])
-                current_start = segment_end
+        patrols = self.get_patrols_list(
+            ca_uuid=ca_uuid,
+            language_uuid=language_uuid,
+            # SMART API throws error if the start/end time is not at 00:00:00
+            start=pd.Timestamp(start_dt.date()).isoformat(),
+            end=pd.Timestamp(end_dt.date()).isoformat(),
+            patrol_mandate=patrol_mandate,
+            patrol_transport=patrol_transport,
+            station_uuid=station_uuid,
+        )
 
         try:
-            patrols_df = self.process_patrols_gdf(df)
+            patrols_df = self.process_patrols_gdf(patrols)
 
             if patrols_df.empty:
                 return None
@@ -287,7 +264,8 @@ class SmartIO:
         params["start_date"] = start
         params["end_date"] = end
 
-        events_df = self.query_geojson_data(url="observation/", params=params)
+        # events_df = self.query_geojson_data(url="observation/", params=params)
+        events_df = gpd.read_parquet("/Users/yunwu/MEP/ecoscope-pgaff/.tmp/events_df_raw_05_25.parquet")
         events_df = gpd.GeoDataFrame(
             events_df,
             geometry=gpd.points_from_xy(x=events_df["X"], y=events_df["Y"]),  # type: ignore[index]
