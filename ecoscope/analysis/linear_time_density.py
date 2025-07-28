@@ -19,6 +19,8 @@ def calculate_ltd(
     -------
     grid : gpd.GeoDatFrame
     """
+    # project traj to the crs of the provided grid
+    traj.gdf = traj.gdf.to_crs(grid.crs)
     # We need the grid cell index later to count density values
     grid = grid.reset_index().rename(columns={"index": "grid_cell_index"})
     overlay = grid.overlay(traj.gdf, how="intersection", keep_geom_type=False)
