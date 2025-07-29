@@ -232,10 +232,15 @@ def test_geotiff_layer_with_cmap():
 
 def test_geotiff_layer_in_mem_with_cmap():
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "maec_4zones_UTM36S.gpkg"))
-
+    cell_size_meters = 5000
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
-            AOI.unary_union, in_crs=AOI.crs, out_crs=AOI.crs, xlen=5000, ylen=5000, return_intersecting_only=False
+            AOI.unary_union,
+            in_crs=AOI.crs,
+            out_crs="EPSG:3857",
+            xlen=cell_size_meters,
+            ylen=cell_size_meters,
+            return_intersecting_only=False,
         )
     )
 
@@ -243,6 +248,8 @@ def test_geotiff_layer_in_mem_with_cmap():
     raster = ecoscope.io.raster.grid_to_raster(
         grid,
         val_column="fake_density",
+        xlen=cell_size_meters,
+        ylen=cell_size_meters,
     )
 
     m = EcoMap()

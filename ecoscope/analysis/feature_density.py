@@ -6,6 +6,9 @@ import geopandas as gpd  # type: ignore[import-untyped]
 def calculate_feature_density(
     selection: gpd.GeoDataFrame, grid: gpd.GeoDataFrame, geometry_type: Literal["point", "line"] = "point"
 ) -> gpd.GeoDataFrame:
+    # project selection data to the crs of the provided grid
+    selection = selection.to_crs(grid.crs)
+
     def clip_density(cell):
         if geometry_type == "point":
             result = selection.geometry.within(cell)

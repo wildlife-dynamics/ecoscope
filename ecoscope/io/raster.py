@@ -245,15 +245,26 @@ def raster_to_gdf(raster_path: str | os.PathLike | rio.MemoryFile) -> gpd.GeoDat
 
 
 def grid_to_raster(
-    grid: gpd.geodataframe,
+    grid: gpd.GeoDataFrame,
+    xlen: int,
+    ylen: int,
     val_column: str = "",
     out_dir: str = "",
     raster_name: str | None = None,
-    xlen: int = 5000,
-    ylen: int = 5000,
 ) -> None | rio.MemoryFile:
     """
     Save a GeoDataFrame grid to a raster.
+
+    Args:
+    grid (gpd.GeoDataFrame): The grid to rasterize
+    xlen (int): The width of the raster cells, units must be valid in the CRS of the provided grid
+    ylen (int): The height of the raster cells, units must be valid in the CRS of the provided grid
+    val_column (str): The dataframe column of values to fill the raster cells
+    out_dir (str): The directory to save the raster to - inert if raster_name is not provided
+    raster_name (str): The filename name of the output raster
+
+    Returns:
+    A rio.MemoryFile if raster_name is provided
     """
     bounds = grid["geometry"].total_bounds
     nrows = int((bounds[3] - bounds[1]) / ylen)

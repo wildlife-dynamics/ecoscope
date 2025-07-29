@@ -13,7 +13,7 @@ BoundingBox = Tuple[float, float, float, float]
 def create_meshgrid(
     aoi: BaseGeometry,
     in_crs: Any,
-    out_crs: Any,
+    out_crs: Any = "EPSG:3857",
     xlen: int = 1000,
     ylen: int = 1000,
     return_intersecting_only: bool = True,
@@ -24,17 +24,17 @@ def create_meshgrid(
     Parameters
     ----------
     aoi : shapely.geometry.base.BaseGeometry
-        The area of interest. Should be in a UTM CRS.
+        The area of interest.
     in_crs : value
         Coordinate Reference System of input `aoi`. Can be anything accepted by `pyproj.CRS.from_user_input()`.
         Geometry is automatically converted to UTM CRS as an intermediate for computation.
     out_crs : value
         Coordinate Reference System of output `gs`. Can be anything accepted by `pyproj.CRS.from_user_input()`.
-        Geometry is automatically converted to UTM CRS as an intermediate for computation.
+        Geometry is automatically converted to UTM CRS as an intermediate for computation. Defaults to EPSG:3857
     xlen : int, optional
-        The width of a grid cell in meters.
+        The width of a grid cell in units of out_crs
     ylen : int, optional
-        The height of a grid cell in meters.
+        The height of a grid cell in units of out_crs
     return_intersecting_only : bool, optional
         Whether to return only grid cells intersecting with the aoi.
     align_to_existing : geopandas.GeoSeries or geopandas.GeoDataFrame, optional
@@ -45,10 +45,8 @@ def create_meshgrid(
     gs : geopandas.GeoSeries
         Grid of boxes. CRS is converted to `out_crs`.
     """
-
     a = gpd.array.from_shapely([aoi], crs=in_crs)
-    int_crs = a.estimate_utm_crs()
-    aoi = a.to_crs(int_crs)[0]
+    aoi = a.to_crs(out_crs)[0]
     del a
 
     bounds = aoi.bounds
@@ -63,7 +61,7 @@ def create_meshgrid(
         assert not align_to_existing.isna().any()
         assert not align_to_existing.is_empty.any()
 
-        align_to_existing = align_to_existing.to_crs(int_crs)
+        align_to_existing = align_to_existing.to_crs(out_crs)
 
         total_existing_bounds = align_to_existing.total_bounds
 
@@ -72,11 +70,11 @@ def create_meshgrid(
 
     boxes = [box(x, y, x + xlen, y + ylen) for x in np.arange(x1, x2, xlen) for y in np.arange(y1, y2, ylen)]
 
-    gs = gpd.GeoSeries(boxes, crs=int_crs)
+    gs = gpd.GeoSeries(boxes, crs=out_crs)
     if return_intersecting_only:
         gs = gs[gs.intersects(aoi)]
 
-    return gs.to_crs(out_crs)
+    return gs
 
 
 def groupby_intervals(df: pd.DataFrame, col: str, intervals: pd.IntervalIndex) -> DataFrameGroupBy:

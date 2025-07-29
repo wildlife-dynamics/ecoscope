@@ -1,3 +1,4 @@
+import pytest
 import geopandas as gpd
 import geopandas.testing
 from shapely.geometry import box
@@ -16,12 +17,11 @@ def test_ltd_with_percentile(movebank_relocations):
     grid = create_meshgrid(
         box(*traj.gdf.total_bounds),
         in_crs=traj.gdf.crs,
-        out_crs=traj.gdf.crs,
         xlen=cell_size,
         ylen=cell_size,
         return_intersecting_only=False,
     )
-    grid = gpd.GeoDataFrame(geometry=grid, crs=traj.gdf.crs)
+    grid = gpd.GeoDataFrame(geometry=grid, crs=grid.crs)
 
     density_grid = calculate_ltd(traj=traj, grid=grid)
     density_grid = classify_percentile(
@@ -32,3 +32,21 @@ def test_ltd_with_percentile(movebank_relocations):
 
     expected = gpd.read_parquet("tests/test_output/ltd.parquet")
     gpd.testing.assert_geodataframe_equal(density_grid, expected)
+
+
+def test_ltd_with_unsupported_crs(movebank_relocations):
+    movebank_relocations.gdf = movebank_relocations.gdf[movebank_relocations.gdf["groupby_col"] == "Salif Keita"]
+    traj = Trajectory.from_relocations(movebank_relocations)
+
+    grid = create_meshgrid(
+        box(*traj.gdf.total_bounds),
+        in_crs=traj.gdf.crs,
+        out_crs="EPSG:2227",
+        xlen=3000,
+        ylen=3000,
+        return_intersecting_only=False,
+    )
+    grid = gpd.GeoDataFrame(geometry=grid, crs=grid.crs)
+
+    with pytest.raises(ValueError, match="Projected grid crs must be in metres"):
+        calculate_ltd(traj=traj, grid=grid)
