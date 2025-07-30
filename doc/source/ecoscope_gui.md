@@ -25,12 +25,12 @@ Python and the Qt graphical framework.
 Please review the system requirements below that are needed to run the software before proceeding to
 the [Downloads](#Downloads) section.
 
-| OS      | CPU architecture       | Free Disk Space | Notes                                                         |
-|---------|------------------------|-----------------|---------------------------------------------------------------|
-| Windows | 64-bit                 | at least 1.5 GB | We've tested the software on Windows 11                       |
-| MacOS   | Apple Silicon (64-bit) | at least 500 MB | We've tested the software on MacOS Monterey, MacOS Ventura, and MacOS Sonoma |
-| MacOS   | Intel (64-bit)         | at least 1.5 GB | We've tested the software on MacOS Monterey, MacOS Ventura, and MacOS Sonoma |
-| Linux   | 64-bit                 | at least 1.5 GB | We've tested the software on Ubuntu 22.04                     |
+| OS      | CPU architecture       | Free Disk Space | Notes                                                                                       |
+|---------|------------------------|-----------------|---------------------------------------------------------------------------------------------|
+| Windows | 64-bit                 | at least 1.5 GB | We've tested the software on Windows 11                                                     |
+| MacOS   | Apple Silicon (64-bit) | at least 500 MB | We've tested the software on MacOS Monterey, MacOS Ventura, MacOS Sonoma, and MacOS Sequoia |
+| MacOS   | Intel (64-bit)         | at least 1.5 GB | We've tested the software on MacOS Monterey, MacOS Ventura, MacOS Sonoma, and MacOS Sequoia |
+| Linux   | 64-bit                 | at least 1.5 GB | We've tested the software on Ubuntu 22.04                                                   |
 
 ## Downloads
 
@@ -69,7 +69,7 @@ Please make sure to review the instructions **before starting your download**.
 
 | Link                                                                          | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
 |-------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| [Download](https://drive.google.com/file/d/1Pgnbvpv-_B3kyXpKAEPWhHmIP17VIyNQ) | 200 MB                      | 930 MB                     | `2bd107ce2e2d6ff7544f52a659622b813b84291bcc66688ffd0f167eac26d8ad` |
+| [Download](https://drive.google.com/file/d/1oHPaDz-AWQ2mqfpirkDDCg9OJLYgXNFb) | 200 MB                      | 930 MB                     | `34007b6bfe8ea69752f50f7ac0be2b0a6eb1b569946f7f891a76a7bbace0258f` |
 
 -----------
 
@@ -99,8 +99,8 @@ xattr -dr com.apple.quarantine '/Users/your_macos_username/Downloads/Ecoscope GU
 
 | Link                                                                                              | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
 |---------------------------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| (**Apple Silicon**) [Download](https://drive.google.com/file/d/1phXHa6V1m20_ZWJlNm8LGG8GWXC7IrRm) | 170 MB                      | 470 MB                     | `62de33715266c30c2b873a989547c17d2e92858d9ad4c0becc118fd68a124bcc` |
-| (**Intel**) [Download](https://drive.google.com/file/d/1EWh-V7iM6CYMNLa5fHm9a0Rj-OCCIXiU)         | 410 MB                      | 1.35 GB                    | `3edd0d5578f744eb415b26634a71a1bbea1a7c898991dfdfa67ca311e169a968` |
+| (**Apple Silicon**) [Download](https://drive.google.com/file/d/1ZIPmkHsc1ovFSgdJpFCyM7V-qxzi9SDq) | 170 MB                      | 470 MB                     | `c45ac1c3b120dbce56e9d93d20bd452d5b94b9b1a77dced403b308fd0322e4fd` |
+| (**Intel**) [Download](https://drive.google.com/file/d/1A7LMo8vO7dJYoccNNPWB9aczCj6ciVri)         | 410 MB                      | 1.35 GB                    | `eb630bc010087a8c9ac3ef535326d1211a694b16b11bafe9af08b2660a3c674d` |
 
 :::{attention}
 Step 3 above is mandatory. If you skip it, you will not be able to open the program by
@@ -137,7 +137,7 @@ Please make sure to review the instructions **before starting your download**.
 
 | Link                                                                          | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
 |-------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| [Download](https://drive.google.com/file/d/14dWdXmR5EsOiLmIR3PJFtZVZQUSE410K) | 566 MB                      | 1.7 GB                     | `e8d7b352d3276d8a325105bc6fbe6d3ebfa156f3d3d0a09b900b6aa18a96e8fd` |
+| [Download](https://drive.google.com/file/d/1vVqTi8su0vInFlYuL5dFtz1QZxZjPwLQ) | 566 MB                      | 1.7 GB                     | `a13197070e07df14a3d04e4a62b2bf89998cbdb2520d37ae1014120ce6847459` |
 
 ## Screenshots
 
