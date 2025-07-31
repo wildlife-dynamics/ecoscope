@@ -33,7 +33,7 @@ requirements:
     # ~ analysis ~
     - astroplan
     # - datashader  # (cisaacstern) per atmorling, not required for current workflows
-    - igraph
+    - python-igraph
     - mapclassify
     # - matplotlib  # disabling in favor of matplotlib-base which is smaller
     - matplotlib-base
