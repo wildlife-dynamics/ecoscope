@@ -102,7 +102,8 @@ def _clean_gdf(gdf: gpd.GeoDataFrame) -> gpd.geodataframe:
             gdf[col] = gdf[col].astype("string")
 
     # If the index is named, convert it to a column
-    gdf = gdf.reset_index(drop=False) if gdf.index.name else gdf.reset_index()
+    index_names = gdf.index.names if isinstance(gdf.index, pd.MultiIndex) else gdf.index.name
+    gdf = gdf.reset_index(drop=False, names=index_names) if index_names else gdf.reset_index(drop=True)
 
     return gdf
 

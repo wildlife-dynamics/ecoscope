@@ -357,3 +357,42 @@ def test_clean_gdf(point_gdf):
     clean_gdf = _clean_gdf(dirty_gdf)
     assert len(clean_gdf) == len(dirty_gdf) - 1
     assert clean_gdf.recorded_at.dtype == "string"
+    # Check that the original RangeIndex was correctly dropped
+    assert "level_0" not in dirty_gdf.columns
+
+
+def test_clean_gdf_with_index(point_gdf):
+    dirty_gdf = point_gdf.copy(deep=True)
+    dirty_gdf.at[0, "geometry"] = None
+    # We expect the first row to be dropped
+    expected_sources = dirty_gdf["source_id"].to_list()[1:]
+
+    dirty_gdf = dirty_gdf.set_index(["source_id"])
+    assert "source_id" not in dirty_gdf.columns
+
+    clean_gdf = _clean_gdf(dirty_gdf)
+    assert len(clean_gdf) == len(dirty_gdf) - 1
+    assert clean_gdf.recorded_at.dtype == "string"
+    assert "source_id" in clean_gdf.columns
+    assert clean_gdf["source_id"].to_list() == expected_sources
+
+
+def test_clean_gdf_with_multi_index(point_gdf):
+    dirty_gdf = point_gdf.copy(deep=True)
+    dirty_gdf.at[0, "geometry"] = None
+    dirty_gdf["time_bin"] = dirty_gdf["recorded_at"].apply(lambda x: x.hour)
+    # We expect the first row to be dropped
+    expected_sources = dirty_gdf["source_id"].to_list()[1:]
+    expected_time_bins = dirty_gdf["time_bin"].to_list()[1:]
+
+    dirty_gdf = dirty_gdf.set_index(["source_id", "time_bin"])
+    assert "time_bin" not in dirty_gdf.columns
+    assert "source_id" not in dirty_gdf.columns
+
+    clean_gdf = _clean_gdf(dirty_gdf)
+    assert len(clean_gdf) == len(dirty_gdf) - 1
+    assert clean_gdf.recorded_at.dtype == "string"
+    assert "time_bin" in clean_gdf.columns
+    assert "source_id" in clean_gdf.columns
+    assert clean_gdf["time_bin"].to_list() == expected_time_bins
+    assert clean_gdf["source_id"].to_list() == expected_sources
