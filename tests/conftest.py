@@ -31,12 +31,12 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="session")
 def er_io():
-    ER_SERVER = "https://mep-dev.pamdas.org"
-    ER_USERNAME = os.getenv("ER_USERNAME")
-    ER_PASSWORD = os.getenv("ER_PASSWORD")
+    ER_SERVER = "https://er-asia.pamdas.org"
+    ER_USERNAME = "crystal0031"
+    ER_PASSWORD = "Thailand2025!"
     er_io = ecoscope.io.EarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
 
-    er_io.GROUP_NAME = "Elephants"
+    er_io.GROUP_NAME = "Subjects"
     er_io.SUBJECT_IDS = er_io.get_subjects(subject_group_name=er_io.GROUP_NAME).id.tolist()
     er_io.SUBJECTSOURCE_IDS, er_io.SOURCE_IDS = er_io.get_subjectsources(subjects=",".join(er_io.SUBJECT_IDS))[
         ["id", "source"]
