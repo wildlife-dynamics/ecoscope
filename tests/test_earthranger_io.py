@@ -1,6 +1,7 @@
 import datetime
+import json
 import uuid
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import geopandas as gpd
 import pandas as pd
@@ -482,20 +483,14 @@ def test_empty_responses(_get_mock, er_io, er_callable, er_kwargs):
 @pytest.mark.parametrize(
     "er_callable, er_kwargs",
     [
-        (EarthRangerIO.get_patrols, {}),
-        (EarthRangerIO.get_subjectgroup_observations, {"subject_group_id": "12345"}),
-        (EarthRangerIO.get_patrol_observations_with_patrol_filter, {}),
-        (EarthRangerIO.get_patrol_events, {}),
         (EarthRangerIO.get_events, {}),
+        (EarthRangerIO.get_subject_sources, {}),
+        (EarthRangerIO.get_source_observations, {}),
     ],
 )
 @pytest.mark.parametrize("set_sub_page_size", [True, False])
 @patch("erclient.client.ERClient.get_objects_multithreaded")
 def test_page_size_override(get_objects_mock, set_sub_page_size, er_callable, er_kwargs, er_io):
-    """
-    The intent of this test is to make sure that if page size is set on the er_callable,
-    all downstream calls to get_objects_multithreaded use the overridden page_size
-    """
     get_objects_mock.return_value = {}
     if set_sub_page_size:
         er_kwargs["sub_page_size"] = 100
@@ -504,3 +499,112 @@ def test_page_size_override(get_objects_mock, set_sub_page_size, er_callable, er
 
     for call in get_objects_mock.mock_calls:
         assert call.kwargs["page_size"] == 100 if set_sub_page_size else 4000
+
+
+@pytest.mark.parametrize(
+    "er_callable, er_kwargs",
+    [
+        (EarthRangerIO.get_patrols, {}),
+        (EarthRangerIO.get_patrol_observations_with_patrol_filter, {}),
+        (EarthRangerIO.get_patrol_events, {}),
+    ],
+)
+@pytest.mark.parametrize("set_sub_page_size", [True, False])
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_objects_multithreaded")
+def test_page_size_override_with_patrols(get_objects_mock, set_sub_page_size, er_callable, er_kwargs, er_io):
+    """
+    The intent of this test is to make sure that if page size is set on the er_callable,
+    _all_ downstream calls to get_objects_multithreaded use the overridden page_size
+    """
+    patrols_json = json.loads(open("tests/sample_data/io/sample_patrol.json", "r").read())
+
+    def patrols_side_effect(*args, **kwargs):
+        yield patrols_json if get_objects_mock.call_count == 1 else MagicMock()
+
+    get_objects_mock.side_effect = patrols_side_effect
+
+    if set_sub_page_size:
+        er_kwargs["sub_page_size"] = 100
+
+    er_callable(er_io, **er_kwargs)
+
+    for call in get_objects_mock.mock_calls:
+        assert call.kwargs["page_size"] == 100 if set_sub_page_size else 4000
+
+
+@pytest.mark.parametrize(
+    "er_callable, er_kwargs",
+    [
+        (EarthRangerIO.get_subjectgroup_observations, {"subject_group_id": "12345"}),
+    ],
+)
+@pytest.mark.parametrize("set_sub_page_size", [True, False])
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_objects_multithreaded")
+def test_page_size_override_with_subjects(get_objects_mock, set_sub_page_size, er_callable, er_kwargs, er_io):
+    """
+    The intent of this test is to make sure that if page size is set on the er_callable,
+    _all_ downstream calls to get_objects_multithreaded use the overridden page_size
+    """
+    subjects_json = json.loads(open("tests/sample_data/io/sample_subject.json", "r").read())
+    observation_json = json.loads(open("tests/sample_data/io/sample_observation.json", "r").read())
+
+    def patrols_side_effect(*args, **kwargs):
+        yield subjects_json
+        yield observation_json
+
+    get_objects_mock.side_effect = patrols_side_effect
+
+    if set_sub_page_size:
+        er_kwargs["sub_page_size"] = 100
+
+    er_callable(er_io, **er_kwargs)
+
+    for call in get_objects_mock.mock_calls:
+        assert call.kwargs["page_size"] == 100 if set_sub_page_size else 4000
+
+
+def test_get_patrols_page_size_parity(er_io):
+    kwargs = {"since": "2017-01-01", "until": "2017-04-01", "patrol_type_value": "ecoscope_patrol"}
+    patrols_default = er_io.get_patrols(**kwargs)
+    patrols_page_size = er_io.get_patrols(**(kwargs | {"sub_page_size": 100}))
+    pd.testing.assert_frame_equal(patrols_default, patrols_page_size)
+
+
+def test_get_subjectgroup_observations_page_size_parity(er_io):
+    relocations_default = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
+    relocations_page_size = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME, sub_page_size=100)
+    pd.testing.assert_frame_equal(relocations_default.gdf, relocations_page_size.gdf)
+
+
+def test_get_patrol_events_page_size_parity(er_io):
+    kwargs = {
+        "since": pd.Timestamp("2017-01-01").isoformat(),
+        "until": pd.Timestamp("2017-04-01").isoformat(),
+    }
+    events_default = er_io.get_patrol_events(**kwargs)
+    events_page_size = er_io.get_patrol_events(**(kwargs | {"sub_page_size": 100}))
+    pd.testing.assert_frame_equal(events_default, events_page_size)
+
+
+def test_get_patrol_observations_with_patrol_filter_page_size_parity(er_io):
+    kwargs = {
+        "since": pd.Timestamp("2017-01-01").isoformat(),
+        "until": pd.Timestamp("2017-04-01").isoformat(),
+        "patrol_type_value": "ecoscope_patrol",
+        "status": ["done"],
+        "include_patrol_details": True,
+    }
+
+    relocations_default = er_io.get_patrol_observations_with_patrol_filter(**kwargs)
+    relocations_page_size = er_io.get_patrol_observations_with_patrol_filter(**(kwargs | {"sub_page_size": 100}))
+    pd.testing.assert_frame_equal(relocations_default.gdf, relocations_page_size.gdf)
+
+
+def test_get_events_page_size_parity(er_io):
+    kwargs = {
+        "since": pd.Timestamp("2017-01-01").isoformat(),
+        "until": pd.Timestamp("2017-04-01").isoformat(),
+    }
+    events_default = er_io.get_events(**kwargs)
+    events_page_size = er_io.get_events(**(kwargs | {"sub_page_size": 100}))
+    pd.testing.assert_frame_equal(events_default, events_page_size, check_like=True)
