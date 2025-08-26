@@ -477,3 +477,30 @@ def test_empty_responses(_get_mock, er_io, er_callable, er_kwargs):
     _get_mock.return_value = {}
     df = er_callable(er_io, **er_kwargs)
     assert df.empty
+
+
+@pytest.mark.parametrize(
+    "er_callable, er_kwargs",
+    [
+        (EarthRangerIO.get_patrols, {}),
+        (EarthRangerIO.get_subjectgroup_observations, {"subject_group_id": "12345"}),
+        (EarthRangerIO.get_patrol_observations_with_patrol_filter, {}),
+        (EarthRangerIO.get_patrol_events, {}),
+        (EarthRangerIO.get_events, {}),
+    ],
+)
+@pytest.mark.parametrize("set_sub_page_size", [True, False])
+@patch("erclient.client.ERClient.get_objects_multithreaded")
+def test_page_size_override(get_objects_mock, set_sub_page_size, er_callable, er_kwargs, er_io):
+    """
+    The intent of this test is to make sure that if page size is set on the er_callable,
+    all downstream calls to get_objects_multithreaded use the overridden page_size
+    """
+    get_objects_mock.return_value = {}
+    if set_sub_page_size:
+        er_kwargs["sub_page_size"] = 100
+
+    er_callable(er_io, **er_kwargs)
+
+    for call in get_objects_mock.mock_calls:
+        assert call.kwargs["page_size"] == 100 if set_sub_page_size else 4000
