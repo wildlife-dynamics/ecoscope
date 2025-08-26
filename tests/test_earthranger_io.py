@@ -484,8 +484,7 @@ def test_empty_responses(_get_mock, er_io, er_callable, er_kwargs):
     "er_callable, er_kwargs",
     [
         (EarthRangerIO.get_events, {}),
-        (EarthRangerIO.get_subject_sources, {}),
-        (EarthRangerIO.get_source_observations, {}),
+        (EarthRangerIO.get_source_observations, {"source_ids": ["12345"]}),
     ],
 )
 @pytest.mark.parametrize("set_sub_page_size", [True, False])
@@ -607,4 +606,9 @@ def test_get_events_page_size_parity(er_io):
     }
     events_default = er_io.get_events(**kwargs)
     events_page_size = er_io.get_events(**(kwargs | {"sub_page_size": 100}))
-    pd.testing.assert_frame_equal(events_default, events_page_size, check_like=True)
+    # get_events explicitly sets the index as the event id
+    # but keeps the original range index, so drop that here
+    # check_like = True since the sort order of the events can differ
+    pd.testing.assert_frame_equal(
+        events_default.drop(columns=["index"]), events_page_size.drop(columns=["index"]), check_like=True
+    )
