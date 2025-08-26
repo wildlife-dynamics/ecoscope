@@ -340,7 +340,6 @@ class EarthRangerIO(ERClient):
         source_ids: str | list[str],
         include_source_details: bool = False,
         relocations: bool = True,
-        sub_page_size: int | None = None,
         **kwargs,
     ) -> ecoscope.Relocations | gpd.GeoDataFrame:
         """
