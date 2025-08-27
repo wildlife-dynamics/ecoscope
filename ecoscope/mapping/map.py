@@ -490,7 +490,7 @@ class EcoMap(Map):
         return layer
 
     @staticmethod
-    def get_named_tile_layer(layer: str, widget_id: int = None, opacity: float = 1) -> BitmapTileLayer:
+    def get_named_tile_layer(layer: str, widget_id: Optional[int] = None, opacity: float = 1) -> BitmapTileLayer:
         layer_def = TILE_LAYERS.get(layer)
         if not layer_def:
             raise ValueError("layer name must be in  {}".format(", ".join(TILE_LAYERS.keys())))
