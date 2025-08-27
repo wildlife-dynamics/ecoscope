@@ -396,3 +396,12 @@ def test_clean_gdf_with_multi_index(point_gdf):
     assert "source_id" in clean_gdf.columns
     assert clean_gdf["time_bin"].to_list() == expected_time_bins
     assert clean_gdf["source_id"].to_list() == expected_sources
+
+
+def test_loading_state():
+    for idx in range(4):
+        m = EcoMap()
+        m.add_layer(m.get_named_tile_layer("TERRAIN", widget_id=idx, opacity=0.3))
+        m.add_layer(m.get_named_tile_layer("SATELLITE", widget_id=idx, opacity=0.5))
+
+        m.to_html(f"test_loading_{idx}.html")
