@@ -179,6 +179,31 @@ def test_apply_colormap_numeric_nan_only():
 
 
 @pytest.mark.parametrize(
+    "values",
+    [
+        [np.nan, 2.0],
+        [np.nan, 1.0, 10.0, 9.0],
+        [np.nan, 2.0],
+        [np.nan, 2.0],
+        [np.nan, 2.0, 20.0],
+        [np.nan],
+        [np.nan, 2.0],
+        [np.nan, 1.0, 31.0],
+        [np.nan, 27.0, 1.0],
+        [np.nan, 204.0, 438.0, 345.0, 116.0, 1.0],
+        [np.nan, 3.0, 4.0],
+    ],
+)
+def test_apply_colormap_leaf(values):
+    df = pd.DataFrame(
+        data={"value": values},
+    )
+    apply_color_map(df, "value", "RdYlGn_r", output_column_name="colormap")
+
+    assert len(df["colormap"].unique()) == len(df["value"].unique())
+
+
+@pytest.mark.parametrize(
     "percentile_levels,expected_values",
     [
         ([10, 50, 90], [90, 90, 50, 50, 10]),
