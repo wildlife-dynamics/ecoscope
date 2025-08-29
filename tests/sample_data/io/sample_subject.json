@@ -1,0 +1,60 @@
+{
+    "content_type": "observations.subject",
+    "id": "64444ed7-72ec-4531-a2b1-fb25c7197b2d",
+    "name": "Habiba",
+    "subject_type": "wildlife",
+    "subject_subtype": "elephant",
+    "common_name": null,
+    "additional": {
+        "rgb": "",
+        "sex": "female",
+        "region": "",
+        "country": "",
+        "tm_animal_id": ""
+    },
+    "created_at": "2023-01-16T08:02:47.625394Z",
+    "updated_at": "2023-01-17T10:11:29.687152Z",
+    "is_active": true,
+    "user": null,
+    "region": "",
+    "country": "",
+    "sex": "female",
+    "tracks_available": true,
+    "image_url": "/static/elephant-black-female.svg",
+    "last_position_status": {
+        "last_voice_call_start_at": null,
+        "radio_state_at": null,
+        "radio_state": "na"
+    },
+    "last_position_date": "2023-04-24T08:03:31+00:00",
+    "last_position": {
+        "type": "Feature",
+        "geometry": {
+            "type": "Point",
+            "coordinates": [
+                1.99,
+                2.99
+            ]
+        },
+        "properties": {
+            "title": "Habiba",
+            "subject_type": "wildlife",
+            "subject_subtype": "elephant",
+            "id": "64444ed7-72ec-4531-a2b1-fb25c7197b2d",
+            "stroke": "",
+            "stroke-opacity": 1.0,
+            "stroke-width": 2,
+            "image": "https://mep-dev.pamdas.org/static/elephant-black-female.svg",
+            "last_voice_call_start_at": null,
+            "location_requested_at": null,
+            "radio_state_at": "1970-01-01T00:00:00+00:00",
+            "radio_state": "na",
+            "coordinateProperties": {
+                "time": "2023-04-24T08:03:31+00:00"
+            },
+            "DateTime": "2023-04-24T08:03:31+00:00"
+        }
+    },
+    "device_status_properties": null,
+    "url": "https://mep-dev.pamdas.org/api/v1.0/subject/64444ed7-72ec-4531-a2b1-fb25c7197b2d"
+}
