@@ -29,7 +29,6 @@ def pytest_configure(config):
             warnings.warn(Warning("Earth Engine can not be initialized."))
 
 
-@pytest.mark.io
 @pytest.fixture(scope="session")
 def er_io():
     ER_SERVER = "https://mep-dev.pamdas.org"
@@ -46,7 +45,6 @@ def er_io():
     return er_io
 
 
-@pytest.mark.smart_io
 @pytest.fixture(scope="session")
 def smart_io():
     SMART_SERVER = "https://smartapitest.smartconservationtools.org/smartapi/"
@@ -57,7 +55,6 @@ def smart_io():
     return smart_io
 
 
-@pytest.mark.io
 @pytest.fixture(scope="session")
 def er_events_io():
     ER_SERVER = "https://mep-dev.pamdas.org"

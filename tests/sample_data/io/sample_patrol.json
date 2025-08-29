@@ -1,0 +1,120 @@
+{
+    "id": "0a634948-8510-43e7-a266-4c481b95150a",
+    "priority": 0,
+    "state": "done",
+    "objective": "Demo Patrol",
+    "serial_number": 23494,
+    "title": "Ecoscope Demo Patrol",
+    "files": [],
+    "notes": [],
+    "patrol_segments": [
+        {
+            "id": "c97eb62e-a31a-4099-bd57-d4e089696617",
+            "patrol_type": "ecoscope_patrol",
+            "leader": {
+                "content_type": "observations.subject",
+                "id": "e2e6a9ec-d68d-4940-bf07-7170d31f680d",
+                "name": "eco_2",
+                "subject_type": "person",
+                "subject_subtype": "ranger",
+                "common_name": null,
+                "additional": {},
+                "created_at": "2024-09-09T18:30:02.246841Z",
+                "updated_at": "2024-09-09T18:30:02.246879Z",
+                "is_active": true,
+                "user": null,
+                "tracks_available": false,
+                "image_url": "/static/ranger-black.svg"
+            },
+            "scheduled_start": null,
+            "scheduled_end": null,
+            "time_range": {
+                "start_time": "2017-01-10T22:30:00Z",
+                "end_time": "2017-01-11T12:30:00Z"
+            },
+            "start_location": {
+                "latitude": -2.3138830144383205,
+                "longitude": 37.834389980692016
+            },
+            "end_location": {
+                "latitude": -2.2241188263609417,
+                "longitude": 37.79784509529978
+            },
+            "events": [
+                {
+                    "id": "8abaeb0c-dd41-4da6-a321-056efe3f37fe",
+                    "serial_number": 443974,
+                    "event_type": "injured_animal_rep",
+                    "priority": 0,
+                    "title": "injured_animal_rep",
+                    "state": "new",
+                    "contains": [],
+                    "updated_at": "2024-09-09T20:03:53.721470Z",
+                    "created_at": "2024-09-09T20:03:53.721408Z",
+                    "geojson": {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [
+                                37.82826913348916,
+                                -2.310935495152107
+                            ]
+                        },
+                        "properties": {
+                            "message": "",
+                            "datetime": "2017-01-11T03:00:00+00:00",
+                            "image": "https://mep-dev.pamdas.org/static/injured_animal-gray.svg",
+                            "icon": {
+                                "iconUrl": "https://mep-dev.pamdas.org/static/injured_animal-gray.svg",
+                                "iconSize": [
+                                    25,
+                                    25
+                                ],
+                                "iconAncor": [
+                                    12,
+                                    12
+                                ],
+                                "popupAncor": [
+                                    0,
+                                    -13
+                                ],
+                                "className": "dot"
+                            }
+                        }
+                    },
+                    "is_collection": false
+                }
+            ],
+            "image_url": "https://mep-dev.pamdas.org/static/sprite-src/plane-patrol-icon.svg",
+            "icon_id": "plane-patrol-icon",
+            "updates": [
+                {
+                    "message": "Report Added",
+                    "time": "2024-09-09T20:03:53.735661+00:00",
+                    "user": {
+                        "username": "jwall",
+                        "first_name": "Jake",
+                        "last_name": "Wall",
+                        "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                        "content_type": "accounts.user"
+                    },
+                    "type": "add_event"
+                }
+            ]
+        }
+    ],
+    "updates": [
+        {
+            "message": "Patrol Added",
+            "time": "2024-09-09T20:03:53.427055+00:00",
+            "user": {
+                "username": "jwall",
+                "first_name": "Jake",
+                "last_name": "Wall",
+                "id": "de30b9c8-8cf5-4e0c-b03d-f6d0ad53b01e",
+                "content_type": "accounts.user"
+            },
+            "type": "add_patrol"
+        }
+    ]
+}
