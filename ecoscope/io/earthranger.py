@@ -93,8 +93,8 @@ class EarthRangerIO(ERClient):
         provider_key
         provider
         id
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         Returns
         -------
         sources : pd.DataFrame
@@ -112,7 +112,7 @@ class EarthRangerIO(ERClient):
             self.get_objects_multithreaded(
                 object="sources/",
                 threads=self.tcp_limit,
-                page_size=sub_page_size if sub_page_size else self.sub_page_size,
+                page_size=sub_page_size or self.sub_page_size,
                 **params,
             )
         )
@@ -148,8 +148,8 @@ class EarthRangerIO(ERClient):
         updated_until
         subject_group_name: A subject group name for which Subjects should be listed.
             This is translated to the group_name parameter in the ER backend
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         Returns
         -------
         subjects : pd.DataFrame
@@ -193,7 +193,7 @@ class EarthRangerIO(ERClient):
                     self.get_objects_multithreaded(
                         object="subjects/",
                         threads=self.tcp_limit,
-                        page_size=sub_page_size if sub_page_size else self.sub_page_size,
+                        page_size=sub_page_size or self.sub_page_size,
                         **params,
                     )
                 )
@@ -211,7 +211,7 @@ class EarthRangerIO(ERClient):
                 self.get_objects_multithreaded(
                     object="subjects/",
                     threads=self.tcp_limit,
-                    page_size=sub_page_size if sub_page_size else self.sub_page_size,
+                    page_size=sub_page_size or self.sub_page_size,
                     **params,
                 )
             )
@@ -230,8 +230,8 @@ class EarthRangerIO(ERClient):
         ----------
         subjects: A comma-delimited list of Subject IDs.
         sources: A comma-delimited list of Source IDs.
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         Returns
         -------
         subjectsources : pd.DataFrame
@@ -241,7 +241,7 @@ class EarthRangerIO(ERClient):
             self.get_objects_multithreaded(
                 object="subjectsources/",
                 threads=self.tcp_limit,
-                page_size=sub_page_size if sub_page_size else self.sub_page_size,
+                page_size=sub_page_size or self.sub_page_size,
                 **params,
             )
         )
@@ -283,8 +283,8 @@ class EarthRangerIO(ERClient):
             automatically filtered data)
         include_details: one of [true,false], default is false. This brings back the observation additional field
         created_after: get observations created (saved in EarthRanger) after this ISO8061 date, include timezone
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         Returns
         -------
         observations : gpd.GeoDataFrame
@@ -317,7 +317,7 @@ class EarthRangerIO(ERClient):
                 self.get_objects_multithreaded(
                     object="observations/",
                     threads=self.tcp_limit,
-                    page_size=sub_page_size if sub_page_size else self.sub_page_size,
+                    page_size=sub_page_size or self.sub_page_size,
                     **params,
                 )
             )
@@ -350,8 +350,8 @@ class EarthRangerIO(ERClient):
             List of source UUIDs
         include_source_details : bool, optional
             Whether to merge source info into dataframe
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         kwargs
             Additional arguments to pass in the request to EarthRanger. See the docstring of `_get_observations` for
             info.
@@ -407,8 +407,8 @@ class EarthRangerIO(ERClient):
             Whether to merge subject info into dataframe
         include_subjectsource_details : bool, optional
             Whether to merge subjectsource info into dataframe
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         kwargs
             Additional arguments to pass in the request to EarthRanger. See the docstring of `__get_observations` for
             info.
@@ -537,8 +537,8 @@ class EarthRangerIO(ERClient):
             Common name of subject group to filter by
         include_inactive : bool, optional
             Whether to get observations for Subjects marked inactive by EarthRanger
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         kwargs
             Additional arguments to pass in the request to `get_subject_observations`. See the docstring of
             `get_subject_observations` for info.
@@ -637,8 +637,8 @@ class EarthRangerIO(ERClient):
             If true, non point geometry (ie polys) will be converted to a single point via Shape.centroid
         drop_null_geometry: bool, default True
             If true, events with no geometry will be removed from output
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         Returns
         -------
         events : gpd.GeoDataFrame
@@ -679,7 +679,7 @@ class EarthRangerIO(ERClient):
             self.get_objects_multithreaded(
                 object="activity/events/",
                 threads=self.tcp_limit,
-                page_size=sub_page_size if sub_page_size else self.sub_page_size,
+                page_size=sub_page_size or self.sub_page_size,
                 **params,
             )
         )
@@ -726,8 +726,8 @@ class EarthRangerIO(ERClient):
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         Returns
         -------
         patrols : pd.DataFrame
@@ -766,7 +766,7 @@ class EarthRangerIO(ERClient):
             self.get_objects_multithreaded(
                 object="activity/patrols",
                 threads=self.tcp_limit,
-                page_size=sub_page_size if sub_page_size else self.sub_page_size,
+                page_size=sub_page_size or self.sub_page_size,
                 **params,
             )
         )
@@ -806,8 +806,8 @@ class EarthRangerIO(ERClient):
             If true, non point geometry (ie polys) will be converted to a single point via Shape.centroid
         drop_null_geometry: bool, default True
             If true, events with no geometry will be removed from output
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         Returns
         -------
         events : pd.DataFrame
@@ -910,8 +910,8 @@ class EarthRangerIO(ERClient):
             Accept a status string or a list of statuses
         include_patrol_details : bool, optional
             Whether to merge patrol details into dataframe
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         kwargs
             Additional parameters to pass to `get_subject_observations`.
 
@@ -945,8 +945,8 @@ class EarthRangerIO(ERClient):
            Data returned from a call to `get_patrols`.
         include_patrol_details : bool, optional
            Whether to merge patrol details into dataframe
-        sub_page_size: int
-            Set a specific sub_page_size for this request, instead of using the client default
+        sub_page_size: int | None
+            Optionally set a specific sub_page_size for this request, instead of using the client default
         kwargs
            Additional parameters to pass to `get_subject_observations`.
 
