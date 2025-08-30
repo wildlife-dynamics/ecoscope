@@ -166,7 +166,20 @@ def test_apply_colormap_numeric_with_float_range():
     assert len(df["colormap"].unique()) == len(df["value"].unique())
 
 
-@pytest.mark.parametrize("colormap", ["viridis", "RdYlGn_r", "Reds", "copper", "twilight", "Set1", "flag"])
+@pytest.mark.parametrize(
+    "colormap",
+    ["viridis", "RdYlGn_r", "Reds", "copper", "twilight", "Set1", "flag", ["#FF0000"]],
+    ids=[
+        "mpl.viridis",
+        "mpl.RdYlGn_r",
+        "mpl.Reds",
+        "mpl.copper",
+        "mpl.twilight",
+        "mpl.Set1",
+        "mpl.flag",
+        "user defined",
+    ],
+)
 def test_apply_colormap_numeric_nan_only(colormap):
     df = pd.DataFrame(
         data={"value": [np.nan, np.nan]},
