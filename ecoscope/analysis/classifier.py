@@ -135,6 +135,9 @@ def apply_color_map(
     nunique = dataframe[input_column_name].nunique()
     unique = dataframe[input_column_name].unique()
     if nunique == 0:
+        # nunique == 0 when input_column contains only nan values
+        # in this case we manually set the color values to transparent
+        # rather than rely on mpl, which may or may not handle nans properly
         NAN_COLOR = (0, 0, 0, 0)
         cmap_series = pd.Series([NAN_COLOR], index=unique)
     elif isinstance(cmap, list):
