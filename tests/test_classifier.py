@@ -166,41 +166,17 @@ def test_apply_colormap_numeric_with_float_range():
     assert len(df["colormap"].unique()) == len(df["value"].unique())
 
 
-def test_apply_colormap_numeric_nan_only():
+@pytest.mark.parametrize("colormap", ["viridis", "RdYlGn_r", "reds", "copper", "twilight", "set1", "flag"])
+def test_apply_colormap_numeric_nan_only(colormap):
     df = pd.DataFrame(
         data={"value": [np.nan, np.nan]},
         index=["A", "B"],
     )
-    apply_color_map(df, "value", "viridis", output_column_name="colormap")
+    apply_color_map(df, "value", colormap, output_column_name="colormap")
 
     assert len(df["colormap"].unique()) == len(df["value"].unique())
     assert df.loc["A"]["colormap"] == (0, 0, 0, 0)
     assert df.loc["B"]["colormap"] == (0, 0, 0, 0)
-
-
-@pytest.mark.parametrize(
-    "values",
-    [
-        # [np.nan, 2.0],
-        # [np.nan, 1.0, 10.0, 9.0],
-        # [np.nan, 2.0],
-        # [np.nan, 2.0],
-        # [np.nan, 2.0, 20.0],
-        [np.nan],
-        # [np.nan, 2.0],
-        # [np.nan, 1.0, 31.0],
-        # [np.nan, 27.0, 1.0],
-        # [np.nan, 204.0, 438.0, 345.0, 116.0, 1.0],
-        # [np.nan, 3.0, 4.0],
-    ],
-)
-def test_apply_colormap_leaf(values):
-    df = pd.DataFrame(
-        data={"value": values},
-    )
-    apply_color_map(df, "value", "RdYlGn_r", output_column_name="colormap")
-
-    # assert len(df["colormap"].unique()) == len(df["value"].unique())
 
 
 @pytest.mark.parametrize(
