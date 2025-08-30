@@ -134,11 +134,17 @@ def apply_color_map(
 
     nunique = dataframe[input_column_name].nunique()
     unique = dataframe[input_column_name].unique()
-    if isinstance(cmap, list):
+    if nunique == 0:
+        # nunique == 0 when input_column contains only nan values
+        # in this case we manually set the color values to transparent
+        # rather than rely on mpl, which may or may not handle nans properly
+        NAN_COLOR = (0, 0, 0, 0)
+        cmap_series = pd.Series([NAN_COLOR], index=unique)
+    elif isinstance(cmap, list):
         rgba = [hex_to_rgba(x) for x in cmap]
         normalized_cmap = [rgba[i % len(rgba)] for i in range(nunique)]
         cmap_series = pd.Series(normalized_cmap, index=unique)
-    if isinstance(cmap, str):
+    elif isinstance(cmap, str):
         mpl_cmap = mpl.colormaps[cmap]
         if nunique < mpl_cmap.N:
             mpl_cmap = mpl_cmap.resampled(nunique)
