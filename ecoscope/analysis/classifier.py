@@ -134,11 +134,14 @@ def apply_color_map(
 
     nunique = dataframe[input_column_name].nunique()
     unique = dataframe[input_column_name].unique()
-    if isinstance(cmap, list):
+    if nunique == 0:
+        NAN_COLOR = (0, 0, 0, 0)
+        cmap_series = pd.Series([NAN_COLOR], index=unique)
+    elif isinstance(cmap, list):
         rgba = [hex_to_rgba(x) for x in cmap]
         normalized_cmap = [rgba[i % len(rgba)] for i in range(nunique)]
         cmap_series = pd.Series(normalized_cmap, index=unique)
-    if isinstance(cmap, str):
+    elif isinstance(cmap, str):
         mpl_cmap = mpl.colormaps[cmap]
         if nunique < mpl_cmap.N:
             mpl_cmap = mpl_cmap.resampled(nunique)
