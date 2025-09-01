@@ -102,10 +102,10 @@ def groupby_intervals(df: pd.DataFrame, col: str, intervals: pd.IntervalIndex) -
             interval: df.iloc[left_i:right_i]
             for interval, left_i, right_i in zip(
                 intervals,
-                df[col].searchsorted(intervals.left, side="left" if intervals.closed in ("left", "both") else "right"),
+                df[col].searchsorted(intervals.left, side="left" if intervals.closed in ("left", "both") else "right"),  # type: ignore[call-overload]
                 df[col].searchsorted(
                     intervals.right, side="right" if intervals.closed in ("right", "both") else "left"
-                ),
+                ),  # type: ignore[call-overload]
             )
         }
     ).groupby(level=0)
