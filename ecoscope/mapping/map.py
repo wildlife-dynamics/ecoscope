@@ -24,7 +24,14 @@ try:
         TitleWidget,
     )
     from lonboard._geoarrow.ops.bbox import Bbox
-    from lonboard._layer import BaseLayer, BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
+    from lonboard._layer import (
+        BaseLayer,
+        BitmapLayer,
+        BitmapTileLayer,
+        PathLayer,
+        PolygonLayer,
+        ScatterplotLayer,
+    )
     from lonboard._viewport import bbox_to_zoom_level, compute_view
 
 except ModuleNotFoundError:
@@ -119,7 +126,11 @@ class EcoMap(Map):
             if static:
                 kwargs["deck_widgets"] = [ScaleWidget()]
             else:
-                kwargs["deck_widgets"] = [FullscreenWidget(), ScaleWidget(), SaveImageWidget()]
+                kwargs["deck_widgets"] = [
+                    FullscreenWidget(),
+                    ScaleWidget(),
+                    SaveImageWidget(),
+                ]
 
         if static:
             kwargs["controller"] = False
@@ -359,7 +370,11 @@ class EcoMap(Map):
 
         return ee_layer
 
-    def zoom_to_bounds(self, feat: Union[BaseLayer, Sequence[BaseLayer], gpd.GeoDataFrame], max_zoom: int = 20):
+    def zoom_to_bounds(
+        self,
+        feat: Union[BaseLayer, Sequence[BaseLayer], gpd.GeoDataFrame],
+        max_zoom: int = 20,
+    ):
         """
         Zooms the map to the bounds of a dataframe or layer.
 
@@ -416,7 +431,14 @@ class EcoMap(Map):
                 src.crs, "EPSG:4326", src.width, src.height, *src.bounds
             )
             rio_kwargs = src.meta.copy()
-            rio_kwargs.update({"crs": "EPSG:4326", "transform": transform, "width": width, "height": height})
+            rio_kwargs.update(
+                {
+                    "crs": "EPSG:4326",
+                    "transform": transform,
+                    "width": width,
+                    "height": height,
+                }
+            )
 
             # new
             bounds = rio.warp.transform_bounds(src.crs, "EPSG:4326", *src.bounds)
@@ -490,7 +512,7 @@ class EcoMap(Map):
         return layer
 
     @staticmethod
-    def get_named_tile_layer(layer: str, widget_id: Optional[int] = None, opacity: float = 1) -> BitmapTileLayer:
+    def get_named_tile_layer(layer: str, widget_id: Optional[str] = None, opacity: float = 1) -> BitmapTileLayer:
         layer_def = TILE_LAYERS.get(layer)
         if not layer_def:
             raise ValueError("layer name must be in  {}".format(", ".join(TILE_LAYERS.keys())))

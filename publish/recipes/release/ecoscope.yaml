@@ -49,7 +49,7 @@ requirements:
     # - scikit-learn  # duplicate with analysis
     # ~ mapping ~
     - duckdb
-    - lonboard==0.0.5
+    - lonboard==0.0.7
     - pyarrow
     # - matplotlib  # duplicate with analysis
     # - mapclassify  # duplicate with analysis

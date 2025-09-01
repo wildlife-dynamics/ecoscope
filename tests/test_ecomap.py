@@ -350,6 +350,18 @@ def test_add_named_tile_layer():
     assert m.layers[0].opacity == 0.3
 
 
+def test_add_named_tile_layer_with_widget_id():
+    m = EcoMap()
+    widget_id = "THIS IS A TEST STRING"
+    m.add_layer(m.get_named_tile_layer("TERRAIN", opacity=0.3, widget_id=widget_id))
+
+    assert len(m.layers) == 1
+    assert isinstance(m.layers[0], BitmapTileLayer)
+    assert m.layers[0].opacity == 0.3
+    output = m.to_html()
+    assert widget_id in output
+
+
 def test_clean_gdf(point_gdf):
     dirty_gdf = point_gdf.copy(deep=True)
     dirty_gdf.at[0, "geometry"] = None
