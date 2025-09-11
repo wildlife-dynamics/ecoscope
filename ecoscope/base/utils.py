@@ -1,11 +1,12 @@
 from datetime import datetime
+from typing import Any, Literal, Tuple
+
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 from pandas.core.groupby.generic import DataFrameGroupBy
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
-from typing import Any, Literal, Tuple
 
 BoundingBox = Tuple[float, float, float, float]
 

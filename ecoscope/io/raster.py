@@ -2,9 +2,9 @@ import logging
 import math
 import os
 from collections import UserDict
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Union
-from collections.abc import Callable
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np

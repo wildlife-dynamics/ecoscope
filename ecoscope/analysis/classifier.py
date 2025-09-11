@@ -1,10 +1,11 @@
 from typing import Literal
-import pandas as pd
-import geopandas as gpd  # type: ignore[import-untyped]
-import numpy as np
-import matplotlib as mpl
-from ecoscope.base.utils import hex_to_rgba
 
+import geopandas as gpd  # type: ignore[import-untyped]
+import matplotlib as mpl
+import numpy as np
+import pandas as pd
+
+from ecoscope.base.utils import hex_to_rgba
 
 try:
     import mapclassify  # type: ignore[import-untyped]
