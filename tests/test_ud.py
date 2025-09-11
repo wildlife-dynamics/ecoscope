@@ -8,8 +8,8 @@ import pytest
 from shapely.geometry import Point
 
 import ecoscope
-from ecoscope.analysis.UD import calculate_etd_range, grid_size_from_geographic_extent
 from ecoscope.analysis.percentile import get_percentile_area
+from ecoscope.analysis.UD import calculate_etd_range, grid_size_from_geographic_extent
 
 
 @pytest.fixture

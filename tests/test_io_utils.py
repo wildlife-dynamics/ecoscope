@@ -1,11 +1,11 @@
 import json
 import os
-import pytest
+from http.client import HTTPMessage
+from unittest.mock import Mock, patch
 
 import fsspec
 import pandas as pd
-from unittest.mock import Mock, patch
-from http.client import HTTPMessage
+import pytest
 from requests.exceptions import RetryError
 
 import ecoscope

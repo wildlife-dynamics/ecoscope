@@ -1,23 +1,25 @@
 import os
 import random
+
 import ee
 import geopandas as gpd
 import pandas as pd
 import pytest
-import ecoscope
 import shapely
-from ecoscope.mapping.map import EcoMap, _clean_gdf
-from ecoscope.analysis.geospatial import datashade_gdf
-from ecoscope.analysis.classifier import apply_classification, apply_color_map
-from lonboard._layer import BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
 from lonboard._deck_widget import (
-    NorthArrowWidget,
-    ScaleWidget,
-    TitleWidget,
-    SaveImageWidget,
     FullscreenWidget,
     LegendWidget,
+    NorthArrowWidget,
+    SaveImageWidget,
+    ScaleWidget,
+    TitleWidget,
 )
+from lonboard._layer import BitmapLayer, BitmapTileLayer, PathLayer, PolygonLayer, ScatterplotLayer
+
+import ecoscope
+from ecoscope.analysis.classifier import apply_classification, apply_color_map
+from ecoscope.analysis.geospatial import datashade_gdf
+from ecoscope.mapping.map import EcoMap, _clean_gdf
 
 
 @pytest.fixture
