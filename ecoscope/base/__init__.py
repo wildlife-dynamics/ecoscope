@@ -3,20 +3,20 @@ from ecoscope.base._dataclasses import (
     RelocsCoordinateFilter,
     RelocsDateRangeFilter,
     RelocsDistFilter,
-    RelocsSpeedFilter,
     RelocsFilterType,
+    RelocsSpeedFilter,
     SpatialFeature,
     TrajSegFilter,
 )
+from ecoscope.base.ecodataframe import EcoDataFrame
 from ecoscope.base.straightrack import StraightTrackProperties
 from ecoscope.base.utils import (
     BoundingBox,
+    color_tuple_to_css,
     create_meshgrid,
     groupby_intervals,
     hex_to_rgba,
-    color_tuple_to_css,
 )
-from ecoscope.base.ecodataframe import EcoDataFrame
 
 __all__ = [
     "BoundingBox",

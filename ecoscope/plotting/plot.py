@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from typing import Tuple
 
-import ecoscope
 import numpy as np
 import pandas as pd
 import shapely
-from ecoscope.base.utils import color_tuple_to_css
 from pandas.core.groupby.generic import DataFrameGroupBy
+
+import ecoscope
+from ecoscope.base.utils import color_tuple_to_css
 
 try:
     import plotly.graph_objs as go  # type: ignore[import-untyped]

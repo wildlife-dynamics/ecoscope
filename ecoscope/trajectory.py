@@ -8,13 +8,13 @@ import pandas as pd
 import shapely
 from pyproj import Geod
 
+from ecoscope import Relocations
+from ecoscope.base import EcoDataFrame
 from ecoscope.base._dataclasses import (
     ProximityProfile,
     TrajSegFilter,
 )
 from ecoscope.base.straightrack import StraightTrackProperties
-from ecoscope.base import EcoDataFrame
-from ecoscope import Relocations
 
 
 def get_displacement(gdf: gpd.GeoDataFrame):

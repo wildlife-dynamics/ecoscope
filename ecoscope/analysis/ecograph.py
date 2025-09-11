@@ -6,8 +6,8 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import rasterio  # type: ignore[import-untyped]
-from shapely.geometry import shape
 from affine import Affine  # type: ignore[import-untyped]
+from shapely.geometry import shape
 
 import ecoscope
 

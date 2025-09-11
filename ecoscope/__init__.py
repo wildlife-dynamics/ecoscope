@@ -1,6 +1,6 @@
+from ecoscope import base, io
 from ecoscope.relocations import Relocations
 from ecoscope.trajectory import Trajectory, get_displacement, get_tortuosity
-from ecoscope import base, io
 
 ASCII = """\
  _____
