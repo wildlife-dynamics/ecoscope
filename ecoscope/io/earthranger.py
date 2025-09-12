@@ -36,6 +36,7 @@ EventSortOptions = Literal[
     "-serial_number",
 ]
 StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
+ApiVersionSelection = Literal["v1", "v2", "both"]
 
 
 class EarthRangerIO(ERClient):
@@ -564,10 +565,19 @@ class EarthRangerIO(ERClient):
 
         return self.get_subject_observations(subjects, sub_page_size=sub_page_size, **kwargs)
 
-    def get_event_types(self, include_inactive: bool = False, **addl_kwargs) -> pd.DataFrame:
+    def get_event_types(
+        self, include_inactive: bool = False, api_version: ApiVersionSelection = "both", **addl_kwargs
+    ) -> pd.DataFrame:
         params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
+        results = []
+        if version == "v1" or version == "both":
+            results.append(pd.DataFrame(self._get("activity/events/eventtypes", **params)))
+        if version == "v2" or version == "both":
+            self.service_root = f"{server}/api/v2.0"
+            results.append(pd.DataFrame(self._get("activity/eventtypes", **params)))
+            self.service_root = f"{server}/api/1.0"
 
-        return pd.DataFrame(self._get("activity/events/eventtypes", **params))
+        return pd.concat(results)
 
     def get_events(
         self,
