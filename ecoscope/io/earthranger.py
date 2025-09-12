@@ -42,9 +42,9 @@ ApiVersionSelection = Literal["v1", "v2", "both"]
 class EarthRangerIO(ERClient):
     def __init__(self, sub_page_size: int = 4000, tcp_limit: int = 5, **kwargs):
         if "server" in kwargs:
-            server = kwargs.pop("server")
-            kwargs["service_root"] = f"{server}/api/v1.0"
-            kwargs["token_url"] = f"{server}/oauth2/token"
+            self.server = kwargs.pop("server")
+            kwargs["service_root"] = f"{self.server}/api/v1.0"
+            kwargs["token_url"] = f"{self.server}/oauth2/token"
 
         self.sub_page_size = sub_page_size
         self.tcp_limit = tcp_limit
@@ -573,9 +573,9 @@ class EarthRangerIO(ERClient):
         if api_version == "v1" or api_version == "both":
             results.append(pd.DataFrame(self._get("activity/events/eventtypes", **params)))
         if api_version == "v2" or api_version == "both":
-            self.service_root = f"{server}/api/v2.0"
+            self.service_root = f"{self.server}/api/v2.0"
             results.append(pd.DataFrame(self._get("activity/eventtypes", **params)))
-            self.service_root = f"{server}/api/1.0"
+            self.service_root = f"{self.server}/api/1.0"
 
         return pd.concat(results)
 
