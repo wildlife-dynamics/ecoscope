@@ -23,6 +23,7 @@ from ecoscope.io.earthranger_utils import (
     pack_columns,
     to_gdf,
     to_hex,
+    unpack_events_from_patrols_df,
 )
 from ecoscope.relocations import Relocations
 
@@ -809,39 +810,6 @@ class EarthRangerIO(ERClient):
         df = clean_time_cols(df)
         return df
 
-    def get_patrol_events_from_patrols_df(
-        self,
-        patrols_df: pd.DataFrame,
-        event_type: list[str] | None = None,
-        force_point_geometry: bool = True,
-        drop_null_geometry: bool = True,
-    ) -> gpd.GeoDataFrame:
-        events = []
-        for _, row in patrols_df.iterrows():
-            for segment in row.get("patrol_segments", []):
-                for event in segment.get("events", []):
-                    if event_type is None or event_type == [] or event.get("event_type") in event_type:
-                        event["patrol_id"] = row.get("id")
-                        event["patrol_serial_number"] = row.get("serial_number")
-                        event["patrol_segment_id"] = segment.get("id")
-                        event["patrol_start_time"] = (segment.get("time_range") or {}).get("start_time")
-                        event["patrol_type"] = segment.get("patrol_type")
-                        events.append(event)
-        events_df = pd.DataFrame(events)
-        if events_df.empty:
-            return events_df
-
-        events_df = geometry_from_event_geojson(
-            events_df, force_point_geometry=force_point_geometry, drop_null_geometry=drop_null_geometry
-        )
-        events_df["time"] = events_df["geojson"].apply(
-            lambda x: x.get("properties", {}).get("datetime") if isinstance(x, dict) else None
-        )
-        events_df = events_df.dropna(subset="time").reset_index()
-        events_df = clean_time_cols(events_df)
-
-        return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
-
     def get_patrol_events(
         self,
         since: str | None = None,
@@ -890,7 +858,7 @@ class EarthRangerIO(ERClient):
             **addl_kwargs,
         )
 
-        return self.get_patrol_events_from_patrols_df(patrol_df, event_type, force_point_geometry, drop_null_geometry)
+        return unpack_events_from_patrols_df(patrol_df, event_type, force_point_geometry, drop_null_geometry)
 
     def get_patrol_segments_from_patrol_id(self, patrol_id: str, **addl_kwargs) -> pd.DataFrame:
         """
