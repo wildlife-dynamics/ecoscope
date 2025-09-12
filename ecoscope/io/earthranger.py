@@ -76,7 +76,11 @@ class EarthRangerIO(ERClient):
         raise ERClientNotFound(f"{response.status_code}, {response.text}")
 
     @contextmanager
-    def _use_v2_service_root(self):
+    def _use_v2_api(self):
+        """
+        Context manager to safely handle switching the internal client
+        service root to the v2 api base where required, and then switch back to v1
+        """
         self.service_root = f"{self.server}/api/v2.0"
         try:
             yield
@@ -577,12 +581,24 @@ class EarthRangerIO(ERClient):
     def get_event_types(
         self, include_inactive: bool = False, api_version: ApiVersionSelection = "both", **addl_kwargs
     ) -> pd.DataFrame:
+        """
+        Return dataframe of ER event types
+        Parameters
+        ----------
+        include_inactive: bool, default False
+            Whether to include inactive event types
+        api_version: "v1","v2", or "both", default "both"
+            Whether to fetch v1 or v2 event types, or both
+        Returns
+        -------
+        pd.DataFrame
+        """
         params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
         results = []
         if api_version == "v1" or api_version == "both":
             results.append(pd.DataFrame(self._get("activity/events/eventtypes", **params)))
         if api_version == "v2" or api_version == "both":
-            with self._use_v2_service_root():
+            with self._use_v2_api():
                 results.append(pd.DataFrame(self._get("activity/eventtypes", **params)))
 
         return pd.concat(results)
