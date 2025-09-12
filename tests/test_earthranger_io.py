@@ -625,6 +625,6 @@ def test_get_event_types_api_version(er_events_io, api_version):
 
     assert not event_types.empty
     if api_version == "v1" or api_version == "both":
-        assert known_v1_event_type in event_types.id
+        assert known_v1_event_type in event_types.id.values
     if api_version == "v2" or api_version == "both":
-        assert known_v2_event_type in event_types.id
+        assert known_v2_event_type in event_types.id.values

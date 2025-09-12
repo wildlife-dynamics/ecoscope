@@ -573,9 +573,10 @@ class EarthRangerIO(ERClient):
         if api_version == "v1" or api_version == "both":
             results.append(pd.DataFrame(self._get("activity/events/eventtypes", **params)))
         if api_version == "v2" or api_version == "both":
+            # TODO context manager?
             self.service_root = f"{self.server}/api/v2.0"
             results.append(pd.DataFrame(self._get("activity/eventtypes", **params)))
-            self.service_root = f"{self.server}/api/1.0"
+            self.service_root = f"{self.server}/api/v1.0"
 
         return pd.concat(results)
 
