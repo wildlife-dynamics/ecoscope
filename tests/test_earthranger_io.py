@@ -628,3 +628,12 @@ def test_get_event_types_api_version(er_events_io, api_version):
         assert known_v1_event_type in event_types.id.values
     if api_version == "v2" or api_version == "both":
         assert known_v2_event_type in event_types.id.values
+
+
+def test_get_event_types_response_shape(er_events_io):
+    v1_event_types = er_events_io.get_event_types(api_version="v1")
+    v2_event_types = er_events_io.get_event_types(api_version="v2")
+
+    assert not v1_event_types.empty
+    assert not v2_event_types.empty
+    assert set(v1_event_types.columns) == set(v2_event_types.columns)
