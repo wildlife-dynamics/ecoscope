@@ -570,9 +570,9 @@ class EarthRangerIO(ERClient):
     ) -> pd.DataFrame:
         params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
         results = []
-        if version == "v1" or version == "both":
+        if api_version == "v1" or api_version == "both":
             results.append(pd.DataFrame(self._get("activity/events/eventtypes", **params)))
-        if version == "v2" or version == "both":
+        if api_version == "v2" or api_version == "both":
             self.service_root = f"{server}/api/v2.0"
             results.append(pd.DataFrame(self._get("activity/eventtypes", **params)))
             self.service_root = f"{server}/api/1.0"
