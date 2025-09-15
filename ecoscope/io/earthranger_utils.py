@@ -116,3 +116,36 @@ def geometry_from_event_geojson(
         df = df.dropna(subset="geometry").reset_index()
 
     return df
+
+
+def unpack_events_from_patrols_df(
+    patrols_df: pd.DataFrame,
+    event_type: list[str] | None = None,
+    force_point_geometry: bool = True,
+    drop_null_geometry: bool = True,
+) -> gpd.GeoDataFrame:
+    events = []
+    for _, row in patrols_df.iterrows():
+        for segment in row.get("patrol_segments", []):
+            for event in segment.get("events", []):
+                if event_type is None or event_type == [] or event.get("event_type") in event_type:
+                    event["patrol_id"] = row.get("id")
+                    event["patrol_serial_number"] = row.get("serial_number")
+                    event["patrol_segment_id"] = segment.get("id")
+                    event["patrol_start_time"] = (segment.get("time_range") or {}).get("start_time")
+                    event["patrol_type"] = segment.get("patrol_type")
+                    events.append(event)
+    events_df = pd.DataFrame(events)
+    if events_df.empty:
+        return events_df
+
+    events_df = geometry_from_event_geojson(
+        events_df, force_point_geometry=force_point_geometry, drop_null_geometry=drop_null_geometry
+    )
+    events_df["time"] = events_df["geojson"].apply(
+        lambda x: x.get("properties", {}).get("datetime") if isinstance(x, dict) else None
+    )
+    events_df = events_df.dropna(subset="time").reset_index()
+    events_df = clean_time_cols(events_df)
+
+    return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
