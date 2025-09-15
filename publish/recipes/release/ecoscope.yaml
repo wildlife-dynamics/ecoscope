@@ -26,7 +26,6 @@ requirements:
     - earthengine-api
     - earthranger-client
     - geopandas>1
-    - numpy
     - pyproj
     - rasterio
     - tqdm

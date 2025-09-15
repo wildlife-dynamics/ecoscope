@@ -2,6 +2,7 @@ import datetime
 import json
 import math
 import typing
+from contextlib import contextmanager
 from typing import Any, Literal
 
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -36,14 +37,15 @@ EventSortOptions = Literal[
     "-serial_number",
 ]
 StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
+ApiVersionSelection = Literal["v1", "v2", "both"]
 
 
 class EarthRangerIO(ERClient):
     def __init__(self, sub_page_size: int = 4000, tcp_limit: int = 5, **kwargs):
         if "server" in kwargs:
-            server = kwargs.pop("server")
-            kwargs["service_root"] = f"{server}/api/v1.0"
-            kwargs["token_url"] = f"{server}/oauth2/token"
+            self.server = kwargs.pop("server")
+            kwargs["service_root"] = f"{self.server}/api/v1.0"
+            kwargs["token_url"] = f"{self.server}/oauth2/token"
 
         self.sub_page_size = sub_page_size
         self.tcp_limit = tcp_limit
@@ -72,6 +74,18 @@ class EarthRangerIO(ERClient):
         self.auth = None
         self.auth_expires = pytz.utc.localize(datetime.datetime.min)
         raise ERClientNotFound(f"{response.status_code}, {response.text}")
+
+    @contextmanager
+    def _use_v2_api(self):
+        """
+        Context manager to safely handle switching the internal client
+        service root to the v2 api base where required, and then switch back to v1
+        """
+        self.service_root = f"{self.server}/api/v2.0"
+        try:
+            yield
+        finally:
+            self.service_root = f"{self.server}/api/v1.0"
 
     """
     GET Functions
@@ -564,10 +578,30 @@ class EarthRangerIO(ERClient):
 
         return self.get_subject_observations(subjects, sub_page_size=sub_page_size, **kwargs)
 
-    def get_event_types(self, include_inactive: bool = False, **addl_kwargs) -> pd.DataFrame:
+    def get_event_types(
+        self, include_inactive: bool = False, api_version: ApiVersionSelection = "both", **addl_kwargs
+    ) -> pd.DataFrame:
+        """
+        Return dataframe of ER event types
+        Parameters
+        ----------
+        include_inactive: bool, default False
+            Whether to include inactive event types
+        api_version: "v1","v2", or "both", default "both"
+            Whether to fetch v1 or v2 event types, or both
+        Returns
+        -------
+        pd.DataFrame
+        """
         params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
+        results = []
+        if api_version == "v1" or api_version == "both":
+            results.append(pd.DataFrame(self._get("activity/events/eventtypes", **params)))
+        if api_version == "v2" or api_version == "both":
+            with self._use_v2_api():
+                results.append(pd.DataFrame(self._get("activity/eventtypes", **params)))
 
-        return pd.DataFrame(self._get("activity/events/eventtypes", **params))
+        return pd.concat(results)
 
     def get_events(
         self,
