@@ -134,6 +134,7 @@ def unpack_events_from_patrols_df(
                     event["patrol_segment_id"] = segment.get("id")
                     event["patrol_start_time"] = (segment.get("time_range") or {}).get("start_time")
                     event["patrol_type"] = segment.get("patrol_type")
+                    event["patrol_subject"] = (segment.get("leader") or {}).get("name")
                     events.append(event)
     events_df = pd.DataFrame(events)
     if events_df.empty:
