@@ -151,11 +151,13 @@ def test_etd_range_benchmark(
         return raster_data
 
     # Run benchmark with pytest-benchmark
-    # rounds=5: number of measurement rounds for statistical analysis
+    # rounds=1: single measurement round (variance is low for this function)
+    # iterations=1: single iteration per round
     # warmup_rounds=1: one warmup to ensure JIT compilation (numba) happens before timing
     result = benchmark.pedantic(
         run_calculate_etd_range,
-        rounds=5,
+        rounds=1,
+        iterations=1,
         warmup_rounds=1
     )
 
