@@ -1,6 +1,8 @@
 name: Test Smart IO
 
 on:
+  push:
+    branches: [ "master" ]
   pull_request:
     branches: [ "**" ]
     # paths:
