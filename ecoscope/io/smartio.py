@@ -76,17 +76,6 @@ class SmartIO:
         r.raise_for_status()
         return gpd.GeoDataFrame.from_features(r.json(), crs=4326)
 
-    def get_patrol_stations(
-        self,
-        ca_uuid: str,
-        language_uuid: str,
-    ) -> pd.DataFrame | None:
-        params: dict[str, str | None] = {}
-        params["ca_uuid"] = ca_uuid
-        params["language_uuid"] = language_uuid
-
-        return self.query_data(url="station/", params=params)
-
     def get_patrols_list(
         self,
         ca_uuid: str,
@@ -215,7 +204,7 @@ class SmartIO:
         patrol_mandate: str | None = None,
         patrol_transport: str | None = None,
         station_uuid: str | None = None,
-    ) -> ecoscope.Relocations | None:
+    ) -> Relocations | None:
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
         patrols = self.get_patrols_list(
@@ -264,8 +253,7 @@ class SmartIO:
         params["start_date"] = start
         params["end_date"] = end
 
-        # events_df = self.query_geojson_data(url="observation/", params=params)
-        events_df = gpd.read_parquet("/Users/yunwu/MEP/ecoscope-pgaff/.tmp/events_df_raw_05_25.parquet")
+        events_df = self.query_geojson_data(url="observation/", params=params)
         events_df = gpd.GeoDataFrame(
             events_df,
             geometry=gpd.points_from_xy(x=events_df["X"], y=events_df["Y"]),  # type: ignore[index]
