@@ -71,6 +71,7 @@ test = [
   "pytest-cov",
   "pytest-mock",
   "pytest-reportlog",
+  "pytest-benchmark",
   "fsspec",
 ]
 mypy =[

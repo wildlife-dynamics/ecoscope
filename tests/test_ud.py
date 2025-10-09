@@ -1,25 +1,29 @@
 import os
+import tracemalloc
 from tempfile import NamedTemporaryFile
 
 import geopandas as gpd
 import geopandas.testing
 import numpy as np
 import pytest
+from pytest_benchmark.fixture import BenchmarkFixture
 from shapely.geometry import Point
 
 import ecoscope
 from ecoscope.analysis.percentile import get_percentile_area
+from ecoscope.relocations import Relocations
+from ecoscope.trajectory import Trajectory
 from ecoscope.analysis.UD import calculate_etd_range, grid_size_from_geographic_extent
 
 
 @pytest.fixture
-def sample_observations():
+def sample_observations() -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame.from_file("tests/sample_data/vector/observations.geojson")
     return gdf
 
 
 @pytest.fixture
-def movebank_trajectory(movebank_relocations):
+def movebank_trajectory(movebank_relocations: Relocations) -> Trajectory:
     # apply relocation coordinate filter to movebank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
@@ -36,7 +40,7 @@ def movebank_trajectory(movebank_relocations):
 
 
 @pytest.fixture
-def raster_profile():
+def raster_profile() -> ecoscope.io.raster.RasterProfile:
     return ecoscope.io.raster.RasterProfile(
         pixel_size=250.0,
         crs="ESRI:102022",
@@ -109,3 +113,66 @@ def test_grid_size_from_geographic_extent(movebank_relocations, aoi_gdf, sample_
     relocs_cell_size = grid_size_from_geographic_extent(relocs_gdf)
 
     assert aoi_gdf_cell_size < sample_observations_cell_size < relocs_cell_size
+
+
+def test_etd_range_benchmark(
+    benchmark: BenchmarkFixture,
+    movebank_trajectory: Trajectory,
+    raster_profile: ecoscope.io.raster.RasterProfile,
+):
+    """
+    Comprehensive benchmark for calculate_etd_range performance.
+
+    Tracks:
+    - Total execution time (via pytest-benchmark)
+    - Peak memory usage (via tracemalloc)
+    - Memory allocated per iteration
+    - Validates correctness against expected output
+    """
+
+    def run_calculate_etd_range():
+        """Wrapper function to benchmark with memory tracking."""
+        tracemalloc.start()
+
+        raster_data = calculate_etd_range(
+            trajectory=movebank_trajectory,
+            max_speed_kmhr=1.05 * movebank_trajectory.gdf.speed_kmhr.max(),
+            raster_profile=raster_profile,
+            expansion_factor=1.3,
+        )
+
+        current, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        # Store memory metrics for reporting
+        run_calculate_etd_range.peak_memory_mb = peak / 1024 / 1024
+        run_calculate_etd_range.current_memory_mb = current / 1024 / 1024
+
+        return raster_data
+
+    # Run benchmark with pytest-benchmark
+    # rounds=1: single measurement round (variance is low for this function)
+    # iterations=1: single iteration per round
+    # warmup_rounds=1: one warmup to ensure JIT compilation (numba) happens before timing
+    result = benchmark.pedantic(
+        run_calculate_etd_range,
+        rounds=1,
+        iterations=1,
+        warmup_rounds=1
+    )
+
+    # Validate correctness - ensures optimization doesn't break functionality
+    percentile_area = get_percentile_area(
+        percentile_levels=[99.9],
+        raster_data=result,
+        subject_id="Salif_Keita"
+    ).to_crs(4326)
+
+    expected_percentile_area = gpd.read_feather("tests/test_output/etd_percentile_area.feather")
+    gpd.testing.geom_almost_equals(percentile_area, expected_percentile_area)
+
+    # Report memory usage in benchmark output
+    # Access stored metrics from last run
+    if hasattr(run_calculate_etd_range, 'peak_memory_mb'):
+        benchmark.extra_info['peak_memory_mb'] = round(run_calculate_etd_range.peak_memory_mb, 2)
+        benchmark.extra_info['current_memory_mb'] = round(run_calculate_etd_range.current_memory_mb, 2)
