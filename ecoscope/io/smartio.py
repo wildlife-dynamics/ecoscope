@@ -140,7 +140,7 @@ class SmartIO:
 
         return longitudes, latitudes, timestamps
 
-    def process_patrols_gdf(self, df: pd.DataFrame) -> gpd.GeoDataFrame:
+    def process_patrols_gdf(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         Process multiple geometries in a vectorized way.
         Args:
