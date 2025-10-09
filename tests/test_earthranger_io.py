@@ -165,6 +165,7 @@ def test_get_patrol_events(er_io):
     assert "patrol_id" in events
     assert "patrol_segment_id" in events
     assert "patrol_start_time" in events
+    assert "patrol_subject" in events
     assert "patrol_type" in events
     assert "patrol_serial_number" in events
     assert "time" in events
@@ -612,3 +613,28 @@ def test_get_events_page_size_parity(er_io):
     pd.testing.assert_frame_equal(
         events_default.drop(columns=["index"]), events_page_size.drop(columns=["index"]), check_like=True
     )
+
+
+@pytest.mark.parametrize(
+    "api_version",
+    ["v1", "v2", "both"],
+)
+def test_get_event_types_api_version(er_events_io, api_version):
+    known_v1_event_type = "fe77a01d-a11f-4608-b6c6-2caf6f0b838d"
+    known_v2_event_type = "8081cb2c-e145-41ad-9726-b8f9d1ce3907"
+    event_types = er_events_io.get_event_types(api_version=api_version)
+
+    assert not event_types.empty
+    if api_version == "v1" or api_version == "both":
+        assert known_v1_event_type in event_types.id.values
+    if api_version == "v2" or api_version == "both":
+        assert known_v2_event_type in event_types.id.values
+
+
+def test_get_event_types_response_shape(er_events_io):
+    v1_event_types = er_events_io.get_event_types(api_version="v1")
+    v2_event_types = er_events_io.get_event_types(api_version="v2")
+
+    assert not v1_event_types.empty
+    assert not v2_event_types.empty
+    assert set(v1_event_types.columns) == set(v2_event_types.columns)

@@ -3,10 +3,10 @@ import math
 import os
 import typing
 from dataclasses import dataclass
-from pyproj import Geod
 
-import numpy as np
 import geopandas as gpd  # type: ignore[import-untyped]
+import numpy as np
+from pyproj import Geod
 
 from ecoscope import Trajectory
 from ecoscope.io import raster

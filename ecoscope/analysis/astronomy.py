@@ -1,12 +1,13 @@
 import typing
 import warnings
 from datetime import datetime, timedelta
-from shapely.geometry.base import BaseGeometry
+
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
-import geopandas as gpd  # type: ignore[import-untyped]
 import pyproj
 import pytz
+from shapely.geometry.base import BaseGeometry
 
 try:
     import astroplan  # type: ignore[import-untyped]

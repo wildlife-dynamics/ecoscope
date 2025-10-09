@@ -2,20 +2,20 @@ import warnings
 from copy import deepcopy
 from functools import cached_property
 
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
-import geopandas as gpd  # type: ignore[import-untyped]
 from pyproj import Geod
 
+from ecoscope.base import EcoDataFrame
 from ecoscope.base._dataclasses import (
     RelocsCoordinateFilter,
     RelocsDateRangeFilter,
     RelocsDistFilter,
-    RelocsSpeedFilter,
     RelocsFilterType,
+    RelocsSpeedFilter,
 )
 from ecoscope.base.straightrack import StraightTrackProperties
-from ecoscope.base import EcoDataFrame
 
 
 class Relocations(EcoDataFrame):

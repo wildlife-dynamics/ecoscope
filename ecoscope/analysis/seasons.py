@@ -2,9 +2,9 @@ import logging
 from datetime import datetime
 
 import ee
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
-import geopandas as gpd  # type: ignore[import-untyped]
 import shapely
 from shapely.geometry.base import BaseGeometry
 

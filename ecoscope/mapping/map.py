@@ -1,7 +1,7 @@
 import base64
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Dict, Optional, TextIO, Union, overload, Sequence
+from typing import IO, Dict, Optional, Sequence, TextIO, Union, overload
 
 import ee
 import geopandas as gpd  # type: ignore[import-untyped]

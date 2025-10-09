@@ -4,8 +4,8 @@ import pandas as pd
 import pyproj
 import pytest
 
-from ecoscope.analysis import astronomy
 from ecoscope import Trajectory
+from ecoscope.analysis import astronomy
 
 
 def test_to_EarthLocation(movebank_relocations):

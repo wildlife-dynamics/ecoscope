@@ -8,11 +8,11 @@ from typing import Callable, cast
 
 import backoff
 import ee
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pytz
 import tqdm.auto as tqdm
-import geopandas as gpd  # type: ignore[import-untyped]
 
 from ecoscope.contrib import geemap
 

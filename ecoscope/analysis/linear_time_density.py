@@ -1,5 +1,6 @@
 import geopandas as gpd  # type: ignore[import-untyped]
 from pyproj import Geod
+
 from ecoscope import Trajectory
 
 
