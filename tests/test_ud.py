@@ -1,4 +1,6 @@
+import cProfile
 import os
+import pstats
 import tracemalloc
 from tempfile import NamedTemporaryFile
 
@@ -176,3 +178,58 @@ def test_etd_range_benchmark(
     if hasattr(run_calculate_etd_range, 'peak_memory_mb'):
         benchmark.extra_info['peak_memory_mb'] = round(run_calculate_etd_range.peak_memory_mb, 2)
         benchmark.extra_info['current_memory_mb'] = round(run_calculate_etd_range.current_memory_mb, 2)
+
+
+def test_etd_range_profile(
+    movebank_trajectory: Trajectory,
+    raster_profile: ecoscope.io.raster.RasterProfile,
+):
+    """
+    Detailed profiling of calculate_etd_range using cProfile.
+
+    Run with: pytest tests/test_ud.py::test_etd_range_profile -v -s
+
+    Shows function-by-function breakdown of execution time to identify bottlenecks.
+    No changes to application code required.
+    """
+    profiler = cProfile.Profile()
+    profiler.enable()
+
+    # Run the function under profiling
+    calculate_etd_range(
+        trajectory=movebank_trajectory,
+        max_speed_kmhr=1.05 * movebank_trajectory.gdf.speed_kmhr.max(),
+        raster_profile=raster_profile,
+        expansion_factor=1.3,
+    )
+
+    profiler.disable()
+
+    # Create stats object for analysis
+    stats = pstats.Stats(profiler)
+
+    # Save profile data for later analysis/visualization
+    profile_path = "tests/outputs/etd_range_profile.prof"
+    stats.dump_stats(profile_path)
+    print(f"\n\nProfile data saved to: {profile_path}")
+    print("View with: python -m pstats {profile_path}\n")
+
+    # Print top 30 functions by cumulative time
+    print("\n" + "="*80)
+    print("TOP 30 FUNCTIONS BY CUMULATIVE TIME")
+    print("="*80)
+    stats.sort_stats('cumulative')
+    stats.print_stats(30)
+
+    # Print top 20 functions by total time (excluding subcalls)
+    print("\n" + "="*80)
+    print("TOP 20 FUNCTIONS BY TOTAL TIME (EXCLUDING SUBCALLS)")
+    print("="*80)
+    stats.sort_stats('tottime')
+    stats.print_stats(20)
+
+    # Print time spent in calculate_etd_range and its direct calls
+    print("\n" + "="*80)
+    print("CALCULATE_ETD_RANGE BREAKDOWN")
+    print("="*80)
+    stats.print_callers('calculate_etd_range')
