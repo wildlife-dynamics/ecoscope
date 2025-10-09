@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - "ecoscope/io/smartio.py"
-      - "tests/test_smart_io.py"
+      # - "tests/test_smart_io.py"
 
 jobs:
   dev:
