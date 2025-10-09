@@ -2,9 +2,10 @@ name: Test Smart IO
 
 on:
   pull_request:
+    branches: [ "**" ]
     paths:
       - "ecoscope/io/smartio.py"
-      # - "tests/test_smart_io.py"
+      - "tests/test_smart_io.py"
 
 jobs:
   dev:
