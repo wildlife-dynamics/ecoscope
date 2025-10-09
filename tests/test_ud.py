@@ -6,21 +6,24 @@ import geopandas as gpd
 import geopandas.testing
 import numpy as np
 import pytest
+from pytest_benchmark.fixture import BenchmarkFixture
 from shapely.geometry import Point
 
 import ecoscope
 from ecoscope.analysis.UD import calculate_etd_range, grid_size_from_geographic_extent
 from ecoscope.analysis.percentile import get_percentile_area
+from ecoscope.relocations import Relocations
+from ecoscope.trajectory import Trajectory
 
 
 @pytest.fixture
-def sample_observations():
+def sample_observations() -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame.from_file("tests/sample_data/vector/observations.geojson")
     return gdf
 
 
 @pytest.fixture
-def movebank_trajectory(movebank_relocations):
+def movebank_trajectory(movebank_relocations: Relocations) -> Trajectory:
     # apply relocation coordinate filter to movebank data
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
@@ -37,7 +40,7 @@ def movebank_trajectory(movebank_relocations):
 
 
 @pytest.fixture
-def raster_profile():
+def raster_profile() -> ecoscope.io.raster.RasterProfile:
     return ecoscope.io.raster.RasterProfile(
         pixel_size=250.0,
         crs="ESRI:102022",
@@ -112,7 +115,11 @@ def test_grid_size_from_geographic_extent(movebank_relocations, aoi_gdf, sample_
     assert aoi_gdf_cell_size < sample_observations_cell_size < relocs_cell_size
 
 
-def test_etd_range_benchmark(benchmark, movebank_trajectory, raster_profile):
+def test_etd_range_benchmark(
+    benchmark: BenchmarkFixture,
+    movebank_trajectory: Trajectory,
+    raster_profile: ecoscope.io.raster.RasterProfile,
+):
     """
     Comprehensive benchmark for calculate_etd_range performance.
 
