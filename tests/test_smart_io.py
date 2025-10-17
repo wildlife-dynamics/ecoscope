@@ -3,6 +3,7 @@ import pytest
 pytestmark = pytest.mark.smart_io
 
 
+@pytest.mark.skip(reason="The SMART test API credentials are invalid")
 def test_smart_get_events(smart_io):
     events = smart_io.get_events(
         ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
@@ -17,6 +18,7 @@ def test_smart_get_events(smart_io):
     assert "extracted_attributes" in events.columns
 
 
+@pytest.mark.skip(reason="The SMART test API credentials are invalid")
 def test_smart_get_patrol_observations(smart_io):
     result = smart_io.get_patrol_observations(
         ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
