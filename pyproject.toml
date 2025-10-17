@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
   "backoff>=2",
-  "earthengine-api>=1",
+  "earthengine-api>=1.4",
   "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
   "geopandas>=1",
   "numpy>=2,<2.1",
@@ -66,14 +66,8 @@ docs = [
 ]
 
 [dependency-groups]
-test = [
-  "pytest",
-  "pytest-cov",
-  "pytest-mock",
-  "pytest-reportlog",
-  "fsspec",
-]
-mypy =[
+test = ["pytest", "pytest-cov", "pytest-mock", "pytest-reportlog", "fsspec"]
+mypy = [
   "mypy",
   "pandas-stubs",
   "types-httplib2",

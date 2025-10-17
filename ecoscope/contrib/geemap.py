@@ -22,9 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import ee
-import os
 import json
+import os
+
+import ee
 
 __version__ = "0.30.0"
 
@@ -128,4 +129,5 @@ def ee_initialize(
                 ee.Authenticate(**auth_args)
                 ee.Initialize(**kwargs)
 
+    ee.data.setUserAgent(user_agent)
     ee.data.setUserAgent(user_agent)
