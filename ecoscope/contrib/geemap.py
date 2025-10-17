@@ -130,4 +130,3 @@ def ee_initialize(
                 ee.Initialize(**kwargs)
 
     ee.data.setUserAgent(user_agent)
-    ee.data.setUserAgent(user_agent)
