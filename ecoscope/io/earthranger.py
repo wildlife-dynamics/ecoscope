@@ -714,26 +714,35 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        event_type_chunks = [
-            event_type[i : i + SAFE_QUERY_PARAM_LIST_SIZE]
-            for i in range(0, len(event_type), SAFE_QUERY_PARAM_LIST_SIZE)
-        ]
-        params.pop("event_type")
-
-        df = pd.concat(
-            [
-                pd.DataFrame(
-                    self.get_objects_multithreaded(
-                        object="activity/events/",
-                        threads=self.tcp_limit,
-                        page_size=sub_page_size or self.sub_page_size,
-                        event_type=chunk,
-                        **params,
-                    )
-                )
-                for chunk in event_type_chunks
+        if len(event_type) > SAFE_QUERY_PARAM_LIST_SIZE:
+            event_type_chunks = [
+                event_type[i : i + SAFE_QUERY_PARAM_LIST_SIZE]
+                for i in range(0, len(event_type), SAFE_QUERY_PARAM_LIST_SIZE)
             ]
-        )
+            params.pop("event_type")
+            df = pd.concat(
+                [
+                    pd.DataFrame(
+                        self.get_objects_multithreaded(
+                            object="activity/events/",
+                            threads=self.tcp_limit,
+                            page_size=sub_page_size or self.sub_page_size,
+                            event_type=chunk,
+                            **params,
+                        )
+                    )
+                    for chunk in event_type_chunks
+                ]
+            )
+        else:
+            df = pd.DataFrame(
+                self.get_objects_multithreaded(
+                    object="activity/events/",
+                    threads=self.tcp_limit,
+                    page_size=sub_page_size or self.sub_page_size,
+                    **params,
+                )
+            )
 
         if not df.empty:
             df = clean_time_cols(df)
