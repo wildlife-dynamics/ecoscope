@@ -638,3 +638,30 @@ def test_get_event_types_response_shape(er_events_io):
     assert not v1_event_types.empty
     assert not v2_event_types.empty
     assert set(v1_event_types.columns) == set(v2_event_types.columns)
+
+
+def test_get_events_in_chunks(er_events_io):
+    all_event_types = er_events_io.get_event_types()
+    assert len(all_event_types) > ecoscope.io.earthranger.SAFE_QUERY_PARAM_LIST_SIZE
+
+    events = er_events_io.get_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+        event_type=all_event_types["id"].values,
+    )
+
+    assert len(events) > 0
+    assert "id" == events.index.name
+    assert "time" in events
+    assert "event_type" in events
+    assert "geometry" in events
+    assert len(events["event_type"].unique()) > 1
+
+
+def test_get_events_empty_event_types(er_events_io):
+    events = er_events_io.get_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+    assert not events.empty
+    check_time_is_parsed(events)
