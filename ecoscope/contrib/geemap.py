@@ -66,7 +66,7 @@ def ee_initialize(
 
     auth_args["auth_mode"] = auth_mode
 
-    if ee.data._credentials is None:
+    if not ee.data.is_initialized():
         ee_token = os.environ.get(token_name)
         if in_colab_shell():
             from google.colab import userdata  # type: ignore[import-untyped]
