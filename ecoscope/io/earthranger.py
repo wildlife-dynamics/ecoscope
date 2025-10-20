@@ -710,14 +710,32 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        df = pd.DataFrame(
-            self.get_objects_multithreaded(
-                object="activity/events/",
-                threads=self.tcp_limit,
-                page_size=sub_page_size or self.sub_page_size,
-                **params,
+        SAFE_CHUNK_SIZE = 100
+        if len(event_type) > SAFE_CHUNK_SIZE:
+            chunks = [event_type[i : i + SAFE_CHUNK_SIZE] for i in range(len(event_type), SAFE_CHUNK_SIZE)]
+            df = pd.concat(
+                [
+                    self.get_events(
+                        self.get_objects_multithreaded(
+                            object="activity/events/",
+                            threads=self.tcp_limit,
+                            page_size=sub_page_size or self.sub_page_size,
+                            **params,
+                            event_type=chunk,
+                        )
+                    )
+                    for chunk in chunks
+                ]
             )
-        )
+        else:
+            df = pd.DataFrame(
+                self.get_objects_multithreaded(
+                    object="activity/events/",
+                    threads=self.tcp_limit,
+                    page_size=sub_page_size or self.sub_page_size,
+                    **params,
+                )
+            )
 
         if not df.empty:
             df = clean_time_cols(df)
