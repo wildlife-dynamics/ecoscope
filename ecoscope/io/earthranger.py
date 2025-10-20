@@ -40,6 +40,8 @@ EventSortOptions = Literal[
 StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
 ApiVersionSelection = Literal["v1", "v2", "both"]
 
+SAFE_QUERY_PARAM_LIST_SIZE = 100
+
 
 class EarthRangerIO(ERClient):
     def __init__(self, sub_page_size: int = 4000, tcp_limit: int = 5, **kwargs):
@@ -679,6 +681,8 @@ class EarthRangerIO(ERClient):
         events : gpd.GeoDataFrame
             GeoDataFrame of queried events
         """
+        if event_type is None:
+            event_type = []
 
         params = clean_kwargs(
             addl_kwargs,
@@ -710,20 +714,24 @@ class EarthRangerIO(ERClient):
             filter["date_range"]["upper"] = until
             params["filter"] = json.dumps(filter)
 
-        SAFE_CHUNK_SIZE = 100
-        chunks = [event_type[i : i + SAFE_CHUNK_SIZE] for i in range(0, len(event_type), SAFE_CHUNK_SIZE)]
+        event_type_chunks = [
+            event_type[i : i + SAFE_QUERY_PARAM_LIST_SIZE]
+            for i in range(0, len(event_type), SAFE_QUERY_PARAM_LIST_SIZE)
+        ]
+        params.pop("event_type")
+
         df = pd.concat(
             [
-                self.get_events(
-                    since=since,
-                    until=until,
-                    event_type=chunk,
-                    drop_null_geometry=drop_null_geometry,
-                    include_details=include_details,
-                    include_updates=include_updates,
-                    include_related_events=include_related_events,
+                pd.DataFrame(
+                    self.get_objects_multithreaded(
+                        object="activity/events/",
+                        threads=self.tcp_limit,
+                        page_size=sub_page_size or self.sub_page_size,
+                        event_type=chunk,
+                        **params,
+                    )
                 )
-                for chunk in chunks
+                for chunk in event_type_chunks
             ]
         )
 
