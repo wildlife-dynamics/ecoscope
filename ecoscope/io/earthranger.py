@@ -711,31 +711,21 @@ class EarthRangerIO(ERClient):
             params["filter"] = json.dumps(filter)
 
         SAFE_CHUNK_SIZE = 100
-        if len(event_type) > SAFE_CHUNK_SIZE:
-            chunks = [event_type[i : i + SAFE_CHUNK_SIZE] for i in range(len(event_type), SAFE_CHUNK_SIZE)]
-            df = pd.concat(
-                [
-                    self.get_events(
-                        self.get_objects_multithreaded(
-                            object="activity/events/",
-                            threads=self.tcp_limit,
-                            page_size=sub_page_size or self.sub_page_size,
-                            **params,
-                            event_type=chunk,
-                        )
-                    )
-                    for chunk in chunks
-                ]
-            )
-        else:
-            df = pd.DataFrame(
-                self.get_objects_multithreaded(
-                    object="activity/events/",
-                    threads=self.tcp_limit,
-                    page_size=sub_page_size or self.sub_page_size,
-                    **params,
+        chunks = [event_type[i : i + SAFE_CHUNK_SIZE] for i in range(0, len(event_type), SAFE_CHUNK_SIZE)]
+        df = pd.concat(
+            [
+                self.get_events(
+                    since=since,
+                    until=until,
+                    event_type=chunk,
+                    drop_null_geometry=drop_null_geometry,
+                    include_details=include_details,
+                    include_updates=include_updates,
+                    include_related_events=include_related_events,
                 )
-            )
+                for chunk in chunks
+            ]
+        )
 
         if not df.empty:
             df = clean_time_cols(df)

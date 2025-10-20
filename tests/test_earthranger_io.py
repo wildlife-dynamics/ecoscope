@@ -638,3 +638,20 @@ def test_get_event_types_response_shape(er_events_io):
     assert not v1_event_types.empty
     assert not v2_event_types.empty
     assert set(v1_event_types.columns) == set(v2_event_types.columns)
+
+
+def test_get_events_in_chunks(er_events_io):
+    event_types = er_events_io.get_event_types()
+
+    result = er_events_io.get_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+        event_type=event_types["id"].values,
+    )
+
+    assert len(result) > 0
+    assert "id" in result
+    assert "time" in result
+    assert "event_type" in result
+    assert "geometry" in result
+    assert len(result["event_type"].unique()) > 1
