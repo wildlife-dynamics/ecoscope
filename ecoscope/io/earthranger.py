@@ -782,9 +782,11 @@ class EarthRangerIO(ERClient):
         }
 
         if append_category_names == "duplicates":
-            rows_with_duplicate_display_values = events_df.groupby("event_type_display").filter(lambda x: len(x) > 1)
+            event_types_with_duplicate_display_values = events_df.groupby("event_type_display").filter(
+                lambda x: len(x["event_type"].unique()) > 1
+            )
             event_type_values_with_duplicate_display_values = set(
-                rows_with_duplicate_display_values["event_type"].unique()
+                event_types_with_duplicate_display_values["event_type"].unique()
             )
             events_df["event_type_display"] = events_df.apply(
                 lambda row: (
