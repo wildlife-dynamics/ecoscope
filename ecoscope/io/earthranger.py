@@ -39,6 +39,7 @@ EventSortOptions = Literal[
 ]
 StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
 ApiVersionSelection = Literal["v1", "v2", "both"]
+AppendCategorySelection = Literal["duplicates", "always", "never"]
 
 SAFE_QUERY_PARAM_LIST_SIZE = 100
 
@@ -755,6 +756,45 @@ class EarthRangerIO(ERClient):
             return gdf
 
         return gpd.GeoDataFrame()
+
+    def get_event_type_display_names_from_events(
+        self,
+        events_df: gpd.GeoDataFrame,
+        append_category_names: AppendCategorySelection = "never",
+    ) -> gpd.GeoDataFrame:
+        event_types = self.get_event_types()
+        event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
+        events_df["event_type_display"] = events_df["event_type"].apply(lambda x: event_type_lookup[x])
+
+        has_duplicates = len(events_df["event_type_display"].unique()) != len(events_df["event_type"].unique())
+        do_append = append_category_names == "always" or (append_category_names == "duplicates" and has_duplicates)
+
+        if not do_append:
+            return events_df
+
+        event_categories = self.get_event_categories()
+        event_categories_lookup = {category["value"]: category["display"] for category in event_categories}
+
+        if append_category_names == "duplicates":
+            rows_with_duplicate_display_values = events_df.groupby("event_type_display").filter(lambda x: len(x) > 1)
+            event_type_values_with_duplicate_display_values = set(
+                rows_with_duplicate_display_values["event_type"].unique()
+            )
+            events_df["event_type_display"] = events_df.apply(
+                lambda row: f"{row["event_type_display"]} {event_categories_lookup[
+                        row["category"]["value"] if isinstance(row["category"], dict) else row["category"] 
+                    ]}"
+                if row["event_type"] in event_type_values_with_duplicate_display_values
+                else row["event_type_display"]
+            )
+        else:
+            events_df["event_type_display"] = events_df.apply(
+                lambda row: f"{row["event_type_display"]} {event_categories_lookup[
+                        row["category"]["value"] if isinstance(row["category"], dict) else row["category"] 
+                    ]}"
+            )
+
+        return events_df
 
     def get_patrol_types(self) -> pd.DataFrame:
         df = pd.DataFrame(self._get("activity/patrols/types"))
