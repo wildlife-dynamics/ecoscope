@@ -669,12 +669,12 @@ def test_get_events_empty_event_types(er_events_io):
 
 def test_get_event_type_display_names_from_events_no_categories(er_events_io):
     events = er_events_io.get_events(
-        since=pd.Timestamp("2017-01-01").isoformat(),
-        until=pd.Timestamp("2017-04-01").isoformat(),
+        since=pd.Timestamp("2025-10-01").isoformat(),
+        until=pd.Timestamp("2025-10-31").isoformat(),
     )
 
     events = er_events_io.get_event_type_display_names_from_events(
-        events=events,
+        events_gdf=events,
         append_category_names="never",
     )
 
@@ -685,12 +685,12 @@ def test_get_event_type_display_names_from_events_no_categories(er_events_io):
 
 def test_get_event_type_display_names_from_events_all_categories(er_events_io):
     events = er_events_io.get_events(
-        since=pd.Timestamp("2017-01-01").isoformat(),
-        until=pd.Timestamp("2017-04-01").isoformat(),
+        since=pd.Timestamp("2025-10-01").isoformat(),
+        until=pd.Timestamp("2025-10-31").isoformat(),
     )
 
     events = er_events_io.get_event_type_display_names_from_events(
-        events=events,
+        events_gdf=events,
         append_category_names="always",
     )
 
@@ -706,8 +706,24 @@ def test_get_event_type_display_names_from_events_categories_duplicates_only(er_
     )
 
     events = er_events_io.get_event_type_display_names_from_events(
-        events=events,
+        events_gdf=events,
         append_category_names="duplicates",
+    )
+
+    assert not events.empty
+    assert "event_type", "event_type_display" in events
+    assert not events["event_type_display"].isna().any()
+
+
+def test_get_event_type_display_names_from_patrol_events(er_events_io):
+    events = er_events_io.get_patrol_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+
+    events = er_events_io.get_event_type_display_names_from_events(
+        events_gdf=events,
+        append_category_names="always",
     )
 
     assert not events.empty
