@@ -91,6 +91,17 @@ def test_apply_colormap_with_nan():
     assert df.loc["E"]["colormap"] == (0, 0, 0, 0)
 
 
+def test_apply_colormap_with_none():
+    df = pd.DataFrame(
+        data={"value": ["1", "2", "3", "4", None]},
+        index=["A", "B", "C", "D", "E"],
+    )
+    apply_color_map(df, "value", "viridis", output_column_name="colormap")
+
+    assert len(df["colormap"].unique()) == len(df["value"].unique())
+    assert df.loc["E"]["colormap"] == (0, 0, 0, 0)
+
+
 def test_apply_colormap_k2(sample_df):
     apply_classification(sample_df, input_column_name="value", scheme="equal_interval", k=2)
     cmap = "viridis"

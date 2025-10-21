@@ -171,3 +171,5 @@ tests/test_output/download_data.csv
 tests/test_output/config.json
 tests/test_output/line_density.tif
 tests/test_output/point_density.tif
+
+environment-dev.yml
