@@ -762,6 +762,8 @@ class EarthRangerIO(ERClient):
         events_df: gpd.GeoDataFrame,
         append_category_names: AppendCategorySelection = "never",
     ) -> gpd.GeoDataFrame:
+        assert "event_type" in events_df.columns
+
         event_types = self.get_event_types()
         event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
         events_df["event_type_display"] = events_df["event_type"].apply(lambda x: event_type_lookup[x])
