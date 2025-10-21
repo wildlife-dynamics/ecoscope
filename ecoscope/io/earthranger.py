@@ -774,6 +774,12 @@ class EarthRangerIO(ERClient):
 
         event_categories = self.get_event_categories()
         event_categories_lookup = {category["value"]: category["display"] for category in event_categories}
+        event_type_to_category_display_lookup = {
+            event_type["value"]: event_categories_lookup[
+                event_type["category"]["value"] if isinstance(event_type["category"], dict) else event_type["category"]
+            ]
+            for _, event_type in event_types.iterrows()
+        }
 
         if append_category_names == "duplicates":
             rows_with_duplicate_display_values = events_df.groupby("event_type_display").filter(lambda x: len(x) > 1)
@@ -781,17 +787,19 @@ class EarthRangerIO(ERClient):
                 rows_with_duplicate_display_values["event_type"].unique()
             )
             events_df["event_type_display"] = events_df.apply(
-                lambda row: f"{row["event_type_display"]} ({event_categories_lookup[
-                        row["category"]["value"] if isinstance(row["category"], dict) else row["category"] 
-                    ]})"
-                if row["event_type"] in event_type_values_with_duplicate_display_values
-                else row["event_type_display"]
+                lambda row: (
+                    f"{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})"
+                    if row["event_type"] in event_type_values_with_duplicate_display_values
+                    else row["event_type_display"]
+                ),
+                axis=1,
             )
         else:
             events_df["event_type_display"] = events_df.apply(
-                lambda row: f"{row["event_type_display"]} ({event_categories_lookup[
-                        row["category"]["value"] if isinstance(row["category"], dict) else row["category"] 
-                    ]})"
+                lambda row: (
+                    f"{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})"
+                ),
+                axis=1,
             )
 
         return events_df
