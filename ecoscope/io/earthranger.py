@@ -781,17 +781,17 @@ class EarthRangerIO(ERClient):
                 rows_with_duplicate_display_values["event_type"].unique()
             )
             events_df["event_type_display"] = events_df.apply(
-                lambda row: f"{row["event_type_display"]} {event_categories_lookup[
+                lambda row: f"{row["event_type_display"]} ({event_categories_lookup[
                         row["category"]["value"] if isinstance(row["category"], dict) else row["category"] 
-                    ]}"
+                    ]})"
                 if row["event_type"] in event_type_values_with_duplicate_display_values
                 else row["event_type_display"]
             )
         else:
             events_df["event_type_display"] = events_df.apply(
-                lambda row: f"{row["event_type_display"]} {event_categories_lookup[
+                lambda row: f"{row["event_type_display"]} ({event_categories_lookup[
                         row["category"]["value"] if isinstance(row["category"], dict) else row["category"] 
-                    ]}"
+                    ]})"
             )
 
         return events_df

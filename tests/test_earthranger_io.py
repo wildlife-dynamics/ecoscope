@@ -665,3 +665,35 @@ def test_get_events_empty_event_types(er_events_io):
     )
     assert not events.empty
     check_time_is_parsed(events)
+
+
+def test_get_event_type_display_names_from_events_no_categories(er_events_io):
+    events_df = er_events_io.get_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+
+    events_df = er_events_io.get_event_type_display_names_from_events(
+        events_df=events_df,
+        append_category_names="never",
+    )
+
+    assert not events_df.empty
+    assert "event_type", "event_type_display" in events_df
+    assert not events_df["event_type_display"].isna().any()
+
+
+def test_get_event_type_display_names_from_events_all_categories(er_events_io):
+    events_df = er_events_io.get_events(
+        since=pd.Timestamp("2017-01-01").isoformat(),
+        until=pd.Timestamp("2017-04-01").isoformat(),
+    )
+
+    events_df = er_events_io.get_event_type_display_names_from_events(
+        events_df=events_df,
+        append_category_names="always",
+    )
+
+    assert not events_df.empty
+    assert "event_type", "event_type_display" in events_df
+    assert not events_df["event_type_display"].isna().any()
