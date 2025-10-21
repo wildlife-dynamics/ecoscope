@@ -759,20 +759,39 @@ class EarthRangerIO(ERClient):
 
     def get_event_type_display_names_from_events(
         self,
-        events_df: gpd.GeoDataFrame,
+        events_gdf: gpd.GeoDataFrame,
         append_category_names: AppendCategorySelection = "never",
     ) -> gpd.GeoDataFrame:
-        assert "event_type" in events_df.columns
+        """
+        For the provided events_gdf, append an "event_type_display" column
+        containing the display names for each event type,
+        optionally including the corresponding event category name
+        Parameters
+        ----------
+        events_gdf : gpd.GeoDataFrame
+            The events dataframe to add display names to
+        append_category_names : "always","duplicates", or "never", default "never"
+            Whether to append the event category to the event type display name
+            If appended, the format value will be: "Event Type (Event Category)"
+            If set to always, the event category value will be appended in all cases
+            If set to duplicates, the event category value will be appended
+                only for event types with overlapping display names
+            If set to never, no category names will be appended
+        Returns
+        -------
+        gpd.GeoDataFrame
+        """
+        assert "event_type" in events_gdf.columns
 
         event_types = self.get_event_types()
         event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
-        events_df["event_type_display"] = events_df["event_type"].apply(lambda x: event_type_lookup[x])
+        events_gdf["event_type_display"] = events_gdf["event_type"].apply(lambda x: event_type_lookup[x])
 
-        has_duplicates = len(events_df["event_type_display"].unique()) != len(events_df["event_type"].unique())
+        has_duplicates = len(events_gdf["event_type_display"].unique()) != len(events_gdf["event_type"].unique())
         do_append = append_category_names == "always" or (append_category_names == "duplicates" and has_duplicates)
 
         if not do_append:
-            return events_df
+            return events_gdf
 
         event_categories = self.get_event_categories()
         event_categories_lookup = {category["value"]: category["display"] for category in event_categories}
@@ -784,13 +803,13 @@ class EarthRangerIO(ERClient):
         }
 
         if append_category_names == "duplicates":
-            event_types_with_duplicate_display_values = events_df.groupby("event_type_display").filter(
+            event_types_with_duplicate_display_values = events_gdf.groupby("event_type_display").filter(
                 lambda x: len(x["event_type"].unique()) > 1
             )
             event_type_values_with_duplicate_display_values = set(
                 event_types_with_duplicate_display_values["event_type"].unique()
             )
-            events_df["event_type_display"] = events_df.apply(
+            events_gdf["event_type_display"] = events_gdf.apply(
                 lambda row: (
                     f"{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})"
                     if row["event_type"] in event_type_values_with_duplicate_display_values
@@ -799,14 +818,14 @@ class EarthRangerIO(ERClient):
                 axis=1,
             )
         else:
-            events_df["event_type_display"] = events_df.apply(
+            events_gdf["event_type_display"] = events_gdf.apply(
                 lambda row: (
                     f"{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})"
                 ),
                 axis=1,
             )
 
-        return events_df
+        return events_gdf
 
     def get_patrol_types(self) -> pd.DataFrame:
         df = pd.DataFrame(self._get("activity/patrols/types"))

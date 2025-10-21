@@ -668,48 +668,48 @@ def test_get_events_empty_event_types(er_events_io):
 
 
 def test_get_event_type_display_names_from_events_no_categories(er_events_io):
-    events_df = er_events_io.get_events(
+    events = er_events_io.get_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
         until=pd.Timestamp("2017-04-01").isoformat(),
     )
 
-    events_df = er_events_io.get_event_type_display_names_from_events(
-        events_df=events_df,
+    events = er_events_io.get_event_type_display_names_from_events(
+        events=events,
         append_category_names="never",
     )
 
-    assert not events_df.empty
-    assert "event_type", "event_type_display" in events_df
-    assert not events_df["event_type_display"].isna().any()
+    assert not events.empty
+    assert "event_type", "event_type_display" in events
+    assert not events["event_type_display"].isna().any()
 
 
 def test_get_event_type_display_names_from_events_all_categories(er_events_io):
-    events_df = er_events_io.get_events(
+    events = er_events_io.get_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
         until=pd.Timestamp("2017-04-01").isoformat(),
     )
 
-    events_df = er_events_io.get_event_type_display_names_from_events(
-        events_df=events_df,
+    events = er_events_io.get_event_type_display_names_from_events(
+        events=events,
         append_category_names="always",
     )
 
-    assert not events_df.empty
-    assert "event_type", "event_type_display" in events_df
-    assert not events_df["event_type_display"].isna().any()
+    assert not events.empty
+    assert "event_type", "event_type_display" in events
+    assert not events["event_type_display"].isna().any()
 
 
 def test_get_event_type_display_names_from_events_categories_duplicates_only(er_events_io):
-    events_df = er_events_io.get_events(
+    events = er_events_io.get_events(
         since=pd.Timestamp("2025-10-01").isoformat(),
         until=pd.Timestamp("2025-10-31").isoformat(),
     )
 
-    events_df = er_events_io.get_event_type_display_names_from_events(
-        events_df=events_df,
+    events = er_events_io.get_event_type_display_names_from_events(
+        events=events,
         append_category_names="duplicates",
     )
 
-    assert not events_df.empty
-    assert "event_type", "event_type_display" in events_df
-    assert not events_df["event_type_display"].isna().any()
+    assert not events.empty
+    assert "event_type", "event_type_display" in events
+    assert not events["event_type_display"].isna().any()
