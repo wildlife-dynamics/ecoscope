@@ -811,7 +811,7 @@ class EarthRangerIO(ERClient):
             )
             events_gdf["event_type_display"] = events_gdf.apply(
                 lambda row: (
-                    f"{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})"
+                    f'{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})'
                     if row["event_type"] in event_type_values_with_duplicate_display_values
                     else row["event_type_display"]
                 ),
@@ -820,7 +820,7 @@ class EarthRangerIO(ERClient):
         else:
             events_gdf["event_type_display"] = events_gdf.apply(
                 lambda row: (
-                    f"{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})"
+                    f'{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})'
                 ),
                 axis=1,
             )
