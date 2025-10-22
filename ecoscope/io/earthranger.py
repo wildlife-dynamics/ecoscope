@@ -785,7 +785,7 @@ class EarthRangerIO(ERClient):
 
         event_types = self.get_event_types()
         event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
-        events_gdf["event_type_display"] = events_gdf["event_type"].apply(lambda x: event_type_lookup[x])
+        events_gdf["event_type_display"] = events_gdf["event_type"].map(lambda x: event_type_lookup[x])
 
         has_duplicates = len(events_gdf["event_type_display"].unique()) != len(events_gdf["event_type"].unique())
         do_append = append_category_names == "always" or (append_category_names == "duplicates" and has_duplicates)
@@ -803,27 +803,16 @@ class EarthRangerIO(ERClient):
         }
 
         if append_category_names == "duplicates":
-            event_types_with_duplicate_display_values = events_gdf.groupby("event_type_display").filter(
-                lambda x: len(x["event_type"].unique()) > 1
+            is_duplicate_display = events_gdf.groupby("event_type_display")["event_type"].transform("nunique") > 1
+            category_display = events_gdf.loc[is_duplicate_display, "event_type"].map(
+                event_type_to_category_display_lookup
             )
-            event_type_values_with_duplicate_display_values = set(
-                event_types_with_duplicate_display_values["event_type"].unique()
-            )
-            events_gdf["event_type_display"] = events_gdf.apply(
-                lambda row: (
-                    f'{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})'
-                    if row["event_type"] in event_type_values_with_duplicate_display_values
-                    else row["event_type_display"]
-                ),
-                axis=1,
+            events_gdf.loc[is_duplicate_display, "event_type_display"] = (
+                events_gdf.loc[is_duplicate_display, "event_type_display"] + " (" + category_display + ")"
             )
         else:
-            events_gdf["event_type_display"] = events_gdf.apply(
-                lambda row: (
-                    f'{row["event_type_display"]} ({event_type_to_category_display_lookup[row["event_type"]]})'
-                ),
-                axis=1,
-            )
+            category_display = events_gdf["event_type"].map(event_type_to_category_display_lookup)
+            events_gdf["event_type_display"] = events_gdf["event_type_display"] + " (" + category_display + ")"
 
         return events_gdf
 
