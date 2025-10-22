@@ -39,6 +39,7 @@ EventSortOptions = Literal[
 ]
 StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
 ApiVersionSelection = Literal["v1", "v2", "both"]
+AppendCategorySelection = Literal["duplicates", "always", "never"]
 
 SAFE_QUERY_PARAM_LIST_SIZE = 100
 
@@ -755,6 +756,68 @@ class EarthRangerIO(ERClient):
             return gdf
 
         return gpd.GeoDataFrame()
+
+    def get_event_type_display_names_from_events(
+        self,
+        events_gdf: gpd.GeoDataFrame,
+        append_category_names: AppendCategorySelection = "never",
+    ) -> gpd.GeoDataFrame:
+        """
+        For the provided events_gdf, append an "event_type_display" column
+        containing the display names for each event type,
+        optionally including the corresponding event category name
+        Parameters
+        ----------
+        events_gdf : gpd.GeoDataFrame
+            The events dataframe to add display names to
+        append_category_names : "always","duplicates", or "never", default "never"
+            Whether to append the event category to the event type display name
+            If appended, the format value will be: "Event Type (Event Category)"
+            If set to always, the event category value will be appended in all cases
+            If set to duplicates, the event category value will be appended
+                only for event types with overlapping display names
+            If set to never, no category names will be appended
+        Returns
+        -------
+        gpd.GeoDataFrame
+        """
+        assert "event_type" in events_gdf.columns
+
+        event_types = self.get_event_types()
+        event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
+        events_gdf["event_type_display"] = events_gdf["event_type"].map(lambda x: event_type_lookup[x])
+
+        has_duplicates = len(events_gdf["event_type_display"].unique()) != len(events_gdf["event_type"].unique())
+        do_append = append_category_names == "always" or (append_category_names == "duplicates" and has_duplicates)
+
+        if not do_append:
+            return events_gdf
+
+        event_categories_display_lookup = {
+            category["value"]: category["display"] for category in self.get_event_categories()
+        }
+        # In V1 event types, event category information is bundled as a nested dict
+        # In V2 event types we only get the event category value at the same "category" key
+        # So we need to safely handle that difference here
+        categories_to_lookup = event_types["category"].apply(
+            lambda category: category["value"] if isinstance(category, dict) else category
+        )
+        category_display_values = categories_to_lookup.map(event_categories_display_lookup)
+        event_type_to_category_display_lookup = dict(zip(event_types["value"], category_display_values))
+
+        if append_category_names == "duplicates":
+            is_duplicate_display = events_gdf.groupby("event_type_display")["event_type"].transform("nunique") > 1
+            category_display = events_gdf.loc[is_duplicate_display, "event_type"].map(
+                event_type_to_category_display_lookup
+            )
+            events_gdf.loc[is_duplicate_display, "event_type_display"] = (
+                events_gdf.loc[is_duplicate_display, "event_type_display"] + " (" + category_display + ")"
+            )
+        else:
+            category_display = events_gdf["event_type"].map(event_type_to_category_display_lookup)
+            events_gdf["event_type_display"] = events_gdf["event_type_display"] + " (" + category_display + ")"
+
+        return events_gdf
 
     def get_patrol_types(self) -> pd.DataFrame:
         df = pd.DataFrame(self._get("activity/patrols/types"))
