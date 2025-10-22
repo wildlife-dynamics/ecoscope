@@ -797,6 +797,7 @@ class EarthRangerIO(ERClient):
         event_categories_lookup = {category["value"]: category["display"] for category in event_categories}
         event_type_to_category_display_lookup = {
             event_type["value"]: event_categories_lookup[
+                # In V1 event types the category information is a dict, with V2 event types category == category value
                 event_type["category"]["value"] if isinstance(event_type["category"], dict) else event_type["category"]
             ]
             for _, event_type in event_types.iterrows()
