@@ -681,6 +681,8 @@ def test_get_event_type_display_names_from_events_no_categories(er_events_io):
     assert not events.empty
     assert "event_type", "event_type_display" in events
     assert not events["event_type_display"].isna().any()
+    assert "Accident" in events["event_type_display"].unique()
+    assert "Arrest" in events["event_type_display"].unique()
 
 
 def test_get_event_type_display_names_from_events_all_categories(er_events_io):
@@ -697,6 +699,8 @@ def test_get_event_type_display_names_from_events_all_categories(er_events_io):
     assert not events.empty
     assert "event_type", "event_type_display" in events
     assert not events["event_type_display"].isna().any()
+    assert "Accident (Security)" in events["event_type_display"].unique()
+    assert "Arrest (Security)" in events["event_type_display"].unique()
 
 
 def test_get_event_type_display_names_from_events_categories_duplicates_only(er_events_io):
@@ -713,6 +717,11 @@ def test_get_event_type_display_names_from_events_categories_duplicates_only(er_
     assert not events.empty
     assert "event_type", "event_type_display" in events
     assert not events["event_type_display"].isna().any()
+    assert "Accident" in events["event_type_display"].unique()
+    assert "Arrest" in events["event_type_display"].unique()
+    assert "Test Event (Logistics)" in events["event_type_display"].unique()
+    assert "Test Event (Monitoring)" in events["event_type_display"].unique()
+    assert "Test Event (Human Wildlife Conflict)" in events["event_type_display"].unique()
 
 
 def test_get_event_type_display_names_from_patrol_events(er_events_io):
@@ -729,3 +738,5 @@ def test_get_event_type_display_names_from_patrol_events(er_events_io):
     assert not events.empty
     assert "event_type", "event_type_display" in events
     assert not events["event_type_display"].isna().any()
+    assert "Poachers Camp (Security)" in events["event_type_display"].unique()
+    assert "Fire (Monitoring)" in events["event_type_display"].unique()
