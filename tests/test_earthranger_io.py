@@ -667,14 +667,17 @@ def test_get_events_empty_event_types(er_events_io):
     check_time_is_parsed(events)
 
 
-def test_get_event_type_display_names_from_events_no_categories(er_events_io):
-    events = er_events_io.get_events(
+@pytest.fixture(scope="session")
+def sample_events(er_events_io) -> gpd.GeoDataFrame:
+    return er_events_io.get_events(
         since=pd.Timestamp("2025-10-01").isoformat(),
         until=pd.Timestamp("2025-10-31").isoformat(),
-    )
+    ).copy()
 
+
+def test_get_event_type_display_names_from_events_no_categories(er_events_io, sample_events):
     events = er_events_io.get_event_type_display_names_from_events(
-        events_gdf=events,
+        events_gdf=sample_events,
         append_category_names="never",
     )
 
@@ -685,14 +688,9 @@ def test_get_event_type_display_names_from_events_no_categories(er_events_io):
     assert "Arrest" in events["event_type_display"].unique()
 
 
-def test_get_event_type_display_names_from_events_all_categories(er_events_io):
-    events = er_events_io.get_events(
-        since=pd.Timestamp("2025-10-01").isoformat(),
-        until=pd.Timestamp("2025-10-31").isoformat(),
-    )
-
+def test_get_event_type_display_names_from_events_all_categories(er_events_io, sample_events):
     events = er_events_io.get_event_type_display_names_from_events(
-        events_gdf=events,
+        events_gdf=sample_events,
         append_category_names="always",
     )
 
@@ -703,14 +701,9 @@ def test_get_event_type_display_names_from_events_all_categories(er_events_io):
     assert "Arrest (Security)" in events["event_type_display"].unique()
 
 
-def test_get_event_type_display_names_from_events_categories_duplicates_only(er_events_io):
-    events = er_events_io.get_events(
-        since=pd.Timestamp("2025-10-01").isoformat(),
-        until=pd.Timestamp("2025-10-31").isoformat(),
-    )
-
+def test_get_event_type_display_names_from_events_categories_duplicates_only(er_events_io, sample_events):
     events = er_events_io.get_event_type_display_names_from_events(
-        events_gdf=events,
+        events_gdf=sample_events,
         append_category_names="duplicates",
     )
 
@@ -725,13 +718,13 @@ def test_get_event_type_display_names_from_events_categories_duplicates_only(er_
 
 
 def test_get_event_type_display_names_from_patrol_events(er_events_io):
-    events = er_events_io.get_patrol_events(
+    patrol_events = er_events_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
         until=pd.Timestamp("2017-04-01").isoformat(),
     )
 
     events = er_events_io.get_event_type_display_names_from_events(
-        events_gdf=events,
+        events_gdf=patrol_events,
         append_category_names="always",
     )
 
