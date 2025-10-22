@@ -793,15 +793,17 @@ class EarthRangerIO(ERClient):
         if not do_append:
             return events_gdf
 
-        event_categories = self.get_event_categories()
-        event_categories_lookup = {category["value"]: category["display"] for category in event_categories}
-        event_type_to_category_display_lookup = {
-            event_type["value"]: event_categories_lookup[
-                # In V1 event types the category information is a dict, with V2 event types category == category value
-                event_type["category"]["value"] if isinstance(event_type["category"], dict) else event_type["category"]
-            ]
-            for _, event_type in event_types.iterrows()
+        event_categories_display_lookup = {
+            category["value"]: category["display"] for category in self.get_event_categories()
         }
+        # In V1 event types, event category information is bundled as a nested dict
+        # In V2 event types we only get the event category value at the same "category" key
+        # So we need to safely handle that difference here
+        categories_to_lookup = event_types["category"].apply(
+            lambda category: category["value"] if isinstance(category, dict) else category
+        )
+        category_display_values = categories_to_lookup.map(event_categories_display_lookup)
+        event_type_to_category_display_lookup = dict(zip(event_types["value"], category_display_values))
 
         if append_category_names == "duplicates":
             is_duplicate_display = events_gdf.groupby("event_type_display")["event_type"].transform("nunique") > 1
