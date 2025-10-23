@@ -133,44 +133,47 @@ def apply_color_map(
     """
     assert input_column_name in dataframe.columns, "input column must exist on dataframe"
 
-    nunique = dataframe[input_column_name].nunique()
-    unique = dataframe[input_column_name].unique()
-    if nunique == 0:
-        # nunique == 0 when input_column contains only nan values
-        # in this case we manually set the color values to transparent
-        # rather than rely on mpl, which may or may not handle nans properly
-        NAN_COLOR = (0, 0, 0, 0)
-        cmap_series = pd.Series([NAN_COLOR], index=unique)
+    s = dataframe[input_column_name]
+    NAN_COLOR = (0, 0, 0, 0)
+
+    # uniques split into non-nulls and whether there are any nulls
+    unique_non_na = [v for v in s.unique() if pd.notna(v)]
+    k = len(unique_non_na)
+
+    if k == 0:
+        # column all-NaN/None → fill transparent
+        cmap_series = pd.Series(dtype="object")  # empty, we’ll only use NAN_COLOR
     elif isinstance(cmap, list):
         rgba = [hex_to_rgba(x) for x in cmap]
-        normalized_cmap = [rgba[i % len(rgba)] for i in range(nunique)]
-        cmap_series = pd.Series(normalized_cmap, index=unique)
+        normalized = [rgba[i % len(rgba)] for i in range(k)]
+        cmap_series = pd.Series(normalized, index=unique_non_na)
     elif isinstance(cmap, str):
         mpl_cmap = mpl.colormaps[cmap]
-        if nunique < mpl_cmap.N:
-            mpl_cmap = mpl_cmap.resampled(nunique)
+        # numeric vs categorical handling (on non-null values only)
+        if pd.api.types.is_numeric_dtype(s.dtype):
+            s_non_na = s.dropna()
+            val_min = s_non_na.min()
+            val_max = s_non_na.max()
+            value_range = 1 if val_min == val_max else (val_max - val_min)
 
-        if pd.api.types.is_numeric_dtype(dataframe[input_column_name].dtype):
-            val_min = dataframe[input_column_name].min()
-            val_max = dataframe[input_column_name].max()
-            value_range = 1 if val_min == val_max else val_max - val_min
-            cmap_colors = [mpl_cmap((val - val_min) / value_range) for val in unique]
+            # generate in the order of unique_non_na so index aligns
+            cmap_colors = [mpl_cmap((float(v) - float(val_min)) / float(value_range)) for v in unique_non_na]
         else:
-            cmap_colors = [mpl_cmap(i % mpl_cmap.N) for i in range(nunique)]
+            # categorical/string: cycle through the colormap
+            if k < mpl_cmap.N:
+                mpl_cmap = mpl_cmap.resampled(max(k, 1))
+            cmap_colors = [mpl_cmap(i % mpl_cmap.N) for i in range(k)]
 
-        color_list = []
-        for color in cmap_colors:
-            color_list.append(tuple([round(val * 255) for val in color]))
-
-        cmap_series = pd.Series(
-            color_list,
-            index=unique,
-        )
+        color_list = [tuple(round(chan * 255) for chan in c) for c in cmap_colors]
+        cmap_series = pd.Series(color_list, index=unique_non_na)
+    else:
+        raise TypeError("cmap must be a matplotlib colormap name (str) or a list of hex colors")
 
     if not output_column_name:
         output_column_name = f"{input_column_name}_colormap"
 
-    dataframe[output_column_name] = [cmap_series[classification] for classification in dataframe[input_column_name]]
+    # Map row-by-row so NaN/None get NAN_COLOR and others look up in cmap_series.
+    dataframe[output_column_name] = s.apply(lambda v: NAN_COLOR if pd.isna(v) else cmap_series[v])
     return dataframe
 
 

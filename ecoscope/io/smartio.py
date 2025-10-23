@@ -1,7 +1,6 @@
 import json
 import logging
 import uuid
-from datetime import timedelta
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
@@ -85,6 +84,7 @@ class SmartIO:
         end: str,
         patrol_mandate: str | None,
         patrol_transport: str | None,
+        station_uuid: str | None = None,
     ) -> gpd.GeoDataFrame | None:
         params: dict[str, str | None] = {}
         params["ca_uuid"] = ca_uuid
@@ -93,6 +93,7 @@ class SmartIO:
         params["end_date"] = end
         params["patrol_mandate"] = patrol_mandate
         params["patrol_transport"] = patrol_transport
+        params["station_uuid"] = station_uuid
 
         return self.query_geojson_data(url="patrol/", params=params)
 
@@ -139,7 +140,7 @@ class SmartIO:
 
         return longitudes, latitudes, timestamps
 
-    def process_patrols_gdf(self, df: pd.DataFrame) -> gpd.GeoDataFrame:
+    def process_patrols_gdf(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         Process multiple geometries in a vectorized way.
         Args:
@@ -202,42 +203,23 @@ class SmartIO:
         end: str,
         patrol_mandate: str | None = None,
         patrol_transport: str | None = None,
-        window_size_in_days: int = 7,
+        station_uuid: str | None = None,
     ) -> Relocations | None:
-        df = gpd.GeoDataFrame()
-
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
-        total_duration = end_dt - start_dt
-
-        if total_duration <= timedelta(days=window_size_in_days):
-            df = self.get_patrols_list(
-                ca_uuid=ca_uuid,
-                language_uuid=language_uuid,
-                # SMART API throws error if the start/end time is not at 00:00:00
-                start=pd.Timestamp(start_dt.date()).isoformat(),
-                end=pd.Timestamp(end_dt.date()).isoformat(),
-                patrol_mandate=patrol_mandate,
-                patrol_transport=patrol_transport,
-            )
-        else:
-            current_start = start_dt
-            while current_start < end_dt:
-                segment_end = min(current_start + timedelta(days=window_size_in_days), end_dt)
-                patrols = self.get_patrols_list(
-                    ca_uuid=ca_uuid,
-                    language_uuid=language_uuid,
-                    # SMART API throws error if the start/end time is not at 00:00:00
-                    start=pd.Timestamp(current_start.date()).isoformat(),
-                    end=pd.Timestamp(segment_end.date()).isoformat(),
-                    patrol_mandate=patrol_mandate,
-                    patrol_transport=patrol_transport,
-                )
-                df = pd.concat([df, patrols])
-                current_start = segment_end
+        patrols = self.get_patrols_list(
+            ca_uuid=ca_uuid,
+            language_uuid=language_uuid,
+            # SMART API throws error if the start/end time is not at 00:00:00
+            start=pd.Timestamp(start_dt.date()).isoformat(),
+            end=pd.Timestamp(end_dt.date()).isoformat(),
+            patrol_mandate=patrol_mandate,
+            patrol_transport=patrol_transport,
+            station_uuid=station_uuid,
+        )
 
         try:
-            patrols_df = self.process_patrols_gdf(df)
+            patrols_df = self.process_patrols_gdf(patrols)
 
             if patrols_df.empty:
                 return None
