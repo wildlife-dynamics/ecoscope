@@ -24,7 +24,6 @@ def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
 
 
 def normalize_column(df: pd.DataFrame, col: str) -> None:
-    print(col)
     for k, v in pd.json_normalize(df.pop(col).to_list(), sep="__").add_prefix(f"{col}__").items():
         df[k] = v.values
 
