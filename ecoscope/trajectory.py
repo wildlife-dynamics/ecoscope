@@ -177,7 +177,7 @@ class Trajectory(EcoDataFrame):
         relocs : ecoscope.Relocations
         """
 
-        freq = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type]
+        freq = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type, assignment]
 
         if not self.gdf["segment_start"].is_monotonic_increasing:
             self.gdf.sort_values("segment_start", inplace=True)
@@ -259,8 +259,8 @@ class Trajectory(EcoDataFrame):
         if interpolation:
             return self.upsample(freq)
         else:
-            freq = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type]
-            tolerance = pd.tseries.frequencies.to_offset(tolerance)  # type: ignore[arg-type]
+            freq = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type, assignment]
+            tolerance = pd.tseries.frequencies.to_offset(tolerance)  # type: ignore[arg-type, assignment]
 
             def f(relocs_ind):
                 relocs_ind.crs = self.gdf.crs
