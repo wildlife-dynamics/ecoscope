@@ -372,6 +372,8 @@ class BarConfig:
         The label for the bar.
     style : dict, optional
         A dictionary containing style options for the individual bar (default is None).
+    show_label : bool, optional
+        A boolean indicating whether to show the label on the bar (default is False).
     """
 
     column: str
