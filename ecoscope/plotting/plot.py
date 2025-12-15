@@ -380,6 +380,7 @@ class BarConfig:
     style: dict | None = None
     show_label: bool = False
 
+
 def bar_chart(
     data: pd.DataFrame,
     bar_configs: list[BarConfig],
