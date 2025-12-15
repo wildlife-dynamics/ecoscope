@@ -378,9 +378,7 @@ class BarConfig:
     agg_func: str
     label: str
     style: dict | None = None
-
     show_label: bool = False
-
 
 def bar_chart(
     data: pd.DataFrame,
