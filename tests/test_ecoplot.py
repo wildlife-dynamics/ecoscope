@@ -164,6 +164,34 @@ def test_bar_chart(chart_df):
     assert (chart.data[1].y == [25, 255]).all()
 
 
+def test_bar_chart_with_label(chart_df):
+    bar_configs = [
+        BarConfig(
+            column="value",
+            agg_func="mean",
+            label="Mean",
+            show_label=True,
+            style={"textposition": "outside", "texttemplate": "%{text:.2f}"},
+        ),
+        BarConfig(
+            column="value",
+            agg_func="sum",
+            label="Sum",
+            show_label=False,
+        ),
+    ]
+    chart = bar_chart(chart_df, bar_configs=bar_configs, category="category")
+
+    assert chart.data[0].name == "Mean"
+    assert (chart.data[0].x == ["A", "B"]).all()
+    assert (chart.data[0].y == [25, 85]).all()
+    assert (chart.data[0].text == (25, 85)).all()
+
+    assert chart.data[1].name == "Sum"
+    assert (chart.data[1].x == ["A", "B"]).all()
+    assert (chart.data[1].y == [25, 255]).all()
+
+
 def test_line_chart(chart_df):
     chart = line_chart(chart_df, x_column="type", y_column="value")
 

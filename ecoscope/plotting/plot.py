@@ -372,12 +372,15 @@ class BarConfig:
         The label for the bar.
     style : dict, optional
         A dictionary containing style options for the individual bar (default is None).
+    show_label : bool, optional
+        A boolean indicating whether to show the label on the bar (default is False).
     """
 
     column: str
     agg_func: str
     label: str
     style: dict | None = None
+    show_label: bool = False
 
 
 def bar_chart(
@@ -410,12 +413,16 @@ def bar_chart(
     result_data = data.groupby(category).agg(**named_aggs).reset_index()  # type: ignore[call-overload]
 
     for x in bar_configs:
+        trace_kwargs = x.style.copy() if x.style else {}
+        if x.show_label:
+            trace_kwargs["text"] = result_data[x.label]
+
         fig.add_trace(
             go.Bar(
                 name=x.label,
                 x=result_data[category],
                 y=result_data[x.label],
-                **(x.style or {}),
+                **trace_kwargs,
             )
         )
 
