@@ -1,3 +1,10 @@
+from ecoscope.analysis.trend_analysis import (
+    GAMRegressor,
+    get_forest_cover_trends,
+    optimize_gam,
+    plot_trend,
+)
+
 __all__ = [
     "ecograph",
     "UD",
