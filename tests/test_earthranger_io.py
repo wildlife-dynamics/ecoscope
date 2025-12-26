@@ -571,8 +571,13 @@ def test_get_patrols_page_size_parity(er_io):
 
 
 def test_get_subjectgroup_observations_page_size_parity(er_io):
-    relocations_default = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
-    relocations_page_size = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME, sub_page_size=100)
+    kwargs = {
+        "subject_group_name": er_io.GROUP_NAME,
+        "since": "2014-01-01",
+        "until": "2014-06-01",
+    }
+    relocations_default = er_io.get_subjectgroup_observations(**kwargs)
+    relocations_page_size = er_io.get_subjectgroup_observations(**(kwargs | {"sub_page_size": 100}))
     pd.testing.assert_frame_equal(relocations_default.gdf, relocations_page_size.gdf)
 
 
