@@ -59,7 +59,7 @@ def test_feature_density_point_count_values():
         crs="EPSG:3857",
     )
 
-    density_grid = calculate_feature_density(points, grid, geometry_type="point", sum_column="values")
+    density_grid = calculate_feature_density(points, grid, geometry_type="point", aggregate_column="values")
     assert density_grid["density"].sum() == 536
     assert density_grid["density"].max() == 534
 
