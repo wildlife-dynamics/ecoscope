@@ -45,7 +45,7 @@ def test_feature_density_point_count_values():
 
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
-            AOI.unary_union, in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
+            AOI.union_all(), in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
         )
     )
 
@@ -73,7 +73,7 @@ def test_feature_density_line():
 
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
-            AOI.unary_union, in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
+            AOI.union_all(), in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
         )
     )
 
