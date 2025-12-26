@@ -2,6 +2,7 @@ import math
 import os
 
 import geopandas as gpd
+import pytest
 from shapely.geometry import LineString, Point
 
 import ecoscope
@@ -40,7 +41,8 @@ def test_feature_density_point():
     )
 
 
-def test_feature_density_point_count_values():
+@pytest.mark.parametrize("aggregate_function", ["sum", "mean"])
+def test_feature_density_point_values(aggregate_function):
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
 
     grid = gpd.GeoDataFrame(
@@ -60,12 +62,16 @@ def test_feature_density_point_count_values():
     )
 
     density_grid = calculate_feature_density(
-        points, grid, geometry_type="point", aggregate="sum", aggregate_column="values"
+        points, grid, geometry_type="point", aggregate_function=aggregate_function, aggregate_column="values"
     )
-    assert density_grid["density"].sum() == 536
-    assert density_grid["density"].max() == 534
 
-    open("testoutput.geojson", "w").write(density_grid.to_json())
+    # In these tests the final two points fall in the same grid cell
+    if aggregate_function == "sum":
+        assert density_grid["density"].sum() == 536
+        assert density_grid["density"].max() == 534
+    if aggregate_function == "mean":
+        assert density_grid["density"].sum() == 269
+        assert density_grid["density"].max() == 267
 
 
 def test_feature_density_line():
@@ -97,3 +103,40 @@ def test_feature_density_line():
         out_dir="tests/test_output",
         raster_name="line_density.tif",
     )
+
+
+@pytest.mark.parametrize(
+    "aggregate_function, aggregate_column",
+    [
+        ("sum", "values"),
+        ("mean", "values"),
+    ],
+)
+def test_feature_density_line_with_values(aggregate_function, aggregate_column):
+    AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
+
+    grid = gpd.GeoDataFrame(
+        geometry=ecoscope.base.utils.create_meshgrid(
+            AOI.union_all(), in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
+        )
+    )
+
+    lines = gpd.GeoDataFrame(
+        data={"values": [300, 200]},
+        geometry=[
+            LineString([(3906043.099, -143047.752), (3957465.506, -178334.298)]),
+            LineString([(3957936.393, -178331.41), (3957465.506, -178334.298)]),
+        ],
+        crs="EPSG:3857",
+    )
+
+    density_grid = calculate_feature_density(
+        lines, grid, geometry_type="line", aggregate_function=aggregate_function, aggregate_column=aggregate_column
+    )
+
+    if aggregate_function == "sum":
+        assert density_grid["density"].sum() == 536
+        assert density_grid["density"].max() == 534
+    if aggregate_function == "mean":
+        assert density_grid["density"].sum() == 269
+        assert density_grid["density"].max() == 267
