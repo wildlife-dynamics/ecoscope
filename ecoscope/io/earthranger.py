@@ -608,7 +608,7 @@ class EarthRangerIO(ERClient):
         return pd.concat(results)
 
     def get_choices_from_v2_event_type(self, event_type: str, choice_field: str) -> dict[str, str]:
-        choices = {}
+        choices: dict[str, str] = {}
         with self._use_v2_api():
             schema = self._get(f"activity/eventtypes/{event_type}/schema")
             for prop_name, prop in schema.get("json", {}).get("properties", {}).items():
