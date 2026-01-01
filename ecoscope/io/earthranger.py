@@ -607,6 +607,21 @@ class EarthRangerIO(ERClient):
 
         return pd.concat(results)
 
+    def get_choices_from_v2_event_type(self, event_type: str, choice_field: str) -> dict[str, str]:
+        choices: dict[str, str] = {}
+        with self._use_v2_api():
+            schema = self._get(f"activity/eventtypes/{event_type}/schema")
+            for prop_name, prop in schema.get("json", {}).get("properties", {}).items():
+                if prop_name == choice_field:
+                    for definition in prop.get("anyOf", {}):
+                        try:
+                            schema = self._get(definition.get("$ref"))
+                            choices |= {choice.get("const"): choice.get("title") for choice in schema.get("oneOf")}
+                        except:
+                            continue
+
+        return choices
+
     def get_events(
         self,
         is_collection: bool | None = None,
