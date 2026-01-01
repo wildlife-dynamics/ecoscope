@@ -738,3 +738,9 @@ def test_get_event_type_display_names_from_patrol_events(er_events_io):
     assert not events["event_type_display"].isna().any()
     assert "Poachers Camp (Security)" in events["event_type_display"].unique()
     assert "Fire (Monitoring)" in events["event_type_display"].unique()
+
+
+def test_get_choices_from_v2_event_type(er_io):
+    choices = er_io.get_choices_from_v2_event_type(event_type="elephant_sigthing_test", choice_field="herd_type")
+    assert isinstance(choices, dict)
+    assert {"bull_only": "Bull Only", "female_only": "Female Only", "mix": "Mix"} == choices
