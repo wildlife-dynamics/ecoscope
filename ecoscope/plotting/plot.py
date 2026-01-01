@@ -524,15 +524,16 @@ def pie_chart(
         if label_column is not None:
             labels = data[label_column]
             values = data[value_column]
+            if color_column:
+                style_kwargs["marker_colors"] = [color_tuple_to_css(color) for color in data[color_column]]
+
         else:
             raise ValueError("numerical values require a label column to")
     else:  # assume categorical
         labels = data[value_column].unique()
         values = data[value_column].value_counts(sort=False)
-
-    if color_column:
-        style_kwargs["marker_colors"] = [color_tuple_to_css(color) for color in data[color_column].unique()]
-    # breakpoint()
+        if color_column:
+            style_kwargs["marker_colors"] = [color_tuple_to_css(color) for color in data[color_column].unique()]
 
     fig = go.Figure(data=go.Pie(labels=labels, values=values, **style_kwargs), layout=layout_kwargs)
     return fig
