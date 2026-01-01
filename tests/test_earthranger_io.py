@@ -7,7 +7,7 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import pytz
-from erclient import ERClientException
+from erclient import ERClientException, ERClientNotFound
 from shapely.geometry import Point
 
 import ecoscope
@@ -744,3 +744,13 @@ def test_get_choices_from_v2_event_type(er_io):
     choices = er_io.get_choices_from_v2_event_type(event_type="elephant_sigthing_test", choice_field="herd_type")
     assert isinstance(choices, dict)
     assert {"bull_only": "Bull Only", "female_only": "Female Only", "mix": "Mix"} == choices
+
+
+def test_get_choices_from_v2_event_type_non_existent_choice_field(er_io):
+    choices = er_io.get_choices_from_v2_event_type(event_type="elephant_sigthing_test", choice_field=" ")
+    assert choices == {}
+
+
+def test_get_choices_from_v2_event_type_non_existent_event_type(er_io):
+    with pytest.raises(ERClientNotFound):
+        er_io.get_choices_from_v2_event_type(event_type=" ", choice_field="herd_type")
