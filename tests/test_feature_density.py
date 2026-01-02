@@ -18,6 +18,7 @@ def test_feature_density_point():
     )
 
     points = gpd.GeoDataFrame(
+        data={"values": [2, 500, 34], "other_column": ["one", "two", "t"]},
         geometry=[
             Point(3906043.099, -143047.752),
             Point(3957465.506, -178334.298),
