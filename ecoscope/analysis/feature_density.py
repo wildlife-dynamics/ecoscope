@@ -25,7 +25,7 @@ def calculate_feature_density(
             if sum_column:
                 return result[sum_column].sum()
 
-            return result[cell_mask].count()
+            return result.geometry[cell_mask].count()
         elif geometry_type == "line":
             result = selection.clip_by_rect(*cell.bounds)
             result = result[~result.is_empty]
