@@ -24,8 +24,11 @@ def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
 
 
 def normalize_column(df: pd.DataFrame, col: str) -> None:
-    for k, v in pd.json_normalize(df.pop(col).to_list(), sep="__").add_prefix(f"{col}__").items():
-        df[k] = v.values  # type: ignore[call-overload]
+    normalized = pd.json_normalize(df.pop(col).to_list(), sep="__").add_prefix(f"{col}__")
+
+    new_cols = sorted(normalized.columns.tolist())
+    for k in new_cols:
+        df[k] = normalized[k].values  # type: ignore[call-overload]
 
 
 def dataframe_to_dict_or_list(events: gpd.GeoDataFrame | pd.DataFrame | dict | list[dict]) -> dict | list[dict]:

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ecoscope.io.earthranger_utils import clean_time_cols
+from ecoscope.io.earthranger_utils import clean_time_cols, normalize_column
 
 
 @pytest.fixture
@@ -50,3 +50,44 @@ def test_clean_time_cols(df_with_times):
     # check the nan separately from the array equality
     assert np.array_equal(expected_times, cleaned["time"].array[:-1])
     assert pd.isnull(cleaned["time"]["H"])
+
+
+def test_normalize_column():
+    df_with_nested_column = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "name": ["Alice", "Bob", "Charlie"],
+            "details": [
+                {"zebra": "z1", "apple": "a1", "middle": "m1"},
+                {"zebra": "z2", "apple": "a2", "middle": "m2"},
+                {"zebra": "z3", "apple": "a3", "middle": "m3"},
+            ],
+            "score": [10, 20, 30],
+        }
+    )
+    # Store original column order (excluding the one to be normalized)
+    original_cols = ["id", "name", "score"]
+
+    # Normalize the 'details' column
+    normalize_column(df_with_nested_column, "details")
+
+    # Expected new columns in alphabetical order
+    expected_new_cols = ["details__apple", "details__middle", "details__zebra"]
+
+    # Verify all expected columns exist
+    assert all(col in df_with_nested_column.columns for col in original_cols)
+    assert all(col in df_with_nested_column.columns for col in expected_new_cols)
+
+    # Verify column order: original columns first, then alphabetically sorted new columns
+    expected_column_order = original_cols + expected_new_cols
+    assert list(df_with_nested_column.columns) == expected_column_order
+
+    # Verify values were correctly normalized
+    assert list(df_with_nested_column["details__apple"]) == ["a1", "a2", "a3"]
+    assert list(df_with_nested_column["details__middle"]) == ["m1", "m2", "m3"]
+    assert list(df_with_nested_column["details__zebra"]) == ["z1", "z2", "z3"]
+
+    # Verify original columns retained their values
+    assert list(df_with_nested_column["id"]) == [1, 2, 3]
+    assert list(df_with_nested_column["name"]) == ["Alice", "Bob", "Charlie"]
+    assert list(df_with_nested_column["score"]) == [10, 20, 30]
