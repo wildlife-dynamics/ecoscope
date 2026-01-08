@@ -23,10 +23,13 @@ def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
     return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
 
 
-def normalize_column(df: pd.DataFrame, col: str) -> None:
+def normalize_column(df: pd.DataFrame, col: str, sort_columns: bool = False) -> None:
     normalized = pd.json_normalize(df.pop(col).to_list(), sep="__").add_prefix(f"{col}__")
 
-    new_cols = sorted(normalized.columns.tolist())
+    new_cols = normalized.columns.tolist()
+    if sort_columns:
+        new_cols = sorted(new_cols)
+
     for k in new_cols:
         df[k] = normalized[k].values  # type: ignore[call-overload]
 
