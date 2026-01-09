@@ -89,6 +89,10 @@ def apply_classification(
     if not output_column_name:
         output_column_name = f"{input_column_name}_classified"
 
+    if len(dataframe[input_column_name].unique()) == 1:
+        dataframe[output_column_name] = labels[0] if labels else dataframe[input_column_name]
+        return dataframe
+
     classifier_class = classification_methods.get(scheme)
 
     if not classifier_class:

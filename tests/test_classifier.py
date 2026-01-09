@@ -62,6 +62,22 @@ def test_classify_with_invalid_scheme(sample_df):
         apply_classification(sample_df, input_column_name="value", scheme="InvalidScheme")
 
 
+def test_classify_single_value():
+    df_with_single_value = pd.DataFrame(
+        data={"value": [1]},
+        index=["A"],
+    )
+    result = apply_classification(
+        df_with_single_value, input_column_name="value", labels=["first", "second"], scheme="equal_interval", k=6
+    )
+    assert result["value_classified"].values.tolist() == ["first"]
+
+    result_no_labels = apply_classification(
+        df_with_single_value, input_column_name="value", scheme="equal_interval", k=6
+    )
+    assert result_no_labels["value_classified"].values.tolist() == [1]
+
+
 @pytest.mark.parametrize("cmap", ["viridis", "RdYlGn"])
 def test_apply_colormap(sample_df, cmap):
     apply_classification(sample_df, input_column_name="value", scheme="equal_interval")
