@@ -334,3 +334,24 @@ class Trajectory(EcoDataFrame):
 
         self.gdf.groupby("groupby_col")[self.gdf.columns].apply(analysis, include_groups=False)
         return pd.concat(proximity_events).reset_index(drop=True)
+
+    def apply_spatial_classification(self, spatial_regions: gpd.GeoDataFrame) -> "Trajectory":
+        if spatial_regions.crs.is_projected and spatial_regions.crs.axis_info[0].unit_name != "metre":
+            raise ValueError("Projected spatial_regions crs must be in metres")
+
+        segments_to_overlay = self.gdf.to_crs(spatial_regions.crs)
+        spatial_regions["spatial_index"] = spatial_regions.index
+
+        overlay = spatial_regions.overlay(segments_to_overlay, how="intersection", keep_geom_type=False)
+        overlay = overlay[overlay.geometry.type == "LineString"]
+
+        if overlay.crs.is_projected:
+            overlay["dist_meters"] = overlay.length
+        else:
+            overlay["dist_meters"] = overlay.geometry.apply(
+                lambda x: Geod(ellps="WGS84").inv(*x.coords[0], *x.coords[1])[2]
+            )
+
+        overlay["timespan_seconds"] = (overlay["dist_meters"] / (overlay["speed_kmhr"] * 1000)) * 3600
+
+        return Trajectory(gdf=overlay)
