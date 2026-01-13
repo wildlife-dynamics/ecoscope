@@ -24,13 +24,10 @@ def calculate_ltd(
         raise ValueError("Projected grid crs must be in metres")
 
     classified_segments = traj.apply_spatial_classification(grid)
-
-    ltd_grid = grid.reset_index().rename(columns={"index": "grid_cell_index"})
-
     density = classified_segments.groupby("spatial_index")["timespan_seconds"].sum()
-    ltd_grid["density"] = ltd_grid["grid_cell_index"].map(density)
+    grid["density"] = grid.index.map(density)
 
-    total_time = round(ltd_grid["density"].sum(), 1)
+    total_time = round(grid["density"].sum(), 1)
+    grid["density"] = grid["density"] / total_time
 
-    ltd_grid["density"] = ltd_grid["density"] / total_time
-    return ltd_grid
+    return grid

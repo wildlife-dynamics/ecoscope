@@ -349,7 +349,6 @@ class Trajectory(EcoDataFrame):
             raise ValueError("spatial_regions must only contain polygon or multipolygon geometry")
 
         segments_to_overlay = self.gdf.to_crs(spatial_regions.crs)
-        # We need the grid cell index later to count density values
         spatial_regions["spatial_index"] = spatial_regions.index
 
         overlay = spatial_regions.overlay(segments_to_overlay, how="intersection", keep_geom_type=False)
