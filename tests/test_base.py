@@ -272,13 +272,13 @@ def test_trajectory_apply_spatial_classification(sample_trajectory):
     result = sample_trajectory.apply_spatial_classification(spatial_regions)
 
     # We expect more individual segments because of cuts at the boundaries of spatial regions
-    assert len(result.gdf) > len(sample_trajectory.gdf)
+    assert len(result) > len(sample_trajectory.gdf)
     # We expect less distance overall because of the gap between boundaries
-    assert result.gdf["dist_meters"].sum() < sample_trajectory.gdf["dist_meters"].sum()
+    assert result["dist_meters"].sum() < sample_trajectory.gdf["dist_meters"].sum()
     # We expect the mean speed to increase because overall length has decreased
     # and we assume constant speed along the original traj segments
-    assert result.gdf["speed_kmhr"].mean() > sample_trajectory.gdf["speed_kmhr"].mean()
-    assert len(result.gdf.spatial_index.unique()) == len(spatial_regions)
+    assert result["speed_kmhr"].mean() > sample_trajectory.gdf["speed_kmhr"].mean()
+    assert len(result.spatial_index.unique()) == len(spatial_regions)
 
 
 def test_trajectory_apply_spatial_classification_regions_overlap(sample_trajectory):
@@ -287,12 +287,12 @@ def test_trajectory_apply_spatial_classification_regions_overlap(sample_trajecto
     result = sample_trajectory.apply_spatial_classification(spatial_regions)
 
     # We expect more individual segments because of cuts at the boundaries of spatial regions
-    assert len(result.gdf) > len(sample_trajectory.gdf)
+    assert len(result) > len(sample_trajectory.gdf)
     # We expect more distance overall and increased mean speed in this case
     # because of double counting in overlapping regions
-    assert result.gdf["dist_meters"].sum() > sample_trajectory.gdf["dist_meters"].sum()
-    assert result.gdf["speed_kmhr"].mean() > sample_trajectory.gdf["speed_kmhr"].mean()
-    assert len(result.gdf.spatial_index.unique()) == len(spatial_regions)
+    assert result["dist_meters"].sum() > sample_trajectory.gdf["dist_meters"].sum()
+    assert result["speed_kmhr"].mean() > sample_trajectory.gdf["speed_kmhr"].mean()
+    assert len(result.spatial_index.unique()) == len(spatial_regions)
 
 
 def test_trajectory_apply_spatial_classification_regions_are_not_polys(sample_trajectory):
@@ -306,4 +306,4 @@ def test_trajectory_apply_spatial_classification_regions_are_not_polys(sample_tr
 def test_trajectory_apply_spatial_classification_no_intersection(sample_trajectory):
     spatial_regions = gpd.read_file("tests/sample_data/vector/AOI_sites.gpkg").to_crs(4326)
     result = sample_trajectory.apply_spatial_classification(spatial_regions)
-    assert result.gdf.empty
+    assert result.empty
