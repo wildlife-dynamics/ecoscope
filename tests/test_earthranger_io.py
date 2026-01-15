@@ -706,7 +706,9 @@ def test_get_event_type_display_names_from_events_all_categories(er_events_io, s
     assert "Arrest (Security)" in events["event_type_display"].unique()
 
 
-def test_get_event_type_display_names_from_events_categories_duplicates_only(er_events_io, sample_events):
+def test_get_event_type_display_names_from_events_categories_duplicates_only(
+    er_events_io, sample_events, include_inactive
+):
     events = er_events_io.get_event_type_display_names_from_events(
         events_gdf=sample_events,
         append_category_names="duplicates",
@@ -720,6 +722,7 @@ def test_get_event_type_display_names_from_events_categories_duplicates_only(er_
     assert "Test Event (Logistics)" in events["event_type_display"].unique()
     assert "Test Event (Monitoring)" in events["event_type_display"].unique()
     assert "Test Event (Human Wildlife Conflict)" in events["event_type_display"].unique()
+    assert "Inactive Event" in events["event_type_display"].unique()
 
 
 def test_get_event_type_display_names_from_patrol_events(er_events_io):

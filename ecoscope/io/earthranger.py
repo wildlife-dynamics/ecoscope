@@ -600,10 +600,10 @@ class EarthRangerIO(ERClient):
         params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
         results = []
         if api_version == "v1" or api_version == "both":
-            results.append(pd.DataFrame(self._get("activity/events/eventtypes", **params)))
+            results.append(pd.DataFrame(self._get("activity/events/eventtypes", params=params)))
         if api_version == "v2" or api_version == "both":
             with self._use_v2_api():
-                results.append(pd.DataFrame(self._get("activity/eventtypes", **params)))
+                results.append(pd.DataFrame(self._get("activity/eventtypes", params=params)))
 
         return pd.concat(results)
 
@@ -798,7 +798,7 @@ class EarthRangerIO(ERClient):
         """
         assert "event_type" in events_gdf.columns
 
-        event_types = self.get_event_types()
+        event_types = self.get_event_types(include_inactive=True)
         event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
         events_gdf["event_type_display"] = events_gdf["event_type"].map(lambda x: event_type_lookup[x])
 
