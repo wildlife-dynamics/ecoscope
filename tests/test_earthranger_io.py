@@ -706,9 +706,7 @@ def test_get_event_type_display_names_from_events_all_categories(er_events_io, s
     assert "Arrest (Security)" in events["event_type_display"].unique()
 
 
-def test_get_event_type_display_names_from_events_categories_duplicates_only(
-    er_events_io, sample_events, include_inactive
-):
+def test_get_event_type_display_names_from_events_categories_duplicates_only(er_events_io, sample_events):
     events = er_events_io.get_event_type_display_names_from_events(
         events_gdf=sample_events,
         append_category_names="duplicates",
