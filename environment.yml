@@ -9,6 +9,7 @@ dependencies:
   - geopandas>1
   - numpy<2.1
   - ipywidgets
+  - pandas<3
   - pip:
       - kaleido==0.2.1
       - pre-commit>=3
