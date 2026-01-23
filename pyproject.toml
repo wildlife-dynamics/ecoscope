@@ -26,6 +26,7 @@ dependencies = [
   "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
   "geopandas>=1",
   "numpy>=2,<2.1",
+  "pandas<3",
   "pyproj>=3.3",
   "rasterio>=1.3",
   "tqdm>=4",

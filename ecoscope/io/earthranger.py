@@ -41,7 +41,7 @@ StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
 ApiVersionSelection = Literal["v1", "v2", "both"]
 AppendCategorySelection = Literal["duplicates", "always", "never"]
 
-SAFE_QUERY_PARAM_LIST_SIZE = 100
+SAFE_QUERY_PARAM_LIST_SIZE = 50
 
 
 class EarthRangerIO(ERClient):
