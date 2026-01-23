@@ -162,13 +162,13 @@ def test_apply_colormap_user_defined_loops(movebank_relocations):
 
 
 def test_classify_with_ranges(sample_df):
-    result = apply_classification(sample_df, input_column_name="value", scheme="equal_interval", label_ranges=True, k=3)
+    result = apply_classification(sample_df, input_column_name="value", scheme="equal_interval", label_ranges=True, k=5)
     assert result["value_classified"].values.tolist() == [
-        "1.0 - 2.3",
-        "1.0 - 2.3",
-        "2.3 - 3.7",
-        "3.7 - 5.0",
-        "3.7 - 5.0",
+        "1.0 - 1.8",
+        "1.8 - 2.6",
+        "2.6 - 3.4",
+        "3.4 - 4.2",
+        "4.2 - 5.0",
     ]
 
 
