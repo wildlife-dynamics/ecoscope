@@ -102,7 +102,11 @@ def apply_classification(
     if labels is None:
         labels = classifier.bins
 
-        if label_ranges:
+        if (
+            label_ranges
+            and pd.api.types.is_numeric_dtype(dataframe[input_column_name])
+            and len(dataframe[input_column_name].unique()) > len(labels)
+        ):
             # We could do this using mapclassify.get_legend_classes, but this generates a cleaner label
             ranges = [f"{dataframe[input_column_name].min():.{label_decimals}f} - {labels[0]:.{label_decimals}f}"]
             ranges.extend(
