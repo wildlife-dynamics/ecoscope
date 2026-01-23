@@ -110,7 +110,7 @@ def apply_classification(
             )
             labels = ranges
         else:
-            labels = [round(label, label_decimals) for label in labels]  # type: ignore[arg-type]
+            labels = [f"{label:.{label_decimals}f}" for label in labels]  # type: ignore[arg-type]
 
     assert len(labels) == len(classifier.bins)
     if label_prefix or label_suffix:
