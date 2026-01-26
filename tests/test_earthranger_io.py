@@ -720,6 +720,7 @@ def test_get_event_type_display_names_from_events_categories_duplicates_only(er_
     assert "Test Event (Logistics)" in events["event_type_display"].unique()
     assert "Test Event (Monitoring)" in events["event_type_display"].unique()
     assert "Test Event (Human Wildlife Conflict)" in events["event_type_display"].unique()
+    assert "Inactive Event" in events["event_type_display"].unique()
 
 
 def test_get_event_type_display_names_from_patrol_events(er_events_io):
