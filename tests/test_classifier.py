@@ -78,6 +78,15 @@ def test_classify_single_value():
     assert result_no_labels["value_classified"].values.tolist() == [1]
 
 
+def test_apply_classification_no_decimals():
+    df = pd.DataFrame(
+        data={"value": [1.33, 2.44, 3.55, 4.66, 5.77]},
+        index=["A", "B", "C", "D", "E"],
+    )
+    result = apply_classification(df, input_column_name="value", scheme="equal_interval", k=5, label_decimals=0)
+    assert result["value_classified"].values.tolist() == [2, 3, 4, 5, 6]
+
+
 @pytest.mark.parametrize("cmap", ["viridis", "RdYlGn"])
 def test_apply_colormap(sample_df, cmap):
     apply_classification(sample_df, input_column_name="value", scheme="equal_interval")

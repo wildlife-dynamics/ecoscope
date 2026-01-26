@@ -42,6 +42,7 @@ requirements:
     - scipy
     - scikit-image
     - scikit-learn
+    - pandas<3
     # ~ plotting ~
     # - kaleido  # not available on conda and do we actually use this?
     - plotly
