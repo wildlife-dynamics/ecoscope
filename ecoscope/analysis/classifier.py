@@ -89,6 +89,10 @@ def apply_classification(
     if not output_column_name:
         output_column_name = f"{input_column_name}_classified"
 
+    if len(dataframe[input_column_name].unique()) == 1:
+        dataframe[output_column_name] = labels[0] if labels else dataframe[input_column_name]
+        return dataframe
+
     classifier_class = classification_methods.get(scheme)
 
     if not classifier_class:
@@ -98,15 +102,20 @@ def apply_classification(
     if labels is None:
         labels = classifier.bins
 
-        if label_ranges:
+        if label_ranges and pd.api.types.is_numeric_dtype(dataframe[input_column_name]):
             # We could do this using mapclassify.get_legend_classes, but this generates a cleaner label
-            ranges = [f"{dataframe[input_column_name].min():.{label_decimals}f} - {labels[0]:.{label_decimals}f}"]
-            ranges.extend(
-                [f"{labels[i]:.{label_decimals}f} - {labels[i + 1]:.{label_decimals}f}" for i in range(len(labels) - 1)]
-            )
+            def create_range_label(lower, upper):
+                lower = f"{lower:.{label_decimals}f}"
+                upper = f"{upper:.{label_decimals}f}"
+                return lower if lower == upper else f"{lower} - {upper}"
+
+            ranges = []
+            if dataframe[input_column_name].min() != labels[0]:
+                ranges.append(create_range_label(dataframe[input_column_name].min(), labels[0]))
+            ranges.extend([create_range_label(labels[i], labels[i + 1]) for i in range(len(labels) - 1)])
             labels = ranges
         else:
-            labels = [round(label, label_decimals) for label in labels]  # type: ignore[arg-type]
+            labels = [round(label, label_decimals) if label_decimals > 0 else round(label) for label in labels]  # type: ignore[arg-type]
 
     assert len(labels) == len(classifier.bins)
     if label_prefix or label_suffix:

@@ -13,11 +13,12 @@ def test_feature_density_point():
 
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
-            AOI.unary_union, in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
+            AOI.union_all(), in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
         )
     )
 
     points = gpd.GeoDataFrame(
+        data={"values": [2, 500, 34], "other_column": ["one", "two", "t"]},
         geometry=[
             Point(3906043.099, -143047.752),
             Point(3957465.506, -178334.298),
@@ -40,12 +41,36 @@ def test_feature_density_point():
     )
 
 
+def test_feature_density_point_count_values():
+    AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
+
+    grid = gpd.GeoDataFrame(
+        geometry=ecoscope.base.utils.create_meshgrid(
+            AOI.union_all(), in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
+        )
+    )
+
+    points = gpd.GeoDataFrame(
+        data={"values": [2, 500, 34]},
+        geometry=[
+            Point(3906043.099, -143047.752),
+            Point(3957465.506, -178334.298),
+            Point(3957936.393, -178331.41),
+        ],
+        crs="EPSG:3857",
+    )
+
+    density_grid = calculate_feature_density(points, grid, geometry_type="point", sum_column="values")
+    assert density_grid["density"].sum() == 536
+    assert density_grid["density"].max() == 534
+
+
 def test_feature_density_line():
     AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
 
     grid = gpd.GeoDataFrame(
         geometry=ecoscope.base.utils.create_meshgrid(
-            AOI.unary_union, in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
+            AOI.union_all(), in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
         )
     )
 

@@ -7,7 +7,7 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 import pytz
-from erclient import ERClientException
+from erclient import ERClientException, ERClientNotFound
 from shapely.geometry import Point
 
 import ecoscope
@@ -571,8 +571,13 @@ def test_get_patrols_page_size_parity(er_io):
 
 
 def test_get_subjectgroup_observations_page_size_parity(er_io):
-    relocations_default = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
-    relocations_page_size = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME, sub_page_size=100)
+    kwargs = {
+        "subject_group_name": er_io.GROUP_NAME,
+        "since": "2014-01-01",
+        "until": "2014-06-01",
+    }
+    relocations_default = er_io.get_subjectgroup_observations(**kwargs)
+    relocations_page_size = er_io.get_subjectgroup_observations(**(kwargs | {"sub_page_size": 100}))
     pd.testing.assert_frame_equal(relocations_default.gdf, relocations_page_size.gdf)
 
 
@@ -715,6 +720,7 @@ def test_get_event_type_display_names_from_events_categories_duplicates_only(er_
     assert "Test Event (Logistics)" in events["event_type_display"].unique()
     assert "Test Event (Monitoring)" in events["event_type_display"].unique()
     assert "Test Event (Human Wildlife Conflict)" in events["event_type_display"].unique()
+    assert "Inactive Event" in events["event_type_display"].unique()
 
 
 def test_get_event_type_display_names_from_patrol_events(er_events_io):
@@ -733,3 +739,19 @@ def test_get_event_type_display_names_from_patrol_events(er_events_io):
     assert not events["event_type_display"].isna().any()
     assert "Poachers Camp (Security)" in events["event_type_display"].unique()
     assert "Fire (Monitoring)" in events["event_type_display"].unique()
+
+
+def test_get_choices_from_v2_event_type(er_io):
+    choices = er_io.get_choices_from_v2_event_type(event_type="elephant_sigthing_test", choice_field="herd_type")
+    assert isinstance(choices, dict)
+    assert {"bull_only": "Bull Only", "female_only": "Female Only", "mix": "Mix"} == choices
+
+
+def test_get_choices_from_v2_event_type_non_existent_choice_field(er_io):
+    choices = er_io.get_choices_from_v2_event_type(event_type="elephant_sigthing_test", choice_field=" ")
+    assert choices == {}
+
+
+def test_get_choices_from_v2_event_type_non_existent_event_type(er_io):
+    with pytest.raises(ERClientNotFound):
+        er_io.get_choices_from_v2_event_type(event_type=" ", choice_field="herd_type")
