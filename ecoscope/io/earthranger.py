@@ -1181,12 +1181,16 @@ class EarthRangerIO(ERClient):
         ----------
         spatial_features_group_id :
             Spatial Features Group UUID.
+        with_group_data :
+            Whether or not to return group data
         kwargs
             Additional parameters to pass to `_get`.
 
         Returns
         -------
-        dataframe : GeoDataFrame of spatial features in a spatial features group.
+        If with_group_data is False this will return a GDF of the features within the requested group
+        If with_group_data is True this will return a dict containing the group data and a "features"
+            field containing a GDF of the features within the requested group
         """
         params = clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
 
@@ -1195,11 +1199,7 @@ class EarthRangerIO(ERClient):
         spatial_features = [spatial_feature["features"][0] for spatial_feature in spatial_features_group["features"]]
         features_gdf = gpd.GeoDataFrame.from_features(spatial_features)
 
-        if not with_group_data:
-            return features_gdf
-
-        spatial_features_group["features"] = features_gdf
-        return spatial_features_group
+        return {**spatial_features_group, "features": features_gdf} if with_group_data else features_gdf
 
     def get_spatial_feature(self, spatial_feature_id: str | None = None, **addl_kwargs) -> gpd.GeoDataFrame:
         """

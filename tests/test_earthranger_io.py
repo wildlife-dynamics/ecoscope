@@ -17,7 +17,7 @@ from ecoscope.io.earthranger_utils import TIME_COLS
 pytestmark = pytest.mark.io
 
 
-FEATURE_GROUP_COLUMNS = {
+EXPECTED_FEATURE_GROUP_COLUMNS = {
     "created_at",
     "updated_at",
     "feature_type",
@@ -373,10 +373,10 @@ def test_get_spatial_features_group(er_io):
     sfg = er_io.get_spatial_features_group(spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097")
     assert isinstance(sfg, gpd.GeoDataFrame)
     assert not sfg.empty
-    assert FEATURE_GROUP_COLUMNS.issubset(sfg.columns)
+    assert EXPECTED_FEATURE_GROUP_COLUMNS.issubset(sfg.columns)
 
 
-def test_get_spatial_features_group_with_name(er_io):
+def test_get_spatial_features_group_with_group_data(er_io):
     group_name = "mep"
     group_id = "15698426-7e0f-41df-9bc3-495d87e2e097"
 
@@ -386,7 +386,7 @@ def test_get_spatial_features_group_with_name(er_io):
     assert sfg["name"] == group_name
     assert isinstance(sfg["features"], gpd.GeoDataFrame)
     assert not sfg["features"].empty
-    assert FEATURE_GROUP_COLUMNS.issubset(sfg["features"].columns)
+    assert EXPECTED_FEATURE_GROUP_COLUMNS.issubset(sfg["features"].columns)
 
 
 def test_get_subjects_chunking(er_io):
