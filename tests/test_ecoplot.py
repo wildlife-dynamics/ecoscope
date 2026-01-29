@@ -236,12 +236,19 @@ def test_pie_chart_categorical(chart_df):
     )
 
 
-def test_pie_chart_numerical(chart_df):
+def test_pie_chart_numerical():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5],
+            "type": ["A", "B", "C", "D", "A"],
+            "value": [25, 40, 65, 150, 50],
+        }
+    )
     layout = {}
-    apply_color_map(chart_df, "value", cmap=["#FF0000", "#00FF00", "#0000FF", "#FFFFFF"], output_column_name="colors")
+    apply_color_map(df, "value", cmap=["#FF0000", "#00FF00", "#0000FF", "#FFFFFF"], output_column_name="colors")
     style = {"marker_line_color": "#000000", "marker_line_width": 2, "textinfo": "value"}
     chart = pie_chart(
-        chart_df,
+        df,
         value_column="value",
         label_column="type",
         style_kwargs=style,
@@ -249,8 +256,8 @@ def test_pie_chart_numerical(chart_df):
         layout_kwargs=layout,
     )
 
-    assert (chart.data[0].labels == ["A", "B", "C", "D"]).all()
-    assert (chart.data[0].values == [25, 40, 65, 150]).all()
+    assert (chart.data[0].labels == ["A", "B", "C", "D", "A"]).all()
+    assert (chart.data[0].values == [25, 40, 65, 150, 50]).all()
     assert chart.data[0].marker.line.color == "#000000"
     assert chart.data[0].marker.line.width == 2
     assert chart.data[0].marker.colors == (
@@ -258,6 +265,7 @@ def test_pie_chart_numerical(chart_df):
         "rgba(0, 255, 0, 1.0)",
         "rgba(0, 0, 255, 1.0)",
         "rgba(255, 255, 255, 1.0)",
+        "rgba(255, 0, 0, 1.0)",
     )
 
 
