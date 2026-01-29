@@ -1172,8 +1172,8 @@ class EarthRangerIO(ERClient):
         return df
 
     def get_spatial_features_group(
-        self, spatial_features_group_id: str | None = None, **addl_kwargs
-    ) -> gpd.GeoDataFrame:
+        self, spatial_features_group_id: str | None = None, with_group_data: bool = False, **addl_kwargs
+    ) -> gpd.GeoDataFrame | dict[str, str | gpd.GeoDataFrame]:
         """
         Download spatial features in a spatial features group for a given  `spatial features group id`.
 
@@ -1181,23 +1181,25 @@ class EarthRangerIO(ERClient):
         ----------
         spatial_features_group_id :
             Spatial Features Group UUID.
+        with_group_data :
+            Whether or not to return group data
         kwargs
             Additional parameters to pass to `_get`.
 
         Returns
         -------
-        dataframe : GeoDataFrame of spatial features in a spatial features group.
+        If with_group_data is False this will return a GDF of the features within the requested group
+        If with_group_data is True this will return a dict containing the group data and a "features"
+            field containing a GDF of the features within the requested group
         """
         params = clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
 
         object = f"spatialfeaturegroup/{spatial_features_group_id}/"
         spatial_features_group = self._get(object, **params)
+        spatial_features = [spatial_feature["features"][0] for spatial_feature in spatial_features_group["features"]]
+        features_gdf = gpd.GeoDataFrame.from_features(spatial_features)
 
-        spatial_features = []
-        for spatial_feature in spatial_features_group["features"]:
-            spatial_features.append(spatial_feature["features"][0])
-
-        return gpd.GeoDataFrame.from_features(spatial_features)
+        return {**spatial_features_group, "features": features_gdf} if with_group_data else features_gdf
 
     def get_spatial_feature(self, spatial_feature_id: str | None = None, **addl_kwargs) -> gpd.GeoDataFrame:
         """
