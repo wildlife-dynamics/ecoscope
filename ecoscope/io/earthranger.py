@@ -1172,8 +1172,8 @@ class EarthRangerIO(ERClient):
         return df
 
     def get_spatial_features_group(
-        self, spatial_features_group_id: str | None = None, with_group_name: bool = False, **addl_kwargs
-    ) -> gpd.GeoDataFrame | dict[str, gpd.GeoDataFrame]:
+        self, spatial_features_group_id: str | None = None, with_group_data: bool = False, **addl_kwargs
+    ) -> gpd.GeoDataFrame | dict[str, str | gpd.GeoDataFrame]:
         """
         Download spatial features in a spatial features group for a given  `spatial features group id`.
 
@@ -1192,13 +1192,14 @@ class EarthRangerIO(ERClient):
 
         object = f"spatialfeaturegroup/{spatial_features_group_id}/"
         spatial_features_group = self._get(object, **params)
-
-        spatial_features = []
-        for spatial_feature in spatial_features_group["features"]:
-            spatial_features.append(spatial_feature["features"][0])
-
+        spatial_features = [spatial_feature["features"][0] for spatial_feature in spatial_features_group["features"]]
         features_gdf = gpd.GeoDataFrame.from_features(spatial_features)
-        return {spatial_features_group["name"]: features_gdf} if with_group_name else features_gdf
+
+        if not with_group_data:
+            return features_gdf
+
+        spatial_features_group["features"] = features_gdf
+        return spatial_features_group
 
     def get_spatial_feature(self, spatial_feature_id: str | None = None, **addl_kwargs) -> gpd.GeoDataFrame:
         """

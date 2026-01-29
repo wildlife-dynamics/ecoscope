@@ -17,6 +17,25 @@ from ecoscope.io.earthranger_utils import TIME_COLS
 pytestmark = pytest.mark.io
 
 
+FEATURE_GROUP_COLUMNS = {
+    "created_at",
+    "updated_at",
+    "feature_type",
+    "name",
+    "short_name",
+    "external_id",
+    "external_source",
+    "description",
+    "attributes",
+    "provenance",
+    "feature_geometry_webmercator",
+    "spatialfile",
+    "arcgis_item",
+    "das_tenant",
+    "pk",
+}
+
+
 def check_time_is_parsed(df):
     for col in TIME_COLS:
         if col in df.columns:
@@ -351,21 +370,23 @@ def test_get_spatial_feature(er_io):
 
 
 def test_get_spatial_features_group(er_io):
-    spatial_features = er_io.get_spatial_features_group(
-        spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097"
-    )
-    assert not spatial_features.empty
+    sfg = er_io.get_spatial_features_group(spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097")
+    assert isinstance(sfg, gpd.GeoDataFrame)
+    assert not sfg.empty
+    assert FEATURE_GROUP_COLUMNS.issubset(sfg.columns)
 
 
 def test_get_spatial_features_group_with_name(er_io):
     group_name = "mep"
     group_id = "15698426-7e0f-41df-9bc3-495d87e2e097"
 
-    spatial_features = er_io.get_spatial_features_group(spatial_features_group_id=group_id, with_group_name=True)
-    assert isinstance(spatial_features, dict)
-    assert len(spatial_features) == 1
-    assert isinstance(spatial_features[group_name], gpd.GeoDataFrame)
-    assert not spatial_features[group_name].empty
+    sfg = er_io.get_spatial_features_group(spatial_features_group_id=group_id, with_group_data=True)
+    assert isinstance(sfg, dict)
+    assert {"id", "name", "description", "url", "features"}.issubset(sfg.keys())
+    assert sfg["name"] == group_name
+    assert isinstance(sfg["features"], gpd.GeoDataFrame)
+    assert not sfg["features"].empty
+    assert FEATURE_GROUP_COLUMNS.issubset(sfg["features"].columns)
 
 
 def test_get_subjects_chunking(er_io):
