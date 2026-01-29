@@ -357,6 +357,17 @@ def test_get_spatial_features_group(er_io):
     assert not spatial_features.empty
 
 
+def test_get_spatial_features_group_with_name(er_io):
+    group_name = "mep"
+    group_id = "15698426-7e0f-41df-9bc3-495d87e2e097"
+
+    spatial_features = er_io.get_spatial_features_group(spatial_features_group_id=group_id, with_group_name=True)
+    assert isinstance(spatial_features, dict)
+    assert len(spatial_features) == 1
+    assert isinstance(spatial_features[group_name], gpd.GeoDataFrame)
+    assert not spatial_features[group_name].empty
+
+
 def test_get_subjects_chunking(er_io):
     subject_ids = ",".join(er_io.SUBJECT_IDS)
     single_request_result = er_io.get_subjects(id=subject_ids)
