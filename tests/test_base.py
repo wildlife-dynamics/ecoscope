@@ -16,6 +16,14 @@ def sample_single_relocs():
     return ecoscope.Relocations.from_gdf(gdf)
 
 
+@pytest.fixture
+def sample_trajectory(movebank_relocations):
+    habiba = ecoscope.Relocations(movebank_relocations.gdf[movebank_relocations.gdf["groupby_col"] == "Habiba"])
+    traj = ecoscope.Trajectory.from_relocations(habiba)
+
+    return traj
+
+
 def test_trajectory_is_not_empty(sample_relocs):
     # test there is actually data in trajectory
     trajectory = ecoscope.Trajectory.from_relocations(sample_relocs)
@@ -256,3 +264,46 @@ def test_trajectory_preserves_column_dtypes(sample_single_relocs):
     for col in before.index:
         if after.get(col):  # Dropping columns is okay
             assert after[col] == before[col]
+
+
+def test_trajectory_apply_spatial_classification(sample_trajectory):
+    # four non-uniform, non-overlapping polygons that encompass Habiba's movement
+    spatial_regions = gpd.read_file("tests/sample_data/vector/habiba-polys.geojson")
+    result = sample_trajectory.apply_spatial_classification(spatial_regions)
+
+    # We expect more individual segments because of cuts at the boundaries of spatial regions
+    assert len(result) > len(sample_trajectory.gdf)
+    # We expect less distance overall because of the gap between boundaries
+    assert result["dist_meters"].sum() < sample_trajectory.gdf["dist_meters"].sum()
+    # We expect the mean speed to increase because overall length has decreased
+    # and we assume constant speed along the original traj segments
+    assert result["speed_kmhr"].mean() > sample_trajectory.gdf["speed_kmhr"].mean()
+    assert len(result.spatial_index.unique()) == len(spatial_regions)
+
+
+def test_trajectory_apply_spatial_classification_regions_overlap(sample_trajectory):
+    # four non-uniform, semi-overlapping polygons that encompass Habiba's movement
+    spatial_regions = gpd.read_file("tests/sample_data/vector/habiba-polys-overlap.geojson")
+    result = sample_trajectory.apply_spatial_classification(spatial_regions)
+
+    # We expect more individual segments because of cuts at the boundaries of spatial regions
+    assert len(result) > len(sample_trajectory.gdf)
+    # We expect more distance overall and increased mean speed in this case
+    # because of double counting in overlapping regions
+    assert result["dist_meters"].sum() > sample_trajectory.gdf["dist_meters"].sum()
+    assert result["speed_kmhr"].mean() > sample_trajectory.gdf["speed_kmhr"].mean()
+    assert len(result.spatial_index.unique()) == len(spatial_regions)
+
+
+def test_trajectory_apply_spatial_classification_regions_are_not_polys(sample_trajectory):
+    # Not polygons, should cause apply_spatial_classification to raise
+    not_polygons = gpd.read_file("tests/sample_data/vector/observations.geojson")
+
+    with pytest.raises(ValueError):
+        sample_trajectory.apply_spatial_classification(not_polygons)
+
+
+def test_trajectory_apply_spatial_classification_no_intersection(sample_trajectory):
+    spatial_regions = gpd.read_file("tests/sample_data/vector/AOI_sites.gpkg").to_crs(4326)
+    result = sample_trajectory.apply_spatial_classification(spatial_regions)
+    assert result.empty

@@ -41,7 +41,7 @@ StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
 ApiVersionSelection = Literal["v1", "v2", "both"]
 AppendCategorySelection = Literal["duplicates", "always", "never"]
 
-SAFE_QUERY_PARAM_LIST_SIZE = 100
+SAFE_QUERY_PARAM_LIST_SIZE = 50
 
 
 class EarthRangerIO(ERClient):
@@ -600,12 +600,27 @@ class EarthRangerIO(ERClient):
         params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
         results = []
         if api_version == "v1" or api_version == "both":
-            results.append(pd.DataFrame(self._get("activity/events/eventtypes", **params)))
+            results.append(pd.DataFrame(self._get("activity/events/eventtypes", params=params)))
         if api_version == "v2" or api_version == "both":
             with self._use_v2_api():
-                results.append(pd.DataFrame(self._get("activity/eventtypes", **params)))
+                results.append(pd.DataFrame(self._get("activity/eventtypes", params=params)))
 
         return pd.concat(results)
+
+    def get_choices_from_v2_event_type(self, event_type: str, choice_field: str) -> dict[str, str]:
+        choices: dict[str, str] = {}
+        with self._use_v2_api():
+            schema = self._get(f"activity/eventtypes/{event_type}/schema")
+            for prop_name, prop in schema.get("json", {}).get("properties", {}).items():
+                if prop_name == choice_field:
+                    for definition in prop.get("anyOf", {}):
+                        try:
+                            schema = self._get(definition.get("$ref"))
+                            choices |= {choice.get("const"): choice.get("title") for choice in schema.get("oneOf")}
+                        except:
+                            continue
+
+        return choices
 
     def get_events(
         self,
@@ -783,7 +798,7 @@ class EarthRangerIO(ERClient):
         """
         assert "event_type" in events_gdf.columns
 
-        event_types = self.get_event_types()
+        event_types = self.get_event_types(include_inactive=True)
         event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
         events_gdf["event_type_display"] = events_gdf["event_type"].map(lambda x: event_type_lookup[x])
 

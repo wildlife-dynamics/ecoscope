@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import shapely
 from pyproj import Geod
+from shapely import MultiPolygon, Polygon
 
 from ecoscope import Relocations
 from ecoscope.base import EcoDataFrame
@@ -177,7 +178,7 @@ class Trajectory(EcoDataFrame):
         relocs : ecoscope.Relocations
         """
 
-        freq = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type]
+        freq = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type, assignment]
 
         if not self.gdf["segment_start"].is_monotonic_increasing:
             self.gdf.sort_values("segment_start", inplace=True)
@@ -259,8 +260,8 @@ class Trajectory(EcoDataFrame):
         if interpolation:
             return self.upsample(freq)
         else:
-            freq = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type]
-            tolerance = pd.tseries.frequencies.to_offset(tolerance)  # type: ignore[arg-type]
+            freq = pd.tseries.frequencies.to_offset(freq)  # type: ignore[arg-type, assignment]
+            tolerance = pd.tseries.frequencies.to_offset(tolerance)  # type: ignore[arg-type, assignment]
 
             def f(relocs_ind):
                 relocs_ind.crs = self.gdf.crs
@@ -334,3 +335,41 @@ class Trajectory(EcoDataFrame):
 
         self.gdf.groupby("groupby_col")[self.gdf.columns].apply(analysis, include_groups=False)
         return pd.concat(proximity_events).reset_index(drop=True)
+
+    def apply_spatial_classification(self, spatial_regions: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        if spatial_regions.crs.is_projected and spatial_regions.crs.axis_info[0].unit_name != "metre":
+            raise ValueError("Projected spatial_regions crs must be in metres")
+
+        if any(
+            [
+                not isinstance(feature, Polygon) and not isinstance(feature, MultiPolygon)
+                for feature in spatial_regions.geometry
+            ]
+        ):
+            raise ValueError("spatial_regions must only contain polygon or multipolygon geometry")
+
+        segments_to_overlay = self.gdf.to_crs(spatial_regions.crs)
+        spatial_regions["spatial_index"] = spatial_regions.index
+
+        overlay = spatial_regions.overlay(segments_to_overlay, how="intersection", keep_geom_type=False)
+
+        if overlay.empty:
+            return overlay
+
+        # Drop anything that isn't a line
+        overlay = overlay[overlay.geometry.type == "LineString"]
+
+        # use the length of the linestring if our crs is projected
+        # otherwise get great circle distance from Geod
+        if overlay.crs.is_projected:
+            overlay["dist_meters"] = overlay.length
+        else:
+            overlay["dist_meters"] = overlay.geometry.apply(
+                lambda x: Geod(ellps="WGS84").inv(*x.coords[0], *x.coords[1])[2]
+            )
+
+        # fragment_distance is in metres so convert speed to 'meters per hour'
+        # then multiply by 3600 to get time in seconds
+        overlay["timespan_seconds"] = (overlay["dist_meters"] / (overlay["speed_kmhr"] * 1000)) * 3600
+
+        return overlay

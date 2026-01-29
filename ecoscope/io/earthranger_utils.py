@@ -23,10 +23,15 @@ def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
     return {k: v for k, v in {**addl_kwargs, **kwargs}.items() if v is not None}
 
 
-def normalize_column(df: pd.DataFrame, col: str) -> None:
-    print(col)
-    for k, v in pd.json_normalize(df.pop(col).to_list(), sep="__").add_prefix(f"{col}__").items():
-        df[k] = v.values
+def normalize_column(df: pd.DataFrame, col: str, sort_columns: bool = False) -> None:
+    normalized = pd.json_normalize(df.pop(col).to_list(), sep="__").add_prefix(f"{col}__")
+
+    new_cols = normalized.columns.tolist()
+    if sort_columns:
+        new_cols = sorted(new_cols)
+
+    for k in new_cols:
+        df[k] = normalized[k].values  # type: ignore[call-overload]
 
 
 def dataframe_to_dict_or_list(events: gpd.GeoDataFrame | pd.DataFrame | dict | list[dict]) -> dict | list[dict]:
@@ -79,7 +84,7 @@ def pack_columns(dataframe: pd.DataFrame, columns: list) -> pd.DataFrame:
 
     # To prevent additional column from being dropped, name the column metadata (rename it back).
     if metadata_cols:
-        dataframe["metadata"] = dataframe[metadata_cols].to_dict(orient="records")
+        dataframe["metadata"] = dataframe[metadata_cols].to_dict(orient="records")  # type: ignore[assignment]
         dataframe.drop(metadata_cols, inplace=True, axis=1)
         if "additional" in dataframe.columns:
             result = []
@@ -88,7 +93,7 @@ def pack_columns(dataframe: pd.DataFrame, columns: list) -> pd.DataFrame:
                 meta_dict = row["metadata"]
                 merged = {**add_dict, **meta_dict}
                 result.append(merged)
-            dataframe["additional"] = result
+            dataframe["additional"] = result  # type: ignore[assignment]
         else:
             dataframe.rename(columns={"metadata": "additional"}, inplace=True)
     return dataframe
