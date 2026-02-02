@@ -49,6 +49,7 @@ analysis = [
   "scipy",
   "scikit-image",
   "scikit-learn",
+  "statsmodels",
 ]
 mapping = [
   "duckdb",
