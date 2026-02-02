@@ -336,7 +336,9 @@ class Trajectory(EcoDataFrame):
         self.gdf.groupby("groupby_col")[self.gdf.columns].apply(analysis, include_groups=False)
         return pd.concat(proximity_events).reset_index(drop=True)
 
-    def apply_spatial_classification(self, spatial_regions: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def apply_spatial_classification(
+        self, spatial_regions: gpd.GeoDataFrame, output_column_name: str = "spatial_index"
+    ) -> gpd.GeoDataFrame:
         if spatial_regions.crs.is_projected and spatial_regions.crs.axis_info[0].unit_name != "metre":
             raise ValueError("Projected spatial_regions crs must be in metres")
 
@@ -349,7 +351,7 @@ class Trajectory(EcoDataFrame):
             raise ValueError("spatial_regions must only contain polygon or multipolygon geometry")
 
         segments_to_overlay = self.gdf.to_crs(spatial_regions.crs)
-        spatial_regions["spatial_index"] = spatial_regions.index
+        spatial_regions[output_column_name] = spatial_regions.index
 
         overlay = spatial_regions.overlay(segments_to_overlay, how="intersection", keep_geom_type=False)
 
