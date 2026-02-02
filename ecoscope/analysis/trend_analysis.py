@@ -12,31 +12,27 @@ This module provides tools for fitting GAMs to time series data,
 particularly useful for analyzing environmental trends from remote sensing data.
 """
 
+import logging
 from typing import Literal, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 try:
-    # type: ignore[import-untyped]
-    from joblib import Parallel, delayed
-    from scipy.spatial.distance import euclidean
-    from sklearn.base import BaseEstimator, RegressorMixin
-    from sklearn.model_selection import BaseCrossValidator, KFold, LeaveOneOut
-    from statsmodels.gam.api import BSplines, GLMGam
-    from statsmodels.genmod.families import Binomial, Gaussian, Poisson
+    from joblib import Parallel, delayed  # type: ignore[import-not-found,import-untyped]
+    from scipy.spatial.distance import euclidean  # type: ignore[import-not-found,import-untyped]
+    from sklearn.base import BaseEstimator, RegressorMixin  # type: ignore[import-not-found,import-untyped]
+    from sklearn.model_selection import (  # type: ignore[import-not-found,import-untyped]
+        BaseCrossValidator,
+        KFold,
+        LeaveOneOut,
+    )
+    from statsmodels.gam.api import BSplines, GLMGam  # type: ignore[import-not-found,import-untyped]
+    from statsmodels.genmod.families import Binomial, Gaussian, Poisson  # type: ignore[import-not-found,import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         "Missing optional dependencies required by this module. " 'Please run pip install ecoscope["analysis"]'
     )
-
-try:
-    import plotly.graph_objects as go
-
-    from ecoscope.plotting import draw_historic_timeseries
-except ModuleNotFoundError:
-    go = None
-    draw_historic_timeseries = None
 
 
 class GAMRegressor(BaseEstimator, RegressorMixin):
@@ -118,7 +114,7 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
             X = X[:, None]
         y = np.asarray(y).ravel()
 
-        knot_kwds = {}
+        knot_kwds: list[dict[str, float]] = []
         if upper_bound is not None and lower_bound is not None:
             knot_kwds = [{"upper_bound": upper_bound, "lower_bound": lower_bound}]
 
@@ -531,77 +527,74 @@ def optimize_gam(
     return best_alpha, best_gam
 
 
-def plot_trend(
-    x: np.ndarray,
-    y_orig: np.ndarray,
-    y_mean: np.ndarray,
-    y_lower: np.ndarray,
-    y_upper: np.ndarray,
-    plot_title: str = "Trend",
-    xlabel: str = "Year",
-    ylabel: str = "Value",
-) -> "go.Figure":
+def get_forest_cover_trends(
+    aoi,
+    tree_cover_threshold: float = 60.0,
+    scale: int = 30,
+    max_pixels: int = 1e9,
+) -> pd.DataFrame:
     """
-    Create a Plotly figure showing trend with confidence intervals.
+    Extract forest cover trends from Google Earth Engine dataset.
 
     Parameters
     ----------
-    x : ndarray
-        X-axis values (years).
-    y_orig : ndarray
-        Original observed values.
-    y_mean : ndarray
-        Predicted mean values.
-    y_lower : ndarray
-        Lower confidence interval bound.
-    y_upper : ndarray
-        Upper confidence interval bound.
-    plot_title : str, default="Trend"
-        Plot title.
-    xlabel : str, default="Year"
-        X-axis label.
-    ylabel : str, default="Value"
-        Y-axis label.
+    aoi : gpd.GeoDataFrame
+        Area of interest geometry (must have CRS set).
+    tree_cover_threshold : float, default=60.0
+        Minimum tree cover percentage to consider as forest (0-100).
+    scale : int, default=30
+        Pixel scale in meters for reduction.
+    max_pixels : int, default=1e9
+        Maximum pixels for reduction.
 
     Returns
     -------
-    go.Figure
-        Plotly figure object.
-
-    Examples
-    --------
-    >>> from ecoscope.analysis.trend_analysis import plot_trend
-    >>> import numpy as np
-    >>> x = np.array([2000, 2001, 2002])
-    >>> y_orig = np.array([100, 95, 90])
-    >>> y_mean = np.array([100, 95, 90])
-    >>> y_lower = np.array([98, 93, 88])
-    >>> y_upper = np.array([102, 97, 92])
-    >>> fig = plot_trend(x, y_orig, y_mean, y_lower, y_upper, "Forest Cover")
-    >>> fig.show()
+    pd.DataFrame
+        DataFrame with columns:
+        - year: Year of observation
+        - loss_area: Forest loss area in acres for that year
+        - cumsum_loss_area: Cumulative loss area in acres
+        - survival_area: Remaining forest area in acres
     """
-    if draw_historic_timeseries is None:
-        raise ImportError('Plotly is required for plotting. Install with: pip install ecoscope["plotting"]')
+    import ee
 
-    df = pd.DataFrame(
-        {
-            "x": x,
-            "y_orig": y_orig,
-            "y_mean": y_mean,
-            "y_lower": y_lower,
-            "y_upper": y_upper,
-        }
+    if aoi.crs is None:
+        logging.warning("AOI CRS not set. Assuming WGS84.")
+        aoi = aoi.set_crs(4326)
+    elif aoi.crs.to_epsg() != 4326:
+        aoi = aoi.to_crs(4326)
+
+    feat_coll = ee.FeatureCollection(aoi.__geo_interface__)
+    gfc = ee.Image("UMD/hansen/global_forest_change_2023_v1_11")
+
+    # Calculate forested area in 2000
+    treecover2000 = gfc.select(["treecover2000"])
+    treecover2000_mask = treecover2000.gte(tree_cover_threshold)
+    treecover2000 = treecover2000.unmask().updateMask(treecover2000_mask)
+    treecover2000 = treecover2000.And(treecover2000)  # Convert pixel values to 1's
+    treecover2000_area_img = treecover2000.multiply(ee.Image.pixelArea())
+    treecover2000_area = treecover2000_area_img.reduceRegion(
+        reducer=ee.Reducer.sum(), geometry=feat_coll, scale=scale, maxPixels=max_pixels
     )
 
-    return draw_historic_timeseries(
-        df,
-        current_value_column="y_orig",
-        current_value_title="Raw Data",
-        historic_min_column="y_lower",
-        historic_max_column="y_upper",
-        historic_band_title="95% CI",
-        historic_mean_column="y_mean",
-        historic_mean_title="Trend",
-        time_column="x",
-        layout_kwargs={"title": plot_title, "xaxis_title": xlabel, "yaxis_title": ylabel},
+    forested_area = treecover2000_area.getInfo()["treecover2000"]
+    forested_area = forested_area * 0.000247105  # Convert sq.meters to acres
+
+    # Calculate forest loss by year
+    loss_img = gfc.select(["loss"])
+    loss_img = loss_img.updateMask(treecover2000_mask)
+    loss_area_img = loss_img.multiply(ee.Image.pixelArea())
+    loss_year = gfc.select(["lossyear"])
+
+    loss_by_year = loss_area_img.addBands(loss_year).reduceRegion(
+        reducer=ee.Reducer.sum().group(groupField=1), geometry=feat_coll, scale=scale, maxPixels=max_pixels
     )
+
+    forest_survival = pd.DataFrame([x for x in loss_by_year.getInfo()["groups"]])
+    forest_survival.rename(columns={"group": "year", "sum": "loss_area"}, inplace=True)
+    forest_survival["year"] = forest_survival["year"] + 2000
+    forest_survival["loss_area"] = forest_survival["loss_area"] * 0.000247105  # Convert sq.meters to acres
+    forest_survival["cumsum_loss_area"] = forest_survival["loss_area"].cumsum()
+    forest_survival["survival_area"] = forested_area - forest_survival["cumsum_loss_area"]
+
+    return forest_survival

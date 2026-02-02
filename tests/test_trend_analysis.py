@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ecoscope.analysis import trend_analysis
+from ecoscope.analysis import get_forest_cover_trends, trend_analysis
 
 
 @pytest.fixture
@@ -242,95 +242,6 @@ def test_choose_cross_validator():
     X_large = np.array(range(20))
     cv_large = trend_analysis.choose_cross_validator(X_large)
     assert cv_large.get_n_splits(X_large) == 5
-
-
-def test_plot_trend(sample_data):
-    """Test plot_trend function."""
-    pytest.importorskip("plotly")
-    X, y = sample_data
-    y_mean = y
-    y_lower = y - 5
-    y_upper = y + 5
-    fig = trend_analysis.plot_trend(X, y, y_mean, y_lower, y_upper, "Test Trend", "Year", "Value")
-    assert fig is not None
-    # Check that figure has traces
-    assert len(fig.data) > 0
-
-
-# --- get_forest_cover_trends moved here for GEE-dependent testing ---
-
-
-def get_forest_cover_trends(
-    aoi,
-    tree_cover_threshold: float = 60.0,
-    scale: int = 30,
-    max_pixels: int = 1e9,
-) -> pd.DataFrame:
-    """
-    Extract forest cover trends from Google Earth Engine dataset.
-
-    Parameters
-    ----------
-    aoi : gpd.GeoDataFrame
-        Area of interest geometry (must have CRS set).
-    tree_cover_threshold : float, default=60.0
-        Minimum tree cover percentage to consider as forest (0-100).
-    scale : int, default=30
-        Pixel scale in meters for reduction.
-    max_pixels : int, default=1e9
-        Maximum pixels for reduction.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with columns:
-        - year: Year of observation
-        - loss_area: Forest loss area in acres for that year
-        - cumsum_loss_area: Cumulative loss area in acres
-        - survival_area: Remaining forest area in acres
-    """
-    import ee
-
-    if aoi.crs is None:
-        logging.warning("AOI CRS not set. Assuming WGS84.")
-        aoi = aoi.set_crs(4326)
-    elif aoi.crs.to_epsg() != 4326:
-        aoi = aoi.to_crs(4326)
-
-    feat_coll = ee.FeatureCollection(aoi.__geo_interface__)
-    gfc = ee.Image("UMD/hansen/global_forest_change_2023_v1_11")
-
-    # Calculate forested area in 2000
-    treecover2000 = gfc.select(["treecover2000"])
-    treecover2000_mask = treecover2000.gte(tree_cover_threshold)
-    treecover2000 = treecover2000.unmask().updateMask(treecover2000_mask)
-    treecover2000 = treecover2000.And(treecover2000)  # Convert pixel values to 1's
-    treecover2000_area_img = treecover2000.multiply(ee.Image.pixelArea())
-    treecover2000_area = treecover2000_area_img.reduceRegion(
-        reducer=ee.Reducer.sum(), geometry=feat_coll, scale=scale, maxPixels=max_pixels
-    )
-
-    forested_area = treecover2000_area.getInfo()["treecover2000"]
-    forested_area = forested_area * 0.000247105  # Convert sq.meters to acres
-
-    # Calculate forest loss by year
-    loss_img = gfc.select(["loss"])
-    loss_img = loss_img.updateMask(treecover2000_mask)
-    loss_area_img = loss_img.multiply(ee.Image.pixelArea())
-    loss_year = gfc.select(["lossyear"])
-
-    loss_by_year = loss_area_img.addBands(loss_year).reduceRegion(
-        reducer=ee.Reducer.sum().group(groupField=1), geometry=feat_coll, scale=scale, maxPixels=max_pixels
-    )
-
-    forest_survival = pd.DataFrame([x for x in loss_by_year.getInfo()["groups"]])
-    forest_survival.rename(columns={"group": "year", "sum": "loss_area"}, inplace=True)
-    forest_survival["year"] = forest_survival["year"] + 2000
-    forest_survival["loss_area"] = forest_survival["loss_area"] * 0.000247105  # Convert sq.meters to acres
-    forest_survival["cumsum_loss_area"] = forest_survival["loss_area"].cumsum()
-    forest_survival["survival_area"] = forested_area - forest_survival["cumsum_loss_area"]
-
-    return forest_survival
 
 
 def test_get_forest_cover_trends_requires_gee():
