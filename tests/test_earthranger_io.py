@@ -788,3 +788,14 @@ def test_get_choices_from_v2_event_type_non_existent_choice_field(er_io):
 def test_get_choices_from_v2_event_type_non_existent_event_type(er_io):
     with pytest.raises(ERClientNotFound):
         er_io.get_choices_from_v2_event_type(event_type=" ", choice_field="herd_type")
+
+
+def test_get_choices_from_v2_event_type(er_io):
+    choices = er_io.get_choice_fields_from_v2_event_type(event_type="elephant_sigthing_test")
+    assert isinstance(choices, dict)
+    assert {"name_of_collared_elephant": "Name of collared elephant", "herd_type": "Herd Type"} == choices
+
+
+def test_get_choices_from_v2_event_type_non_existent_event_type(er_io):
+    with pytest.raises(ERClientNotFound):
+        er_io.get_choice_fields_from_v2_event_type(event_type=" ")
