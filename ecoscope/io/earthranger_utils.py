@@ -7,6 +7,7 @@ TIME_COLS = [
     "time",
     "created_at",
     "updated_at",
+    "end_time",
     "last_position_date",
     "recorded_at",
     "fixtime",
