@@ -432,6 +432,7 @@ def test_get_patrol_observations_with_patrol_filter(er_io):
     assert "patrol_start_time" in observations.gdf.columns
     assert "patrol_type" in observations.gdf.columns
     pd.testing.assert_series_equal(observations.gdf["patrol_id"], observations.gdf["groupby_col"], check_names=False)
+    check_time_is_parsed(observations.gdf)
 
 
 @patch("erclient.client.ERClient.get_objects_multithreaded")
