@@ -790,12 +790,27 @@ def test_get_choices_from_v2_event_type_non_existent_event_type(er_io):
         er_io.get_choices_from_v2_event_type(event_type=" ", choice_field="herd_type")
 
 
-def test_get_choices_from_v2_event_type(er_io):
-    choices = er_io.get_choice_fields_from_v2_event_type(event_type="elephant_sigthing_test")
+def test_get_fields_from_v2_event_type(er_io):
+    choices = er_io.get_fields_from_v2_event_type(event_type="elephant_sigthing_test")
     assert isinstance(choices, dict)
-    assert {"name_of_collared_elephant": "Name of collared elephant", "herd_type": "Herd Type"} == choices
+    assert {
+        "name_of_collared_elephant": "Name of collared elephant",
+        "herd_type": "Herd Type",
+        "how_many_identifiable_individuals": "How many identifiable individuals?",
+        "how_many_elephants_are_in_the_group": "How many elephants are in the group?",
+    } == choices
 
 
-def test_get_choices_from_v2_event_type_non_existent_event_type(er_io):
+def test_get_fields_from_v1_event_type(er_io):
+    choices = er_io.get_fields_from_v2_event_type(event_type="accident_rep")
+    assert isinstance(choices, dict)
+    assert {
+        "type_accident": "Type of accident",
+        "number_people_involved": "Number of people involved",
+        "animals_involved": "Animals involved",
+    } == choices
+
+
+def test_get_fields_from_non_existent_event_type(er_io):
     with pytest.raises(ERClientNotFound):
-        er_io.get_choice_fields_from_v2_event_type(event_type=" ")
+        er_io.get_fields_from_v2_event_type(event_type=" ")

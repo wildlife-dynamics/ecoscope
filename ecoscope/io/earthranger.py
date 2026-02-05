@@ -622,15 +622,23 @@ class EarthRangerIO(ERClient):
 
         return choices
 
-    def get_choice_fields_from_v2_event_type(self, event_type: str) -> dict[str, str]:
-        with self._use_v2_api():
-            schema = self._get(f"activity/eventtypes/{event_type}/schema")
-            choice_fields: dict[str, str] = {}
-            for prop_name, prop in schema.get("json", {}).get("properties", {}).items():
-                if prop.get("anyOf", {}):
-                    choice_fields |= {prop_name: prop.get("title", prop_name)}
+    def get_fields_from_v2_event_type(self, event_type: str) -> dict[str, str]:
+        fields: dict[str, str]
+        try:
+            with self._use_v2_api():
+                schema = self._get(f"activity/eventtypes/{event_type}/schema")
+                fields = {
+                    prop_name: prop.get("title", prop_name)
+                    for prop_name, prop in schema.get("json", {}).get("properties", {}).items()
+                }
+        except ERClientNotFound:
+            schema = self._get(f"activity/events/schema/eventtype/{event_type}")
+            fields = {
+                prop_name: prop.get("title", prop_name)
+                for prop_name, prop in schema.get("schema", {}).get("properties", {}).items()
+            }
 
-        return choice_fields
+        return fields
 
     def get_events(
         self,
