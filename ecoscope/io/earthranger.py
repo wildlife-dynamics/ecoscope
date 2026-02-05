@@ -622,7 +622,7 @@ class EarthRangerIO(ERClient):
 
         return choices
 
-    def get_fields_from_v2_event_type(self, event_type: str) -> dict[str, str]:
+    def get_fields_from_event_type_schema(self, event_type: str) -> dict[str, str]:
         fields: dict[str, str]
         try:
             with self._use_v2_api():
