@@ -608,6 +608,21 @@ class EarthRangerIO(ERClient):
         return pd.concat(results)
 
     def get_choices_from_v2_event_type(self, event_type: str, choice_field: str) -> dict[str, str]:
+        """
+        Retrieve choice options for a specific field from a v2 event type schema.
+
+        Parameters
+        ----------
+        event_type : str
+            The event type identifier.
+        choice_field : str
+            The name of the choice field to extract options from.
+
+        Returns
+        -------
+        dict[str, str]
+            A dictionary mapping choice values (const) to their display titles.
+        """
         choices: dict[str, str] = {}
         with self._use_v2_api():
             schema = self._get(f"activity/eventtypes/{event_type}/schema")
@@ -621,6 +636,40 @@ class EarthRangerIO(ERClient):
                             continue
 
         return choices
+
+    def get_fields_from_event_type_schema(self, event_type: str) -> dict[str, str]:
+        """
+        Retrieve all fields from an event type schema.
+
+        Attempts to fetch from the v2 API first, falling back to the v1 API
+        if the event type is not found in v2.
+
+        Parameters
+        ----------
+        event_type : str
+            The event type identifier.
+
+        Returns
+        -------
+        dict[str, str]
+            A dictionary mapping field names to their display titles.
+        """
+        fields: dict[str, str] = {}
+        try:
+            with self._use_v2_api():
+                schema = self._get(f"activity/eventtypes/{event_type}/schema")
+                fields = {
+                    prop_name: prop.get("title", prop_name)
+                    for prop_name, prop in schema.get("json", {}).get("properties", {}).items()
+                }
+        except ERClientNotFound:
+            schema = self._get(f"activity/events/schema/eventtype/{event_type}")
+            fields = {
+                prop_name: prop.get("title", prop_name)
+                for prop_name, prop in schema.get("schema", {}).get("properties", {}).items()
+            }
+
+        return fields
 
     def get_events(
         self,
