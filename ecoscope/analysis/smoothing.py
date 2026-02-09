@@ -1,3 +1,4 @@
+import datetime
 from dataclasses import dataclass
 from typing import Literal
 
@@ -64,9 +65,16 @@ def apply_smoothing(x: np.ndarray, y: np.ndarray, config: SmoothingConfig) -> tu
     sort_idx = np.argsort(x)
     x_sorted, y_sorted = x[sort_idx], y[sort_idx]
 
-    # Convert datetime to numeric for interpolation
-    is_datetime = np.issubdtype(x_sorted.dtype, "datetime64")
-    if is_datetime:
+    # Check for datetime types (numpy datetime64 or Python date/datetime objects)
+    is_numpy_datetime = np.issubdtype(x_sorted.dtype, "datetime64")
+    is_python_date = len(x_sorted) > 0 and isinstance(x_sorted[0], (datetime.date, datetime.datetime))
+
+    # Convert to numeric for interpolation
+    if is_numpy_datetime:
+        x_numeric = x_sorted.astype(np.int64)
+    elif is_python_date:
+        # Convert Python date/datetime to numpy datetime64, then to int64
+        x_sorted = np.array(x_sorted, dtype="datetime64[ns]")
         x_numeric = x_sorted.astype(np.int64)
     else:
         x_numeric = x_sorted.astype(np.float64)
@@ -83,7 +91,7 @@ def apply_smoothing(x: np.ndarray, y: np.ndarray, config: SmoothingConfig) -> tu
         y_smooth = np.minimum(y_smooth, config.y_max)
 
     # Convert x back to datetime if needed
-    if is_datetime:
+    if is_numpy_datetime or is_python_date:
         x_smooth = x_smooth.astype("datetime64[ns]")
 
     return x_smooth, y_smooth

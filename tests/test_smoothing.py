@@ -102,6 +102,28 @@ class TestApplySmoothing:
         assert len(x_smooth) == len(x) * 10
         assert len(y_smooth) == len(x) * 10
 
+    def test_spline_smoothing_with_python_date(self):
+        import datetime
+
+        x = np.array(
+            [
+                datetime.date(2024, 1, 1),
+                datetime.date(2024, 1, 2),
+                datetime.date(2024, 1, 3),
+                datetime.date(2024, 1, 4),
+                datetime.date(2024, 1, 5),
+            ]
+        )
+        y = np.array([1.0, 4.0, 2.0, 5.0, 3.0])
+        config = SmoothingConfig(method="spline")
+
+        x_smooth, y_smooth = apply_smoothing(x, y, config)
+
+        # Should convert to datetime64
+        assert np.issubdtype(x_smooth.dtype, "datetime64")
+        assert len(x_smooth) == len(x) * 10
+        assert len(y_smooth) == len(x) * 10
+
     def test_spline_smoothing_unsorted_input(self):
         # Input data is not sorted by x
         x = np.array([3.0, 1.0, 5.0, 2.0, 4.0])
