@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
+from scipy.interpolate import make_interp_spline  # type: ignore[import-untyped]
 
 
 @dataclass
@@ -55,7 +56,6 @@ def apply_smoothing(x: np.ndarray, y: np.ndarray, config: SmoothingConfig) -> tu
     tuple[np.ndarray, np.ndarray]
         The smoothed (x, y) values
     """
-    from scipy.interpolate import make_interp_spline
 
     if config.method != "spline":
         raise ValueError(f"Unsupported smoothing method: {config.method}")
