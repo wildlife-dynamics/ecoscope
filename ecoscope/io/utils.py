@@ -3,7 +3,7 @@ import os
 import re
 import zipfile
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import requests
 from dateutil import parser
