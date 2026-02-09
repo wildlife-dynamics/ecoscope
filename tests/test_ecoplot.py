@@ -4,6 +4,7 @@ import pytest
 
 from ecoscope import Trajectory
 from ecoscope.analysis.classifier import apply_color_map
+from ecoscope.analysis.smoothing import SmoothingConfig
 from ecoscope.plotting.plot import (
     BarConfig,
     EcoPlotData,
@@ -209,6 +210,59 @@ def test_line_chart_with_category(chart_df):
     assert chart.data[1].name == "B"
     assert (chart.data[1].x == ["B", "C", "D"]).all()
     assert (chart.data[1].y == [40, 65, 150]).all()
+
+
+def test_line_chart_with_smoothing():
+    df = pd.DataFrame(
+        {
+            "x": [1.0, 2.0, 3.0, 4.0, 5.0],
+            "y": [10.0, 0.5, 10.0, 0.5, 10.0],
+        }
+    )
+    config = SmoothingConfig(method="spline", y_min=0, resolution=50)
+    chart = line_chart(data=df, x_column="x", y_column="y", smoothing=config)
+
+    # Should have 2 traces: smoothed line + original markers
+
+    assert len(chart.data) == 2
+    # First trace: smoothed line
+    assert chart.data[0].mode == "lines"
+    assert len(chart.data[0].x) == 250  # 5 * 50 interpolation points
+    assert np.all(np.array(chart.data[0].y) >= 0)  # y_min clamping
+    # Second trace: original markers
+    assert chart.data[1].mode == "markers"
+    assert len(chart.data[1].x) == 5
+
+
+def test_line_chart_with_smoothing_and_category():
+    df = pd.DataFrame(
+        {
+            "x": [1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0],
+            "y": [10.0, 0.5, 10.0, 0.5, 10.0, 5.0, 8.0, 3.0, 7.0, 4.0],
+            "category": ["A", "A", "A", "A", "A", "B", "B", "B", "B", "B"],
+        }
+    )
+    config = SmoothingConfig(method="spline", y_min=0)
+    chart = line_chart(
+        data=df,
+        x_column="x",
+        y_column="y",
+        category_column="category",
+        smoothing=config,
+    )
+
+    # Should have 4 traces: 2 categories x (smoothed line + markers)
+    assert len(chart.data) == 4
+    # Check traces for category A
+    assert chart.data[0].name == "A"
+    assert chart.data[0].mode == "lines"
+    assert chart.data[1].name == "A"
+    assert chart.data[1].mode == "markers"
+    # Check traces for category B
+    assert chart.data[2].name == "B"
+    assert chart.data[2].mode == "lines"
+    assert chart.data[3].name == "B"
+    assert chart.data[3].mode == "markers"
 
 
 def test_pie_chart_no_style(chart_df):

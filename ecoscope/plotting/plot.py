@@ -7,6 +7,7 @@ import shapely
 from pandas.core.groupby.generic import DataFrameGroupBy
 
 import ecoscope
+from ecoscope.analysis.smoothing import SmoothingConfig, apply_smoothing
 from ecoscope.base.utils import color_tuple_to_css
 
 try:
@@ -436,6 +437,7 @@ def line_chart(
     category_column: str | None = None,
     line_kwargs: dict | None = None,
     layout_kwargs: dict | None = None,
+    smoothing: SmoothingConfig | None = None,
 ):
     """
     Creates a line chart from the provided dataframe
@@ -453,6 +455,9 @@ def line_chart(
         Line style kwargs passed to plotly.go.Scatter()
     layout_kwargs: dict
         Additional kwargs passed to plotly.go.Figure(layout)
+    smoothing: SmoothingConfig
+        Configuration for line smoothing. When set, creates two layers:
+        a smoothed line and original data point markers.
     Returns
     -------
     fig : plotly.graph_objects.Figure
@@ -460,25 +465,44 @@ def line_chart(
     """
     fig = go.Figure(layout=layout_kwargs)
 
-    if not category_column:
-        fig.add_trace(
-            go.Scatter(
-                x=data[x_column],
-                y=data[y_column],
-                mode="lines+markers",
-                line=line_kwargs,
-            )
-        )
-    else:
-        for category in data[category_column].unique():
-            category_data = data[data[category_column] == category]
+    groups = [(None, data)] if not category_column else data.groupby(category_column)
+
+    for name, group_data in groups:
+        x = np.asarray(group_data[x_column])
+        y = np.asarray(group_data[y_column])
+
+        if smoothing is not None:
+            x_smooth, y_smooth = apply_smoothing(x, y, smoothing)
+            # Layer 1: Smoothed line (no markers, no hover)
             fig.add_trace(
                 go.Scatter(
-                    x=category_data[x_column],
-                    y=category_data[y_column],
-                    mode="lines+markers",
-                    name=category,
+                    x=x_smooth,
+                    y=y_smooth,
+                    mode="lines",
                     line=line_kwargs,
+                    name=name,
+                    showlegend=name is not None,
+                    hoverinfo="skip",
+                )
+            )
+            # Layer 2: Original data points (markers only)
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="markers",
+                    name=name,
+                    showlegend=False,
+                )
+            )
+        else:
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="lines+markers",
+                    line=line_kwargs,
+                    name=name,
                 )
             )
 
