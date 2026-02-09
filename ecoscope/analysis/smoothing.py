@@ -59,7 +59,7 @@ def apply_smoothing(x: np.ndarray, y: np.ndarray, config: SmoothingConfig) -> tu
     """
 
     if config.method != "spline":
-        raise ValueError(f"Unsupported smoothing method: {config.method}")
+        raise NotImplementedError(f"Unsupported smoothing method: {config.method}")
 
     # Sort for interpolation
     sort_idx = np.argsort(x)
