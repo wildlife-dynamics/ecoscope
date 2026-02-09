@@ -4,7 +4,7 @@ import pytest
 from ecoscope.analysis.smoothing import SmoothingConfig, apply_smoothing
 
 
-def test_create_config_spline(self):
+def test_create_config_spline():
     config = SmoothingConfig(method="spline")
     assert config.method == "spline"
     assert config.y_min is None
@@ -12,33 +12,39 @@ def test_create_config_spline(self):
     assert config.resolution == 10
     assert config.degree == 3
 
-def test_create_config_with_y_min(self):
+
+def test_create_config_with_y_min():
     config = SmoothingConfig(method="spline", y_min=0)
     assert config.method == "spline"
     assert config.y_min == 0
     assert config.y_max is None
 
-def test_create_config_with_y_max(self):
+
+def test_create_config_with_y_max():
     config = SmoothingConfig(method="spline", y_max=100)
     assert config.method == "spline"
     assert config.y_min is None
     assert config.y_max == 100
 
-def test_create_config_with_both_clamps(self):
+
+def test_create_config_with_both_clamps():
     config = SmoothingConfig(method="spline", y_min=0, y_max=100)
     assert config.method == "spline"
     assert config.y_min == 0
     assert config.y_max == 100
 
-def test_create_config_with_resolution(self):
+
+def test_create_config_with_resolution():
     config = SmoothingConfig(method="spline", resolution=5)
     assert config.resolution == 5
 
-def test_create_config_with_degree(self):
+
+def test_create_config_with_degree():
     config = SmoothingConfig(method="spline", degree=2)
     assert config.degree == 2
 
-def test_spline_smoothing_basic(self):
+
+def test_spline_smoothing_basic():
     x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     y = np.array([1.0, 4.0, 2.0, 5.0, 3.0])
     config = SmoothingConfig(method="spline")
@@ -52,7 +58,8 @@ def test_spline_smoothing_basic(self):
     assert x_smooth[0] == pytest.approx(x.min())
     assert x_smooth[-1] == pytest.approx(x.max())
 
-def test_spline_smoothing_with_y_min(self):
+
+def test_spline_smoothing_with_y_min():
     # Create data where spline might dip below zero
     x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     y = np.array([10.0, 0.5, 10.0, 0.5, 10.0])
@@ -63,7 +70,8 @@ def test_spline_smoothing_with_y_min(self):
     # All smoothed values should be >= 0
     assert np.all(y_smooth >= 0)
 
-def test_spline_smoothing_with_y_max(self):
+
+def test_spline_smoothing_with_y_max():
     x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     y = np.array([10.0, 50.0, 10.0, 50.0, 10.0])
     config = SmoothingConfig(method="spline", y_max=60)
@@ -73,7 +81,8 @@ def test_spline_smoothing_with_y_max(self):
     # All smoothed values should be <= 60
     assert np.all(y_smooth <= 60)
 
-def test_spline_smoothing_with_both_clamps(self):
+
+def test_spline_smoothing_with_both_clamps():
     x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     y = np.array([10.0, 0.5, 50.0, 0.5, 10.0])
     config = SmoothingConfig(method="spline", y_min=0, y_max=60)
@@ -84,7 +93,8 @@ def test_spline_smoothing_with_both_clamps(self):
     assert np.all(y_smooth >= 0)
     assert np.all(y_smooth <= 60)
 
-def test_spline_smoothing_with_datetime(self):
+
+def test_spline_smoothing_with_datetime():
     x = np.array(
         ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"],
         dtype="datetime64[D]",
@@ -99,7 +109,8 @@ def test_spline_smoothing_with_datetime(self):
     assert len(x_smooth) == len(x) * 10
     assert len(y_smooth) == len(x) * 10
 
-def test_spline_smoothing_with_python_date(self):
+
+def test_spline_smoothing_with_python_date():
     import datetime
 
     x = np.array(
@@ -121,7 +132,8 @@ def test_spline_smoothing_with_python_date(self):
     assert len(x_smooth) == len(x) * 10
     assert len(y_smooth) == len(x) * 10
 
-def test_spline_smoothing_unsorted_input(self):
+
+def test_spline_smoothing_unsorted_input():
     # Input data is not sorted by x
     x = np.array([3.0, 1.0, 5.0, 2.0, 4.0])
     y = np.array([2.0, 1.0, 3.0, 4.0, 5.0])
@@ -136,7 +148,8 @@ def test_spline_smoothing_unsorted_input(self):
     # x_smooth should be sorted
     assert np.all(np.diff(x_smooth) >= 0)
 
-def test_spline_smoothing_with_custom_resolution(self):
+
+def test_spline_smoothing_with_custom_resolution():
     x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     y = np.array([1.0, 4.0, 2.0, 5.0, 3.0])
     config = SmoothingConfig(method="spline", resolution=5)
@@ -147,7 +160,8 @@ def test_spline_smoothing_with_custom_resolution(self):
     assert len(x_smooth) == len(x) * 5
     assert len(y_smooth) == len(x) * 5
 
-def test_spline_smoothing_with_custom_degree(self):
+
+def test_spline_smoothing_with_custom_degree():
     x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     y = np.array([1.0, 4.0, 2.0, 5.0, 3.0])
 
@@ -166,7 +180,8 @@ def test_spline_smoothing_with_custom_degree(self):
     # Linear and cubic should produce different results
     assert not np.allclose(y_linear, y_cubic)
 
-def test_unsupported_smoothing_method(self):
+
+def test_unsupported_smoothing_method():
     x = np.array([1.0, 2.0, 3.0])
     y = np.array([1.0, 2.0, 3.0])
     # Create config with invalid method by bypassing type checking
@@ -177,5 +192,5 @@ def test_unsupported_smoothing_method(self):
     config.resolution = 10
     config.degree = 3
 
-    with pytest.raises(ValueError, match="Unsupported smoothing method"):
+    with pytest.raises(NotImplementedError, match="Unsupported smoothing method"):
         apply_smoothing(x, y, config)
