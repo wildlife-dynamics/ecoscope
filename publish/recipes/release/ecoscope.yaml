@@ -1,17 +1,19 @@
 context:
   name: ecoscope
-  version: TAG_VERSION
+  version: 2.10.3.dev3+g50cb2c72d
   
 package:
   name: ecoscope
   version: ${{ version }}
 
 source:
-  path: ../../../dist/DIST_NAME
+  - path: ../../../dist/ecoscope-2.10.3.dev3+g50cb2c72d-py3-none-any.whl
+  - path: ../../../LICENSE
+    file_name: LICENSE
 
 build:
   noarch: python
-  script: SETUPTOOLS_SCM_PRETEND_VERSION=${{ version }} pip install . -v
+  script: SETUPTOOLS_SCM_PRETEND_VERSION=${{ version }} pip install ecoscope-2.10.3.dev3+g50cb2c72d-py3-none-any.whl -v
   number: 5
 
 requirements:

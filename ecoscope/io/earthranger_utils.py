@@ -1,19 +1,7 @@
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
-from dateutil import parser
 from shapely.geometry import shape
-
-TIME_COLS = [
-    "time",
-    "created_at",
-    "updated_at",
-    "end_time",
-    "last_position_date",
-    "recorded_at",
-    "fixtime",
-    "patrol_start_time",
-    "patrol_end_time",
-]
+from utils import clean_time_cols
 
 
 def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
@@ -57,14 +45,6 @@ def to_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
         geometry=gpd.points_from_xy(df["location"].str[longitude], df["location"].str[latitude]),  # type: ignore[index]
         crs=4326,
     )
-
-
-def clean_time_cols(df: pd.DataFrame | gpd.GeoDataFrame) -> pd.DataFrame | gpd.GeoDataFrame:
-    for col in TIME_COLS:
-        if col in df.columns and not pd.api.types.is_datetime64_ns_dtype(df[col]):
-            # convert x is not None to pd.isna(x) is False
-            df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x), utc=True) if not pd.isna(x) else None)
-    return df
 
 
 def format_iso_time(date_string: str) -> str:

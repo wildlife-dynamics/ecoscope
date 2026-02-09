@@ -3,10 +3,25 @@ import os
 import re
 import zipfile
 
+import geopandas as gpd
+import pandas as pd
 import requests
+from dateutil import parser
 from requests.adapters import HTTPAdapter
 from tqdm.auto import tqdm
 from urllib3.util import Retry
+
+TIME_COLS = [
+    "time",
+    "created_at",
+    "updated_at",
+    "end_time",
+    "last_position_date",
+    "recorded_at",
+    "fixtime",
+    "patrol_start_time",
+    "patrol_end_time",
+]
 
 
 def download_file(
@@ -76,3 +91,11 @@ def __transform_gdrive_url(url: str) -> str:
 
 def __transform_dropbox_url(url: str) -> str:
     return url[:-1] + "1"
+
+
+def clean_time_cols(df: pd.DataFrame | gpd.GeoDataFrame) -> pd.DataFrame | gpd.GeoDataFrame:
+    for col in TIME_COLS:
+        if col in df.columns and not pd.api.types.is_datetime64_ns_dtype(df[col]):
+            # convert x is not None to pd.isna(x) is False
+            df[col] = df[col].apply(lambda x: pd.to_datetime(parser.parse(x), utc=True) if not pd.isna(x) else None)
+    return df

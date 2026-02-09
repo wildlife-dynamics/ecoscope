@@ -95,7 +95,7 @@ def aoi_gdf():
 @pytest.fixture
 def sample_relocs():
     gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
-    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
+    gdf = ecoscope.io.utils.clean_time_cols(gdf)
 
     return ecoscope.Relocations.from_gdf(gdf)
 

@@ -16,7 +16,6 @@ from tqdm.auto import tqdm
 from ecoscope.base.utils import BoundingBox
 from ecoscope.io.earthranger_utils import (
     clean_kwargs,
-    clean_time_cols,
     dataframe_to_dict_or_list,
     format_iso_time,
     geometry_from_event_geojson,
@@ -25,6 +24,7 @@ from ecoscope.io.earthranger_utils import (
     to_hex,
     unpack_events_from_patrols_df,
 )
+from ecoscope.io.utils import clean_time_cols
 from ecoscope.relocations import Relocations
 
 EventSortOptions = Literal[
