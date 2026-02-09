@@ -67,7 +67,7 @@ def apply_smoothing(x: np.ndarray, y: np.ndarray, config: SmoothingConfig) -> tu
 
     # Check for datetime types (numpy datetime64 or Python date/datetime objects)
     is_numpy_datetime = np.issubdtype(x_sorted.dtype, "datetime64")
-    is_python_date = len(x_sorted) > 0 and isinstance(x_sorted[0], (datetime.date, datetime.datetime))
+    is_python_date = len(x_sorted) > 0 and all(isinstance(el, (datetime.date, datetime.datetime)) for el in x_sorted)
 
     # Convert to numeric for interpolation
     if is_numpy_datetime:
@@ -78,6 +78,10 @@ def apply_smoothing(x: np.ndarray, y: np.ndarray, config: SmoothingConfig) -> tu
         x_numeric = x_sorted.astype(np.int64)
     else:
         x_numeric = x_sorted.astype(np.float64)
+
+    # Spline of degree k requires at least k+1 points; return original data if insufficient
+    if len(x_numeric) < config.degree + 1:
+        return x_sorted, y_sorted
 
     # Interpolate with spline
     x_smooth = np.linspace(x_numeric.min(), x_numeric.max(), len(x) * config.resolution)

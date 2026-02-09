@@ -194,3 +194,31 @@ def test_unsupported_smoothing_method():
 
     with pytest.raises(NotImplementedError, match="Unsupported smoothing method"):
         apply_smoothing(x, y, config)
+
+
+def test_spline_smoothing_insufficient_points():
+    # Cubic spline (degree=3) requires at least 4 points
+    x = np.array([3.0, 1.0, 2.0])  # Only 3 points, unsorted
+    y = np.array([30.0, 10.0, 20.0])
+    config = SmoothingConfig(method="spline", degree=3)
+
+    x_smooth, y_smooth = apply_smoothing(x, y, config)
+
+    # Should return original data sorted, unchanged
+    assert len(x_smooth) == 3
+    assert len(y_smooth) == 3
+    np.testing.assert_array_equal(x_smooth, [1.0, 2.0, 3.0])
+    np.testing.assert_array_equal(y_smooth, [10.0, 20.0, 30.0])
+
+
+def test_spline_smoothing_exact_minimum_points():
+    # Cubic spline (degree=3) requires exactly 4 points minimum
+    x = np.array([1.0, 2.0, 3.0, 4.0])
+    y = np.array([1.0, 4.0, 2.0, 5.0])
+    config = SmoothingConfig(method="spline", degree=3)
+
+    x_smooth, y_smooth = apply_smoothing(x, y, config)
+
+    # Should successfully smooth with exactly k+1 points
+    assert len(x_smooth) == len(x) * 10
+    assert len(y_smooth) == len(x) * 10
