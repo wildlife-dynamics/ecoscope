@@ -12,7 +12,7 @@ from shapely.geometry import Point
 
 import ecoscope
 from ecoscope.io.earthranger import EarthRangerIO
-from ecoscope.io.earthranger_utils import TIME_COLS
+from ecoscope.io.utils import TIME_COLS
 
 pytestmark = pytest.mark.io
 

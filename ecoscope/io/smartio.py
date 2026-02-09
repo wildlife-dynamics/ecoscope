@@ -7,6 +7,7 @@ import pandas as pd
 import requests
 import shapely
 
+from ecoscope.io.utils import clean_time_cols
 from ecoscope.relocations import Relocations
 
 logger = logging.getLogger(__name__)
@@ -235,6 +236,7 @@ class SmartIO:
             patrols_relocs.gdf = patrols_relocs.gdf.assign(
                 id=[str(uuid.uuid4()) for _ in range(len(patrols_relocs.gdf))]
             ).set_index("id")
+            patrols_relocs.gdf = clean_time_cols(patrols_relocs.gdf)
             return patrols_relocs
         except Exception as e:
             logger.error(f"Error processing patrol data: {e}")
@@ -271,6 +273,7 @@ class SmartIO:
             logger.warning('"category" column does not exist in events_df')
 
         events_df["extracted_attributes"] = events_df["attributes"].apply(self.extract_event_attributes)
+        events_df = clean_time_cols(events_df)
         return events_df
 
     def extract_event_attributes(self, attr_str: str) -> dict:

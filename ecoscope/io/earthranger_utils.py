@@ -1,7 +1,8 @@
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 from shapely.geometry import shape
-from utils import clean_time_cols
+
+from ecoscope.io.utils import clean_time_cols
 
 
 def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
