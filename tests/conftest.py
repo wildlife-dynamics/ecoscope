@@ -50,7 +50,12 @@ def smart_io():
     SMART_SERVER = "https://maratriangleconnect.smartconservationtools.org/smartapi/"
     SMART_USERNAME = os.getenv("SMART_USERNAME")
     SMART_PASSWORD = os.getenv("SMART_PASSWORD")
-    smart_io = ecoscope.io.SmartIO(urlBase=SMART_SERVER, username=SMART_USERNAME, password=SMART_PASSWORD)
+    smart_io = ecoscope.io.SmartIO(
+        urlBase=SMART_SERVER,
+        username=SMART_USERNAME,
+        password=SMART_PASSWORD,
+        ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
+    )
 
     return smart_io
 

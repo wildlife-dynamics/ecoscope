@@ -19,11 +19,19 @@ class SmartIO:
         self._username = kwargs.get("username")
         self._password = kwargs.get("password")
 
+        self._ca_uuid = kwargs.get("ca_uuid")
+        self._ca_id = kwargs.get("ca_id")
+        self._ca_name = kwargs.get("ca_name")
+        self._language_uuid = kwargs.get("language_uuid")
+        self._language_code = kwargs.get("language_code", "en")
+
         self._session = requests.Session()
         self._token = kwargs.get("token")
         self._verify_ssl = kwargs.get("verify_ssl")
 
         self.login()
+        self._ca_uuid = self._resolve_ca_uuid()
+        self._language_uuid = self._resolve_language_uuid()
 
     def login(self) -> None:
         login_data = {
@@ -38,6 +46,58 @@ class SmartIO:
             response.raise_for_status()
             self._token = response.json()["access_token"]
             return
+
+    def _resolve_ca_uuid(self) -> str:
+        """
+        Attempt to resolve conservation area UUID from the CA ID or CA Name, or verify the provided UUID.
+        """
+        ca_list = self.query_data("conservationarea/")
+
+        if ca_list.empty:
+            raise ValueError("No conservation areas returned from API")
+
+        if self._ca_uuid:
+            if self._ca_uuid not in ca_list["uuid"].values:
+                raise ValueError(f"Conservation area UUID '{self._ca_uuid}' not found in API response")
+            return self._ca_uuid
+
+        if self._ca_id:
+            matches = ca_list[ca_list["id"] == self._ca_id]
+            if matches.empty:
+                raise ValueError(f"Conservation area ID '{self._ca_id}' not found in API response")
+            return matches.iloc[0]["uuid"]
+
+        if self._ca_name:
+            matches = ca_list[ca_list["name"] == self._ca_name]
+            if matches.empty:
+                raise ValueError(f"Conservation area name '{self._ca_name}' not found in API response")
+            return matches.iloc[0]["uuid"]
+
+        raise ValueError("No conservation area identifier provided. Must provide ca_uuid, ca_id, or ca_name")
+
+    def _resolve_language_uuid(self) -> str:
+        """
+        Attempt to resolve the language UUID from the language code, or verify the provided UUID.
+        """
+        language_list = self.query_data("language/", params={"ca_uuid": self._ca_uuid})
+
+        if language_list.empty:
+            raise ValueError(f"No languages returned from API for conservation area '{self._ca_uuid}'")
+
+        if self._language_uuid:
+            if self._language_uuid not in language_list["uuid"].values:
+                raise ValueError(
+                    f"Language UUID '{self._language_uuid}' not found for conservation area '{self._ca_uuid}'"
+                )
+            return self._language_uuid
+
+        matches = language_list[language_list["code"] == self._language_code]
+        if matches.empty:
+            raise ValueError(
+                f"Language code '{self._language_code}' not found for conservation area '{self._ca_uuid}'. "
+                f"If using default language code 'en', try providing an explicit language_code parameter."
+            )
+        return matches.iloc[0]["uuid"]
 
     def query_data(self, url: str, params: dict | None = None) -> pd.DataFrame:
         headers = {
@@ -79,8 +139,6 @@ class SmartIO:
 
     def get_patrols_list(
         self,
-        ca_uuid: str,
-        language_uuid: str,
         start: str,
         end: str,
         patrol_mandate: str | None,
@@ -88,8 +146,8 @@ class SmartIO:
         station_uuid: str | None = None,
     ) -> gpd.GeoDataFrame | None:
         params: dict[str, str | None] = {}
-        params["ca_uuid"] = ca_uuid
-        params["language_uuid"] = language_uuid
+        params["ca_uuid"] = self._ca_uuid
+        params["language_uuid"] = self._language_uuid
         params["start_date"] = start
         params["end_date"] = end
         params["patrol_mandate"] = patrol_mandate
@@ -198,8 +256,6 @@ class SmartIO:
 
     def get_patrol_observations(
         self,
-        ca_uuid: str,
-        language_uuid: str,
         start: str,
         end: str,
         patrol_mandate: str | None = None,
@@ -209,8 +265,6 @@ class SmartIO:
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
         patrols = self.get_patrols_list(
-            ca_uuid=ca_uuid,
-            language_uuid=language_uuid,
             # SMART API throws error if the start/end time is not at 00:00:00
             start=pd.Timestamp(start_dt.date()).isoformat(),
             end=pd.Timestamp(end_dt.date()).isoformat(),
@@ -244,14 +298,12 @@ class SmartIO:
 
     def get_events(
         self,
-        ca_uuid: str,
-        language_uuid: str,
         start: str,
         end: str,
     ) -> gpd.GeoDataFrame:
         params = {}
-        params["ca_uuid"] = ca_uuid
-        params["language_uuid"] = language_uuid
+        params["ca_uuid"] = self._ca_uuid
+        params["language_uuid"] = self._language_uuid
         params["start_date"] = start
         params["end_date"] = end
 
