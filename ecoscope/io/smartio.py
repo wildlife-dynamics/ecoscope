@@ -83,7 +83,7 @@ class SmartIO:
                 raise ValueError(f"Conservation area name '{self._ca_name}' not found in API response")
             return matches.iloc[0]["uuid"]
 
-        raise ValueError("No conservation area identifier provided. Must provide ca_uuid, ca_id, or ca_name")
+        raise ValueError("No conservation area identifier provided. Must provide either ca_uuid, ca_id, or ca_name")
 
     def _resolve_language_uuid(self) -> str:
         """
@@ -105,7 +105,6 @@ class SmartIO:
         if matches.empty:
             raise ValueError(
                 f"Language code '{self._language_code}' not found for conservation area '{self._ca_uuid}'. "
-                f"If using default language code 'en', try providing an explicit language_code parameter."
             )
         return matches.iloc[0]["uuid"]
 

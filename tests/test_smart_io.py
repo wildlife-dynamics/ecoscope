@@ -11,6 +11,7 @@ pytestmark = pytest.mark.smart_io
 SMART_SERVER = "https://maratriangleconnect.smartconservationtools.org/smartapi/"
 SMART_USERNAME = os.getenv("SMART_USERNAME")
 SMART_PASSWORD = os.getenv("SMART_PASSWORD")
+CA_UUID = "735606d2-c34e-49c3-a45b-7496ca834e58"
 
 
 def check_time_is_parsed(df):
@@ -45,7 +46,7 @@ def test_smart_get_patrol_observations(smart_io):
     check_time_is_parsed(result.gdf)
 
 
-def test_smart_invalid_ca_raises_error():
+def test_smart_invalid_ca_raises():
     with pytest.raises(ValueError, match="Conservation area name 'Not a real CA' not found in API response"):
         ecoscope.io.SmartIO(
             urlBase=SMART_SERVER,
@@ -62,7 +63,7 @@ def test_smart_ca_id_resolution():
         password=SMART_PASSWORD,
         ca_id="MTri",
     )
-    assert smart_io._ca_uuid == "735606d2-c34e-49c3-a45b-7496ca834e58"
+    assert smart_io._ca_uuid == CA_UUID
 
 
 def test_smart_ca_name_resolution():
@@ -72,7 +73,7 @@ def test_smart_ca_name_resolution():
         password=SMART_PASSWORD,
         ca_name="Mara Triangle Conservancy",
     )
-    assert smart_io._ca_uuid == "735606d2-c34e-49c3-a45b-7496ca834e58"
+    assert smart_io._ca_uuid == CA_UUID
 
 
 def test_smart_language_code_resolution():
@@ -80,32 +81,43 @@ def test_smart_language_code_resolution():
         urlBase=SMART_SERVER,
         username=SMART_USERNAME,
         password=SMART_PASSWORD,
-        ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
+        ca_uuid=CA_UUID,
         language_code="en",
     )
     assert smart_io._language_uuid is not None
     assert smart_io._language_code == "en"
 
 
-def test_smart_ca_resolution_bad_name_bad_id():
+def test_smart_ca_resolution():
     # Provide all three identifiers - should succeed as the uuid is correct
     smart_io = ecoscope.io.SmartIO(
         urlBase=SMART_SERVER,
         username=SMART_USERNAME,
         password=SMART_PASSWORD,
-        ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
+        ca_uuid=CA_UUID,
         ca_id="wrong_id",
         ca_name="Wrong Name",
     )
-    assert smart_io._ca_uuid == "735606d2-c34e-49c3-a45b-7496ca834e58"
+    assert smart_io._ca_uuid == CA_UUID
 
 
-def test_smart_invalid_language_code_raises_error():
+def test_smart_invalid_language_code_raises():
     with pytest.raises(ValueError, match="Language code 'klingon' not found"):
         ecoscope.io.SmartIO(
             urlBase=SMART_SERVER,
             username=SMART_USERNAME,
             password=SMART_PASSWORD,
-            ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
+            ca_uuid=CA_UUID,
             language_code="klingon",
+        )
+
+
+def test_smart_no_ca_raises():
+    with pytest.raises(
+        ValueError, match="No conservation area identifier provided. Must provide either ca_uuid, ca_id, or ca_name"
+    ):
+        ecoscope.io.SmartIO(
+            urlBase=SMART_SERVER,
+            username=SMART_USERNAME,
+            password=SMART_PASSWORD,
         )
