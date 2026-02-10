@@ -14,20 +14,30 @@ logger = logging.getLogger(__name__)
 
 
 class SmartIO:
-    def __init__(self, **kwargs):
-        self._urlBase = kwargs.get("urlBase")
-        self._username = kwargs.get("username")
-        self._password = kwargs.get("password")
+    def __init__(
+        self,
+        urlBase: str,
+        username: str,
+        password: str,
+        ca_uuid: str = "",
+        ca_id: str = "",
+        ca_name: str = "",
+        language_uuid: str = "",
+        language_code: str = "en",
+        **kwargs,
+    ):
+        self._urlBase = urlBase
+        self._username = username
+        self._password = password
 
-        self._ca_uuid = kwargs.get("ca_uuid")
-        self._ca_id = kwargs.get("ca_id")
-        self._ca_name = kwargs.get("ca_name")
-        self._language_uuid = kwargs.get("language_uuid")
-        self._language_code = kwargs.get("language_code", "en")
+        self._ca_uuid = ca_uuid
+        self._ca_id = ca_id
+        self._ca_name = ca_name
+        self._language_uuid = language_uuid
+        self._language_code = language_code
 
         self._session = requests.Session()
         self._token = kwargs.get("token")
-        self._verify_ssl = kwargs.get("verify_ssl")
 
         self.login()
         self._ca_uuid = self._resolve_ca_uuid()
@@ -41,7 +51,7 @@ class SmartIO:
 
         if not self._token:
             self._session = requests.Session()
-            response = self._session.post(f"{self._urlBase}token", data=login_data, verify=self._verify_ssl)
+            response = self._session.post(f"{self._urlBase}token", data=login_data)
 
             response.raise_for_status()
             self._token = response.json()["access_token"]
@@ -110,7 +120,6 @@ class SmartIO:
         session = requests.Session()
         r = session.get(
             f"{self._urlBase}{url}",
-            verify=self._verify_ssl,
             params=params,
             headers=headers,
         )
@@ -129,7 +138,6 @@ class SmartIO:
         session = requests.Session()
         r = session.get(
             f"{self._urlBase}{url}",
-            verify=self._verify_ssl,
             params=params,
             headers=headers,
         )
