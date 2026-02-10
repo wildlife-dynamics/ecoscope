@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ecoscope.io.earthranger_utils import clean_time_cols, normalize_column
+from ecoscope.io.earthranger_utils import normalize_column
+from ecoscope.io.utils import clean_time_cols
 
 
 @pytest.fixture

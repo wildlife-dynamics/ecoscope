@@ -47,7 +47,7 @@ def er_io():
 
 @pytest.fixture(scope="session")
 def smart_io():
-    SMART_SERVER = "https://smartapitest.smartconservationtools.org/smartapi/"
+    SMART_SERVER = "https://maratriangleconnect.smartconservationtools.org/smartapi/"
     SMART_USERNAME = os.getenv("SMART_USERNAME")
     SMART_PASSWORD = os.getenv("SMART_PASSWORD")
     smart_io = ecoscope.io.SmartIO(urlBase=SMART_SERVER, username=SMART_USERNAME, password=SMART_PASSWORD)
@@ -95,7 +95,7 @@ def aoi_gdf():
 @pytest.fixture
 def sample_relocs():
     gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
-    gdf = ecoscope.io.earthranger_utils.clean_time_cols(gdf)
+    gdf = ecoscope.io.utils.clean_time_cols(gdf)
 
     return ecoscope.Relocations.from_gdf(gdf)
 
