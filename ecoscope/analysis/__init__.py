@@ -8,9 +8,12 @@ __all__ = [
     "immobility",
     "percentile",
     "seasons",
+    "smoothing",
     "apply_classification",
     "apply_colormap",
+    "apply_smoothing",
     "classify_percentile",
     "calculate_feature_density",
     "linear_time_density",
+    "SmoothingConfig",
 ]
