@@ -372,6 +372,7 @@ def test_get_spatial_feature(er_io):
 def test_get_spatial_features_group(er_io):
     sfg = er_io.get_spatial_features_group(spatial_features_group_id="15698426-7e0f-41df-9bc3-495d87e2e097")
     assert isinstance(sfg, gpd.GeoDataFrame)
+    assert sfg.crs == "EPSG:4326"
     assert not sfg.empty
     assert EXPECTED_FEATURE_GROUP_COLUMNS.issubset(sfg.columns)
 
@@ -387,6 +388,52 @@ def test_get_spatial_features_group_with_group_data(er_io):
     assert isinstance(sfg["features"], gpd.GeoDataFrame)
     assert not sfg["features"].empty
     assert EXPECTED_FEATURE_GROUP_COLUMNS.issubset(sfg["features"].columns)
+
+
+@pytest.fixture
+def mock_spatial_feature_group():
+    return {
+        "id": "1234",
+        "name": "Test",
+        "description": "",
+        "url": "https://mep-dev.pamdas.org/api/v1.0/spatialfeaturegroup/1234",
+        "features": [
+            {
+                "type": "FeatureCollection",
+                "crs": {"type": "name", "properties": {}},
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "created_at": "2024-08-14T13:07:02.787Z",
+                            "updated_at": "2024-08-15T09:39:48.797Z",
+                            "feature_type": "45678",
+                            "name": "Test Feature",
+                            "short_name": "TF",
+                            "pk": "7777",
+                        },
+                        "geometry": {
+                            "type": "MultiLineString",
+                            "coordinates": [
+                                [28.350274200053384, -15.43285045203909],
+                                [28.350122373365377, -15.432920120084994],
+                                [28.350037551097166, -15.433094419501986],
+                                [28.3500412620714, -15.433315228934031],
+                                [28.350093500175603, -15.43354090013023],
+                            ],
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+
+
+@patch("erclient.client.ERClient._get")
+def test_get_spatial_features_group_with_no_crs_raises(er_mock, er_io, mock_spatial_feature_group):
+    er_mock.return_value = mock_spatial_feature_group
+    with pytest.raises(ValueError, match="CRS information missing for spatial feature group 1234"):
+        er_io.get_spatial_features_group(spatial_features_group_id=1234)
 
 
 def test_get_subjects_chunking(er_io):
