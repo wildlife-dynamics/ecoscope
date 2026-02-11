@@ -387,6 +387,7 @@ def test_get_spatial_features_group_with_group_data(er_io):
     assert sfg["name"] == group_name
     assert isinstance(sfg["features"], gpd.GeoDataFrame)
     assert not sfg["features"].empty
+    assert sfg["features"].crs == "EPSG:4326"
     assert EXPECTED_FEATURE_GROUP_COLUMNS.issubset(sfg["features"].columns)
 
 
