@@ -531,7 +531,7 @@ def get_forest_cover_trends(
     aoi,
     tree_cover_threshold: float = 60.0,
     scale: int = 30,
-    max_pixels: int = 1e9,
+    max_pixels: float = 1e9,
 ) -> pd.DataFrame:
     """
     Extract forest cover trends from Google Earth Engine dataset.
