@@ -7,13 +7,11 @@ package:
   version: ${{ version }}
 
 source:
-  - path: ../../../dist/ecoscope-2.10.3.dev3+g50cb2c72d-py3-none-any.whl
-  - path: ../../../LICENSE
-    file_name: LICENSE
+  - path: path: ../../../dist/DIST_NAME
 
 build:
   noarch: python
-  script: SETUPTOOLS_SCM_PRETEND_VERSION=${{ version }} pip install ecoscope-2.10.3.dev3+g50cb2c72d-py3-none-any.whl -v
+  script: SETUPTOOLS_SCM_PRETEND_VERSION=${{ version }} pip install . -v
   number: 5
 
 requirements:
