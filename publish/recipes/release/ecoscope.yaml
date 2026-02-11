@@ -51,6 +51,7 @@ requirements:
     - duckdb
     - lonboard==0.0.8
     - pyarrow
+    - statsmodels
     # - matplotlib  # duplicate with analysis
     # - mapclassify  # duplicate with analysis
 
