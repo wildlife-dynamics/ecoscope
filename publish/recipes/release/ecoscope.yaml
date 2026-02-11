@@ -1,6 +1,6 @@
 context:
   name: ecoscope
-  version: 2.10.3.dev3+g50cb2c72d
+  version: TAG_VERSION
   
 package:
   name: ecoscope
