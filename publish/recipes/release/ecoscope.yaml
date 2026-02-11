@@ -7,7 +7,7 @@ package:
   version: ${{ version }}
 
 source:
-  - path: path: ../../../dist/DIST_NAME
+  - path: ../../../dist/DIST_NAME
 
 build:
   noarch: python
