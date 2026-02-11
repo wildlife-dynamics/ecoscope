@@ -1253,10 +1253,11 @@ class EarthRangerIO(ERClient):
                 raise ValueError(
                     f'CRS information missing for spatial feature group {spatial_features_group.get("id")}'
                 )
-            spatial_features.append(gpd.GeoDataFrame.from_features(fc, crs=crs))
+            feature = gpd.GeoDataFrame.from_features(fc, crs=crs)
+            feature = feature.to_crs(4326)
+            spatial_features.append(feature)
 
         features_gdf = pd.concat(spatial_features)
-        features_gdf = features_gdf.to_crs(4326)
         return {**spatial_features_group, "features": features_gdf} if with_group_data else features_gdf
 
     def get_spatial_feature(self, spatial_feature_id: str | None = None, **addl_kwargs) -> gpd.GeoDataFrame:
