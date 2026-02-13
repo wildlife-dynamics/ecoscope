@@ -377,6 +377,29 @@ def test_get_spatial_features_group(er_io):
     assert EXPECTED_FEATURE_GROUP_COLUMNS.issubset(sfg.columns)
 
 
+def test_get_spatial_features_group_from_name(er_io):
+    sfg = er_io.get_spatial_features_group(spatial_features_group_name="Mara Census Blocks")
+    assert isinstance(sfg, gpd.GeoDataFrame)
+    assert sfg.crs == "EPSG:4326"
+    assert not sfg.empty
+    assert EXPECTED_FEATURE_GROUP_COLUMNS.issubset(sfg.columns)
+
+
+def test_get_spatial_features_group_from_bad_name(er_io):
+    with pytest.raises(ERClientNotFound, match="No Spatial Feature Group with name Not a real group name found"):
+        er_io.get_spatial_features_group(spatial_features_group_name="Not a real group name")
+
+
+def test_get_spatial_features_both_keys_raises(er_io):
+    with pytest.raises(
+        AssertionError,
+        match="Either spatial_features_group_name or spatial_features_group_id must be provided, not both.",
+    ):
+        er_io.get_spatial_features_group(
+            spatial_features_group_id="123456", spatial_features_group_name="Not a real group name"
+        )
+
+
 def test_get_spatial_features_group_with_group_data(er_io):
     group_name = "mep"
     group_id = "15698426-7e0f-41df-9bc3-495d87e2e097"

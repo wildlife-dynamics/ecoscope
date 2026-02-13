@@ -1221,7 +1221,11 @@ class EarthRangerIO(ERClient):
         return df
 
     def get_spatial_features_group(
-        self, spatial_features_group_id: str | None = None, with_group_data: bool = False, **addl_kwargs
+        self,
+        spatial_features_group_name: str | None = None,
+        spatial_features_group_id: str | None = None,
+        with_group_data: bool = False,
+        **addl_kwargs,
     ) -> gpd.GeoDataFrame | dict[str, str | gpd.GeoDataFrame]:
         """
         Download spatial features in a spatial features group for a given  `spatial features group id`.
@@ -1241,8 +1245,20 @@ class EarthRangerIO(ERClient):
         If with_group_data is True this will return a dict containing the group data and a "features"
             field containing a GDF of the features within the requested group
         """
-        params = clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
+        assert (spatial_features_group_name is None) != (
+            spatial_features_group_id is None
+        ), "Either spatial_features_group_name or spatial_features_group_id must be provided, not both."
+        if spatial_features_group_id is None and spatial_features_group_name is not None:
+            spatial_feature_groups = self._get("spatialfeaturegroup")
 
+            for sfg in spatial_feature_groups:
+                if spatial_features_group_name == sfg.get("name", None):
+                    spatial_features_group_id = sfg.get("id")
+
+            if spatial_features_group_id is None:
+                raise ERClientNotFound(f"No Spatial Feature Group with name {spatial_features_group_name} found")
+
+        params = clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
         object = f"spatialfeaturegroup/{spatial_features_group_id}/"
         spatial_features_group = self._get(object, **params)
         spatial_features = []
