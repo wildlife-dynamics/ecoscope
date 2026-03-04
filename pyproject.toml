@@ -65,8 +65,8 @@ platform = [
     "pydantic-settings",
     "cloudpathlib[gs]",
     "astropy",
-    "wt-registry",
-    "wt-task",
+    "wt-registry @ git+https://github.com/wildlife-dynamics/wt@4d61240#subdirectory=wt-registry",
+    "wt-task @ git+https://github.com/wildlife-dynamics/wt@4d61240#subdirectory=wt-task",
 ]
 docs = [
   "myst-parser",
