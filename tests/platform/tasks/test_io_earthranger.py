@@ -5,6 +5,8 @@ from unittest.mock import MagicMock, call, patch
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+from wt_task import task
+
 from ecoscope.platform.connections import EarthRangerConnection
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
@@ -36,7 +38,6 @@ from ecoscope.platform.tasks.io._earthranger import (
     _EXCLUSION_FILTER_TO_INT,
     CombinedPatrolAndEventsParams,
 )
-from wt_task import task
 
 pytestmark = pytest.mark.io
 

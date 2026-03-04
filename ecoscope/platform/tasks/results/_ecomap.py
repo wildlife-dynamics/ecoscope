@@ -2,7 +2,6 @@ import re
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal, Union
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from pydantic import (
     BaseModel,
     Field,
@@ -11,6 +10,8 @@ from pydantic import (
 )
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
+
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 
 UnitType = Literal["meters", "pixels", "common"]
 WidgetPlacement = Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"]

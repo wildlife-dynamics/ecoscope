@@ -2,6 +2,7 @@ from importlib.resources import files
 
 import pandas as pd
 import pytest
+
 from ecoscope.platform.mock_loaders import load_parquet
 from ecoscope.platform.tasks.analysis._summary import (
     SummaryParam,

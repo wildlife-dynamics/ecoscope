@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+
 from ecoscope.platform.indexes import Month, TemporalGrouper, ValueGrouper, Year
 from ecoscope.platform.tasks.config._workflow_details import WorkflowDetails
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange

@@ -1,4 +1,5 @@
 import pytest
+
 from ecoscope.platform.indexes import (
     AllGrouper,
     Date,
@@ -176,7 +177,7 @@ def test_temporal_grouper_coerces_directive_string(directive, expected_type):
 
 
 def test_temporal_grouper_raises_on_bad_directive():
-    """Test that a non-existant strftime directive fails to validate as a TemporalGrouper."""
+    """Test that a non-existent strftime directive fails to validate as a TemporalGrouper."""
     bad_directive = "I'm Baaaaaad"
     with pytest.raises(ValueError, match=f"Unknown temporal index directive: {bad_directive}"):
         TemporalGrouper(temporal_index=bad_directive)

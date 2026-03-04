@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+
 from ecoscope.platform.tasks.transformation import (
     map_columns,
     reorder_columns,

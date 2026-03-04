@@ -2,6 +2,8 @@ import os
 from datetime import datetime, timezone
 
 import pytest
+from pydantic import TypeAdapter
+
 from ecoscope.platform.connections import SmartConnection
 from ecoscope.platform.schemas import (
     EventGDF,
@@ -12,7 +14,6 @@ from ecoscope.platform.tasks.io import (
     get_events_from_smart,
     get_patrol_observations_from_smart,
 )
-from pydantic import TypeAdapter
 
 pytestmark = pytest.mark.io
 

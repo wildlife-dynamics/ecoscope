@@ -1,8 +1,9 @@
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
-from ecoscope.platform.tasks.results._table import TableConfig, draw_table
 from shapely.geometry import Point
+
+from ecoscope.platform.tasks.results._table import TableConfig, draw_table
 
 
 def test_draw_table():

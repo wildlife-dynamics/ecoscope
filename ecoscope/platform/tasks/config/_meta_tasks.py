@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 
+from wt_registry import register
+from wt_task import task
+
 from ecoscope.platform.annotations import AnyGeoDataFrame, DataFrame
 from ecoscope.platform.tasks.analysis._create_meshgrid import (
     AoiAnnotation,
@@ -22,8 +25,6 @@ from ecoscope.platform.tasks.analysis._time_density import (
     calculate_linear_time_density,
 )
 from ecoscope.platform.tasks.results._ecomap import OpacityAnnotation
-from wt_registry import register
-from wt_task import task
 
 
 @dataclass

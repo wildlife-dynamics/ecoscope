@@ -1,5 +1,6 @@
 import geopandas as gpd  # type: ignore[import-untyped]
 import pytest
+
 from ecoscope.platform.tasks.analysis import create_meshgrid
 from ecoscope.platform.tasks.analysis._time_density import (
     AutoScaleGridCellSize,

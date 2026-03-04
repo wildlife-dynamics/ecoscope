@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+
 from ecoscope.platform.tasks.filter._filter import (
     DEFAULT_TIME_FORMAT,
     UTC_TIMEZONEINFO,

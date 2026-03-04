@@ -1,4 +1,5 @@
 import pandas as pd
+
 from ecoscope.platform.tasks.transformation import (
     extract_column_as_type,
     extract_value_from_json_column,

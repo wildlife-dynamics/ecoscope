@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from ecoscope.platform.indexes import CompositeFilter
 from pydantic import BaseModel, Field
 from wt_registry import register
+
+from ecoscope.platform.indexes import CompositeFilter
 
 
 class OutputFiles(BaseModel):

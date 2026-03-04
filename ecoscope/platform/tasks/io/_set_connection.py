@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
-from ecoscope.platform.annotations import AdvancedField
 from pydantic import Field
 from wt_registry import register
+
+from ecoscope.platform.annotations import AdvancedField
 
 ConnectionName = Annotated[str, Field(title="Data Source")]
 DataSourceField = Field(

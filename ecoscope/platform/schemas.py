@@ -5,6 +5,8 @@ from typing import Annotated, Any, TypeAlias
 import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pa_typing
+from pydantic import AfterValidator
+
 from ecoscope.platform.annotations import (
     AnyGeoDataFrame,
     DataFrame,
@@ -13,7 +15,6 @@ from ecoscope.platform.annotations import (
     JsonSerializableDataFrameModel,
     StrictGeoDataFrameBaseSchema,
 )
-from pydantic import AfterValidator
 
 
 def _validate_df_columns_are_timezone_aware(df: pd.DataFrame, columns: list[str]):

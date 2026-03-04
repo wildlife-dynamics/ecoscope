@@ -2,6 +2,10 @@ import json
 from dataclasses import dataclass
 from typing import Annotated, Any, Generator
 
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+
 from ecoscope.platform.indexes import (
     AllGrouper,
     CompositeFilter,
@@ -26,9 +30,6 @@ from ecoscope.platform.tasks.results._widget_types import (
     WidgetData,
     WidgetSingleView,
 )
-from pydantic import BaseModel, ConfigDict, Field, model_serializer
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
 
 
 @dataclass

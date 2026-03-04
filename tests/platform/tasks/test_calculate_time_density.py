@@ -3,6 +3,7 @@ from importlib.resources import files
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pytest
+
 from ecoscope.platform.tasks.analysis import (
     calculate_elliptical_time_density,
     calculate_linear_time_density,

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+
 from ecoscope.platform.tasks.transformation import (
     assign_value,
     fill_na,

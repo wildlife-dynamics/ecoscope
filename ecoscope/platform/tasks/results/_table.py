@@ -3,10 +3,11 @@ import json
 from typing import Annotated
 
 import pandas as pd
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
+
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 
 HTML_TEMPLATE = importlib.resources.read_text(__package__, "table-template.jinja2")
 

@@ -1,9 +1,10 @@
 from typing import Annotated, cast
 
-from ecoscope.platform.annotations import AnyDataFrame
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
+
+from ecoscope.platform.annotations import AnyDataFrame
 
 
 @register()

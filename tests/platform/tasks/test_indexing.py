@@ -3,6 +3,8 @@ from importlib.resources import files
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+from shapely.geometry import LineString, Point, Polygon
+
 from ecoscope.platform.indexes import (
     AllGrouper,
     Month,
@@ -15,7 +17,6 @@ from ecoscope.platform.tasks.transformation import (
     add_temporal_index,
     resolve_spatial_feature_groups_for_spatial_groupers,
 )
-from shapely.geometry import LineString, Point, Polygon
 
 # --- Temporal indexing tests (from core) ---
 

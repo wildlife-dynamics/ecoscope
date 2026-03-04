@@ -1,6 +1,7 @@
 import re
 
 import pytest
+
 from ecoscope.platform.tasks.results import (
     create_map_widget_single_view,
     create_plot_widget_single_view,

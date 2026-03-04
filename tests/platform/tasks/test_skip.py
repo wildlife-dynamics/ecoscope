@@ -1,15 +1,16 @@
 import geopandas as gpd  # type: ignore [import-untyped]
+from shapely.geometry import Point
+from wt_task import task
+from wt_task.skip import (
+    SKIP_SENTINEL,
+)
+
 from ecoscope.platform.tasks.results._ecomap import (
     LayerDefinition,
     create_point_layer,
 )
 from ecoscope.platform.tasks.skip import (
     all_geometry_are_none,
-)
-from shapely.geometry import Point
-from wt_task import task
-from wt_task.skip import (
-    SKIP_SENTINEL,
 )
 
 

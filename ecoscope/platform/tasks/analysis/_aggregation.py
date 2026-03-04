@@ -2,9 +2,10 @@ from operator import add, floordiv, mod, mul, pow, sub, truediv
 from typing import Annotated, Literal, cast
 
 import numpy as np
-from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 from pydantic import Field
 from wt_registry import register
+
+from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 
 ColumnName = Annotated[str, Field(description="Column to aggregate")]
 

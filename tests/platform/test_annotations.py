@@ -5,14 +5,15 @@ import pandas as pd
 import pandera.pandas as pa
 import pandera.typing as pa_typing
 import pytest
+from pydantic import BaseModel, Field, ValidationError
+from wt_registry.jsonschema import jsonschema_from_task_func
+
 from ecoscope.platform.annotations import (
     AdvancedField,
     DataFrame,
     EmptyDataFrameModel,
     JsonSerializableDataFrameModel,
 )
-from pydantic import BaseModel, Field, ValidationError
-from wt_registry.jsonschema import jsonschema_from_task_func
 
 
 def test_advanced_field_task_annotation():

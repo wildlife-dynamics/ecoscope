@@ -2,6 +2,9 @@ import random
 from importlib.resources import files
 
 import pytest
+from pydantic import ValidationError
+from wt_task import task
+
 from ecoscope.platform.mock_loaders import load_parquet
 from ecoscope.platform.tasks.results._ecomap import (
     LayerDefinition,
@@ -18,8 +21,6 @@ from ecoscope.platform.tasks.results._ecomap import (
     draw_ecomap,
     set_base_maps,
 )
-from pydantic import ValidationError
-from wt_task import task
 
 
 @pytest.fixture

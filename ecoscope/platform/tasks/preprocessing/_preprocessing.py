@@ -1,5 +1,9 @@
 from typing import Annotated
 
+from pydantic import BaseModel, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+
 from ecoscope.platform.annotations import AdvancedField
 from ecoscope.platform.schemas import (
     PatrolObservationsGDF,
@@ -7,9 +11,6 @@ from ecoscope.platform.schemas import (
     TrajectoryGDF,
 )
 from ecoscope.platform.tasks.transformation._filtering import Coordinate
-from pydantic import BaseModel, Field, model_validator
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
 
 
 class TrajectorySegmentFilter(BaseModel):

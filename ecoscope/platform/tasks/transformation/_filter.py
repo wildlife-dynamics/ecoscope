@@ -2,9 +2,10 @@ import logging
 from enum import Enum
 from typing import Annotated, cast
 
-from ecoscope.platform.annotations import AnyDataFrame
 from pydantic import Field
 from wt_registry import register
+
+from ecoscope.platform.annotations import AnyDataFrame
 
 logger = logging.getLogger(__name__)
 

@@ -3,8 +3,9 @@ import json
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
-from ecoscope.platform.tasks.transformation import assign_subject_colors
 from shapely.geometry import Point
+
+from ecoscope.platform.tasks.transformation import assign_subject_colors
 
 
 @pytest.fixture

@@ -4,6 +4,7 @@ from importlib.resources import files
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pytest
+
 from ecoscope.platform.connections import EarthEngineConnection
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (

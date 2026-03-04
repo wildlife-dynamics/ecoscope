@@ -3,6 +3,7 @@ from datetime import timedelta, timezone
 import numpy as np
 import pandas as pd
 import pytest
+
 from ecoscope.platform.tasks.filter import TimezoneInfo
 from ecoscope.platform.tasks.transformation import (
     convert_column_values_to_numeric,

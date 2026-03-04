@@ -3,13 +3,14 @@ from importlib.resources import files
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+from pydantic import ValidationError
+
 from ecoscope.platform.tasks.preprocessing import (
     TrajectorySegmentFilter,
     process_relocations,
     relocations_to_trajectory,
 )
 from ecoscope.platform.tasks.transformation._filtering import Coordinate
-from pydantic import ValidationError
 
 
 def test_process_relocations():

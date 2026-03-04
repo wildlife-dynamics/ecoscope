@@ -2,13 +2,14 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pytest
+from shapely.geometry import Point, Polygon
+
 from ecoscope.platform.tasks.transformation._filtering import (
     BoundingBox,
     Coordinate,
     apply_reloc_coord_filter,
     drop_nan_values_by_column,
 )
-from shapely.geometry import Point, Polygon
 
 
 @pytest.fixture

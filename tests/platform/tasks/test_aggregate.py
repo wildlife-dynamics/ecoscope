@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+
 from ecoscope.platform.tasks.analysis import (
     apply_arithmetic_operation,
     dataframe_column_first_unique,

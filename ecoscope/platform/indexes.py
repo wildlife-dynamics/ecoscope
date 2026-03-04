@@ -2,12 +2,13 @@ import calendar
 from dataclasses import dataclass
 from typing import Annotated, Callable, List, Literal, TypeAlias, Union
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
-from ecoscope.platform.jsonschema import oneOf
 from pydantic import BaseModel, ConfigDict, Field, GetJsonSchemaHandler, PrivateAttr
 from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
 from pydantic_core import core_schema as cs
+
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.jsonschema import oneOf
 
 IndexName: TypeAlias = str
 IndexValue: TypeAlias = str

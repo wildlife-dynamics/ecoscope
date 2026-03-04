@@ -4,6 +4,7 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pytest
+
 from ecoscope.platform.tasks.transformation._classification import (
     CustomLabels,
     DefaultLabels,

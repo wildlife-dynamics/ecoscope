@@ -5,9 +5,10 @@ from typing import Annotated, cast
 
 import numpy as np
 import pandas as pd
-from ecoscope.platform.annotations import AnyDataFrame
 from pydantic import Field
 from wt_registry import register
+
+from ecoscope.platform.annotations import AnyDataFrame
 
 logger = logging.getLogger(__name__)
 

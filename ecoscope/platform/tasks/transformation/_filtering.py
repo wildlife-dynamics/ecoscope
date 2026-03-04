@@ -1,14 +1,15 @@
 import logging
 from typing import Annotated, cast
 
+from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+
 from ecoscope.platform.annotations import (
     AdvancedField,
     AnyDataFrame,
     AnyGeoDataFrame,
 )
-from pydantic import BaseModel, Field
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
 
 logger = logging.getLogger(__name__)
 

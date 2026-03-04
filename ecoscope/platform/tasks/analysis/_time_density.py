@@ -3,16 +3,17 @@ from typing import Annotated, Any, Literal, TypeAlias, cast
 
 import pandera.pandas as pa
 import pandera.typing as pa_typing
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.functional_validators import AfterValidator
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+
 from ecoscope.platform.annotations import (
     AdvancedField,
     AnyGeoDataFrame,
     DataFrame,
     JsonSerializableDataFrameModel,
 )
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.functional_validators import AfterValidator
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +142,7 @@ EtdPercentileAnnotation: TypeAlias = Annotated[
 MeshGridAnnotation: TypeAlias = Annotated[
     AnyGeoDataFrame,
     Field(
-        description="The gird cells which the density is calculated from",
+        description="The grid cells which the density is calculated from",
         exclude=True,
     ),
 ]

@@ -3,6 +3,9 @@ import uuid
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+from pydantic import TypeAdapter, ValidationError
+from shapely.geometry import LineString, Point
+
 from ecoscope.platform.schemas import (
     EventGDF,
     EventsWithDisplayNamesGDF,
@@ -13,8 +16,6 @@ from ecoscope.platform.schemas import (
     SubjectGroupObservationsGDF,
     TrajectoryGDF,
 )
-from pydantic import TypeAdapter, ValidationError
-from shapely.geometry import LineString, Point
 
 
 def test_subjectgroupobservations_schema():

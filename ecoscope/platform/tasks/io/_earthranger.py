@@ -2,6 +2,11 @@ from dataclasses import dataclass
 from typing import Annotated, Literal, cast
 
 import pandas as pd
+from pydantic import AfterValidator, Field
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+from wt_task import task
+
 from ecoscope.platform.annotations import AdvancedField, EmptyDataFrame
 from ecoscope.platform.connections import EarthRangerClient
 from ecoscope.platform.schemas import (
@@ -14,10 +19,6 @@ from ecoscope.platform.schemas import (
     SubjectGroupObservationsGDF,
 )
 from ecoscope.platform.tasks.filter._filter import TimeRange
-from pydantic import AfterValidator, Field
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
-from wt_task import task
 
 
 def _strip_whitespace_from_list_items(v: list[str]):

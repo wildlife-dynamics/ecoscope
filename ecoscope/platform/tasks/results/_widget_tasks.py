@@ -1,5 +1,9 @@
 from typing import Annotated
 
+from pydantic import Field
+from wt_registry import register
+from wt_task.skip import SkippedDependencyFallback, SkipSentinel
+
 from ecoscope.platform.annotations import AdvancedField
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.tasks.results._widget_types import (
@@ -11,9 +15,6 @@ from ecoscope.platform.tasks.results._widget_types import (
     WidgetSingleView,
 )
 from ecoscope.platform.tasks.transformation._unit import Quantity
-from pydantic import Field
-from wt_registry import register
-from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 
 def _fallback_to_none(obj: WidgetData | SkipSentinel) -> WidgetData | None:

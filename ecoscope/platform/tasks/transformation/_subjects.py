@@ -4,9 +4,10 @@ from typing import Annotated, Literal, cast
 
 import matplotlib.pyplot as plt
 import pandas as pd
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 from pydantic import Field
 from wt_registry import register
+
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 
 logger = logging.getLogger(__name__)
 

@@ -2,10 +2,11 @@ import datetime
 from typing import Annotated, cast
 
 import pandas as pd
-from ecoscope.platform.annotations import AnyDataFrame
-from ecoscope.platform.tasks.filter import TimezoneInfo
 from pydantic import Field
 from wt_registry import register
+
+from ecoscope.platform.annotations import AnyDataFrame
+from ecoscope.platform.tasks.filter import TimezoneInfo
 
 
 @register()

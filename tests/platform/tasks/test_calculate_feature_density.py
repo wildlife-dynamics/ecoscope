@@ -1,4 +1,5 @@
 import geopandas as gpd  # type: ignore[import-untyped]
+
 from ecoscope.platform.tasks.analysis import (
     calculate_feature_density,
     create_meshgrid,

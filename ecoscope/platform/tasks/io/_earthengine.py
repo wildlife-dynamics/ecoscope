@@ -1,10 +1,11 @@
 from typing import Annotated, Any, cast
 
+from pydantic import Field
+from wt_registry import register
+
 from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 from ecoscope.platform.connections import EarthEngineClient
 from ecoscope.platform.tasks.filter._filter import TimeRange
-from pydantic import Field
-from wt_registry import register
 
 
 @register(tags=["io"])

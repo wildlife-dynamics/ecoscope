@@ -1,14 +1,15 @@
 from typing import Annotated, Literal, cast
 
 import pandas as pd
+from pydantic import BaseModel, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 from ecoscope.platform.tasks.analysis._aggregation import (
     get_night_day_ratio,
 )
 from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
-from pydantic import BaseModel, Field, model_validator
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
 
 AggOperations = Literal[
     "sum",

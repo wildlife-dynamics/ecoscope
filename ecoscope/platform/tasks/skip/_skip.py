@@ -1,8 +1,9 @@
 from typing import Any
 
-from ecoscope.platform.annotations import AnyGeoDataFrame
 from wt_registry import register
 from wt_task.skip import SKIP_SENTINEL, SkipSentinel
+
+from ecoscope.platform.annotations import AnyGeoDataFrame
 
 
 def _is_df_duck(obj: Any) -> bool:

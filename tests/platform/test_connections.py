@@ -2,6 +2,8 @@ import os
 from unittest.mock import patch
 
 import pytest
+from pydantic import SecretStr, validate_call
+
 from ecoscope.platform.annotations import DataFrame
 from ecoscope.platform.connections import (
     EarthEngineClient,
@@ -12,7 +14,6 @@ from ecoscope.platform.connections import (
     SmartConnection,
     is_client,
 )
-from pydantic import SecretStr, validate_call
 
 
 def test_is_client():

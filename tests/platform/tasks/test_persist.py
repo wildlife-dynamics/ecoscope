@@ -1,7 +1,8 @@
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
-from ecoscope.platform.tasks.io import persist_df
 from shapely.geometry import Point
+
+from ecoscope.platform.tasks.io import persist_df
 
 
 def test_persist_df_auto_filename_hashable(tmp_path):

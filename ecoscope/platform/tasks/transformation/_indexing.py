@@ -1,5 +1,8 @@
 from typing import Annotated, TypeAlias, cast
 
+from pydantic import Field, TypeAdapter
+from wt_registry import register
+
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, AnyGeoDataFrame
 from ecoscope.platform.indexes import (
     AllGrouper,
@@ -14,8 +17,6 @@ from ecoscope.platform.schemas import (
     RegionsGDF,
     TrajectoryGDF,
 )
-from pydantic import Field, TypeAdapter
-from wt_registry import register
 
 FeatureGroupId: TypeAlias = str
 

@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from ecoscope.platform.annotations import AnyDataFrame
 from pydantic import Field
 from wt_registry import register
 from wt_task.skip import SkipSentinel
+
+from ecoscope.platform.annotations import AnyDataFrame
 
 
 @register()

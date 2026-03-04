@@ -1,14 +1,15 @@
 from typing import Annotated, Literal
 
+from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+
 from ecoscope.platform.annotations import (
     AdvancedField,
     DataFrame,
     JsonSerializableDataFrameModel,
 )
 from ecoscope.platform.tasks.analysis._summary import AggOperations
-from pydantic import BaseModel, Field
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
 
 
 class SmoothingConfig(BaseModel):
@@ -387,7 +388,7 @@ def draw_bar_chart(
     Args:
     dataframe (pd.DataFrame): The input dataframe.
     bar_configs (list[BarConfig]): a list of BarConfigs
-        specifiying the the bar chart labels, columns, and functions for aggregation.
+        specifying the the bar chart labels, columns, and functions for aggregation.
     category (str): The column name in the dataframe to group by and use as the x-axis categories.
     layout_kwargs (LayoutStyle): Additional styling options passed to plotly.go.Figure(layout).
 

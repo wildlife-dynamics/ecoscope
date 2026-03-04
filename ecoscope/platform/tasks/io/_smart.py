@@ -1,5 +1,9 @@
 from typing import Annotated, cast
 
+from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+
 from ecoscope.platform.annotations import (
     AdvancedField,
     EmptyDataFrame,
@@ -7,9 +11,6 @@ from ecoscope.platform.annotations import (
 from ecoscope.platform.connections import SmartClient
 from ecoscope.platform.schemas import EventGDF, PatrolObservationsGDF
 from ecoscope.platform.tasks.filter._filter import TimeRange
-from pydantic import Field
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
 
 
 @register(tags=["io"])

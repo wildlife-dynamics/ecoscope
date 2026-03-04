@@ -1,9 +1,10 @@
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
-from ecoscope.platform.tasks.warning import mixed_subtype_warning
 from shapely.geometry import Point
 from wt_task import task
 from wt_task.skip import SkipSentinel
+
+from ecoscope.platform.tasks.warning import mixed_subtype_warning
 
 
 def test_mixed_subtype_warning():

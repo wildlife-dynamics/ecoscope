@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+
 from ecoscope.platform.tasks.transformation import (
     normalize_json_column,
     normalize_numeric_column,

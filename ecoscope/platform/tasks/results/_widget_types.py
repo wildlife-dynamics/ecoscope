@@ -2,8 +2,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypeAlias
 
-from ecoscope.platform.indexes import CompositeFilter
 from pydantic_core import Url
+
+from ecoscope.platform.indexes import CompositeFilter
 
 WidgetTypes = Literal["graph", "map", "text", "stat", "table"]
 

@@ -1,8 +1,9 @@
 from typing import Annotated, cast
 
-from ecoscope.platform.annotations import AnyGeoDataFrame
 from pydantic import Field
 from wt_registry import register
+
+from ecoscope.platform.annotations import AnyGeoDataFrame
 
 
 @register(tags=["io"])

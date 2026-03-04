@@ -1,6 +1,11 @@
 from typing import Annotated, Any, cast
 
 import pandas as pd
+from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+from wt_task.skip import SkippedDependencyFallback, SkipSentinel
+
 from ecoscope.platform.annotations import AnyDataFrame
 from ecoscope.platform.indexes import (
     AllGrouper,
@@ -10,10 +15,6 @@ from ecoscope.platform.indexes import (
     UserDefinedGroupers,
     ValueGrouper,
 )
-from pydantic import Field
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
-from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 
 def _groupkey_to_composite_filter(groupers: list[IndexName], index_values: tuple[IndexValue, ...]) -> CompositeFilter:

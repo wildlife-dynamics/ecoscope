@@ -2,11 +2,12 @@ from abc import ABC, abstractmethod
 from inspect import ismethod
 from typing import Annotated, ClassVar, Generic, Protocol, Type, TypeVar, get_args, runtime_checkable
 
-from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import WithJsonSchema
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 
 DataConnectionType = TypeVar("DataConnectionType", bound="DataConnection")
 ClientProtocolType = TypeVar("ClientProtocolType")

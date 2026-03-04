@@ -1,10 +1,11 @@
 import logging
 from typing import Annotated, Dict, Literal, Union, cast
 
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
+
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 
 logger = logging.getLogger(__name__)
 

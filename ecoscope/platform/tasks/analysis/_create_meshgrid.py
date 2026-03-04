@@ -1,5 +1,8 @@
 from typing import Annotated, TypeAlias
 
+from pydantic import Field
+from wt_registry import register
+
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.tasks.analysis._time_density import (
     AutoScaleGridCellSize,
@@ -7,8 +10,6 @@ from ecoscope.platform.tasks.analysis._time_density import (
     CrsAnnotation,
     CustomGridCellSize,
 )
-from pydantic import Field
-from wt_registry import register
 
 IntersectingOnlyAnnotation: TypeAlias = Annotated[
     bool,
