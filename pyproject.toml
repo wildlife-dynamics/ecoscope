@@ -59,6 +59,15 @@ mapping = [
   "pyarrow",
 ]
 plotting = ["plotly", "scikit-learn"]
+platform = [
+    "pandera>=0.24.0,<0.29",
+    "pydantic<2.9.0",
+    "pydantic-settings",
+    "cloudpathlib[gs]",
+    "astropy",
+    "wt-registry",
+    "wt-task",
+]
 docs = [
   "myst-parser",
   "nbsphinx",
@@ -122,7 +131,23 @@ packages = [
   "ecoscope.io",
   "ecoscope.mapping",
   "ecoscope.plotting",
+  "ecoscope.platform",
+  "ecoscope.platform.tasks",
+  "ecoscope.platform.tasks.analysis",
+  "ecoscope.platform.tasks.config",
+  "ecoscope.platform.tasks.filter",
+  "ecoscope.platform.tasks.groupby",
+  "ecoscope.platform.tasks.io",
+  "ecoscope.platform.tasks.preprocessing",
+  "ecoscope.platform.tasks.results",
+  "ecoscope.platform.tasks.skip",
+  "ecoscope.platform.tasks.test",
+  "ecoscope.platform.tasks.transformation",
+  "ecoscope.platform.tasks.warning",
 ]
+
+[project.entry-points."wt_task.mock_loaders"]
+parquet = "ecoscope.platform.mock_loaders:load_parquet"
 
 [tool.setuptools_scm]
 write_to = "ecoscope/_version.py"
