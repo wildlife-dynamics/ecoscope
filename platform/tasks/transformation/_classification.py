@@ -80,14 +80,10 @@ def apply_classification(
         AnyDataFrame,
         Field(description="The dataframe to classify.", exclude=True),
     ],
-    input_column_name: Annotated[
-        str, Field(description="The dataframe column to classify.")
-    ],
+    input_column_name: Annotated[str, Field(description="The dataframe column to classify.")],
     output_column_name: Annotated[
         str | SkipJsonSchema[None],
-        Field(
-            description="The dataframe column that will contain the classification values."
-        ),
+        Field(description="The dataframe column that will contain the classification values."),
     ] = None,
     label_options: Annotated[
         DefaultLabels | CustomLabels,
@@ -155,9 +151,7 @@ def apply_color_map(
         AnyDataFrame,
         Field(description="The dataframe to apply the color map to.", exclude=True),
     ],
-    input_column_name: Annotated[
-        str, Field(description="The name of the column with categorical values.")
-    ],
+    input_column_name: Annotated[str, Field(description="The name of the column with categorical values.")],
     colormap: Annotated[
         str | SkipJsonSchema[list[str]],
         Field(description="A named matplotlib colormap."),
@@ -222,13 +216,9 @@ def classify_seasons(
 ) -> AnyDataFrame:
     import pandas as pd
 
-    intervals_list = season_windows.apply(
-        lambda x: pd.Interval(x["start"], x["end"]), axis=1
-    ).tolist()
+    intervals_list = season_windows.apply(lambda x: pd.Interval(x["start"], x["end"]), axis=1).tolist()
 
-    season_mapping: Dict[pd.Interval, str] = dict(
-        zip(intervals_list, season_windows.season)
-    )
+    season_mapping: Dict[pd.Interval, str] = dict(zip(intervals_list, season_windows.season))
 
     trajectory["season"] = (
         pd.cut(

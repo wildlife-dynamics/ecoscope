@@ -24,9 +24,7 @@ def normalize_json_column(
     import ecoscope  # type: ignore[import-untyped]
 
     if skip_if_not_exists and column not in df.columns:
-        logger.warning(
-            "Column '%s' does not exist in DataFrame. Skipping normalization.", column
-        )
+        logger.warning("Column '%s' does not exist in DataFrame. Skipping normalization.", column)
     else:
         ecoscope.io.earthranger_utils.normalize_column(df, column, sort_columns)
 
@@ -39,14 +37,10 @@ def normalize_json_column(
 @register()
 def normalize_numeric_column(
     df: AnyDataFrame,
-    column: Annotated[
-        str, Field(description="The column to normalize, values must be numeric.")
-    ],
+    column: Annotated[str, Field(description="The column to normalize, values must be numeric.")],
     output_column_name: Annotated[
         str | None,
-        Field(
-            description="If provided, normalized values will be added as a new column."
-        ),
+        Field(description="If provided, normalized values will be added as a new column."),
     ],
 ) -> AnyDataFrame:
     from pandas.api.types import is_numeric_dtype

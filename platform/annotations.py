@@ -42,24 +42,19 @@ def create_custom_field(
         # Take a copy of always_set since we may want to mutate it
         fixed_kwargs = always_set.copy()
         if require_default and (not args and "default" not in kwargs):
-            raise ValueError(
-                f"A default is required for fields constructed with '{field_name}'."
-            )
+            raise ValueError(f"A default is required for fields constructed with '{field_name}'.")
         # In the specific case of json_schema_extra, we want to merge anything in
         # always_set into the user provided kwargs, and raise on any conflicts
         if always_json_schema_extra := always_set.get("json_schema_extra", False):
             user_json_schema_extra = kwargs.pop("json_schema_extra", {})
             if any(key in user_json_schema_extra for key in always_json_schema_extra):
                 raise ValueError(
-                    f"Fields constructed with '{field_name}' cannot override json_schema_extra: {always_json_schema_extra.keys()}"
+                    f"Fields constructed with '{field_name}' cannot override "
+                    f"json_schema_extra: {always_json_schema_extra.keys()}"
                 )
-            fixed_kwargs["json_schema_extra"] = (
-                user_json_schema_extra | always_json_schema_extra
-            )
+            fixed_kwargs["json_schema_extra"] = user_json_schema_extra | always_json_schema_extra
         if any(key in kwargs for key in always_set):
-            raise ValueError(
-                f"Fields constructed with '{field_name}' cannot override: {always_set.keys()}"
-            )
+            raise ValueError(f"Fields constructed with '{field_name}' cannot override: {always_set.keys()}")
         kwargs.update(fixed_kwargs)
         return __f(*args, **kwargs)
 
@@ -75,9 +70,7 @@ AdvancedField = create_custom_field(  # type: ignore[var-annotated]
 
 class JsonSerializableDataFrameModel(pa.DataFrameModel):
     @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
+    def __get_pydantic_json_schema__(cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
         return cls.to_json_schema()
 
 

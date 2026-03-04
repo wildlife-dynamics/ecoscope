@@ -13,9 +13,7 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 UnitType = Literal["meters", "pixels", "common"]
-WidgetPlacement = Literal[
-    "top-left", "top-right", "bottom-left", "bottom-right", "fill"
-]
+WidgetPlacement = Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"]
 
 OpacityAnnotation = Annotated[
     float,
@@ -37,71 +35,38 @@ class LayerStyleBase(BaseModel):
 
 class TextLayerStyle(LayerStyleBase):
     get_text: Annotated[str, AdvancedField(default="label")] = "label"
-    get_color: (
-        str
-        | SkipJsonSchema[list[int]]
-        | SkipJsonSchema[list[list[int]]]
-        | SkipJsonSchema[None]
-    ) = None
-    font_family: Annotated[str, AdvancedField(default="Monaco, monospace")] = (
-        "Monaco, monospace"
-    )
+    get_color: str | SkipJsonSchema[list[int]] | SkipJsonSchema[list[list[int]]] | SkipJsonSchema[None] = None
+    font_family: Annotated[str, AdvancedField(default="Monaco, monospace")] = "Monaco, monospace"
     font_weight: Annotated[str, AdvancedField(default="bold")] = "normal"
     get_size: Annotated[float, AdvancedField(default=12)] = 12
     get_text_anchor: Annotated[str, AdvancedField(default="middle")] = "middle"
     get_alignment_baseline: Annotated[str, AdvancedField(default="center")] = "center"
-    get_background_color: (
-        str
-        | SkipJsonSchema[list[int]]
-        | SkipJsonSchema[list[list[int]]]
-        | SkipJsonSchema[None]
-    ) = None
+    get_background_color: str | SkipJsonSchema[list[int]] | SkipJsonSchema[list[list[int]]] | SkipJsonSchema[None] = (
+        None
+    )
 
 
 class PolylineLayerStyle(LayerStyleBase):
-    get_color: (
-        str
-        | SkipJsonSchema[list[int]]
-        | SkipJsonSchema[list[list[int]]]
-        | SkipJsonSchema[None]
-    ) = None
+    get_color: str | SkipJsonSchema[list[int]] | SkipJsonSchema[list[list[int]]] | SkipJsonSchema[None] = None
     get_width: Annotated[float, AdvancedField(default=3)] = 3
-    color_column: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
+    color_column: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     width_units: Annotated[UnitType, AdvancedField(default="pixels")] = "pixels"
     cap_rounded: Annotated[bool, AdvancedField(default=True)] = True
 
 
 class ShapeLayerStyle(LayerStyleBase):
     filled: Annotated[bool, AdvancedField(default=True)] = True
-    get_fill_color: (
-        str
-        | SkipJsonSchema[list[int]]
-        | SkipJsonSchema[list[list[int]]]
-        | SkipJsonSchema[None]
-    ) = None
-    get_line_color: (
-        str
-        | SkipJsonSchema[list[int]]
-        | SkipJsonSchema[list[list[int]]]
-        | SkipJsonSchema[None]
-    ) = None
+    get_fill_color: str | SkipJsonSchema[list[int]] | SkipJsonSchema[list[list[int]]] | SkipJsonSchema[None] = None
+    get_line_color: str | SkipJsonSchema[list[int]] | SkipJsonSchema[list[list[int]]] | SkipJsonSchema[None] = None
     get_line_width: Annotated[float, AdvancedField(default=1)] = 1
-    fill_color_column: Annotated[
-        str | SkipJsonSchema[None], AdvancedField(default=None)
-    ] = None
+    fill_color_column: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     line_width_units: Annotated[UnitType, AdvancedField(default="pixels")] = "pixels"
     stroked: Annotated[bool, AdvancedField(default=False)] = False
 
 
 class PointLayerStyle(ShapeLayerStyle):
     get_radius: Annotated[
-        float
-        | str
-        | SkipJsonSchema[list[int]]
-        | SkipJsonSchema[list[list[int]]]
-        | SkipJsonSchema[None],
+        float | str | SkipJsonSchema[list[int]] | SkipJsonSchema[list[list[int]]] | SkipJsonSchema[None],
         AdvancedField(default=5),
     ] = 5
     radius_units: Annotated[UnitType, AdvancedField(default="pixels")] = "pixels"
@@ -113,24 +78,16 @@ class PolygonLayerStyle(ShapeLayerStyle):
     get_elevation: Annotated[float, AdvancedField(default=1000)] = 1000
 
 
-LayerStyle = Union[
-    PolylineLayerStyle, PointLayerStyle, PolygonLayerStyle, TextLayerStyle
-]
+LayerStyle = Union[PolylineLayerStyle, PointLayerStyle, PolygonLayerStyle, TextLayerStyle]
 
 
 class NorthArrowStyle(BaseModel):
-    placement: Annotated[WidgetPlacement, AdvancedField(default="top-left")] = (
-        "top-left"
-    )
-    style: Annotated[dict, AdvancedField(default={"transform": "scale(0.8)"})] = {
-        "transform": "scale(0.8)"
-    }
+    placement: Annotated[WidgetPlacement, AdvancedField(default="top-left")] = "top-left"
+    style: Annotated[dict, AdvancedField(default={"transform": "scale(0.8)"})] = {"transform": "scale(0.8)"}
 
 
 class LegendStyle(BaseModel):
-    placement: Annotated[WidgetPlacement, AdvancedField(default="bottom-right")] = (
-        "bottom-right"
-    )
+    placement: Annotated[WidgetPlacement, AdvancedField(default="bottom-right")] = "bottom-right"
     title: Annotated[str, AdvancedField(default="Legend")] = "Legend"
     format_title: Annotated[bool, AdvancedField(default=False)] = False
 
@@ -149,20 +106,12 @@ class ViewState(BaseModel):
 
 @dataclass
 class LegendDefinition:
-    label_column: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
-    color_column: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
+    label_column: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    color_column: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     labels: list[str] | SkipJsonSchema[None] = None
     colors: list[str] | SkipJsonSchema[None] = None
-    sort: Annotated[
-        Literal["ascending", "descending"] | None, AdvancedField(default=None)
-    ] = None
-    label_suffix: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
+    sort: Annotated[Literal["ascending", "descending"] | None, AdvancedField(default=None)] = None
+    label_suffix: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
 
 
 @dataclass
@@ -298,9 +247,7 @@ def _preset_tile_layer_json_schema(preset_name: str) -> dict:
 
 def _preset_or_custom_json_schema_extra(schema: dict) -> None:
     schema["items"]["title"] = "Base Layer"
-    schema["items"]["anyOf"] = [
-        _preset_tile_layer_json_schema(preset) for preset in TileLayerPresets.keys()
-    ]
+    schema["items"]["anyOf"] = [_preset_tile_layer_json_schema(preset) for preset in TileLayerPresets.keys()]
     schema["items"]["anyOf"].append(_custom_tile_layer_json_schema())
     schema["default"] = [
         TileLayer(layer_name="TERRAIN")._as_json_schema_default(),
@@ -324,7 +271,10 @@ def set_base_maps(
         Field(
             json_schema_extra=_preset_or_custom_json_schema_extra,
             title=" ",
-            description="Select tile layers to use as base layers in map outputs. The first layer in the list will be the bottommost layer displayed.",
+            description=(
+                "Select tile layers to use as base layers in map outputs."
+                " The first layer in the list will be the bottommost layer displayed."
+            ),
         ),
     ] = None,
 ) -> Annotated[list[TileLayer], Field()]:
@@ -344,9 +294,7 @@ def create_polyline_layer(
     ],
     layer_style: Annotated[
         PolylineLayerStyle | SkipJsonSchema[None],
-        AdvancedField(
-            default=PolylineLayerStyle(), description="Style arguments for the layer."
-        ),
+        AdvancedField(default=PolylineLayerStyle(), description="Style arguments for the layer."),
     ] = None,
     legend: Annotated[
         LegendDefinition | SkipJsonSchema[None],
@@ -399,9 +347,7 @@ def create_polygon_layer(
     ],
     layer_style: Annotated[
         PolygonLayerStyle | SkipJsonSchema[None],
-        AdvancedField(
-            default=PolygonLayerStyle(), description="Style arguments for the layer."
-        ),
+        AdvancedField(default=PolygonLayerStyle(), description="Style arguments for the layer."),
     ] = None,
     legend: Annotated[
         LegendDefinition | SkipJsonSchema[None],
@@ -454,9 +400,7 @@ def create_point_layer(
     ],
     layer_style: Annotated[
         PointLayerStyle | SkipJsonSchema[None],
-        AdvancedField(
-            default=PointLayerStyle(), description="Style arguments for the layer."
-        ),
+        AdvancedField(default=PointLayerStyle(), description="Style arguments for the layer."),
     ] = None,
     legend: Annotated[
         LegendDefinition | SkipJsonSchema[None],
@@ -524,9 +468,7 @@ def create_text_layer(
     ],
     layer_style: Annotated[
         TextLayerStyle | SkipJsonSchema[None],
-        AdvancedField(
-            default=TextLayerStyle(), description="Style arguments for the layer."
-        ),
+        AdvancedField(default=TextLayerStyle(), description="Style arguments for the layer."),
     ] = None,
 ) -> Annotated[LayerDefinition, Field()]:
     """
@@ -558,9 +500,7 @@ def draw_ecomap(
         list[TileLayer] | SkipJsonSchema[None],
         Field(description="A list of named tile layer with opacity, ie OpenStreetMap."),
     ] = None,
-    static: Annotated[
-        bool, Field(description="Set to true to disable map pan/zoom.")
-    ] = False,
+    static: Annotated[bool, Field(description="Set to true to disable map pan/zoom.")] = False,
     title: Annotated[
         str | SkipJsonSchema[None],
         AdvancedField(
@@ -621,9 +561,10 @@ def draw_ecomap(
     str: A static HTML representation of the map.
     """
     import pandas as pd  # type: ignore[import-untyped]
-    from ecoscope.mapping import EcoMap  # type: ignore[import-untyped]
     from lonboard import BitmapTileLayer  # type: ignore[import-untyped]
     from lonboard.experimental import TextLayer  # type: ignore[import-untyped]
+
+    from ecoscope.mapping import EcoMap  # type: ignore[import-untyped]
 
     if tile_layers is None:
         tile_layers = []
@@ -694,15 +635,11 @@ def draw_ecomap(
 
         if layer_def.legend:
             if layer_def.legend.label_column and layer_def.legend.color_column:
-                lookup = layer_def.geodataframe.drop_duplicates(
-                    subset=layer_def.legend.color_column
-                )
+                lookup = layer_def.geodataframe.drop_duplicates(subset=layer_def.legend.color_column)
                 if layer_def.legend.sort:
                     lookup = lookup.sort_values(
                         layer_def.legend.label_column,
-                        ascending=True
-                        if layer_def.legend.sort == "ascending"
-                        else False,
+                        ascending=True if layer_def.legend.sort == "ascending" else False,
                         # Attempt to coerce numeric strings to numbers
                         # in order to maintain a proper numeric sort
                         key=lambda col: pd.to_numeric(col, errors="ignore"),  # type: ignore[call-overload]
@@ -715,9 +652,7 @@ def draw_ecomap(
                 legend_labels.extend(layer_def.legend.labels)
                 legend_colors.extend(layer_def.legend.colors)
             if legend_labels and layer_def.legend.label_suffix:
-                legend_labels = [
-                    label + layer_def.legend.label_suffix for label in legend_labels
-                ]
+                legend_labels = [label + layer_def.legend.label_suffix for label in legend_labels]
 
         if layer_def.zoom:
             zoom_layers.append(layer)

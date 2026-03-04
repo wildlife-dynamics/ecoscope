@@ -19,10 +19,6 @@ def unsorted_df():
     ],
 )
 def test_sort_values(unsorted_df, ascending, na_pos):
-    sorted_df = sort_values(
-        unsorted_df, column_name="value", ascending=ascending, na_position=na_pos
-    )
-    expected = unsorted_df.sort_values(
-        by="value", ascending=ascending, na_position=na_pos
-    )
+    sorted_df = sort_values(unsorted_df, column_name="value", ascending=ascending, na_position=na_pos)
+    expected = unsorted_df.sort_values(by="value", ascending=ascending, na_position=na_pos)
     pd.testing.assert_frame_equal(sorted_df, expected)

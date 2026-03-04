@@ -17,16 +17,13 @@ from ecoscope.platform.tasks.transformation import (
 )
 from shapely.geometry import LineString, Point, Polygon
 
-
 # --- Temporal indexing tests (from core) ---
 
 
 def test_add_temporal_index():
     df = pd.DataFrame(
         {
-            "timestamp": pd.to_datetime(
-                ["2022-01-01", "2022-01-02", "2022-02-01", "2022-02-02"]
-            ),
+            "timestamp": pd.to_datetime(["2022-01-01", "2022-01-02", "2022-02-01", "2022-02-02"]),
             "value": [1, 2, 3, 4],
         }
     )
@@ -54,28 +51,19 @@ def test_add_temporal_index():
 
 @pytest.fixture
 def example_trajectory():
-    path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
-    )
+    path = files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     return gpd.read_parquet(path)
 
 
 @pytest.fixture
 def example_events():
-    path = (
-        files("ecoscope.platform.tasks.io")
-        / "get-events.example-return.parquet"
-    )
+    path = files("ecoscope.platform.tasks.io") / "get-events.example-return.parquet"
     return gpd.read_parquet(path)
 
 
 @pytest.fixture
 def example_regions():
-    path = (
-        files("ecoscope.platform.tasks.io")
-        / "get-spatial-features-group.example-return.parquet"
-    )
+    path = files("ecoscope.platform.tasks.io") / "get-spatial-features-group.example-return.parquet"
     return gpd.read_parquet(path)
 
 
@@ -210,9 +198,7 @@ def test_add_spatial_index_overlapping_regions_duplicates_rows():
         },
         geometry=[
             Polygon([(0, 0), (2, 0), (2, 2), (0, 2)]),  # Larger region
-            Polygon(
-                [(0.25, 0.25), (1.75, 0.25), (1.75, 1.75), (0.25, 1.75)]
-            ),  # Overlapping
+            Polygon([(0.25, 0.25), (1.75, 0.25), (1.75, 1.75), (0.25, 1.75)]),  # Overlapping
         ],
         crs="EPSG:4326",
     )
@@ -298,7 +284,10 @@ def test_add_spatial_index_filters_all_polygon_geometries_raises():
 
     with pytest.raises(
         ValueError,
-        match="There are no polygons in Feature Group Test, you must select a feature collection that contains at least 1 polygon.",
+        match=(
+            "There are no polygons in Feature Group Test,"
+            " you must select a feature collection that contains at least 1 polygon."
+        ),
     ):
         resolve_spatial_feature_groups_for_spatial_groupers(
             groupers=[sg],
@@ -331,9 +320,7 @@ def test_add_spatial_index_all_grouper_passthrough(example_events):
     pd.testing.assert_frame_equal(result, example_events)
 
 
-def test_add_spatial_index_mixed_groupers_ignores_non_spatial(
-    example_events, example_regions
-):
+def test_add_spatial_index_mixed_groupers_ignores_non_spatial(example_events, example_regions):
     sg = SpatialGrouper(spatial_index_name="My Features")
     sg.resolve(example_regions)
     vg = ValueGrouper(index_name="event_type")

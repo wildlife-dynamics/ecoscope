@@ -72,15 +72,11 @@ def test_apply_classification(test_df, classification_args, label_args):
 
 def test_classify_seasons():
     example_traj_df_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
     trajectory = gpd.read_parquet(example_traj_df_path)
 
-    example_season_df_path = (
-        files("ecoscope.platform.tasks.io")
-        / "determine-season-windows.example-return.parquet"
-    )
+    example_season_df_path = files("ecoscope.platform.tasks.io") / "determine-season-windows.example-return.parquet"
     season_windows = pd.read_parquet(example_season_df_path)
 
     result = classify_seasons(trajectory, season_windows)

@@ -3,12 +3,6 @@ from typing import Annotated, Literal, cast
 
 import pandas as pd
 from ecoscope.platform.annotations import AdvancedField, EmptyDataFrame
-from ecoscope.platform.tasks.filter._filter import TimeRange
-from pydantic import AfterValidator, Field
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
-from wt_task import task
-
 from ecoscope.platform.connections import EarthRangerClient
 from ecoscope.platform.schemas import (
     EventGDF,
@@ -19,6 +13,11 @@ from ecoscope.platform.schemas import (
     SpatialFeaturesGroup,
     SubjectGroupObservationsGDF,
 )
+from ecoscope.platform.tasks.filter._filter import TimeRange
+from pydantic import AfterValidator, Field
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+from wt_task import task
 
 
 def _strip_whitespace_from_list_items(v: list[str]):
@@ -29,15 +28,11 @@ def _strip_whitespace_from_list_items(v: list[str]):
 def set_patrol_types(
     patrol_types: Annotated[
         list[str],
-        Field(
-            description="Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types."
-        ),
+        Field(description="Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types."),
     ],
 ) -> Annotated[
     list[str],
-    Field(
-        description="Passthrough selected patrol types for use in downstream EarthRanger queries"
-    ),
+    Field(description="Passthrough selected patrol types for use in downstream EarthRanger queries"),
 ]:
     return patrol_types
 
@@ -62,34 +57,30 @@ _EXCLUSION_FILTER_TO_INT: dict[str, int | None] = {
 PatrolStatusField = AdvancedField(
     default=["done"],
     title="Patrol Status",
-    description="Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
+    description=(
+        "Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed"
+    ),
     json_schema_extra={"uniqueItems": True},
 )
-PatrolStatusAnnotation = Annotated[
-    list[PatrolStatus] | SkipJsonSchema[None], PatrolStatusField
-]
-AppendCategorySelectionAnnotation = Annotated[
-    AppendCategorySelection, AdvancedField(default="duplicates")
-]
+PatrolStatusAnnotation = Annotated[list[PatrolStatus] | SkipJsonSchema[None], PatrolStatusField]
+AppendCategorySelectionAnnotation = Annotated[AppendCategorySelection, AdvancedField(default="duplicates")]
 TimeRangeAnnotation = Annotated[TimeRange, Field(description="Time range filter")]
 PatrolTypesAnnotation = Annotated[
     list[str],
     AfterValidator(_strip_whitespace_from_list_items),
-    Field(
-        description="Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types."
-    ),
+    Field(description="Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types."),
 ]
 EventTypesAnnotation = Annotated[
     list[str],
     AfterValidator(_strip_whitespace_from_list_items),
     Field(
-        description="Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types.",
+        description=(
+            "Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types."
+        ),
         title="Event Types",
     ),
 ]
-IncludePatrolDetailsAnnotation = Annotated[
-    bool, AdvancedField(default=True, description="Include patrol details")
-]
+IncludePatrolDetailsAnnotation = Annotated[bool, AdvancedField(default=True, description="Include patrol details")]
 RaiseOnEmptyAnnotation = Annotated[
     bool,
     AdvancedField(
@@ -216,7 +207,10 @@ AnalysisFieldAnnotation = Annotated[
     str,
     Field(
         title="Analysis Field - Numeric field to analyze",
-        description="Select the numeric field the work will use for calculations, i.e. the sum of the field from all events in the workflow.",
+        description=(
+            "Select the numeric field the work will use for calculations,"
+            " i.e. the sum of the field from all events in the workflow."
+        ),
     ),
 ]
 AnalysisFieldLabelAnnotation = Annotated[
@@ -237,7 +231,10 @@ CategoryFieldAnnotation = Annotated[
     str,
     Field(
         title="Category Field - Choice field to categorize by",
-        description="Differentiate events with the choices in a choice field. Each choice will be represented by a different color in the outputs.",
+        description=(
+            "Differentiate events with the choices in a choice field."
+            " Each choice will be represented by a different color in the outputs."
+        ),
     ),
 ]
 CategoryFieldLabelAnnotation = Annotated[
@@ -339,9 +336,7 @@ def set_patrols_and_patrol_events_params(
     sub_page_size: SubPageSizeAnnotation = 100,
 ) -> Annotated[
     CombinedPatrolAndEventsParams,
-    Field(
-        description="Passthrough selected patrol and event types for use in downstream EarthRanger queries"
-    ),
+    Field(description="Passthrough selected patrol and event types for use in downstream EarthRanger queries"),
 ]:
     return CombinedPatrolAndEventsParams(
         client=client,
@@ -362,9 +357,7 @@ def get_subjectgroup_observations(
     client: EarthRangerClient,
     subject_group_name: Annotated[
         str,
-        Field(
-            description="⚠️ The use of a group with mixed subtypes could lead to unexpected results"
-        ),
+        Field(description="⚠️ The use of a group with mixed subtypes could lead to unexpected results"),
     ],
     time_range: Annotated[TimeRange, Field(description="Time range filter")],
     raise_on_empty: Annotated[
@@ -416,9 +409,7 @@ def get_subjectgroup_observations(
         subject_group_obs_relocs = subject_group_obs_relocs.gdf
 
     if raise_on_empty and subject_group_obs_relocs.empty:
-        raise ValueError(
-            "No data returned from EarthRanger for get_subjectgroup_observations"
-        )
+        raise ValueError("No data returned from EarthRanger for get_subjectgroup_observations")
 
     return cast(SubjectGroupObservationsGDF, subject_group_obs_relocs)
 
@@ -451,9 +442,7 @@ def get_patrol_observations(
         patrol_obs_relocs = patrol_obs_relocs.gdf
 
     if raise_on_empty and patrol_obs_relocs.empty:
-        raise ValueError(
-            "No data returned from EarthRanger for get_patrol_observations_with_patrol_filter"
-        )
+        raise ValueError("No data returned from EarthRanger for get_patrol_observations_with_patrol_filter")
 
     return cast(PatrolObservationsGDF, patrol_obs_relocs)
 
@@ -495,9 +484,7 @@ def get_patrol_events(
         ]
 
     if not events.empty and include_display_values:
-        events = client.get_event_type_display_names_from_events(
-            events, append_category_names="duplicates"
-        )
+        events = client.get_event_type_display_names_from_events(events, append_category_names="duplicates")
 
     return cast(EventGDF | EventsWithDisplayNamesGDF, events)
 
@@ -523,9 +510,7 @@ def get_events(
     # as we need to treat this case separately from empty input
     if len(event_types) > 0:
         all_event_types = pd.DataFrame(client.get_event_types())
-        event_type_ids = all_event_types[all_event_types["value"].isin(event_types)][
-            "id"
-        ].to_list()
+        event_type_ids = all_event_types[all_event_types["value"].isin(event_types)]["id"].to_list()
         no_ids_found = not event_type_ids
 
     events_df = (
@@ -567,22 +552,14 @@ def get_events(
 def get_patrol_observations_from_combined_params(
     combined_params: CombinedPatrolAndEventsParams,
 ) -> PatrolObservationsGDF | EmptyDataFrame:
-    return (
-        task(get_patrol_observations)
-        .validate()
-        .call(**combined_params.get_patrol_observations_params())
-    )
+    return task(get_patrol_observations).validate().call(**combined_params.get_patrol_observations_params())
 
 
 @register(tags=["io"])
 def get_patrol_events_from_combined_params(
     combined_params: CombinedPatrolAndEventsParams,
 ) -> EventGDF | EventsWithDisplayNamesGDF | EmptyDataFrame:
-    return (
-        task(get_patrol_events)
-        .validate()
-        .call(**combined_params.get_patrol_events_params())
-    )
+    return task(get_patrol_events).validate().call(**combined_params.get_patrol_events_params())
 
 
 @register(tags=["io"])
@@ -665,9 +642,7 @@ def get_patrol_observations_from_patrols_df(
         patrol_obs_relocs = patrol_obs_relocs.gdf
 
     if raise_on_empty and patrol_obs_relocs.empty:
-        raise ValueError(
-            "No data returned from EarthRanger for get_patrol_observations_with_patrol_filter"
-        )
+        raise ValueError("No data returned from EarthRanger for get_patrol_observations_with_patrol_filter")
 
     return cast(PatrolObservationsGDF, patrol_obs_relocs)
 
@@ -696,8 +671,7 @@ def unpack_events_from_patrols_df(
 
     if truncate_to_time_range and not patrol_events.empty:
         patrol_events = patrol_events.loc[  # type: ignore[assignment]
-            (patrol_events.time >= time_range.since)
-            & (patrol_events.time <= time_range.until)
+            (patrol_events.time >= time_range.since) & (patrol_events.time <= time_range.until)
         ]
 
     return cast(EventGDF, patrol_events)
@@ -768,9 +742,7 @@ def set_event_details_params(
     include_display_values: IncludeDisplayValuesAnnotation = False,
 ) -> Annotated[
     CombinedEventsAndDetailsParams,
-    Field(
-        description="Passthrough selected events settings for use in downstream tasks"
-    ),
+    Field(description="Passthrough selected events settings for use in downstream tasks"),
 ]:
     return CombinedEventsAndDetailsParams(
         client=client,
@@ -863,9 +835,7 @@ def get_choices_from_v2_event_type(
 @register(tags=["io"])
 def get_spatial_features_group(
     client: EarthRangerClient,
-    spatial_features_group_name: Annotated[
-        str, Field(description="The name of the group to fetch")
-    ],
+    spatial_features_group_name: Annotated[str, Field(description="The name of the group to fetch")],
 ) -> RegionsGDF | EmptyDataFrame:
     spatial_features_group = client.get_spatial_features_group(
         spatial_features_group_name=spatial_features_group_name,
@@ -874,9 +844,7 @@ def get_spatial_features_group(
     )
     sfg = SpatialFeaturesGroup(**spatial_features_group)  # type: ignore[arg-type]
     regions_gdf = sfg.features
-    regions_gdf["metadata"] = [{"id": sfg.id, "display_name": sfg.name}] * len(
-        regions_gdf
-    )
+    regions_gdf["metadata"] = [{"id": sfg.id, "display_name": sfg.name}] * len(regions_gdf)
     return cast(RegionsGDF, regions_gdf)
 
 

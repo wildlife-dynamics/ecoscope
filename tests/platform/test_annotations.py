@@ -87,9 +87,7 @@ def test_advanced_field_nested_dataclass_not_annotated():
 
 
 def test_advanced_field_task_annotation_without_default_raises():
-    expected_error_message = (
-        "A default is required for fields constructed with 'AdvancedField'."
-    )
+    expected_error_message = "A default is required for fields constructed with 'AdvancedField'."
 
     with pytest.raises(ValueError, match=expected_error_message):
         AdvancedField()
@@ -128,7 +126,10 @@ def test_advanced_field_json_schema_extra():
 
 
 def test_advanced_field_json_schema_extra_raises_on_conflict():
-    expected_error_message = "Fields constructed with 'AdvancedField' cannot override json_schema_extra: dict_keys\(\['ecoscope:advanced'\]\)"
+    expected_error_message = (
+        "Fields constructed with 'AdvancedField' cannot override "
+        r"json_schema_extra: dict_keys\(\['ecoscope:advanced'\]\)"
+    )
     with pytest.raises(ValueError, match=expected_error_message):
         AdvancedField(default=None, json_schema_extra={"ecoscope:advanced": False})
 

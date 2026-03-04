@@ -49,9 +49,7 @@ def test_filter_points(df_with_geometry):
     )
 
     # Apply the filter
-    filtered_df = apply_reloc_coord_filter(
-        df_with_geometry, filter_point_coords=[Coordinate(x=0.0, y=0.0)]
-    )
+    filtered_df = apply_reloc_coord_filter(df_with_geometry, filter_point_coords=[Coordinate(x=0.0, y=0.0)])
 
     # Assert that the filtered DataFrame matches the expected result
     pd.testing.assert_frame_equal(filtered_df, expected_df)
@@ -69,9 +67,7 @@ def test_filter_points_preserves_null_geometry(df_with_null_geometry):
     )
 
     # Apply the filter
-    filtered_df = apply_reloc_coord_filter(
-        df_with_null_geometry, filter_point_coords=[Coordinate(x=0.0, y=0.0)]
-    )
+    filtered_df = apply_reloc_coord_filter(df_with_null_geometry, filter_point_coords=[Coordinate(x=0.0, y=0.0)])
 
     # Assert that the filtered DataFrame matches the expected result
     pd.testing.assert_frame_equal(filtered_df, expected_df)
@@ -133,6 +129,4 @@ def test_drop_nan_values_by_column():
         {"data": [14.0, 16.0]},
         index=[1, 3],
     )
-    pd.testing.assert_frame_equal(
-        drop_nan_values_by_column(df_with_nans, "data"), df_without_nans
-    )
+    pd.testing.assert_frame_equal(drop_nan_values_by_column(df_with_nans, "data"), df_without_nans)

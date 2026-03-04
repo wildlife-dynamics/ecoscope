@@ -2,14 +2,13 @@ from typing import Annotated, Literal, cast
 
 import pandas as pd
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
+from ecoscope.platform.tasks.analysis._aggregation import (
+    get_night_day_ratio,
+)
 from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 from pydantic import BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
-
-from ecoscope.platform.tasks.analysis._aggregation import (
-    get_night_day_ratio,
-)
 
 AggOperations = Literal[
     "sum",
@@ -35,14 +34,10 @@ class SummaryParam(BaseModel):
     @model_validator(mode="after")
     def check_column_and_unit(self):
         if self.aggregator != "night_day_ratio" and self.column is None:
-            raise ValueError(
-                "column cannot be None if aggregator is not night_day_ratio"
-            )
+            raise ValueError("column cannot be None if aggregator is not night_day_ratio")
 
         if (self.original_unit is None) != (self.new_unit is None):
-            raise ValueError(
-                "original_unit and new_unit must either both be None or both exist"
-            )
+            raise ValueError("original_unit and new_unit must either both be None or both exist")
 
         return self
 
@@ -87,12 +82,7 @@ def summarize_df(
         return result
 
     def summarize(df, summary_params):
-        return pd.Series(
-            {
-                param.display_name: summarize_column(df, param)
-                for param in summary_params
-            }
-        )
+        return pd.Series({param.display_name: summarize_column(df, param) for param in summary_params})
 
     if groupby_cols:
         result_df = df.groupby(groupby_cols).apply(  # type: ignore[call-overload]

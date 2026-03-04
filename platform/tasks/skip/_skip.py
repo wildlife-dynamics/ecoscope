@@ -1,9 +1,8 @@
 from typing import Any
 
+from ecoscope.platform.annotations import AnyGeoDataFrame
 from wt_registry import register
 from wt_task.skip import SKIP_SENTINEL, SkipSentinel
-
-from ecoscope.platform.annotations import AnyGeoDataFrame
 
 
 def _is_df_duck(obj: Any) -> bool:
@@ -63,10 +62,7 @@ def any_dependency_is_empty_string(*args: tuple[Any, ...]) -> bool:
 @register()
 def all_geometry_are_none(*args: Any) -> bool:
     """Check if any item in the args is an GeoDataFrame-like object with a nulled out geometry column."""
-    return any(
-        _is_gdf_duck(a) and (a.geometry.isna() | a.geometry.is_empty).all()
-        for a in args
-    )
+    return any(_is_gdf_duck(a) and (a.geometry.isna() | a.geometry.is_empty).all() for a in args)
 
 
 def skip_gdf_fallback_to_none(

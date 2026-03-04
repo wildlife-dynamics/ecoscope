@@ -96,9 +96,5 @@ def test_convert_column_values_to_numeric():
 
     assert pd.api.types.is_numeric_dtype(df["value1"])
     assert pd.api.types.is_numeric_dtype(df["value2"])
-    assert np.array_equal(
-        df["value1"].to_list(), [1.0, 2.0, np.nan, 4.0, np.nan], equal_nan=True
-    )
-    assert np.array_equal(
-        df["value2"].to_list(), [6.0, np.nan, 8.0, np.nan, 10.0], equal_nan=True
-    )
+    assert np.array_equal(df["value1"].to_list(), [1.0, 2.0, np.nan, 4.0, np.nan], equal_nan=True)
+    assert np.array_equal(df["value2"].to_list(), [6.0, np.nan, 8.0, np.nan, 10.0], equal_nan=True)

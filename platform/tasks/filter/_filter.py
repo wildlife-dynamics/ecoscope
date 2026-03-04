@@ -1,11 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+from ecoscope.platform.annotations import AdvancedField
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
-
-from ecoscope.platform.annotations import AdvancedField
 
 
 class TimezoneInfo(BaseModel):
@@ -24,9 +23,7 @@ class TimezoneInfo(BaseModel):
 
 
 DEFAULT_TIME_FORMAT = "%d %b %Y %H:%M:%S"
-UTC_TIMEZONEINFO = TimezoneInfo(
-    label="UTC", tzCode="UTC", name="UTC", utc_offset="+00:00"
-)
+UTC_TIMEZONEINFO = TimezoneInfo(label="UTC", tzCode="UTC", name="UTC", utc_offset="+00:00")
 
 
 class TimeRange(BaseModel):
@@ -40,9 +37,7 @@ class TimeRange(BaseModel):
         both_naive = not self.since.tzinfo and not self.until.tzinfo
         both_aware = self.since.tzinfo and self.until.tzinfo
         if not both_naive and not both_aware:
-            raise ValueError(
-                "Since and until values must both be timezone naive, or both aware"
-            )
+            raise ValueError("Since and until values must both be timezone naive, or both aware")
         if both_naive:
             tz = self.timezone.utc_offset_as_datetime_timezone
             self.since = self.since.replace(tzinfo=tz)
@@ -69,9 +64,7 @@ def set_time_range(
     if timezone is None:
         # Assume UTC if no timezone is provided
         timezone = UTC_TIMEZONEINFO
-    return TimeRange(
-        since=since, until=until, timezone=timezone, time_format=time_format
-    )
+    return TimeRange(since=since, until=until, timezone=timezone, time_format=time_format)
 
 
 @register()

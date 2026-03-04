@@ -2,10 +2,6 @@ import json
 from dataclasses import dataclass
 from typing import Annotated, Any, Generator
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
-
 from ecoscope.platform.indexes import (
     AllGrouper,
     CompositeFilter,
@@ -30,6 +26,9 @@ from ecoscope.platform.tasks.results._widget_types import (
     WidgetData,
     WidgetSingleView,
 )
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
 
 
 @dataclass
@@ -116,9 +115,7 @@ class Dashboard(BaseModel):
     keys: list[CompositeFilter] | None = None
     metadata: Metadata = Field(default_factory=Metadata)
 
-    def _get_view(
-        self, view: CompositeFilter | None
-    ) -> list[EmumeratedWidgetSingleView]:
+    def _get_view(self, view: CompositeFilter | None) -> list[EmumeratedWidgetSingleView]:
         """Get the overal view for the dashboard, by fetching that view for each widget.
         and returning a list of `EmumeratedWidgetSingleView` instances for that view.
         If the dashboard contains a mix of grouped and ungrouped widgets, the ungrouped
@@ -176,9 +173,7 @@ class Dashboard(BaseModel):
                         property=RJSFFilterProperty(
                             type="string",
                             title=g.display_name,
-                            oneOf=[
-                                oneOf(const=choice, title=choice) for choice in choices
-                            ],
+                            oneOf=[oneOf(const=choice, title=choice) for choice in choices],
                             default=choices[0],
                         ),
                         uiSchema=RJSFFilterUiSchema(
@@ -209,9 +204,7 @@ class Dashboard(BaseModel):
 def composite_filters_to_grouper_choices_dict(
     groupers: AllGrouper | list[ValueGrouper | TemporalGrouper | SpatialGrouper],
     keys: list[CompositeFilter | None],
-) -> dict[
-    AllGrouper | ValueGrouper | TemporalGrouper | SpatialGrouper, list[IndexValue]
-]:
+) -> dict[AllGrouper | ValueGrouper | TemporalGrouper | SpatialGrouper, list[IndexValue]]:
     """Converts a set of Groupers and a list of composite filters
     to a dict of grouper choices.
 
@@ -240,9 +233,7 @@ def composite_filters_to_grouper_choices_dict(
 
     ```
     """
-    choices: dict[
-        AllGrouper | ValueGrouper | TemporalGrouper | SpatialGrouper, list[IndexValue]
-    ] = {}
+    choices: dict[AllGrouper | ValueGrouper | TemporalGrouper | SpatialGrouper, list[IndexValue]] = {}
 
     def get_grouper(
         index_name: IndexName,
@@ -269,9 +260,7 @@ def composite_filters_to_grouper_choices_dict(
 
 GroupedOrSingleWidget = GroupedWidget | WidgetSingleView
 
-FlatWidgetList = (
-    list[GroupedOrSingleWidget] | list[GroupedWidget] | list[WidgetSingleView]
-)
+FlatWidgetList = list[GroupedOrSingleWidget] | list[GroupedWidget] | list[WidgetSingleView]
 
 AllNestedWidgetList = list[list[GroupedOrSingleWidget]]
 PartiallyNestedWidgetList = list[list[GroupedOrSingleWidget] | GroupedOrSingleWidget]
@@ -300,9 +289,7 @@ def _flatten(possibly_nested: NestedWidgetList | FlatWidgetList) -> FlatWidgetLi
 
     for item in possibly_nested:
         if isinstance(item, list):
-            flat.extend(
-                item
-            )  # Directly extend with the sublist since we assume max depth 2
+            flat.extend(item)  # Directly extend with the sublist since we assume max depth 2
         else:
             flat.append(item)
 
@@ -317,9 +304,7 @@ def gather_dashboard(
         Field(description="The widgets to display.", exclude=True),
     ],
     groupers: Annotated[
-        AllGrouper
-        | list[ValueGrouper | TemporalGrouper | SpatialGrouper]
-        | SkipJsonSchema[None],
+        AllGrouper | list[ValueGrouper | TemporalGrouper | SpatialGrouper] | SkipJsonSchema[None],
         Field(
             description="""\
             Groupers that are used to group the widgets.
@@ -328,9 +313,7 @@ def gather_dashboard(
             exclude=True,
         ),
     ] = None,
-    time_range: Annotated[
-        TimeRange | SkipJsonSchema[None], Field(description="Time range filter")
-    ] = None,
+    time_range: Annotated[TimeRange | SkipJsonSchema[None], Field(description="Time range filter")] = None,
     warning: Annotated[str | SkipJsonSchema[None], Field(exclude=True)] = None,
 ) -> Annotated[Dashboard, Field()]:
     # if the input is any kind of list, try to flatten it because it might be nested
@@ -338,17 +321,11 @@ def gather_dashboard(
     as_flat_list = _flatten(widgets) if isinstance(widgets, list) else [widgets]
     # then regardless of element type(s), parse to uniform flat list of GroupedWidgets
     grouped_widgets = [
-        GroupedWidget.from_single_view(w) if isinstance(w, WidgetSingleView) else w
-        for w in as_flat_list
+        GroupedWidget.from_single_view(w) if isinstance(w, WidgetSingleView) else w for w in as_flat_list
     ]
     if groupers:
         all_view_keys = set(
-            [
-                vk
-                for view_keys in [list(gw.views) for gw in grouped_widgets]
-                for vk in view_keys
-                if vk is not None
-            ],
+            [vk for view_keys in [list(gw.views) for gw in grouped_widgets] for vk in view_keys if vk is not None],
         )
         for gw in grouped_widgets:
             if list(gw.views) == [None]:
@@ -360,16 +337,15 @@ def gather_dashboard(
         for gw in grouped_widgets:
             if list(gw.views) != [None]:
                 # now make sure all grouped widgets have the same keys.
-                assert (
-                    set(list(gw.views)) == all_view_keys
-                ), "All grouped widgets must have the same keys"
-        grouper_choices = composite_filters_to_grouper_choices_dict(
-            groupers, list(all_view_keys)
-        )
+                assert set(list(gw.views)) == all_view_keys, "All grouped widgets must have the same keys"
+        grouper_choices = composite_filters_to_grouper_choices_dict(groupers, list(all_view_keys))
     formatted_time_range = ""
     time_zone_label = ""
     if time_range:
-        formatted_time_range = f"From {time_range.since.strftime(time_range.time_format)} to {time_range.until.strftime(time_range.time_format)}"
+        formatted_time_range = (
+            f"From {time_range.since.strftime(time_range.time_format)}"
+            f" to {time_range.until.strftime(time_range.time_format)}"
+        )
         time_zone_label = time_range.timezone.label
 
     return Dashboard(

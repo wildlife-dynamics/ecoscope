@@ -3,11 +3,10 @@ import io
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field
-from wt_registry import register
-
 from ecoscope.platform.annotations import AnyDataFrame
 from ecoscope.platform.serde import _persist_bytes, _persist_text
+from pydantic import Field
+from wt_registry import register
 
 
 # TODO: Unlike the tasks in `._earthranger`, this is not tagged with `tags=["io"]`,

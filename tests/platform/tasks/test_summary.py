@@ -18,8 +18,7 @@ def sample_dataframe():
 @pytest.fixture
 def trajectories():
     return load_parquet(
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
 
 
@@ -45,9 +44,7 @@ def test_summarize_df_sum(sample_dataframe):
 
 def test_summarize_df_groupby(sample_dataframe):
     sample_dataframe["Group"] = ["X", "X", "Y", "Y", "Y"]
-    summary_params = [
-        SummaryParam(display_name="Sum of A", aggregator="sum", column="A")
-    ]
+    summary_params = [SummaryParam(display_name="Sum of A", aggregator="sum", column="A")]
     result = summarize_df(sample_dataframe, summary_params, groupby_cols=["Group"])
     assert result.loc["X", "Sum of A"] == 3
     assert result.loc["Y", "Sum of A"] == 12
@@ -75,9 +72,7 @@ def test_summarize_df_with_missing_column(sample_dataframe):
 
 def test_summarize_df_with_missing_unit(sample_dataframe):
     with pytest.raises(ValueError):
-        SummaryParam(
-            display_name="Sum of A", aggregator="sum", column="A", original_unit="m"
-        )
+        SummaryParam(display_name="Sum of A", aggregator="sum", column="A", original_unit="m")
 
 
 def test_summarize_df_night_day_ratio(trajectories):

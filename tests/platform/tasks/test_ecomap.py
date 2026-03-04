@@ -24,34 +24,25 @@ from wt_task import task
 
 @pytest.fixture
 def relocations():
-    return load_parquet(
-        files("ecoscope.platform.tasks.preprocessing")
-        / "process-relocations.example-return.parquet"
-    )
+    return load_parquet(files("ecoscope.platform.tasks.preprocessing") / "process-relocations.example-return.parquet")
 
 
 @pytest.fixture
 def trajectories():
     return load_parquet(
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
 
 
 @pytest.fixture
 def events():
-    return load_parquet(
-        files("ecoscope.platform.tasks.io")
-        / "get-events.example-return.parquet"
-    )
+    return load_parquet(files("ecoscope.platform.tasks.io") / "get-events.example-return.parquet")
 
 
 @pytest.fixture
 def trajectories_colored(trajectories):
     # mock the output of 'apply_classification'
-    trajectories["speed_bins"] = trajectories["speed_kmhr"].apply(
-        lambda x: "Fast" if x > 0.5 else "Slow"
-    )
+    trajectories["speed_bins"] = trajectories["speed_kmhr"].apply(lambda x: "Fast" if x > 0.5 else "Slow")
     # mock the output of 'apply_colormap'
     trajectories["colors"] = trajectories["speed_kmhr"].apply(
         lambda x: (255, 255, 0, 255) if x > 0.5 else (0, 255, 0, 255)
@@ -146,9 +137,7 @@ def test_draw_ecomap_with_legend_multiple_layers(relocations, trajectories_color
         lambda x: "new" if x > relocations["fixtime"].median() else "old"
     )
     relocations["colors"] = relocations["fixtime"].apply(
-        lambda x: (255, 0, 0, 255)
-        if x > relocations["fixtime"].median()
-        else (0, 0, 255, 255)
+        lambda x: (255, 0, 0, 255) if x > relocations["fixtime"].median() else (0, 0, 255, 255)
     )
     layer1 = create_point_layer(
         geodataframe=relocations,

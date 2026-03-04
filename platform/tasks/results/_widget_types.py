@@ -2,9 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypeAlias
 
-from pydantic_core import Url
-
 from ecoscope.platform.indexes import CompositeFilter
+from pydantic_core import Url
 
 WidgetTypes = Literal["graph", "map", "text", "stat", "table"]
 
@@ -12,9 +11,7 @@ PrecomputedHTMLWidgetData: TypeAlias = Path | Url | None
 TextWidgetData: TypeAlias = str | None
 SingleValueWidgetData: TypeAlias = str | None
 
-WidgetData: TypeAlias = (
-    PrecomputedHTMLWidgetData | TextWidgetData | SingleValueWidgetData
-)
+WidgetData: TypeAlias = PrecomputedHTMLWidgetData | TextWidgetData | SingleValueWidgetData
 GroupedWidgetMergeKey: TypeAlias = tuple[str, str]
 
 
@@ -73,8 +70,7 @@ class GroupedWidget(WidgetBase):
         """Implements the in-place or operator, i.e. `|=`, used to merge two GroupedWidgets."""
         if self.merge_key != other.merge_key:
             raise ValueError(
-                "Cannot merge GroupedWidgets with different merge keys: "
-                f"{self.merge_key} != {other.merge_key}"
+                f"Cannot merge GroupedWidgets with different merge keys: {self.merge_key} != {other.merge_key}"
             )
         self.views.update(other.views)
         return self

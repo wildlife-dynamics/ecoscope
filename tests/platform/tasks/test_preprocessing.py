@@ -13,10 +13,7 @@ from pydantic import ValidationError
 
 
 def test_process_relocations():
-    example_input_df_path = (
-        files("ecoscope.platform.tasks.io")
-        / "get-subjectgroup-observations.example-return.parquet"
-    )
+    example_input_df_path = files("ecoscope.platform.tasks.io") / "get-subjectgroup-observations.example-return.parquet"
     input_df = gpd.read_parquet(example_input_df_path)
     kws = dict(
         filter_point_coords=[Coordinate(x=180, y=90), Coordinate(x=0, y=0)],
@@ -27,18 +24,14 @@ def test_process_relocations():
     assert hasattr(result, "geometry")
 
     # we've cached this result for reuse by other tests, so check that cache is not stale
-    cached_result_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "process-relocations.example-return.parquet"
-    )
+    cached_result_path = files("ecoscope.platform.tasks.preprocessing") / "process-relocations.example-return.parquet"
     cached = gpd.read_parquet(cached_result_path)
     pd.testing.assert_frame_equal(result, cached)
 
 
 def test_relocations_to_trajectory():
     example_input_df_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "process-relocations.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "process-relocations.example-return.parquet"
     )
     input_df = gpd.read_parquet(example_input_df_path)
 
@@ -51,16 +44,13 @@ def test_relocations_to_trajectory():
         max_speed_kmhr=10,
     )
 
-    result = relocations_to_trajectory(
-        input_df, trajectory_segment_filter=traj_seg_filter
-    )
+    result = relocations_to_trajectory(input_df, trajectory_segment_filter=traj_seg_filter)
 
     assert hasattr(result, "geometry")
 
     # we've cached this result for reuse by other tests, so check that cache is not stale
     cached_result_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
     cached = gpd.read_parquet(cached_result_path)
     pd.testing.assert_frame_equal(result, cached)
@@ -68,8 +58,7 @@ def test_relocations_to_trajectory():
 
 def test_relocations_to_trajectory_filter_clears_all():
     example_input_df_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "process-relocations.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "process-relocations.example-return.parquet"
     )
     input_df = gpd.read_parquet(example_input_df_path)
 
@@ -82,24 +71,16 @@ def test_relocations_to_trajectory_filter_clears_all():
         max_speed_kmhr=0.02,
     )
 
-    with pytest.raises(
-        ValueError, match="No Trajectory data left after applying segment filter"
-    ):
-        relocations_to_trajectory(
-            input_df, trajectory_segment_filter=trajectory_segment_filter
-        )
+    with pytest.raises(ValueError, match="No Trajectory data left after applying segment filter"):
+        relocations_to_trajectory(input_df, trajectory_segment_filter=trajectory_segment_filter)
 
 
 def test_traj_segment_filter_minimum_values():
-    with pytest.raises(
-        ValidationError, match="Input should be greater than or equal to 0.001"
-    ):
+    with pytest.raises(ValidationError, match="Input should be greater than or equal to 0.001"):
         TrajectorySegmentFilter(
             min_length_meters=0.0009,
         )
-    with pytest.raises(
-        ValidationError, match="Input should be greater than or equal to 1"
-    ):
+    with pytest.raises(ValidationError, match="Input should be greater than or equal to 1"):
         TrajectorySegmentFilter(
             min_time_secs=0.9,
         )

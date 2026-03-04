@@ -12,9 +12,7 @@ class WorkflowDetails:
     image_url: str = ""
 
 
-@register(
-    description="Add information that will help to differentiate this workflow from another."
-)
+@register(description="Add information that will help to differentiate this workflow from another.")
 def set_workflow_details(
     name: Annotated[str, Field(title="Workflow Name")],
     description: Annotated[str, Field(title="Workflow Description", default="")] = "",

@@ -1245,9 +1245,9 @@ class EarthRangerIO(ERClient):
         If with_group_data is True this will return a dict containing the group data and a "features"
             field containing a GDF of the features within the requested group
         """
-        assert (spatial_features_group_name is None) != (
-            spatial_features_group_id is None
-        ), "Either spatial_features_group_name or spatial_features_group_id must be provided, not both."
+        assert (spatial_features_group_name is None) != (spatial_features_group_id is None), (
+            "Either spatial_features_group_name or spatial_features_group_id must be provided, not both."
+        )
         if spatial_features_group_id is None and spatial_features_group_name is not None:
             spatial_feature_groups = self._get("spatialfeaturegroup")
 
@@ -1267,7 +1267,7 @@ class EarthRangerIO(ERClient):
             crs = fc.get("crs", {}).get("properties", {}).get("name", None)
             if crs is None:
                 raise ValueError(
-                    f'CRS information missing for spatial feature group {spatial_features_group.get("id")}'
+                    f"CRS information missing for spatial feature group {spatial_features_group.get('id')}"
                 )
             feature = gpd.GeoDataFrame.from_features(fc, crs=crs)
             feature = feature.to_crs(4326)

@@ -13,11 +13,7 @@ HTML_TEMPLATE = importlib.resources.read_text(__package__, "table-template.jinja
 
 def _convert_json_columns_to_string(dataframe: AnyDataFrame) -> AnyDataFrame:
     for col in dataframe.columns:
-        if (
-            dataframe[col]
-            .map(lambda x: isinstance(x, dict) or isinstance(x, list))
-            .any()
-        ):
+        if dataframe[col].map(lambda x: isinstance(x, dict) or isinstance(x, list)).any():
             dataframe[col] = dataframe[col].map(lambda x: json.dumps(x))
     return dataframe
 
@@ -76,9 +72,7 @@ def draw_table(
     dataframe = _convert_json_columns_to_string(dataframe)
 
     table_row_data = dataframe.to_json(orient="records", date_format="iso")
-    table_column_defs = json.dumps(
-        [{"field": col, "headerTooltip": col} for col in dataframe.columns]
-    )
+    table_column_defs = json.dumps([{"field": col, "headerTooltip": col} for col in dataframe.columns])
 
     return HTML_TEMPLATE.format(
         table_row_data=table_row_data,

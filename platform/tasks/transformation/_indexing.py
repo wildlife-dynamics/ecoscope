@@ -1,8 +1,5 @@
 from typing import Annotated, TypeAlias, cast
 
-from pydantic import Field, TypeAdapter
-from wt_registry import register
-
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, AnyGeoDataFrame
 from ecoscope.platform.indexes import (
     AllGrouper,
@@ -17,18 +14,16 @@ from ecoscope.platform.schemas import (
     RegionsGDF,
     TrajectoryGDF,
 )
+from pydantic import Field, TypeAdapter
+from wt_registry import register
 
 FeatureGroupId: TypeAlias = str
 
 
 @register()
 def add_temporal_index(
-    df: Annotated[
-        AnyDataFrame, Field(description="The dataframe to add the temporal index to.")
-    ],
-    time_col: Annotated[
-        str, Field(description="The name of the column containing time data.")
-    ],
+    df: Annotated[AnyDataFrame, Field(description="The dataframe to add the temporal index to.")],
+    time_col: Annotated[str, Field(description="The name of the column containing time data.")],
     groupers: Annotated[
         AllGrouper | UserDefinedGroupers,
         Field(
@@ -84,19 +79,13 @@ def extract_spatial_grouper_feature_group_names(
     """If there are spatial groupers, extract and return feature group names"""
     if isinstance(groupers, AllGrouper):
         return []
-    return [
-        grouper.spatial_index_name
-        for grouper in groupers
-        if isinstance(grouper, SpatialGrouper)
-    ]
+    return [grouper.spatial_index_name for grouper in groupers if isinstance(grouper, SpatialGrouper)]
 
 
 @register()
 def resolve_spatial_feature_groups_for_spatial_groupers(
     groupers: AllGrouper | UserDefinedGroupers,
-    spatial_feature_groups: list[RegionsGDF | EmptyDataFrame]
-    | RegionsGDF
-    | EmptyDataFrame,
+    spatial_feature_groups: list[RegionsGDF | EmptyDataFrame] | RegionsGDF | EmptyDataFrame,
 ) -> AllGrouper | UserDefinedGroupers:
     """Resolves feature groups for SpatialGroupers, if necessary"""
     if not isinstance(groupers, AllGrouper) and spatial_feature_groups is not None:
@@ -104,9 +93,7 @@ def resolve_spatial_feature_groups_for_spatial_groupers(
             spatial_feature_groups = [spatial_feature_groups]
 
         lookup: dict[str, RegionsGDF | EmptyDataFrame] = {
-            sfg["metadata"].iloc[0]["display_name"]: sfg
-            for sfg in spatial_feature_groups
-            if not sfg.empty
+            sfg["metadata"].iloc[0]["display_name"]: sfg for sfg in spatial_feature_groups if not sfg.empty
         }
         for grouper in groupers:
             if isinstance(grouper, SpatialGrouper):
@@ -116,7 +103,8 @@ def resolve_spatial_feature_groups_for_spatial_groupers(
                     sfg = sfg[sfg.geometry.geom_type.isin(["Polygon", "MultiPolygon"])]
                     if sfg.empty:  # type: ignore[union-attr]
                         raise ValueError(
-                            f"There are no polygons in Feature Group {grouper.display_name}, you must select a feature collection that contains at least 1 polygon."
+                            f"There are no polygons in Feature Group {grouper.display_name},"
+                            " you must select a feature collection that contains at least 1 polygon."
                         )
                     grouper.resolve(spatial_regions=sfg)  # type: ignore[arg-type]
 
@@ -134,10 +122,11 @@ def add_spatial_index(
         Field(
             description="""\
             A list of groupers which may contain SpatialGroupers. If SpatialGroupers are present,
-            additional indexes will be added to the `gdf` by taking a spatial join of each region in the SpatialGrouper,
-            and adding the joined region name
+            additional indexes will be added to the `gdf` by taking a spatial join of each region
+            in the SpatialGrouper, and adding the joined region name
             If no SpatialGroupers are present, this task will return the input `gdf` unchanged.
-            This parameter is excluded from the generated RJSF because it should only be set programmatically in the `spec.yaml` file.
+            This parameter is excluded from the generated RJSF because it should only be set
+            programmatically in the `spec.yaml` file.
             Note also that the type of this parameter is `AllGrouper | UserDefinedGroupers` to allow
             passing a list of any type of Grouper from upstream tasks in the DAG; any elements of
             the list which are not SpatialGrouper will simply be ignored here.
@@ -148,6 +137,7 @@ def add_spatial_index(
 ) -> AnyGeoDataFrame:
     import geopandas as gpd  # type: ignore[import-untyped]
     import numpy as np
+
     from ecoscope.trajectory import Trajectory  # type: ignore[import-untyped]
 
     if not isinstance(groupers, AllGrouper):
@@ -170,9 +160,7 @@ def add_spatial_index(
                 # This results in just a single column (the index) being added after the overlay/sjoin
                 regions = regions.reset_index(drop=True)
                 regions = regions.set_index(sg.index_name)
-                regions = regions.drop(
-                    columns=["pk", "name", "short_name", "feature_type", "metadata"]
-                )
+                regions = regions.drop(columns=["pk", "name", "short_name", "feature_type", "metadata"])
 
                 if all(col in gdf.columns for col in ["segment_start", "segment_end"]):
                     traj = Trajectory(gdf=gdf)

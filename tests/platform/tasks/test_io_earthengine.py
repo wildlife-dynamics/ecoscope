@@ -4,8 +4,8 @@ from importlib.resources import files
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pytest
-from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.connections import EarthEngineConnection
+from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
     calculate_ndvi_range,
     determine_season_windows,
@@ -23,24 +23,13 @@ def client():
 
 
 def test_calculate_ndvi_range(client):
-    example_input_df_path = (
-        files("ecoscope.platform.tasks.io")
-        / "download-roi.example-return.parquet"
-    )
-    roi = (
-        gpd.read_parquet(example_input_df_path)
-        .loc[["Mara / Serengeti"]]
-        .reset_index(drop=True)
-    )
+    example_input_df_path = files("ecoscope.platform.tasks.io") / "download-roi.example-return.parquet"
+    roi = gpd.read_parquet(example_input_df_path).loc[["Mara / Serengeti"]].reset_index(drop=True)
     result = calculate_ndvi_range(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2023-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2023-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2023-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2023-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         roi=roi,
@@ -59,24 +48,13 @@ def test_calculate_ndvi_range(client):
 
 
 def test_determine_season_windows(client):
-    example_input_df_path = (
-        files("ecoscope.platform.tasks.io")
-        / "download-roi.example-return.parquet"
-    )
-    roi = (
-        gpd.read_parquet(example_input_df_path)
-        .loc[["Mara / Serengeti"]]
-        .reset_index(drop=True)
-    )
+    example_input_df_path = files("ecoscope.platform.tasks.io") / "download-roi.example-return.parquet"
+    roi = gpd.read_parquet(example_input_df_path).loc[["Mara / Serengeti"]].reset_index(drop=True)
     result = determine_season_windows(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2023-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2023-01-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2023-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2023-01-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         roi=roi,

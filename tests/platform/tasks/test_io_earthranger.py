@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, call, patch
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
-from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.connections import EarthRangerConnection
+from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
     get_analysis_field_from_event_details,
     get_analysis_field_label_from_event_details,
@@ -55,15 +55,9 @@ def client():
 @pytest.fixture
 def named_mock_env():
     return {
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER": (
-            os.environ["EARTHRANGER_SERVER"]
-        ),
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USERNAME": os.environ[
-            "EARTHRANGER_USERNAME"
-        ],
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__PASSWORD": os.environ[
-            "EARTHRANGER_PASSWORD"
-        ],
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER": (os.environ["EARTHRANGER_SERVER"]),
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USERNAME": os.environ["EARTHRANGER_USERNAME"],
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__PASSWORD": os.environ["EARTHRANGER_PASSWORD"],
         "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__TCP_LIMIT": "5",
         "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SUB_PAGE_SIZE": "4000",
     }
@@ -77,9 +71,7 @@ def mock_empty_client():
     mock.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
     mock.get_patrol_events.return_value = pd.DataFrame()
     mock.get_events.return_value = pd.DataFrame()
-    mock.get_event_types.return_value = pd.DataFrame(
-        {"id": ["AAA123"], "value": ["an_event"]}
-    )
+    mock.get_event_types.return_value = pd.DataFrame({"id": ["AAA123"], "value": ["an_event"]})
     return mock
 
 
@@ -88,12 +80,8 @@ def test_get_subject_group_observations(client):
         client=client,
         subject_group_name="Ecoscope",
         time_range=TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
     )
@@ -122,9 +110,7 @@ def test_get_patrol_observations(named_mock_env):
                         "utc": "+00:00",
                     },
                 },
-                patrol_types=[
-                    "    ecoscope_patrol           "
-                ],  # the whitespaces are intentional to test that they get stripped correctly
+                patrol_types=["    ecoscope_patrol           "],  # whitespaces are intentional to test stripping
                 status=None,
                 include_patrol_details=True,
             )
@@ -147,17 +133,13 @@ def test_get_patrol_observations_with_whitespace_in_patrol_types_without_pydanti
         get_patrol_observations(
             client=client,
             time_range=TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                ),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                ),
+                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
                 timezone=UTC_TIMEZONEINFO,
             ),
-            patrol_types=[
-                "    ecoscope_patrol           "
-            ],  # the whitespaces here will NOT get stripped because we're not using Pydantic validation. This should cause ERClient to signal an exception.
+            patrol_types=["    ecoscope_patrol           "],
+            # the whitespaces here will NOT get stripped because we're not using
+            # Pydantic validation. This should cause ERClient to signal an exception.
             status=None,
             include_patrol_details=True,
             raise_on_empty=True,
@@ -168,12 +150,8 @@ def test_get_patrol_events(client):
     result = get_patrol_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         patrol_types="ecoscope_patrol",
@@ -191,12 +169,8 @@ def test_get_events(client):
     result = get_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         event_types=[
@@ -221,12 +195,8 @@ def test_get_events_with_details(client):
     result = get_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         include_details=True,
@@ -279,12 +249,12 @@ def test_get_events_with_event_type_whitespace(named_mock_env):
                     },
                 },
                 event_types=[
-                    "         hwc_rep    ",  # the whitespaces are intentional to test that they get stripped correctly
-                    "   bird_sighting_rep           ",  # the whitespaces are intentional to test that they get stripped correctly
-                    "      wildlife_sighting_rep        ",  # the whitespaces are intentional to test that they get stripped correctly
-                    "  poacher_camp_rep    ",  # the whitespaces are intentional to test that they get stripped correctly
-                    "    fire_rep   ",  # the whitespaces are intentional to test that they get stripped correctly
-                    "     injured_animal_rep   ",  # the whitespaces are intentional to test that they get stripped correctly
+                    "         hwc_rep    ",  # whitespaces are intentional to test stripping
+                    "   bird_sighting_rep           ",  # whitespaces are intentional to test stripping
+                    "      wildlife_sighting_rep        ",  # whitespaces are intentional to test stripping
+                    "  poacher_camp_rep    ",  # whitespaces are intentional to test stripping
+                    "    fire_rep   ",  # whitespaces are intentional to test stripping
+                    "     injured_animal_rep   ",  # whitespaces are intentional to test stripping
                 ],
                 event_columns=["id", "time", "event_type", "geometry"],
             )
@@ -298,12 +268,8 @@ def test_get_events_bad_event_type(client):
     result = get_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         event_types=[
@@ -330,12 +296,8 @@ def test_get_patrol_observations_all_types(client):
     result = get_patrol_observations(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2024-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         patrol_types=[],
@@ -352,12 +314,8 @@ def test_get_events_parity(client):
     do not alter the return value of the core library function in any way.
     """
     original_event_args = {
-        "since": datetime.strptime("2015-01-01", "%Y-%m-%d")
-        .replace(tzinfo=timezone.utc)
-        .isoformat(),
-        "until": datetime.strptime("2015-12-31", "%Y-%m-%d")
-        .replace(tzinfo=timezone.utc)
-        .isoformat(),
+        "since": datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc).isoformat(),
+        "until": datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc).isoformat(),
         "event_type_ids": ["9477c3e3-cf46-4f2e-9bdd-05f91b2201ba"],
         "drop_null_geometry": False,
     }
@@ -379,12 +337,8 @@ def test_get_events_all_types(client):
     result = get_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         event_types=[],
@@ -398,12 +352,8 @@ def test_get_patrol_events_all_types(client):
     result = get_patrol_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2024-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         patrol_types=[],
@@ -420,12 +370,8 @@ def test_get_patrol_events_with_event_type_filter(client):
     result = get_patrol_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-04-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-04-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         patrol_types=[],
@@ -439,19 +385,13 @@ def test_get_patrol_events_with_event_type_filter(client):
     "filter_value, expected_int",
     list(_EXCLUSION_FILTER_TO_INT.items()),
 )
-def test_get_subjectgroup_observations_exclusion_filter(
-    mock_empty_client, filter_value, expected_int
-):
+def test_get_subjectgroup_observations_exclusion_filter(mock_empty_client, filter_value, expected_int):
     get_subjectgroup_observations(
         client=mock_empty_client,
         subject_group_name="Ecoscope",
         time_range=TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         raise_on_empty=False,
@@ -467,12 +407,8 @@ def test_get_subjectgroup_observations_empty_response(mock_empty_client):
         "client": mock_empty_client,
         "subject_group_name": "Ecoscope",
         "time_range": TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
     }
@@ -489,12 +425,8 @@ def test_get_patrol_observations_empty_response(mock_empty_client):
     kwargs = {
         "client": mock_empty_client,
         "time_range": TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         "patrol_types": "ecoscope_patrol",
@@ -512,12 +444,8 @@ def test_get_patrol_events_empty_response(mock_empty_client):
     kwargs = {
         "client": mock_empty_client,
         "time_range": TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         "patrol_types": "ecoscope_patrol",
@@ -536,12 +464,8 @@ def test_get_events_empty_response(mock_empty_client):
     kwargs = {
         "client": mock_empty_client,
         "time_range": TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         "event_types": ["an_event"],
@@ -560,12 +484,8 @@ def test_get_patrols_empty_response(mock_empty_client):
     kwargs = {
         "client": mock_empty_client,
         "time_range": TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         "patrol_types": "ecoscope_patrol",
@@ -600,12 +520,8 @@ def test_unpack_events_from_patrols_df_empty_response(mock_empty_client):
         "patrols_df": empty_patrols_df,
         "event_types": [],
         "time_range": TimeRange(
-            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
     }
@@ -622,12 +538,8 @@ def test_patrol_events_combined(named_mock_env):
     patrol_obs_args = {
         "client": "MEP_DEV",
         "time_range": TimeRange(
-            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2024-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         "patrol_types": ["ecoscope_patrol"],
@@ -639,12 +551,8 @@ def test_patrol_events_combined(named_mock_env):
     patrol_events_args = {
         "client": "MEP_DEV",
         "time_range": TimeRange(
-            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2024-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         "patrol_types": ["ecoscope_patrol"],
@@ -686,9 +594,7 @@ def test_patrol_events_combined(named_mock_env):
             "ecoscope.io.EarthRangerIO.get_patrol_observations_with_patrol_filter",
             mock_patrol_obs,
         ):
-            with patch(
-                "ecoscope.io.EarthRangerIO.get_patrol_events", mock_patrol_events
-            ):
+            with patch("ecoscope.io.EarthRangerIO.get_patrol_events", mock_patrol_events):
                 task(get_patrol_observations).validate().call(**patrol_obs_args)
                 task(get_patrol_events).validate().call(**patrol_events_args)
 
@@ -716,12 +622,8 @@ def test_get_patrol_observations_combined_parity(named_mock_env):
         args = {
             "client": "MEP_DEV",
             "time_range": TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                ),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                ),
+                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
                 timezone=UTC_TIMEZONEINFO,
             ),
             "patrol_types": ["ecoscope_patrol"],
@@ -739,9 +641,7 @@ def test_get_patrol_observations_combined_parity(named_mock_env):
         # event_types is not an arg in get_patrol_observations, but it is required for
         # CombinedPatrolAndEventsParams so explicitly add here
         combined = CombinedPatrolAndEventsParams(**args, event_types=[])
-        pd.testing.assert_frame_equal(
-            get_patrol_observations_from_combined_params(combined), result
-        )
+        pd.testing.assert_frame_equal(get_patrol_observations_from_combined_params(combined), result)
 
 
 def test_get_patrol_events_combined_parity(named_mock_env):
@@ -749,12 +649,8 @@ def test_get_patrol_events_combined_parity(named_mock_env):
         args = {
             "client": "MEP_DEV",
             "time_range": TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                ),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                ),
+                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
                 timezone=UTC_TIMEZONEINFO,
             ),
             "patrol_types": ["ecoscope_patrol"],
@@ -770,9 +666,7 @@ def test_get_patrol_events_combined_parity(named_mock_env):
         assert "geometry" in result
 
         combined = CombinedPatrolAndEventsParams(**args)
-        pd.testing.assert_frame_equal(
-            get_patrol_events_from_combined_params(combined), result
-        )
+        pd.testing.assert_frame_equal(get_patrol_events_from_combined_params(combined), result)
 
 
 def test_get_patrols_combined_parity(named_mock_env):
@@ -780,12 +674,8 @@ def test_get_patrols_combined_parity(named_mock_env):
         args = {
             "client": "MEP_DEV",
             "time_range": TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                ),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(
-                    tzinfo=timezone.utc
-                ),
+                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
                 timezone=UTC_TIMEZONEINFO,
             ),
             "patrol_types": ["ecoscope_patrol"],
@@ -803,14 +693,10 @@ def test_get_patrols_combined_parity(named_mock_env):
         # event_types is not an arg in get_patrols, but it is required for
         # CombinedPatrolAndEventsParams so explicitly add here
         combined = CombinedPatrolAndEventsParams(**args, event_types=[])
-        pd.testing.assert_frame_equal(
-            get_patrols_from_combined_params(combined), result
-        )
+        pd.testing.assert_frame_equal(get_patrols_from_combined_params(combined), result)
 
 
-def test_get_patrol_observations_from_patrols_df_combined_parity(
-    client, named_mock_env
-):
+def test_get_patrol_observations_from_patrols_df_combined_parity(client, named_mock_env):
     time_range = TimeRange(
         since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
         until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
@@ -831,11 +717,7 @@ def test_get_patrol_observations_from_patrols_df_combined_parity(
             "include_patrol_details": True,
         }
 
-        result = (
-            task(get_patrol_observations_from_patrols_df)
-            .validate()
-            .call(**shared_args, patrols_df=patrols_df)
-        )
+        result = task(get_patrol_observations_from_patrols_df).validate().call(**shared_args, patrols_df=patrols_df)
         assert len(result) > 0
         assert "geometry" in result
         assert "groupby_col" in result
@@ -877,11 +759,7 @@ def test_unpack_events_from_patrols_df_combined_parity(client, named_mock_env):
             "time_range": time_range,
             "event_types": [],
         }
-        result = (
-            task(unpack_events_from_patrols_df)
-            .validate()
-            .call(**shared_args, patrols_df=patrols_df)
-        )
+        result = task(unpack_events_from_patrols_df).validate().call(**shared_args, patrols_df=patrols_df)
         assert len(result) > 0
         assert "id" in result
         assert "event_type" in result
@@ -894,9 +772,7 @@ def test_unpack_events_from_patrols_df_combined_parity(client, named_mock_env):
             status=status,
         )
         pd.testing.assert_frame_equal(
-            unpack_events_from_patrols_df_and_combined_params(
-                patrols_df=patrols_df, combined_params=combined
-            ),
+            unpack_events_from_patrols_df_and_combined_params(patrols_df=patrols_df, combined_params=combined),
             result,
         )
 
@@ -905,12 +781,8 @@ def test_get_patrols(client):
     result = get_patrols(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         patrol_types="ecoscope_patrol",
@@ -928,12 +800,8 @@ def test_get_patrol_observations_from_patrols_df(client):
     patrols = get_patrols(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         patrol_types="ecoscope_patrol",
@@ -980,12 +848,8 @@ def test_get_events_empty_event_type_selection(client):
     result = get_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         event_types=[],
@@ -1004,12 +868,8 @@ def test_get_event_type_display_names_from_events(client):
     events_gdf = get_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2025-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2025-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2025-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2025-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         event_types=[],
@@ -1028,12 +888,8 @@ def test_get_patrol_events_with_display_values(client):
     result = get_patrol_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         patrol_types="ecoscope_patrol",
@@ -1053,12 +909,8 @@ def test_get_patrol_events_with_display_values_empty(client):
     result = get_patrol_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("1985-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("1985-03-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("1985-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("1985-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         patrol_types="ecoscope_patrol",
@@ -1075,12 +927,8 @@ def test_get_events_with_display_values(client):
     result = get_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         event_types=[
@@ -1107,12 +955,8 @@ def test_get_events_with_display_values_empty(client):
     result = get_events(
         client=client,
         time_range=TimeRange(
-            since=datetime.strptime("1985-01-01", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
-            until=datetime.strptime("1985-12-31", "%Y-%m-%d").replace(
-                tzinfo=timezone.utc
-            ),
+            since=datetime.strptime("1985-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("1985-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
         event_types=[],
@@ -1199,26 +1043,16 @@ def test_event_details_params_emitters(client):
 
     assert get_event_type_from_event_details(params) == input_event_type
     assert get_analysis_field_from_event_details(params) == input_analysis_field
-    assert (
-        get_analysis_field_label_from_event_details(params)
-        == input_analysis_field_label
-    )
-    assert (
-        get_analysis_field_unit_from_event_details(params) == input_analysis_field_unit
-    )
+    assert get_analysis_field_label_from_event_details(params) == input_analysis_field_label
+    assert get_analysis_field_unit_from_event_details(params) == input_analysis_field_unit
     assert get_category_field_from_event_details(params) == input_category_field
-    assert (
-        get_category_field_label_from_event_details(params)
-        == input_category_field_label
-    )
+    assert get_category_field_label_from_event_details(params) == input_category_field_label
 
 
 def test_get_spatial_features_group(client):
     group_name = "mep"
     group_id = "15698426-7e0f-41df-9bc3-495d87e2e097"
-    sfg = get_spatial_features_group(
-        client=client, spatial_features_group_name=group_name
-    )
+    sfg = get_spatial_features_group(client=client, spatial_features_group_name=group_name)
 
     assert isinstance(sfg, gpd.GeoDataFrame)
     assert not sfg.empty
@@ -1233,9 +1067,7 @@ def test_get_spatial_features_group(client):
 
 
 def test_get_fields_from_event_type_schema(client):
-    fields = client.get_fields_from_event_type_schema(
-        event_type="elephant_sigthing_test"
-    )
+    fields = client.get_fields_from_event_type_schema(event_type="elephant_sigthing_test")
     assert isinstance(fields, dict)
     assert {
         "name_of_collared_elephant": "Name of collared elephant",

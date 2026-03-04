@@ -214,9 +214,7 @@ def test_patrol_and_subject_obs_are_relocs():
             "geometry": [Point(0.0, 0.0), Point(100.0, 50.0)],
         }
     )
-    validated_subject_obs = TypeAdapter(SubjectGroupObservationsGDF).validate_python(
-        subject_obs
-    )
+    validated_subject_obs = TypeAdapter(SubjectGroupObservationsGDF).validate_python(subject_obs)
 
     patrol_obs = gpd.GeoDataFrame(
         {
@@ -227,9 +225,7 @@ def test_patrol_and_subject_obs_are_relocs():
             "geometry": [Point(0.0, 0.0), Point(100.0, 50.0)],
         }
     )
-    validated_patrol_obs = TypeAdapter(SubjectGroupObservationsGDF).validate_python(
-        patrol_obs
-    )
+    validated_patrol_obs = TypeAdapter(SubjectGroupObservationsGDF).validate_python(patrol_obs)
 
     RelocationsGDFSchema.validate(validated_subject_obs)
     RelocationsGDFSchema.validate(validated_patrol_obs)
@@ -297,16 +293,16 @@ def test_trajectory_schema():
         ta.validate_python(gdf_with_missing_column)
 
     gdf_with_naive_segment_start = gdf_without_null.copy()
-    gdf_with_naive_segment_start["segment_start"] = gdf_with_naive_segment_start[
-        "segment_start"
-    ].apply(lambda x: x.replace(tzinfo=None))
+    gdf_with_naive_segment_start["segment_start"] = gdf_with_naive_segment_start["segment_start"].apply(
+        lambda x: x.replace(tzinfo=None)
+    )
     with pytest.raises(ValidationError):
         ta.validate_python(gdf_with_naive_segment_start)
 
     gdf_with_naive_segment_end = gdf_without_null.copy()
-    gdf_with_naive_segment_end["segment_end"] = gdf_with_naive_segment_end[
-        "segment_start"
-    ].apply(lambda x: x.replace(tzinfo=None))
+    gdf_with_naive_segment_end["segment_end"] = gdf_with_naive_segment_end["segment_start"].apply(
+        lambda x: x.replace(tzinfo=None)
+    )
     with pytest.raises(ValidationError):
         ta.validate_python(gdf_with_naive_segment_end)
 

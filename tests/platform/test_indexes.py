@@ -131,9 +131,7 @@ def test_temporal_grouper_sort_key(
     expected_sorted_choices: list[str],
 ):
     g = next(iter(grouper_choices))
-    assert (
-        sorted(grouper_choices[g], key=(g.sort_key or None)) == expected_sorted_choices
-    )
+    assert sorted(grouper_choices[g], key=(g.sort_key or None)) == expected_sorted_choices
 
 
 def test_spatial_grouper():
@@ -180,7 +178,5 @@ def test_temporal_grouper_coerces_directive_string(directive, expected_type):
 def test_temporal_grouper_raises_on_bad_directive():
     """Test that a non-existant strftime directive fails to validate as a TemporalGrouper."""
     bad_directive = "I'm Baaaaaad"
-    with pytest.raises(
-        ValueError, match=f"Unknown temporal index directive: {bad_directive}"
-    ):
+    with pytest.raises(ValueError, match=f"Unknown temporal index directive: {bad_directive}"):
         TemporalGrouper(temporal_index=bad_directive)

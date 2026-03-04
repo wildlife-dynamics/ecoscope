@@ -17,9 +17,7 @@ def sample_dataframe():
 
 def test_drop_columns(sample_dataframe):
     """Test that columns are correctly dropped."""
-    result_df = map_columns(
-        sample_dataframe, drop_columns=["A"], retain_columns=[], rename_columns={}
-    )
+    result_df = map_columns(sample_dataframe, drop_columns=["A"], retain_columns=[], rename_columns={})
     assert "A" not in result_df.columns
 
 
@@ -49,17 +47,13 @@ def test_drop_columns_ignore_missing(sample_dataframe):
 
 def test_retain_columns(sample_dataframe):
     """Test that only specified columns are retained."""
-    result_df = map_columns(
-        sample_dataframe, drop_columns=[], retain_columns=["B"], rename_columns={}
-    )
+    result_df = map_columns(sample_dataframe, drop_columns=[], retain_columns=["B"], rename_columns={})
     assert list(result_df.columns) == ["B"]
 
 
 def test_retain_columns_respects_order(sample_dataframe):
     """Test that only specified columns are retained."""
-    result_df = map_columns(
-        sample_dataframe, drop_columns=[], retain_columns=["B", "A"], rename_columns={}
-    )
+    result_df = map_columns(sample_dataframe, drop_columns=[], retain_columns=["B", "A"], rename_columns={})
     assert list(result_df.columns) == ["B", "A"]
 
 
@@ -76,17 +70,13 @@ def test_retain_columns_error(sample_dataframe):
 
 def test_rename_columns(sample_dataframe):
     """Test that columns are correctly renamed."""
-    result_df = map_columns(
-        sample_dataframe, drop_columns=[], retain_columns=[], rename_columns={"B": "Z"}
-    )
+    result_df = map_columns(sample_dataframe, drop_columns=[], retain_columns=[], rename_columns={"B": "Z"})
     assert "Z" in result_df.columns and "B" not in result_df.columns
 
 
 def test_rename_columns_error(sample_dataframe):
     """Test raising error if a column does not exist."""
-    with pytest.raises(
-        KeyError, match=r"Columns \['NOT_EXIST'\] not all found in DataFrame\."
-    ):
+    with pytest.raises(KeyError, match=r"Columns \['NOT_EXIST'\] not all found in DataFrame\."):
         map_columns(
             sample_dataframe,
             drop_columns=[],
@@ -101,9 +91,7 @@ def test_rename_columns_with_list(sample_dataframe):
         RenameColumn(original_name="B", new_name="Z"),
         RenameColumn(original_name="C", new_name="Y"),
     ]
-    result_df = map_columns(
-        sample_dataframe, drop_columns=[], retain_columns=[], rename_columns=rename_list
-    )
+    result_df = map_columns(sample_dataframe, drop_columns=[], retain_columns=[], rename_columns=rename_list)
     assert "Z" in result_df.columns and "B" not in result_df.columns
     assert "Y" in result_df.columns and "C" not in result_df.columns
     assert "A" in result_df.columns
@@ -112,9 +100,7 @@ def test_rename_columns_with_list(sample_dataframe):
 def test_rename_columns_with_list_single_column(sample_dataframe):
     """Test renaming a single column using a list of RenameColumn objects."""
     rename_list = [RenameColumn(original_name="A", new_name="X")]
-    result_df = map_columns(
-        sample_dataframe, drop_columns=[], retain_columns=[], rename_columns=rename_list
-    )
+    result_df = map_columns(sample_dataframe, drop_columns=[], retain_columns=[], rename_columns=rename_list)
     assert "X" in result_df.columns and "A" not in result_df.columns
     assert list(result_df.columns) == ["X", "B", "C"]
 
@@ -122,9 +108,7 @@ def test_rename_columns_with_list_single_column(sample_dataframe):
 def test_rename_columns_with_list_error(sample_dataframe):
     """Test raising error if a column does not exist when using list format."""
     rename_list = [RenameColumn(original_name="NOT_EXIST", new_name="Z")]
-    with pytest.raises(
-        KeyError, match=r"Columns \['NOT_EXIST'\] not all found in DataFrame\."
-    ):
+    with pytest.raises(KeyError, match=r"Columns \['NOT_EXIST'\] not all found in DataFrame\."):
         map_columns(
             sample_dataframe,
             drop_columns=[],

@@ -3,7 +3,6 @@ from unittest.mock import patch
 
 import pytest
 from ecoscope.platform.annotations import DataFrame
-from ecoscope.platform.connections import is_client
 from ecoscope.platform.connections import (
     EarthEngineClient,
     EarthEngineConnection,
@@ -11,6 +10,7 @@ from ecoscope.platform.connections import (
     EarthRangerConnection,
     SmartClient,
     SmartConnection,
+    is_client,
 )
 from pydantic import SecretStr, validate_call
 
@@ -76,9 +76,7 @@ def test_ee_connection_unnamed():
 @pytest.fixture
 def named_mock_env():
     return {
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER": (
-            "https://mep-dev.pamdas.org"
-        ),
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER": ("https://mep-dev.pamdas.org"),
         "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USERNAME": "user",
         "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__PASSWORD": "pass",
         "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__TCP_LIMIT": "5",
@@ -110,9 +108,7 @@ def test_er_connection_named_from_env(named_mock_env):
 def test_smart_connection_named_from_env(named_mock_env):
     with patch.dict(os.environ, named_mock_env):
         conn = SmartConnection.from_named_connection("TEST")
-        assert (
-            conn.server == "https://smartapitest.smartconservationtools.org/smartapi/"
-        )
+        assert conn.server == "https://smartapitest.smartconservationtools.org/smartapi/"
         assert conn.username == "user"
 
         assert isinstance(conn.password, SecretStr)
@@ -145,9 +141,7 @@ def test_resolve_er_client_from_env(named_mock_env):
 @pytest.fixture
 def named_mock_env_with_token():
     return {
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER": (
-            "https://mep-dev.pamdas.org"
-        ),
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER": ("https://mep-dev.pamdas.org"),
         "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__TOKEN": "123456789",
         "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__TCP_LIMIT": "5",
         "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SUB_PAGE_SIZE": "4000",

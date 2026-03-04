@@ -5,11 +5,10 @@ from ecoscope.platform.annotations import (
     DataFrame,
     JsonSerializableDataFrameModel,
 )
+from ecoscope.platform.tasks.analysis._summary import AggOperations
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
-
-from ecoscope.platform.tasks.analysis._summary import AggOperations
 
 
 class SmoothingConfig(BaseModel):
@@ -19,9 +18,7 @@ class SmoothingConfig(BaseModel):
 
     method: Annotated[
         Literal["spline"],
-        Field(
-            description="The smoothing method to apply. Currently supports 'spline'."
-        ),
+        Field(description="The smoothing method to apply. Currently supports 'spline'."),
     ] = "spline"
     y_min: Annotated[
         float | SkipJsonSchema[None],
@@ -78,86 +75,46 @@ class AxisStyle(BaseModel):
 
 
 class PlotStyle(BaseModel):
-    xperiodalignment: Annotated[
-        str | SkipJsonSchema[None], AdvancedField(default=None)
-    ] = None
-    marker_colors: Annotated[
-        list[str] | SkipJsonSchema[None], AdvancedField(default=None)
-    ] = None
+    xperiodalignment: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    marker_colors: Annotated[list[str] | SkipJsonSchema[None], AdvancedField(default=None)] = None
     textinfo: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    line: Annotated[LineStyle | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
+    line: Annotated[LineStyle | SkipJsonSchema[None], AdvancedField(default=None)] = None
     fillcolor: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     mode: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     name: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    width: Annotated[
-        int | list[int] | SkipJsonSchema[None], AdvancedField(default=None)
-    ] = None
+    width: Annotated[int | list[int] | SkipJsonSchema[None], AdvancedField(default=None)] = None
     xperiod: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
 
 
 class PlotCategoryStyle(BaseModel):
-    marker_color: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
-    textposition: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
-    texttemplate: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
+    marker_color: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    textposition: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    texttemplate: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
 
 
 class GroupedPlotStyle(BaseModel):
     category: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    plot_style: Annotated[
-        PlotCategoryStyle, AdvancedField(default=PlotCategoryStyle())
-    ] = PlotCategoryStyle()
+    plot_style: Annotated[PlotCategoryStyle, AdvancedField(default=PlotCategoryStyle())] = PlotCategoryStyle()
 
 
 class LayoutStyle(BaseModel):
-    font_size: Annotated[float | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
-    font_color: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
-    font_style: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
-    plot_bgcolor: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
-    showlegend: Annotated[bool | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
+    font_size: Annotated[float | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    font_color: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    font_style: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    plot_bgcolor: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    showlegend: Annotated[bool | SkipJsonSchema[None], AdvancedField(default=None)] = None
     hovermode: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    legend_title: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
+    legend_title: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     title: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    title_x: Annotated[
-        float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)
-    ] = None
-    title_y: Annotated[
-        float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)
-    ] = None
-    xaxis: Annotated[AxisStyle | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
-    yaxis: Annotated[AxisStyle | SkipJsonSchema[None], AdvancedField(default=None)] = (
-        None
-    )
+    title_x: Annotated[float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)] = None
+    title_y: Annotated[float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)] = None
+    xaxis: Annotated[AxisStyle | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    yaxis: Annotated[AxisStyle | SkipJsonSchema[None], AdvancedField(default=None)] = None
 
 
 class BarLayoutStyle(LayoutStyle):
-    bargap: Annotated[
-        float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)
-    ] = None
-    bargroupgap: Annotated[
-        float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)
-    ] = None
+    bargap: Annotated[float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)] = None
+    bargroupgap: Annotated[float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)] = None
 
 
 class ExportConfig(BaseModel):
@@ -192,12 +149,8 @@ class ExportArgs(BaseModel):
 
 class BarConfig(BaseModel):
     column: Annotated[str, Field(description="The dataframe column to aggregate.")]
-    agg_func: Annotated[
-        AggOperations, Field(description="The aggregate function to apply.")
-    ]
-    label: Annotated[
-        str, Field(description="The label for the bar in the chart legend.")
-    ]
+    agg_func: Annotated[AggOperations, Field(description="The aggregate function to apply.")]
+    label: Annotated[str, Field(description="The label for the bar in the chart legend.")]
     show_label: Annotated[
         bool,
         AdvancedField(
@@ -207,19 +160,13 @@ class BarConfig(BaseModel):
     ] = False
     style: Annotated[
         PlotCategoryStyle | SkipJsonSchema[None],
-        AdvancedField(
-            default=None, description="The style parameters for the category"
-        ),
+        AdvancedField(default=None, description="The style parameters for the category"),
     ] = None
 
 
 class EcoplotConfig(BaseModel):
-    x_col: Annotated[
-        str, Field(description="The dataframe column to plot in the x axis.")
-    ]
-    y_col: Annotated[
-        str, Field(description="The dataframe column to plot in the y axis.")
-    ]
+    x_col: Annotated[str, Field(description="The dataframe column to plot in the x axis.")]
+    y_col: Annotated[str, Field(description="The dataframe column to plot in the y axis.")]
     color_col: Annotated[
         str | SkipJsonSchema[None],
         AdvancedField(
@@ -237,14 +184,10 @@ class EcoplotConfig(BaseModel):
 def draw_ecoplot(
     dataframe: DataFrame[JsonSerializableDataFrameModel],
     group_by: Annotated[str, Field(description="The dataframe column to group by.")],
-    ecoplot_configs: Annotated[
-        list[EcoplotConfig], Field(description="ecoplot configs.")
-    ],
+    ecoplot_configs: Annotated[list[EcoplotConfig], Field(description="ecoplot configs.")],
     tickformat: Annotated[
         str,
-        AdvancedField(
-            default="%b-%Y", description="The time format for timeseries data."
-        ),
+        AdvancedField(default="%b-%Y", description="The time format for timeseries data."),
     ] = "%b-%Y",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
@@ -282,11 +225,7 @@ def draw_ecoplot(
                 x_col=config.x_col,
                 y_col=config.y_col,
                 color_col=config.color_col,
-                **(
-                    config.plot_style.model_dump(exclude_none=True)
-                    if config.plot_style
-                    else {}
-                ),
+                **(config.plot_style.model_dump(exclude_none=True) if config.plot_style else {}),
             )
         )
 
@@ -301,15 +240,9 @@ def draw_ecoplot(
 @register()
 def draw_time_series_bar_chart(
     dataframe: DataFrame[JsonSerializableDataFrameModel],
-    x_axis: Annotated[
-        str, Field(description="The dataframe column to plot in the x/time axis.")
-    ],
-    y_axis: Annotated[
-        str, Field(description="The dataframe column to plot in the y axis.")
-    ],
-    category: Annotated[
-        str, Field(description="The dataframe column to stack in the y axis.")
-    ],
+    x_axis: Annotated[str, Field(description="The dataframe column to plot in the x/time axis.")],
+    y_axis: Annotated[str, Field(description="The dataframe column to plot in the y axis.")],
+    category: Annotated[str, Field(description="The dataframe column to stack in the y axis.")],
     agg_function: Annotated[
         AggOperations,
         Field(description="The aggregate function to apply to the group."),
@@ -327,9 +260,7 @@ def draw_time_series_bar_chart(
     ] = None,
     plot_style: Annotated[
         PlotStyle | SkipJsonSchema[None],
-        AdvancedField(
-            default=None, description="Additional style kwargs passed to go.Bar()."
-        ),
+        AdvancedField(default=None, description="Additional style kwargs passed to go.Bar()."),
     ] = None,
     layout_style: Annotated[
         BarLayoutStyle | SkipJsonSchema[None],
@@ -377,28 +308,21 @@ def draw_time_series_bar_chart(
 
     match time_interval:
         case "year":
-            dataframe["truncated_time"] = dataframe[x_axis].apply(
-                lambda x: datetime.datetime(x.year, 1, 1)
-            )
+            dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: datetime.datetime(x.year, 1, 1))
             layout_kws["xaxis_dtick"] = "M12"
         case "month":
-            dataframe["truncated_time"] = dataframe[x_axis].apply(
-                lambda x: datetime.datetime(x.year, x.month, 1)
-            )
+            dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: datetime.datetime(x.year, x.month, 1))
             layout_kws["xaxis_dtick"] = "M1"
             plot_style.width = MONTH_IN_MILLISECONDS
             plot_style.xperiod = "M1"
             plot_style.xperiodalignment = "start"
         case "week":
             dataframe["truncated_time"] = dataframe[x_axis].apply(
-                lambda x: datetime.datetime(x.year, x.month, x.day)
-                - datetime.timedelta(x.day_of_week)
+                lambda x: datetime.datetime(x.year, x.month, x.day) - datetime.timedelta(x.day_of_week)
             )
             layout_kws["xaxis_dtick"] = WEEK_IN_MILLISECONDS
         case "day":
-            dataframe["truncated_time"] = dataframe[x_axis].apply(
-                lambda x: datetime.datetime(x.year, x.month, x.day)
-            )
+            dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: datetime.datetime(x.year, x.month, x.day))
             layout_kws["xaxis_dtick"] = DAY_IN_MILLISECONDS
         case "hour":
             dataframe["truncated_time"] = dataframe[x_axis].apply(
@@ -437,9 +361,7 @@ def draw_bar_chart(
     ],
     category: Annotated[
         str,
-        Field(
-            description="The column name in the dataframe to group by and use as the x-axis categories."
-        ),
+        Field(description="The column name in the dataframe to group by and use as the x-axis categories."),
     ],
     layout_kwargs: Annotated[
         LayoutStyle | SkipJsonSchema[None],
@@ -488,9 +410,7 @@ def draw_bar_chart(
         data=dataframe,
         bar_configs=bar_configs,
         category=category,
-        layout_kwargs=layout_kwargs.model_dump(exclude_none=True)
-        if layout_kwargs
-        else {},
+        layout_kwargs=layout_kwargs.model_dump(exclude_none=True) if layout_kwargs else {},
     )
 
     return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
@@ -499,17 +419,11 @@ def draw_bar_chart(
 @register()
 def draw_line_chart(
     dataframe: DataFrame[JsonSerializableDataFrameModel],
-    x_column: Annotated[
-        str, Field(description="The dataframe column to plot in the x/time axis.")
-    ],
-    y_column: Annotated[
-        str, Field(description="The dataframe column to plot in the y/time axis.")
-    ],
+    x_column: Annotated[str, Field(description="The dataframe column to plot in the x/time axis.")],
+    y_column: Annotated[str, Field(description="The dataframe column to plot in the y/time axis.")],
     category_column: Annotated[
         str | SkipJsonSchema[None],
-        Field(
-            description="The column name in the dataframe to group by and plot separate traces."
-        ),
+        Field(description="The column name in the dataframe to group by and plot separate traces."),
     ] = None,
     line_kwargs: Annotated[
         LineStyle | SkipJsonSchema[None],
@@ -529,7 +443,9 @@ def draw_line_chart(
         SmoothingConfig | SkipJsonSchema[None],
         AdvancedField(
             default=None,
-            description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+            description=(
+                "Configuration for line smoothing. When set, creates a smoothed line with original data point markers."
+            ),
         ),
     ] = None,
     widget_id: Annotated[
@@ -580,9 +496,7 @@ def draw_line_chart(
         y_column=y_column,
         category_column=category_column,
         line_kwargs=line_kwargs.model_dump(exclude_none=True) if line_kwargs else {},
-        layout_kwargs=layout_kwargs.model_dump(exclude_none=True)
-        if layout_kwargs
-        else {},
+        layout_kwargs=layout_kwargs.model_dump(exclude_none=True) if layout_kwargs else {},
         smoothing=smoothing_config,
     )
 
@@ -594,15 +508,16 @@ def draw_pie_chart(
     dataframe: DataFrame[JsonSerializableDataFrameModel],
     value_column: Annotated[
         str,
-        Field(
-            description="The name of the dataframe column to pull slice values from."
-        ),
+        Field(description="The name of the dataframe column to pull slice values from."),
     ],
     label_column: Annotated[
         str | SkipJsonSchema[None],
         AdvancedField(
             default=None,
-            description="The name of the dataframe column to label slices with, required if the data in value_column is numeric.",
+            description=(
+                "The name of the dataframe column to label slices with,"
+                " required if the data in value_column is numeric."
+            ),
         ),
     ] = None,
     color_column: Annotated[
@@ -614,9 +529,7 @@ def draw_pie_chart(
     ] = None,
     plot_style: Annotated[
         PlotStyle | SkipJsonSchema[None],
-        AdvancedField(
-            default=None, description="Additional style kwargs passed to go.Pie()."
-        ),
+        AdvancedField(default=None, description="Additional style kwargs passed to go.Pie()."),
     ] = None,
     layout_style: Annotated[
         LayoutStyle | SkipJsonSchema[None],
@@ -642,7 +555,8 @@ def draw_pie_chart(
     Args:
     dataframe (pd.DataFrame): The input dataframe.
     value_column (str): The name of the dataframe column to pull slice values from.
-    label_column (str): The name of the dataframe column to label slices with, required if the data in value_column is numeric.
+    label_column (str): The name of the dataframe column to label slices with,
+        required if the data in value_column is numeric.
     plot_style (PlotStyle): Additional style kwargs passed to go.Pie().
     layout_style (LayoutStyle): Additional kwargs passed to plotly.go.Figure(layout).
     widget_id (str): The id of the dashboard widget that this tile layer belongs to.
@@ -659,9 +573,7 @@ def draw_pie_chart(
         label_column=label_column,
         color_column=color_column,
         style_kwargs=plot_style.model_dump(exclude_none=True) if plot_style else {},
-        layout_kwargs=layout_style.model_dump(exclude_none=True)
-        if layout_style
-        else {},
+        layout_kwargs=layout_style.model_dump(exclude_none=True) if layout_style else {},
     )
 
     return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
@@ -680,15 +592,11 @@ def draw_historic_timeseries(
     ],
     historic_min_column: Annotated[
         str | SkipJsonSchema[None],
-        Field(
-            description="The name of the dataframe column to pull historic min values from"
-        ),
+        Field(description="The name of the dataframe column to pull historic min values from"),
     ] = None,
     historic_max_column: Annotated[
         str | SkipJsonSchema[None],
-        Field(
-            description="The name of the dataframe column to pull historic max values from"
-        ),
+        Field(description="The name of the dataframe column to pull historic max values from"),
     ] = None,
     historic_band_title: Annotated[
         str | SkipJsonSchema[None],
@@ -696,15 +604,11 @@ def draw_historic_timeseries(
     ] = "Historic Min-Max",
     historic_mean_column: Annotated[
         str | SkipJsonSchema[None],
-        Field(
-            description="The name of the dataframe column to pull historic mean values from"
-        ),
+        Field(description="The name of the dataframe column to pull historic mean values from"),
     ] = None,
     historic_mean_title: Annotated[
         str | SkipJsonSchema[None],
-        Field(
-            description="The title shown in the plot legend for historic mean values"
-        ),
+        Field(description="The title shown in the plot legend for historic mean values"),
     ] = "Historic Mean",
     layout_style: Annotated[
         LayoutStyle | SkipJsonSchema[None],
@@ -736,9 +640,7 @@ def draw_historic_timeseries(
     ] = None,
     time_column: Annotated[
         str | SkipJsonSchema[None],
-        Field(
-            description="The name of the dataframe column to pull historic max values from"
-        ),
+        Field(description="The name of the dataframe column to pull historic max values from"),
     ] = "img_date",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
@@ -788,9 +690,7 @@ def draw_historic_timeseries(
     from ecoscope.plotting import plot
 
     if historic_mean_style is None:
-        historic_mean_style = PlotStyle(
-            mode="lines", line=LineStyle(color="green", dash="dot")
-        )
+        historic_mean_style = PlotStyle(mode="lines", line=LineStyle(color="green", dash="dot"))
     if current_value_style is None:
         current_value_style = PlotStyle(mode="lines", line=LineStyle(color="navy"))
 
@@ -804,18 +704,10 @@ def draw_historic_timeseries(
         historic_band_title=historic_band_title,
         historic_mean_column=historic_mean_column,
         historic_mean_title=historic_mean_title,
-        layout_kwargs=layout_style.model_dump(exclude_none=True)
-        if layout_style
-        else {},
-        upper_lower_band_style=upper_lower_band_style.model_dump(exclude_none=True)
-        if upper_lower_band_style
-        else {},
-        historic_mean_style=historic_mean_style.model_dump(exclude_none=True)
-        if historic_mean_style
-        else {},
-        current_value_style=current_value_style.model_dump(exclude_none=True)
-        if current_value_style
-        else {},
+        layout_kwargs=layout_style.model_dump(exclude_none=True) if layout_style else {},
+        upper_lower_band_style=upper_lower_band_style.model_dump(exclude_none=True) if upper_lower_band_style else {},
+        historic_mean_style=historic_mean_style.model_dump(exclude_none=True) if historic_mean_style else {},
+        current_value_style=current_value_style.model_dump(exclude_none=True) if current_value_style else {},
     )
 
     return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))

@@ -154,9 +154,7 @@ def test_split_groups_value_grouper_in_index():
             ("mammal", "Primates", np.nan),
             ("mammal", "Carnivora", 58),
         ],
-        index=pd.Index(
-            data=["falcon", "parrot", "lion", None, "leopard"], name="common_name"
-        ),
+        index=pd.Index(data=["falcon", "parrot", "lion", None, "leopard"], name="common_name"),
         columns=("class", "order", "max_speed"),
     )
     groupers = [ValueGrouper(index_name="common_name")]
@@ -217,9 +215,7 @@ def test_split_groups_value_grouper_multi_index():
 
     carnivora_expected_df = pd.DataFrame(
         data={"max_speed": [80.2]},
-        index=pd.MultiIndex.from_arrays(
-            [["mammal"], ["Carnivora"]], names=("class", "order")
-        ),
+        index=pd.MultiIndex.from_arrays([["mammal"], ["Carnivora"]], names=("class", "order")),
     )
     pd.testing.assert_frame_equal(
         getvalue((("order", "=", "Carnivora"),), groups),
@@ -228,9 +224,7 @@ def test_split_groups_value_grouper_multi_index():
 
     order_none_expected_df = pd.DataFrame(
         data={"max_speed": [58.0]},
-        index=pd.MultiIndex.from_arrays(
-            [["mammal"], ["None"]], names=("class", "order")
-        ),
+        index=pd.MultiIndex.from_arrays([["mammal"], ["None"]], names=("class", "order")),
     )
     pd.testing.assert_frame_equal(
         getvalue((("order", "=", "None"),), groups),

@@ -31,12 +31,8 @@ def single_filter_dashboard() -> DashboardFixture:
         widget_type="map",
         title="A Great Map",
         views={
-            (
-                ("TemporalGrouper_%B", "=", "January"),
-            ): "/path/to/precomputed/jan/map.html",
-            (
-                ("TemporalGrouper_%B", "=", "February"),
-            ): "/path/to/precomputed/feb/map.html",
+            (("TemporalGrouper_%B", "=", "January"),): "/path/to/precomputed/jan/map.html",
+            (("TemporalGrouper_%B", "=", "February"),): "/path/to/precomputed/feb/map.html",
         },
         is_filtered=True,
     )
@@ -44,20 +40,14 @@ def single_filter_dashboard() -> DashboardFixture:
         widget_type="graph",
         title="A Cool Plot",
         views={
-            (
-                ("TemporalGrouper_%B", "=", "January"),
-            ): "/path/to/precomputed/jan/plot.html",
-            (
-                ("TemporalGrouper_%B", "=", "February"),
-            ): "/path/to/precomputed/feb/plot.html",
+            (("TemporalGrouper_%B", "=", "January"),): "/path/to/precomputed/jan/plot.html",
+            (("TemporalGrouper_%B", "=", "February"),): "/path/to/precomputed/feb/plot.html",
         },
         is_filtered=True,
     )
     widgets = [great_map, cool_plot]
     dashboard = Dashboard(
-        grouper_choices={
-            TemporalGrouper(temporal_index=Month()): ["January", "February"]
-        },
+        grouper_choices={TemporalGrouper(temporal_index=Month()): ["January", "February"]},
         keys=[
             (("TemporalGrouper_%B", "=", "February"),),
             (("TemporalGrouper_%B", "=", "January"),),
@@ -258,9 +248,7 @@ def test_gather_dashboard_two_filter(two_filter_dashboard: DashboardFixture):
 
 def test__get_view_two_part_key(two_filter_dashboard: DashboardFixture):
     _, dashboard = two_filter_dashboard
-    assert dashboard._get_view(
-        (("TemporalGrouper_%B", "=", "January"), ("TemporalGrouper_%Y", "=", "2022"))
-    ) == [
+    assert dashboard._get_view((("TemporalGrouper_%B", "=", "January"), ("TemporalGrouper_%Y", "=", "2022"))) == [
         EmumeratedWidgetSingleView(
             id=0,
             widget_type="map",
@@ -269,9 +257,7 @@ def test__get_view_two_part_key(two_filter_dashboard: DashboardFixture):
             is_filtered=True,
         ),
     ]
-    assert dashboard._get_view(
-        (("TemporalGrouper_%B", "=", "January"), ("TemporalGrouper_%Y", "=", "2023"))
-    ) == [
+    assert dashboard._get_view((("TemporalGrouper_%B", "=", "January"), ("TemporalGrouper_%Y", "=", "2023"))) == [
         EmumeratedWidgetSingleView(
             id=0,
             widget_type="map",
@@ -531,12 +517,8 @@ def dashboard_with_none_views() -> DashboardFixture:
         widget_type="map",
         title="A Great Map",
         views={
-            (
-                ("TemporalGrouper_%B", "=", "January"),
-            ): "/path/to/precomputed/jan/map.html",
-            (
-                ("TemporalGrouper_%B", "=", "February"),
-            ): "/path/to/precomputed/feb/map.html",
+            (("TemporalGrouper_%B", "=", "January"),): "/path/to/precomputed/jan/map.html",
+            (("TemporalGrouper_%B", "=", "February"),): "/path/to/precomputed/feb/map.html",
         },
         is_filtered=True,
     )
@@ -550,9 +532,7 @@ def dashboard_with_none_views() -> DashboardFixture:
     )
     widgets = [great_map, none_view_plot]
     dashboard = Dashboard(
-        grouper_choices={
-            TemporalGrouper(temporal_index=Month()): ["January", "February"]
-        },
+        grouper_choices={TemporalGrouper(temporal_index=Month()): ["January", "February"]},
         keys=[
             (("TemporalGrouper_%B", "=", "February"),),
             (("TemporalGrouper_%B", "=", "January"),),
@@ -785,27 +765,19 @@ def outer_join_dashboard() -> Dashboard:
     jan_map = GroupedWidget(
         widget_type="map",
         title="A great map that happens to have only january data",
-        views={
-            (
-                ("TemporalGrouper_%B", "=", "January"),
-            ): "/path/to/precomputed/jan/map.html"
-        },
+        views={(("TemporalGrouper_%B", "=", "January"),): "/path/to/precomputed/jan/map.html"},
         is_filtered=True,
     )
     feb_plot = GroupedWidget(
         widget_type="graph",
         title="A plot that happens to have only february data",
         views={
-            (
-                ("TemporalGrouper_%B", "=", "February"),
-            ): "/path/to/precomputed/feb/plot.html",
+            (("TemporalGrouper_%B", "=", "February"),): "/path/to/precomputed/feb/plot.html",
         },
         is_filtered=False,
     )
     dashboard = gather_dashboard(
-        details=WorkflowDetails(
-            name="Demonstration of outer join behavior", description=""
-        ),
+        details=WorkflowDetails(name="Demonstration of outer join behavior", description=""),
         time_range=TimeRange(
             since=datetime.strptime("2011-01-01", "%Y-%m-%d"),
             until=datetime.strptime("2011-03-01", "%Y-%m-%d"),

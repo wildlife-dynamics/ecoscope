@@ -1,9 +1,6 @@
 from dataclasses import dataclass
 
 from ecoscope.platform.annotations import AnyGeoDataFrame, DataFrame
-from wt_registry import register
-from wt_task import task
-
 from ecoscope.platform.tasks.analysis._create_meshgrid import (
     AoiAnnotation,
     IntersectingOnlyAnnotation,
@@ -25,6 +22,8 @@ from ecoscope.platform.tasks.analysis._time_density import (
     calculate_linear_time_density,
 )
 from ecoscope.platform.tasks.results._ecomap import OpacityAnnotation
+from wt_registry import register
+from wt_task import task
 
 
 @dataclass
@@ -128,11 +127,7 @@ def call_meshgrid_from_combined_params(
     aoi: AoiAnnotation,
     combined_params: LtdArgsWithOpacity,
 ) -> AnyGeoDataFrame:
-    return (
-        task(create_meshgrid)
-        .validate()
-        .call(aoi=aoi, **combined_params.get_meshgrid_params())
-    )
+    return task(create_meshgrid).validate().call(aoi=aoi, **combined_params.get_meshgrid_params())
 
 
 @register()

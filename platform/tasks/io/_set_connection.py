@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
+from ecoscope.platform.annotations import AdvancedField
 from pydantic import Field
 from wt_registry import register
-
-from ecoscope.platform.annotations import AdvancedField
 
 ConnectionName = Annotated[str, Field(title="Data Source")]
 DataSourceField = Field(
@@ -16,17 +15,15 @@ DataSourceField = Field(
 @dataclass(frozen=True)
 class EarthRangerConnection:
     name: ConnectionName
-    connection_type: Annotated[
-        Literal["EarthRanger"], AdvancedField(default="EarthRanger", exclude=True)
-    ] = "EarthRanger"
+    connection_type: Annotated[Literal["EarthRanger"], AdvancedField(default="EarthRanger", exclude=True)] = (
+        "EarthRanger"
+    )
 
 
 @dataclass(frozen=True)
 class SMARTConnection:
     name: ConnectionName
-    connection_type: Annotated[
-        Literal["SMART"], AdvancedField(default="SMART", exclude=True)
-    ] = "SMART"
+    connection_type: Annotated[Literal["SMART"], AdvancedField(default="SMART", exclude=True)] = "SMART"
 
 
 @dataclass(frozen=True)

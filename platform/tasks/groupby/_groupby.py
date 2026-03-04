@@ -1,11 +1,6 @@
 from typing import Annotated, Any, cast
 
 import pandas as pd
-from pydantic import Field
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
-from wt_task.skip import SkippedDependencyFallback, SkipSentinel
-
 from ecoscope.platform.annotations import AnyDataFrame
 from ecoscope.platform.indexes import (
     AllGrouper,
@@ -15,11 +10,13 @@ from ecoscope.platform.indexes import (
     UserDefinedGroupers,
     ValueGrouper,
 )
+from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 
-def _groupkey_to_composite_filter(
-    groupers: list[IndexName], index_values: tuple[IndexValue, ...]
-) -> CompositeFilter:
+def _groupkey_to_composite_filter(groupers: list[IndexName], index_values: tuple[IndexValue, ...]) -> CompositeFilter:
     """Given the list of `groupers` used to group a dataframe, convert a group key
     tuple (the pandas native representation) to a composite filter (our representation).
 
@@ -127,9 +124,7 @@ def split_groups(
                     f"only string data (with no null values); got {df.dtypes}."
                 )
         else:
-            raise ValueError(
-                f"Value grouper '{key}' is neither a column nor an index in the DataFrame"
-            )
+            raise ValueError(f"Value grouper '{key}' is neither a column nor an index in the DataFrame")
 
     # TODO: configurable cardinality constraint with a default?
     grouper_index_names = [g.index_name for g in groupers]
@@ -200,9 +195,7 @@ def merge_df(
         if not isinstance(df, pd.DataFrame):
             raise ValueError("All values must be pandas DataFrames.")
         if len(filter) != len(index_names):
-            raise ValueError(
-                f"Filter length {len(filter)} does not match index names length {len(index_names)}."
-            )
+            raise ValueError(f"Filter length {len(filter)} does not match index names length {len(index_names)}.")
         temp_df = df.copy()
         for i, index_name in enumerate(index_names):
             temp_df[index_name] = filter[i][2]

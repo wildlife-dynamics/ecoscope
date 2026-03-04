@@ -10,9 +10,7 @@ from wt_registry import register
 def calculate_feature_density(
     geodataframe: Annotated[
         AnyGeoDataFrame,
-        Field(
-            description="The feature data to count or sum per grid cell.", exclude=True
-        ),
+        Field(description="The feature data to count or sum per grid cell.", exclude=True),
     ],
     meshgrid: Annotated[
         AnyGeoDataFrame,
@@ -27,9 +25,7 @@ def calculate_feature_density(
     ],
     sum_column: Annotated[
         str | SkipJsonSchema[None],
-        Field(
-            description="Sum values in this column per grid cell, rather than counting rows"
-        ),
+        Field(description="Sum values in this column per grid cell, rather than counting rows"),
     ] = None,
 ) -> AnyGeoDataFrame:
     """

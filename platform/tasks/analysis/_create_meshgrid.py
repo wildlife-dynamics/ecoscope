@@ -1,15 +1,14 @@
 from typing import Annotated, TypeAlias
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
-from pydantic import Field
-from wt_registry import register
-
 from ecoscope.platform.tasks.analysis._time_density import (
     AutoScaleGridCellSize,
     AutoScaleOrCustomAnnotation,
     CrsAnnotation,
     CustomGridCellSize,
 )
+from pydantic import Field
+from wt_registry import register
 
 IntersectingOnlyAnnotation: TypeAlias = Annotated[
     bool,
@@ -37,11 +36,12 @@ def create_meshgrid(
     import os
 
     import geopandas as gpd  # type: ignore[import-untyped]
+    from shapely.geometry import box
+
     from ecoscope.analysis.UD import (  # type: ignore[import-untyped]
         grid_size_from_geographic_extent,
     )
     from ecoscope.base.utils import create_meshgrid  # type: ignore[import-untyped]
-    from shapely.geometry import box
 
     if auto_scale_or_custom_cell_size is None:
         auto_scale_or_custom_cell_size = AutoScaleGridCellSize()
@@ -63,9 +63,7 @@ def create_meshgrid(
         num_cells_lon = extent_lon / cell_size
 
         if num_cells_lat * num_cells_lon > MAX_CELL_COUNT:
-            raise ValueError(
-                "Custom grid cell size is too small for the extent of the area of interest"
-            )
+            raise ValueError("Custom grid cell size is too small for the extent of the area of interest")
     else:
         cell_size = grid_size_from_geographic_extent(aoi)
 

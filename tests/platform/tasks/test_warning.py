@@ -24,7 +24,4 @@ def test_mixed_subtype_warning():
     assert mixed_subtype_warning(same_subtype) is None
     assert mixed_subtype_warning(empty) is None
     assert task(mixed_subtype_warning).validate().call(SkipSentinel()) is None
-    assert (
-        mixed_subtype_warning(mixed_subtype)
-        == "This workflow was run with mixed subtypes"
-    )
+    assert mixed_subtype_warning(mixed_subtype) == "This workflow was run with mixed subtypes"

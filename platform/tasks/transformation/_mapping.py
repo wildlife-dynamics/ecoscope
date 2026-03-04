@@ -1,12 +1,11 @@
 import logging
 from typing import Annotated, Literal, cast
 
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
+from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
-
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
-from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +14,7 @@ logger = logging.getLogger(__name__)
 def map_values(
     df: AnyDataFrame,
     column_name: Annotated[str, Field(description="The column name to map.")],
-    value_map: Annotated[
-        dict[str, str], Field(default={}, description="A dictionary of values to map.")
-    ],
+    value_map: Annotated[dict[str, str], Field(default={}, description="A dictionary of values to map.")],
     missing_values: Annotated[
         Literal["preserve", "remove", "replace"],
         Field(
@@ -37,9 +34,7 @@ def map_values(
             df[column_name] = df[column_name].map(value_map)
         case "replace":
             if replacement is None:
-                raise ValueError(
-                    "replacement param must be provided if missing_values is 'replace'"
-                )
+                raise ValueError("replacement param must be provided if missing_values is 'replace'")
             df[column_name] = df[column_name].map(value_map).fillna(replacement)
         case _:
             raise ValueError("Invalid selection for missing_values")
@@ -83,9 +78,7 @@ def map_values_with_unit(
     ] = None,
     decimal_places: Annotated[
         int,
-        AdvancedField(
-            default=1, description="The number of decimal places to display."
-        ),
+        AdvancedField(default=1, description="The number of decimal places to display."),
     ] = 1,
 ) -> AnyDataFrame:
     def format_with_unit(x):
@@ -144,9 +137,7 @@ def map_columns(
 
     if drop_columns:
         if "geometry" in drop_columns:
-            logger.warning(
-                "'geometry' found in drop_columns, which may affect spatial operations."
-            )
+            logger.warning("'geometry' found in drop_columns, which may affect spatial operations.")
         df = df.drop(
             columns=drop_columns,
             errors="ignore" if not raise_if_not_found else "raise",
@@ -159,17 +150,11 @@ def map_columns(
 
     if rename_columns:
         if isinstance(rename_columns, list):
-            rename_columns = {
-                item.original_name: item.new_name for item in rename_columns
-            }
+            rename_columns = {item.original_name: item.new_name for item in rename_columns}
 
         if "geometry" in rename_columns.keys():
-            logger.warning(
-                "'geometry' found in rename_columns, which may affect spatial operations."
-            )
-        if raise_if_not_found and any(
-            col not in df.columns for col in rename_columns.keys()
-        ):
+            logger.warning("'geometry' found in rename_columns, which may affect spatial operations.")
+        if raise_if_not_found and any(col not in df.columns for col in rename_columns.keys()):
             raise KeyError(
                 f"Columns {list(rename_columns.keys())} not all found in DataFrame. Existing columns: {df.columns}"
             )
@@ -183,9 +168,7 @@ def title_case_columns_by_prefix(
     df: AnyDataFrame,
     prefix: Annotated[
         str,
-        Field(
-            description="Column names prefixed with this value will be converted to title case."
-        ),
+        Field(description="Column names prefixed with this value will be converted to title case."),
     ],
 ) -> AnyDataFrame:
     """
@@ -199,11 +182,7 @@ def title_case_columns_by_prefix(
         AnyDataFrame: The updated DataFrame.
     """
 
-    mapping = {
-        col: col.removeprefix(prefix).replace("_", " ").title()
-        for col in df.columns
-        if col.startswith(prefix)
-    }
+    mapping = {col: col.removeprefix(prefix).replace("_", " ").title() for col in df.columns if col.startswith(prefix)}
     df = df.rename(columns=mapping)  # type: ignore[assignment]
 
     return cast(AnyDataFrame, df)
@@ -259,11 +238,7 @@ def fill_na(
     Returns:
         AnyDataFrame: The updated DataFrame.
     """
-    df = (
-        df.fillna(value)
-        if columns is None
-        else df.fillna({col: value for col in columns})
-    )
+    df = df.fillna(value) if columns is None else df.fillna({col: value for col in columns})
     return cast(AnyDataFrame, df)
 
 
@@ -292,9 +267,7 @@ def strip_prefix_from_column_names(
 @register()
 def lookup_string_var(
     var: Annotated[str, Field(...)],
-    value_map: Annotated[
-        dict[str, str], Field(default={}, description="A dictionary of values.")
-    ],
+    value_map: Annotated[dict[str, str], Field(default={}, description="A dictionary of values.")],
     raise_if_not_found: Annotated[
         bool, Field(description="Whether or not to raise if var is not in value_map.")
     ] = True,

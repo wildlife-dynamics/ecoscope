@@ -278,9 +278,7 @@ def test_draw_pie_chart(widget_id, pie_dataframe):
         plot_style=PlotStyle(
             textinfo="value",
         ),
-        layout_style=LayoutStyle(
-            font_color="orange", font_style="italic", font_size=20
-        ),
+        layout_style=LayoutStyle(font_color="orange", font_style="italic", font_size=20),
         widget_id=widget_id,
     )
 
@@ -291,10 +289,7 @@ def test_draw_pie_chart(widget_id, pie_dataframe):
 
 @pytest.fixture
 def historic_dataframe():
-    return load_parquet(
-        files("ecoscope.platform.tasks.io")
-        / "calculate-ndvi-range.example-return.parquet"
-    )
+    return load_parquet(files("ecoscope.platform.tasks.io") / "calculate-ndvi-range.example-return.parquet")
 
 
 @pytest.mark.parametrize("widget_id", ["THIS IS A TEST ID", None])

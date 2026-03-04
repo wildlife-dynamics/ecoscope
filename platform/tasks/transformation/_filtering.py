@@ -21,9 +21,7 @@ class Coordinate(BaseModel):
 class BoundingBox(BaseModel):
     min_y: Annotated[float, AdvancedField(default=-90.0, title="Min Latitude")] = -90.0
     max_y: Annotated[float, AdvancedField(default=90.0, title="Max Latitude")] = 90.0
-    min_x: Annotated[
-        float, AdvancedField(default=-180.0, title="Min Longitude")
-    ] = -180.0
+    min_x: Annotated[float, AdvancedField(default=-180.0, title="Min Longitude")] = -180.0
     max_x: Annotated[float, AdvancedField(default=180.0, title="Max Longitude")] = 180.0
 
 
@@ -42,7 +40,9 @@ def apply_reloc_coord_filter(
         AdvancedField(
             default=[],
             title="Filter Exact Point Coordinates",
-            description="By adding a filter, the workflow will not include events recorded at the specified coordinates.",
+            description=(
+                "By adding a filter, the workflow will not include events recorded at the specified coordinates."
+            ),
         ),
     ] = None,
     roi_gdf: Annotated[
@@ -71,9 +71,7 @@ def apply_reloc_coord_filter(
         bounding_box = BoundingBox()
 
     # TODO: move it to ecoscope core
-    filter_point_coords = geopandas.GeoSeries(
-        shapely.geometry.Point(coord.x, coord.y) for coord in filter_point_coords
-    )
+    filter_point_coords = geopandas.GeoSeries(shapely.geometry.Point(coord.x, coord.y) for coord in filter_point_coords)
 
     def envelope_reloc_filter(geometry) -> bool:
         # We want to 'pass-through' null geometry here
@@ -113,6 +111,4 @@ def drop_nan_values_by_column(
 def drop_null_geometry(
     gdf: AnyGeoDataFrame,
 ) -> AnyGeoDataFrame:
-    return cast(
-        AnyGeoDataFrame, gdf.loc[(~gdf.geometry.isna()) & (~gdf.geometry.is_empty)]
-    )
+    return cast(AnyGeoDataFrame, gdf.loc[(~gdf.geometry.isna()) & (~gdf.geometry.is_empty)])

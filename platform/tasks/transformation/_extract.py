@@ -5,10 +5,9 @@ from typing import Annotated, cast
 
 import numpy as np
 import pandas as pd
+from ecoscope.platform.annotations import AnyDataFrame
 from pydantic import Field
 from wt_registry import register
-
-from ecoscope.platform.annotations import AnyDataFrame
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +26,7 @@ class FieldType(Enum):
         try:
             return cls(value.lower())
         except ValueError:
-            raise ValueError(
-                f"'{value}' is not a valid FieldType. Valid options are: {[e.value for e in cls]}"
-            )
+            raise ValueError(f"'{value}' is not a valid FieldType. Valid options are: {[e.value for e in cls]}")
 
 
 def extract_value_as_type(value, output_type: FieldType):
@@ -72,16 +69,15 @@ def extract_column_as_type(
             exclude=True,
         ),
     ],
-    column_name: Annotated[
-        str, Field(description="The column name to extract the value from.")
-    ],
-    output_type: Annotated[
-        FieldType, Field(description="The output type of the extracted value.")
-    ],
+    column_name: Annotated[str, Field(description="The column name to extract the value from.")],
+    output_type: Annotated[FieldType, Field(description="The output type of the extracted value.")],
     output_column_name: Annotated[
         str,
         Field(
-            description="The output column name to store the extracted value. If it's a pandas series, then the output_column_name will be the column prefix."
+            description=(
+                "The output column name to store the extracted value."
+                " If it's a pandas series, then the output_column_name will be the column prefix."
+            )
         ),
     ],
 ) -> AnyDataFrame:
@@ -108,22 +104,24 @@ def extract_value_from_json_column(
             exclude=True,
         ),
     ],
-    column_name: Annotated[
-        str, Field(description="The json column name to extract the value from.")
-    ],
+    column_name: Annotated[str, Field(description="The json column name to extract the value from.")],
     field_name_options: Annotated[
         list[str],
         Field(
-            description="A list of field name options to extract the value from. The first field name that is found will be used."
+            description=(
+                "A list of field name options to extract the value from."
+                " The first field name that is found will be used."
+            )
         ),
     ],
-    output_type: Annotated[
-        FieldType, Field(description="The output type of the extracted value.")
-    ],
+    output_type: Annotated[FieldType, Field(description="The output type of the extracted value.")],
     output_column_name: Annotated[
         str,
         Field(
-            description="The output column name to store the extracted value. If it's a pandas series, then the output_column_name will be the column prefix."
+            description=(
+                "The output column name to store the extracted value."
+                " If it's a pandas series, then the output_column_name will be the column prefix."
+            )
         ),
     ],
 ) -> AnyDataFrame:

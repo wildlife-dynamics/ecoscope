@@ -66,12 +66,8 @@ class ReactJSONSchemaFormFilters(BaseModel):
     def _schema(self):
         return {
             "type": "object",
-            "properties": {
-                opt: rjsf.property.model_dump() for opt, rjsf in self.options.items()
-            },
-            "uiSchema": {
-                opt: rjsf.uiSchema.model_dump() for opt, rjsf in self.options.items()
-            },
+            "properties": {opt: rjsf.property.model_dump() for opt, rjsf in self.options.items()},
+            "uiSchema": {opt: rjsf.uiSchema.model_dump() for opt, rjsf in self.options.items()},
         }
 
     @model_serializer

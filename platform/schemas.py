@@ -24,8 +24,7 @@ def _validate_df_columns_are_timezone_aware(df: pd.DataFrame, columns: list[str]
     return all(
         # First check we actually have timestamps via the column dtype
         # Then check that all timestamps in the column are timezone aware
-        pd.api.types.is_datetime64_ns_dtype(df[col])
-        and df[col].apply(lambda x: x.tzinfo is not None).all()
+        pd.api.types.is_datetime64_ns_dtype(df[col]) and df[col].apply(lambda x: x.tzinfo is not None).all()
         for col in columns
     )
 
@@ -60,9 +59,7 @@ class EventsWithDisplayNamesGDFSchema(EventGDFSchema):
     event_type_display: pa_typing.Series[str] = pa.Field()
 
 
-def _add_missing_column_data(
-    df: pd.DataFrame, columns_with_defaults: dict[str, str | dict]
-):
+def _add_missing_column_data(df: pd.DataFrame, columns_with_defaults: dict[str, str | dict]):
     for column_name, default_value in columns_with_defaults.items():
         if column_name not in df.columns:
             df[column_name] = None
@@ -70,8 +67,7 @@ def _add_missing_column_data(
         if isinstance(default_value, dict):
             # Since pandas assigns dicts via a mapping and here we want to assign the literal dict
             df.loc[df[column_name].isna(), column_name] = [
-                deepcopy(default_value)
-                for _ in range(len(df.loc[df[column_name].isna(), column_name]))
+                deepcopy(default_value) for _ in range(len(df.loc[df[column_name].isna(), column_name]))
             ]
         else:
             df.fillna({column_name: default_value}, inplace=True)
@@ -104,9 +100,7 @@ def _patrol_obs_optional_columns(df: pd.DataFrame):
 
 def _patrol_obs_optional_columns_coerce_patrol_serial(df: pd.DataFrame):
     # Patrol Serial can be numeric, so coerce to a string here
-    df.patrol_serial_number = df.patrol_serial_number.apply(
-        lambda x: str(int(x) if isinstance(x, float) else str(x))
-    )
+    df.patrol_serial_number = df.patrol_serial_number.apply(lambda x: str(int(x) if isinstance(x, float) else str(x)))
     return df
 
 
@@ -187,9 +181,7 @@ class TrajectoryGDFSchema(StrictGeoDataFrameBaseSchema):
 
     @pa.dataframe_check
     def check_timezone_aware_columns(cls, df: pd.DataFrame):  # type: ignore[misc]
-        return _validate_df_columns_are_timezone_aware(
-            df, ["segment_start", "segment_end"]
-        )
+        return _validate_df_columns_are_timezone_aware(df, ["segment_start", "segment_end"])
 
 
 class PatrolsDFSchema(JsonSerializableDataFrameModel):

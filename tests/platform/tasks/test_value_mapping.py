@@ -42,21 +42,15 @@ def test_map_values_preserve(sample_df, value_map):
     """Test value mapping with preserving values not in the map."""
     result_df = map_values(sample_df, "category", value_map, missing_values="preserve")
     expected_df = pd.DataFrame(
-        {
-            "category": ["Alpha", "Beta", "C", "D", None, pd.NA]
-        }  # Non-mapped values are preserved
+        {"category": ["Alpha", "Beta", "C", "D", None, pd.NA]}  # Non-mapped values are preserved
     )
     pd.testing.assert_frame_equal(result_df, expected_df)
 
 
 def test_map_values_replace(sample_df, value_map):
     """Test value mapping with replacement value."""
-    result_df = map_values(
-        sample_df, "category", value_map, missing_values="replace", replacement="None"
-    )
-    expected_df = pd.DataFrame(
-        {"category": ["Alpha", "Beta", "None", "None", "None", "None"]}
-    )
+    result_df = map_values(sample_df, "category", value_map, missing_values="replace", replacement="None")
+    expected_df = pd.DataFrame({"category": ["Alpha", "Beta", "None", "None", "None", "None"]})
     pd.testing.assert_frame_equal(result_df, expected_df)
 
 

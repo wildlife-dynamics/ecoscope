@@ -2,12 +2,11 @@ from abc import ABC, abstractmethod
 from inspect import ismethod
 from typing import Annotated, ClassVar, Generic, Protocol, Type, TypeVar, get_args, runtime_checkable
 
+from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import WithJsonSchema
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 
 DataConnectionType = TypeVar("DataConnectionType", bound="DataConnection")
 ClientProtocolType = TypeVar("ClientProtocolType")
@@ -19,10 +18,7 @@ class _DataConnection(BaseSettings):
         cls: Type[DataConnectionType], name: str
     ) -> DataConnectionType:
         model_config = SettingsConfigDict(
-            env_prefix=(
-                "ecoscope_workflows__connections__"
-                f"{cls.__ecoscope_connection_type__}__{name.lower()}__"
-            ),
+            env_prefix=(f"ecoscope_workflows__connections__{cls.__ecoscope_connection_type__}__{name.lower()}__"),
             case_sensitive=False,
             pyproject_toml_table_header=(
                 "connections",
@@ -139,9 +135,7 @@ class EarthRangerClientProtocol(Protocol):
         append_category_names,
     ) -> AnyGeoDataFrame: ...
 
-    def get_choices_from_v2_event_type(
-        self, event_type, choice_field
-    ) -> dict[str, str]: ...
+    def get_choices_from_v2_event_type(self, event_type, choice_field) -> dict[str, str]: ...
 
     def get_spatial_features_group(
         self,
@@ -158,27 +152,17 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
 
     server: Annotated[str, Field(description="EarthRanger API URL")]
     username: Annotated[str, Field(description="EarthRanger username")] = ""
-    password: Annotated[SecretStr, Field(description="EarthRanger password")] = (
-        SecretStr("")
-    )
+    password: Annotated[SecretStr, Field(description="EarthRanger password")] = SecretStr("")
     tcp_limit: Annotated[int, Field(description="TCP limit for API requests")] = 5
-    sub_page_size: Annotated[
-        int, Field(description="Sub page size for API requests")
-    ] = 4000
-    token: Annotated[SecretStr, Field(description="EarthRanger access token")] = (
-        SecretStr("")
-    )
+    sub_page_size: Annotated[int, Field(description="Sub page size for API requests")] = 4000
+    token: Annotated[SecretStr, Field(description="EarthRanger access token")] = SecretStr("")
 
     @field_validator("token")
     def token_or_password(cls, v: SecretStr, info: ValidationInfo):
         if v and (info.data["username"] or info.data["password"]):
-            raise ValueError(
-                "Only a token, or an EarthRanger username and password can be provided, not both"
-            )
+            raise ValueError("Only a token, or an EarthRanger username and password can be provided, not both")
         if not v and not (info.data["username"] and info.data["password"]):
-            raise ValueError(
-                "If token is empty, EarthRanger username and password must be provided"
-            )
+            raise ValueError("If token is empty, EarthRanger username and password must be provided")
         return v
 
     def get_client(self) -> EarthRangerClientProtocol:
@@ -226,13 +210,9 @@ class SmartConnection(DataConnection[SmartClientProtocol]):
     @field_validator("token")
     def token_or_password(cls, v: SecretStr, info: ValidationInfo):
         if v and (info.data["username"] or info.data["password"]):
-            raise ValueError(
-                "Only a token, or an EarthRanger username and password can be provided, not both"
-            )
+            raise ValueError("Only a token, or an EarthRanger username and password can be provided, not both")
         if not v and not (info.data["username"] and info.data["password"]):
-            raise ValueError(
-                "If token is empty, SMART username and password must be provided"
-            )
+            raise ValueError("If token is empty, SMART username and password must be provided")
         return v
 
     def get_client(self) -> SmartClientProtocol:
@@ -260,15 +240,9 @@ class EarthEngineClientProtocol(Protocol):
 class EarthEngineConnection(DataConnection[EarthEngineClientProtocol]):
     __ecoscope_connection_type__: ClassVar[str] = "earthengine"
 
-    service_account: Annotated[
-        str, Field(description="Your Google Cloud Service Account")
-    ] = ""
-    private_key: Annotated[
-        SecretStr, Field(description="Your service account's private key")
-    ] = SecretStr("")
-    private_key_file: Annotated[
-        str, Field(description="Your service account's private key")
-    ] = ""
+    service_account: Annotated[str, Field(description="Your Google Cloud Service Account")] = ""
+    private_key: Annotated[SecretStr, Field(description="Your service account's private key")] = SecretStr("")
+    private_key_file: Annotated[str, Field(description="Your service account's private key")] = ""
     ee_project: Annotated[str, Field(description="Your EarthEngine project ID")] = ""
 
     def get_client(self):
@@ -285,9 +259,7 @@ class EarthEngineConnection(DataConnection[EarthEngineClientProtocol]):
 EarthRangerClient = Annotated[
     EarthRangerClientProtocol,
     BeforeValidator(EarthRangerConnection.client_from_named_connection),
-    WithJsonSchema(
-        {"type": "string", "description": "A named EarthRanger connection."}
-    ),
+    WithJsonSchema({"type": "string", "description": "A named EarthRanger connection."}),
 ]
 
 SmartClient = Annotated[
@@ -299,7 +271,5 @@ SmartClient = Annotated[
 EarthEngineClient = Annotated[
     EarthEngineClientProtocol,
     BeforeValidator(EarthEngineConnection.client_from_named_connection),
-    WithJsonSchema(
-        {"type": "string", "description": "A named Google EarthEngine connection."}
-    ),
+    WithJsonSchema({"type": "string", "description": "A named Google EarthEngine connection."}),
 ]

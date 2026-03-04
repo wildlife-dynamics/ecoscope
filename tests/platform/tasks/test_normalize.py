@@ -39,9 +39,7 @@ def test_normalize_json_column_skip_if_not_exists():
         }
     )
 
-    result_df = normalize_json_column(
-        df, "non_existent_column", skip_if_not_exists=True
-    )
+    result_df = normalize_json_column(df, "non_existent_column", skip_if_not_exists=True)
 
     # The DataFrame should remain unchanged
     assert result_df.equals(df)
@@ -76,9 +74,7 @@ def test_normalize_numeric_column(output_column_name):
         1.4990954318489884,
     ]
 
-    result_df = normalize_numeric_column(
-        df, column="age", output_column_name=output_column_name
-    )
+    result_df = normalize_numeric_column(df, column="age", output_column_name=output_column_name)
     if not output_column_name:
         assert result_df["age"].to_list() == expected_values
     else:

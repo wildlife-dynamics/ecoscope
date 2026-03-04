@@ -1,13 +1,12 @@
 from typing import Annotated
 
 from ecoscope.platform.annotations import EmptyDataFrame
+from ecoscope.platform.schemas import SubjectGroupObservationsGDF
+from ecoscope.platform.tasks.skip import skip_gdf_fallback_to_none
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 from wt_task.skip import SkippedDependencyFallback
-
-from ecoscope.platform.schemas import SubjectGroupObservationsGDF
-from ecoscope.platform.tasks.skip import skip_gdf_fallback_to_none
 
 
 @register()

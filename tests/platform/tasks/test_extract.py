@@ -30,39 +30,24 @@ def test_extract_value_as_bool():
 
 
 def test_extract_value_as_datetime():
-    assert extract_value_as_type("2023-01-01", FieldType.DATETIME) == pd.to_datetime(
-        "2023-01-01", utc=True
-    )
+    assert extract_value_as_type("2023-01-01", FieldType.DATETIME) == pd.to_datetime("2023-01-01", utc=True)
     assert extract_value_as_type("invalid", FieldType.DATETIME) is None
 
 
 def test_extract_value_as_date():
-    assert (
-        extract_value_as_type("2023-01-01", FieldType.DATE)
-        == pd.to_datetime("2023-01-01", utc=True).date()
-    )
+    assert extract_value_as_type("2023-01-01", FieldType.DATE) == pd.to_datetime("2023-01-01", utc=True).date()
     assert extract_value_as_type("invalid", FieldType.DATE) is None
 
 
 def test_extract_value_as_json():
-    assert (
-        extract_value_as_type({"nested": {"value": 42}}, FieldType.JSON)
-        == '{"nested": {"value": 42}}'
-    )
-    assert (
-        extract_value_as_type('{"nested": {"value": 42}}', FieldType.JSON)
-        == '{"nested": {"value": 42}}'
-    )
+    assert extract_value_as_type({"nested": {"value": 42}}, FieldType.JSON) == '{"nested": {"value": 42}}'
+    assert extract_value_as_type('{"nested": {"value": 42}}', FieldType.JSON) == '{"nested": {"value": 42}}'
     assert extract_value_as_type([1, 2], FieldType.JSON) == "[1, 2]"
 
 
 def test_extract_value_as_series():
-    s = extract_value_as_type(
-        {"start": "2023-01-01", "end": "2023-12-31"}, FieldType.SERIES
-    )
-    pd.testing.assert_series_equal(
-        s, pd.Series(["2023-01-01", "2023-12-31"], index=["start", "end"])
-    )
+    s = extract_value_as_type({"start": "2023-01-01", "end": "2023-12-31"}, FieldType.SERIES)
+    pd.testing.assert_series_equal(s, pd.Series(["2023-01-01", "2023-12-31"], index=["start", "end"]))
 
     s = extract_value_as_type(["start", "end"], FieldType.SERIES)
     pd.testing.assert_series_equal(s, pd.Series(["start", "end"]))

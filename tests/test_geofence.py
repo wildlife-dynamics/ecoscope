@@ -50,9 +50,9 @@ def test_geofence_crossing():
     geofence_crossing_point = gpd.read_feather("tests/test_output/geofence_crossing_point.feather")
 
     geofence_crossing_point[["segment_start", "segment_end", "extra__recorded_at", "crossing_time"]] = (
-        geofence_crossing_point[
-            ["segment_start", "segment_end", "extra__recorded_at", "crossing_time"]
-        ].astype("datetime64[ms, UTC]")
+        geofence_crossing_point[["segment_start", "segment_end", "extra__recorded_at", "crossing_time"]].astype(
+            "datetime64[ms, UTC]"
+        )
     )
 
     gpd.testing.assert_geodataframe_equal(edf.gdf, geofence_crossing_point, check_less_precise=True)

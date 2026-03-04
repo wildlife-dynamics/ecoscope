@@ -2,13 +2,12 @@ import calendar
 from dataclasses import dataclass
 from typing import Annotated, Callable, List, Literal, TypeAlias, Union
 
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.jsonschema import oneOf
 from pydantic import BaseModel, ConfigDict, Field, GetJsonSchemaHandler, PrivateAttr
 from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
 from pydantic_core import core_schema as cs
-
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
-from ecoscope.platform.jsonschema import oneOf
 
 IndexName: TypeAlias = str
 IndexValue: TypeAlias = str
@@ -138,9 +137,7 @@ class ValueGrouper(BaseModel):
     model_config = ConfigDict(frozen=True, title="Category")
 
     index_name: IndexName
-    help_text: Annotated[
-        str | SkipJsonSchema[None], AdvancedField(default=None, exclude=True)
-    ] = None
+    help_text: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None, exclude=True)] = None
 
     @property
     def display_name(self):
@@ -151,9 +148,7 @@ class ValueGrouper(BaseModel):
         return None
 
     @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
+    def __get_pydantic_json_schema__(cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
         """Override the json schema generation of this object for the RJSF UI."""
         return {
             "type": "object",
@@ -172,12 +167,8 @@ class ValueGrouper(BaseModel):
 class TemporalGrouper(BaseModel):
     model_config = ConfigDict(frozen=True, title="Time")
 
-    temporal_index: Annotated[
-        TemporalIndexType, BeforeValidator(_coerce_temporal_index)
-    ]
-    help_text: Annotated[
-        str | SkipJsonSchema[None], AdvancedField(default=None, exclude=True)
-    ] = None
+    temporal_index: Annotated[TemporalIndexType, BeforeValidator(_coerce_temporal_index)]
+    help_text: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None, exclude=True)] = None
     is_temporal: Annotated[Literal[True], Field(exclude=True)] = True
 
     @property
@@ -193,9 +184,7 @@ class TemporalGrouper(BaseModel):
         return self.temporal_index.sort_key
 
     @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
+    def __get_pydantic_json_schema__(cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
         """Override the json schema generation of this object for the RJSF UI."""
         return {
             "type": "object",
@@ -203,8 +192,7 @@ class TemporalGrouper(BaseModel):
             "properties": {
                 "temporal_index": {
                     "oneOf": [
-                        oneOf(const=d.directive, title=d.selector_title).model_dump()
-                        for d in strftime_directives
+                        oneOf(const=d.directive, title=d.selector_title).model_dump() for d in strftime_directives
                     ],
                     "title": "Time",
                     "type": "string",
@@ -218,9 +206,7 @@ class SpatialGrouper(BaseModel):
     model_config = ConfigDict(title="Spatial")
 
     spatial_index_name: IndexName
-    help_text: Annotated[
-        str | SkipJsonSchema[None], AdvancedField(default=None, exclude=True)
-    ] = None
+    help_text: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None, exclude=True)] = None
     _resolved_spatial_regions: AnyGeoDataFrame | None = PrivateAttr(default=None)
 
     @property
@@ -255,9 +241,7 @@ class SpatialGrouper(BaseModel):
         self._resolved_spatial_regions = spatial_regions
 
     @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
+    def __get_pydantic_json_schema__(cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
         """Override the json schema generation of this object for the RJSF UI."""
         return {
             "type": "object",

@@ -16,15 +16,11 @@ def assign_subject_colors(
     df: AnyDataFrame,
     subject_id_column: Annotated[
         str,
-        Field(
-            description="Column containing subject identifiers (e.g., 'groupby_col', 'subject__id')"
-        ),
+        Field(description="Column containing subject identifiers (e.g., 'groupby_col', 'subject__id')"),
     ] = "subject__id",
     additional_column: Annotated[
         str,
-        Field(
-            description="Column containing subject additional data as JSON (e.g., 'subject__additional')"
-        ),
+        Field(description="Column containing subject additional data as JSON (e.g., 'subject__additional')"),
     ] = "subject__additional",
     output_column: Annotated[
         str,
@@ -77,9 +73,7 @@ def assign_subject_colors(
         DataFrame with added color column
     """
     if subject_id_column not in df.columns:
-        raise ValueError(
-            f"Subject ID column '{subject_id_column}' not found in dataframe"
-        )
+        raise ValueError(f"Subject ID column '{subject_id_column}' not found in dataframe")
 
     # Define NAN_COLOR to match apply_color_map behavior
     NAN_COLOR = (0, 0, 0, 0)
@@ -106,14 +100,10 @@ def assign_subject_colors(
                             subject_rgb_map[subject_id] = rgb_value
                             break
                     except (json.JSONDecodeError, AttributeError) as e:
-                        logger.warning(
-                            f"Failed to parse additional data for subject {subject_id}: {e}"
-                        )
+                        logger.warning(f"Failed to parse additional data for subject {subject_id}: {e}")
                         continue
     else:
-        logger.warning(
-            f"Column '{additional_column}' not found in dataframe. All subjects will use palette colors."
-        )
+        logger.warning(f"Column '{additional_column}' not found in dataframe. All subjects will use palette colors.")
 
     # Step 2: Identify duplicate rgb values
     rgb_counts = pd.Series(subject_rgb_map).value_counts()
@@ -145,9 +135,7 @@ def assign_subject_colors(
             cmap = plt.get_cmap(default_palette)
             palette_colors = [cmap(i) for i in range(cmap.N)]
         except ValueError:
-            logger.warning(
-                f"Palette '{default_palette}' not found, falling back to 'tab20'"
-            )
+            logger.warning(f"Palette '{default_palette}' not found, falling back to 'tab20'")
             cmap = plt.get_cmap("tab20")
             palette_colors = [cmap(i) for i in range(cmap.N)]
 

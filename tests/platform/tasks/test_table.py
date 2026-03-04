@@ -13,8 +13,14 @@ def test_draw_table():
         }
     )
 
-    expected_column_data = 'const columnDefs = [{"field": "Some Numbers", "headerTooltip": "Some Numbers"}, {"field": "More Numbers!", "headerTooltip": "More Numbers!"}]'
-    expected_row_data = 'const rowData = [{"Some Numbers":1,"More Numbers!":4},{"Some Numbers":2,"More Numbers!":5},{"Some Numbers":3,"More Numbers!":6}]'
+    expected_column_data = (
+        'const columnDefs = [{"field": "Some Numbers", "headerTooltip": "Some Numbers"},'
+        ' {"field": "More Numbers!", "headerTooltip": "More Numbers!"}]'
+    )
+    expected_row_data = (
+        'const rowData = [{"Some Numbers":1,"More Numbers!":4},'
+        '{"Some Numbers":2,"More Numbers!":5},{"Some Numbers":3,"More Numbers!":6}]'
+    )
 
     html = draw_table(df)
     assert isinstance(html, str)
@@ -84,9 +90,7 @@ def test_draw_table_timestamp_format():
         {
             "Some Numbers": [1, 2, 3],
             "More Numbers!": [4, 5, 6],
-            "Timestamp": pd.to_datetime(
-                ["2024-01-01", "2025-01-01", "2026-01-01"], utc=True
-            ),
+            "Timestamp": pd.to_datetime(["2024-01-01", "2025-01-01", "2026-01-01"], utc=True),
         }
     )
 
@@ -120,9 +124,15 @@ def test_draw_table_handles_nan():
             "More Numbers!": [4, np.nan, 6],
         }
     )
-    expected_column_data = 'const columnDefs = [{"field": "Some Numbers", "headerTooltip": "Some Numbers"}, {"field": "More Numbers!", "headerTooltip": "More Numbers!"}]'
+    expected_column_data = (
+        'const columnDefs = [{"field": "Some Numbers", "headerTooltip": "Some Numbers"},'
+        ' {"field": "More Numbers!", "headerTooltip": "More Numbers!"}]'
+    )
     # A quirk of pandas is that the presence of nan in a column of ints will cause a float coercion
-    expected_row_data = 'const rowData = [{"Some Numbers":1,"More Numbers!":4.0},{"Some Numbers":2,"More Numbers!":null},{"Some Numbers":3,"More Numbers!":6.0}]'
+    expected_row_data = (
+        'const rowData = [{"Some Numbers":1,"More Numbers!":4.0},'
+        '{"Some Numbers":2,"More Numbers!":null},{"Some Numbers":3,"More Numbers!":6.0}]'
+    )
 
     html = draw_table(df)
     assert isinstance(html, str)
@@ -137,7 +147,9 @@ def test_table_config():
             "More Numbers!": [4, np.nan, 6],
         }
     )
-    expected_config = 'const config = {"enable_sorting":false,"enable_filtering":true,"enable_download":true,"hide_header":true}'
+    expected_config = (
+        'const config = {"enable_sorting":false,"enable_filtering":true,"enable_download":true,"hide_header":true}'
+    )
 
     html = draw_table(
         df,

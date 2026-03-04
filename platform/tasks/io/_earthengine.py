@@ -1,11 +1,10 @@
 from typing import Annotated, Any, cast
 
 from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
+from ecoscope.platform.connections import EarthEngineClient
 from ecoscope.platform.tasks.filter._filter import TimeRange
 from pydantic import Field
 from wt_registry import register
-
-from ecoscope.platform.connections import EarthEngineClient
 
 
 @register(tags=["io"])
@@ -22,15 +21,18 @@ def calculate_ndvi_range(
 
     import ee
     import pandas as pd
+
     from ecoscope.io import eetools  # type: ignore[import-untyped]
 
     img_coll = (
         ee.ImageCollection(img_coll_name)
         .select(band)
         .map(
-            lambda img: img.multiply(scale_factor)
-            .set("system:time_start", img.get("system:time_start"))
-            .set("id", img.get("id"))
+            lambda img: (
+                img.multiply(scale_factor)
+                .set("system:time_start", img.get("system:time_start"))
+                .set("id", img.get("id"))
+            )
         )
         .sort("system:time_start")
     )
@@ -51,9 +53,7 @@ def calculate_ndvi_range(
     ee_data["img_date"] = pd.to_datetime(ee_data["img_date"]).dt.tz_localize("UTC")
     ee_data.columns = ["name", "img_date", "NDVI"]
 
-    cur_data = ee_data[
-        (ee_data.img_date >= time_range.since) & (ee_data.img_date <= time_range.until)
-    ]
+    cur_data = ee_data[(ee_data.img_date >= time_range.since) & (ee_data.img_date <= time_range.until)]
     historical_data = ee_data[ee_data["img_date"] <= time_range.since]
 
     def calc_mean_range(x):
@@ -84,6 +84,7 @@ def determine_season_windows(
     time_range: Annotated[TimeRange, Field(description="Time range filter")],
 ) -> Any:
     import pandas as pd
+
     from ecoscope.analysis.seasons import (  # type: ignore[import-untyped]
         seasonal_windows,
         std_ndvi_vals,
@@ -95,9 +96,7 @@ def determine_season_windows(
 
     # Determine wet/dry seasons
     date_chunks = (
-        pd.date_range(
-            start=time_range.since, end=time_range.until, periods=5, inclusive="both"
-        )
+        pd.date_range(start=time_range.since, end=time_range.until, periods=5, inclusive="both")
         .to_series()
         .apply(lambda x: x.isoformat())
         .values

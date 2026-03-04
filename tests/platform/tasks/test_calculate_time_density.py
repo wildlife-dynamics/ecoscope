@@ -18,8 +18,7 @@ from ecoscope.platform.tasks.analysis._time_density import (
 
 def test_calculate_elliptical_time_density_custom_cell_size():
     example_input_df_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
     input_df = gpd.read_parquet(example_input_df_path)
     kws = dict(
@@ -66,8 +65,7 @@ def test_calculate_elliptical_time_density_custom_cell_size():
 )
 def test_calculate_elliptical_time_density_custom_auto_scale(percentiles):
     example_input_df_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
     input_df = gpd.read_parquet(example_input_df_path)
     kws = dict(
@@ -97,8 +95,7 @@ def test_calculate_elliptical_time_density_custom_auto_scale(percentiles):
 )
 def test_calculate_linear_time_density_custom_auto_scale(percentiles):
     example_input_df_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
     input_df = gpd.read_parquet(example_input_df_path)
     grid = create_meshgrid(
@@ -124,8 +121,7 @@ def test_calculate_linear_time_density_custom_auto_scale(percentiles):
 
 def test_calculate_elliptical_time_density_custom_auto_scale_raises_empty_percentiles():
     example_input_df_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
     input_df = gpd.read_parquet(example_input_df_path)
 
@@ -144,8 +140,7 @@ def test_calculate_elliptical_time_density_custom_auto_scale_raises_empty_percen
 
 def test_calculate_linear_time_density_custom_auto_scale_raises_empty_percentiles():
     example_input_df_path = (
-        files("ecoscope.platform.tasks.preprocessing")
-        / "relocations-to-trajectory.example-return.parquet"
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
     input_df = gpd.read_parquet(example_input_df_path)
     grid = create_meshgrid(

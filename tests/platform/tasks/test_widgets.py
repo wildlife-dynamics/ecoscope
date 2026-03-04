@@ -206,8 +206,7 @@ def test_grouped_widget_incompatible_merge_raises():
     with pytest.raises(
         ValueError,
         match=re.escape(
-            "Cannot merge GroupedWidgets with different merge keys: "
-            "('map', 'A Great Map') != ('map', 'A Better Map')"
+            "Cannot merge GroupedWidgets with different merge keys: ('map', 'A Great Map') != ('map', 'A Better Map')"
         ),
     ):
         widget1 |= widget2

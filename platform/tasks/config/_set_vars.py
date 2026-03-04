@@ -1,10 +1,9 @@
 from typing import Annotated
 
+from ecoscope.platform.annotations import AnyDataFrame
 from pydantic import Field
 from wt_registry import register
 from wt_task.skip import SkipSentinel
-
-from ecoscope.platform.annotations import AnyDataFrame
 
 
 @register()
@@ -38,9 +37,7 @@ def prefix_string_var(
 
 @register()
 def default_if_string_is_none_or_skip(
-    value: Annotated[
-        str | None | SkipSentinel, Field(description="The value to passthrough")
-    ],
+    value: Annotated[str | None | SkipSentinel, Field(description="The value to passthrough")],
     default: Annotated[str, Field(description="Default if `value` is None or Skip")],
 ) -> str:
     return default if value is None or isinstance(value, SkipSentinel) else value
@@ -49,18 +46,14 @@ def default_if_string_is_none_or_skip(
 @register()
 def default_if_string_is_empty(
     value: Annotated[str, Field(description="The value to passthrough")],
-    default: Annotated[
-        str | None | SkipSentinel, Field(description="Default if `value` is None")
-    ],
+    default: Annotated[str | None | SkipSentinel, Field(description="Default if `value` is None")],
 ) -> str | None | SkipSentinel:
     return default if value == "" else value
 
 
 @register()
 def concat_string_vars(
-    values: Annotated[
-        list[str | SkipSentinel], Field(description="The values to concatenate")
-    ],
+    values: Annotated[list[str | SkipSentinel], Field(description="The values to concatenate")],
 ) -> str:
     values_to_concat: list[str] = [v for v in values if not isinstance(v, SkipSentinel)]
     return "".join(values_to_concat)

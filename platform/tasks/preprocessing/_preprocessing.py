@@ -1,16 +1,15 @@
 from typing import Annotated
 
 from ecoscope.platform.annotations import AdvancedField
-from pydantic import BaseModel, Field, model_validator
-from pydantic.json_schema import SkipJsonSchema
-from wt_registry import register
-
 from ecoscope.platform.schemas import (
     PatrolObservationsGDF,
     SubjectGroupObservationsGDF,
     TrajectoryGDF,
 )
 from ecoscope.platform.tasks.transformation._filtering import Coordinate
+from pydantic import BaseModel, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
 
 
 class TrajectorySegmentFilter(BaseModel):
@@ -96,17 +95,11 @@ def process_relocations(
         RelocsCoordinateFilter,
     )
 
-    relocs = (
-        observations
-        if isinstance(observations, Relocations)
-        else Relocations(gdf=observations)
-    )
+    relocs = observations if isinstance(observations, Relocations) else Relocations(gdf=observations)
 
     # filter relocations based on the config
     relocs.apply_reloc_filter(
-        RelocsCoordinateFilter(
-            filter_point_coords=[[coord.x, coord.y] for coord in filter_point_coords]
-        ),
+        RelocsCoordinateFilter(filter_point_coords=[[coord.x, coord.y] for coord in filter_point_coords]),
         inplace=True,
     )
     relocs.remove_filtered(inplace=True)
@@ -129,7 +122,11 @@ def relocations_to_trajectory(
         AdvancedField(
             default=TrajectorySegmentFilter(),
             title=" ",
-            description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+            description=(
+                "Filter track data by setting limits on track segment length, duration, and speed."
+                " Segments outside these bounds are removed, reducing noise and to focus on"
+                " meaningful movement patterns."
+            ),
         ),
     ] = None,
 ) -> TrajectoryGDF:

@@ -1,9 +1,5 @@
 from typing import Annotated
 
-from pydantic import Field
-from wt_registry import register
-from wt_task.skip import SkippedDependencyFallback, SkipSentinel
-
 from ecoscope.platform.annotations import AdvancedField
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.tasks.results._widget_types import (
@@ -15,6 +11,9 @@ from ecoscope.platform.tasks.results._widget_types import (
     WidgetSingleView,
 )
 from ecoscope.platform.tasks.transformation._unit import Quantity
+from pydantic import Field
+from wt_registry import register
+from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 
 def _fallback_to_none(obj: WidgetData | SkipSentinel) -> WidgetData | None:
@@ -132,9 +131,7 @@ def create_single_value_widget_single_view(
     ] = None,
     decimal_places: Annotated[
         int,
-        AdvancedField(
-            default=1, description="The number of decimal places to display."
-        ),
+        AdvancedField(default=1, description="The number of decimal places to display."),
     ] = 1,
 ) -> Annotated[WidgetSingleView, Field(description="The widget")]:
     """Create a single value widget with a single view.

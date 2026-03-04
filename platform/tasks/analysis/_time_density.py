@@ -47,7 +47,11 @@ class CustomGridCellSize(BaseModel):
         float | SkipJsonSchema[None],
         Field(
             title="Custom Grid Cell Size",
-            description="Define the resolution of the raster grid (in the unit of measurement defined by the coordinate reference system set below). A smaller grid cell size provides more detail, while a larger size generalizes the data.",
+            description=(
+                "Define the resolution of the raster grid (in the unit of measurement defined by the"
+                " coordinate reference system set below). A smaller grid cell size provides more"
+                " detail, while a larger size generalizes the data."
+            ),
             gt=0,
             lt=10000,
             default=5000,
@@ -86,7 +90,10 @@ CrsAnnotation: TypeAlias = Annotated[
     AdvancedField(
         default="EPSG:3857",
         title="Coordinate Reference System",
-        description="The coordinate reference system in which to perform the calculation, must be a valid CRS authority code, for example ESRI:53042",
+        description=(
+            "The coordinate reference system in which to perform the calculation,"
+            " must be a valid CRS authority code, for example ESRI:53042"
+        ),
     ),
 ]
 NoDataAnnotation: TypeAlias = Annotated[float | str, AdvancedField(default="nan")]
@@ -96,7 +103,9 @@ MaxSpeedFactorAnnotation: TypeAlias = Annotated[
     AdvancedField(
         default=1.05,
         title="Max Speed Factor (Kilometers per Hour)",
-        description="An estimate of the subject's maximum speed as a factor of the maximum measured speed value in the dataset.",
+        description=(
+            "An estimate of the subject's maximum speed as a factor of the maximum measured speed value in the dataset."
+        ),
     ),
 ]
 ExpansionFactorAnnotation: TypeAlias = Annotated[
@@ -104,7 +113,9 @@ ExpansionFactorAnnotation: TypeAlias = Annotated[
     AdvancedField(
         default=1.05,
         title="Shape Buffer Expansion Factor",
-        description="Controls how far time density values spread across the grid, affecting the smoothness of the output.",
+        description=(
+            "Controls how far time density values spread across the grid, affecting the smoothness of the output."
+        ),
     ),
 ]
 LtdPercentileAnnotation: TypeAlias = Annotated[
@@ -150,6 +161,7 @@ def calculate_elliptical_time_density(
 ) -> DataFrame[TimeDensityReturnGDFSchema]:
     import geopandas as gpd  # type: ignore[import-untyped]
     import pandas as pd  # type: ignore[import-untyped]
+
     from ecoscope.analysis.percentile import (  # type: ignore[import-untyped]
         get_percentile_area,
     )

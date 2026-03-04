@@ -45,12 +45,8 @@ def sample_subject_observations():
                     "tm_animal_id": "F2",
                 }
             ),
-            json.dumps(
-                {"sex": "male", "region": "Sahel", "tm_animal_id": "M1"}
-            ),  # No rgb
-            json.dumps(
-                {"sex": "male", "region": "Sahel", "tm_animal_id": "M1"}
-            ),  # No rgb
+            json.dumps({"sex": "male", "region": "Sahel", "tm_animal_id": "M1"}),  # No rgb
+            json.dumps({"sex": "male", "region": "Sahel", "tm_animal_id": "M1"}),  # No rgb
             json.dumps(
                 {
                     "rgb": "255, 0, 0",  # Duplicate rgb with F1
@@ -93,9 +89,7 @@ def test_assign_subject_colors_basic(sample_subject_observations):
 
     # Check that colors are RGBA tuples with values in 0-255 range
     assert all(
-        isinstance(color, tuple)
-        and len(color) == 4
-        and all(isinstance(c, int) and 0 <= c <= 255 for c in color)
+        isinstance(color, tuple) and len(color) == 4 and all(isinstance(c, int) and 0 <= c <= 255 for c in color)
         for color in result["subject_color"]
     )
 
@@ -227,9 +221,7 @@ def test_assign_subject_colors_consistent_per_subject(sample_subject_observation
     # Check each subject has consistent color across all their observations
     for subject_id in result["groupby_col"].unique():
         subject_colors = result[result["groupby_col"] == subject_id]["subject_color"]
-        assert (
-            len(subject_colors.unique()) == 1
-        ), f"Subject {subject_id} has inconsistent colors"
+        assert len(subject_colors.unique()) == 1, f"Subject {subject_id} has inconsistent colors"
 
 
 def test_assign_subject_colors_missing_additional_column_with_palette():
@@ -253,9 +245,7 @@ def test_assign_subject_colors_missing_additional_column_with_palette():
     # Should still work and assign palette colors to all subjects
     assert "subject_color" in result.columns
     assert result["subject_color"].notna().all()
-    assert (
-        len(result["subject_color"].unique()) == 3
-    )  # 3 unique subjects = 3 different colors
+    assert len(result["subject_color"].unique()) == 3  # 3 unique subjects = 3 different colors
 
 
 def test_assign_subject_colors_missing_additional_column_with_default_color():

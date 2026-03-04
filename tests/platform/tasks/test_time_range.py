@@ -48,9 +48,7 @@ def test_utc_offset_as_datetime_timezone():
 
     assert utc.utc_offset_as_datetime_timezone == timezone.utc
     assert eat.utc_offset_as_datetime_timezone == timezone(timedelta(seconds=10800))
-    assert pacific.utc_offset_as_datetime_timezone == timezone(
-        timedelta(days=-1, seconds=57600)
-    )
+    assert pacific.utc_offset_as_datetime_timezone == timezone(timedelta(days=-1, seconds=57600))
 
 
 def test_set_time_range():
@@ -63,9 +61,7 @@ def test_set_time_range():
         utc_offset="+03:00",
     )
     time_format = "%d %b %Y %H:%M:%S %Z"
-    time_range = set_time_range(
-        since=since, until=until, timezone=timezone, time_format=time_format
-    )
+    time_range = set_time_range(since=since, until=until, timezone=timezone, time_format=time_format)
 
     assert isinstance(time_range, TimeRange)
     assert time_range.since == since

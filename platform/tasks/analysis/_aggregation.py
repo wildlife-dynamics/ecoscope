@@ -2,10 +2,9 @@ from operator import add, floordiv, mod, mul, pow, sub, truediv
 from typing import Annotated, Literal, cast
 
 import numpy as np
+from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 from pydantic import Field
 from wt_registry import register
-
-from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 
 ColumnName = Annotated[str, Field(description="Column to aggregate")]
 
@@ -72,9 +71,7 @@ def dataframe_column_percentile(
     percentile: float,
 ) -> Annotated[
     int,
-    Field(
-        description="The percentile to calculate (e.g., 50 for median, 90 for 90th percentile)."
-    ),
+    Field(description="The percentile to calculate (e.g., 50 for median, 90 for 90th percentile)."),
 ]:
     return np.nanpercentile(df[column_name].to_list(), percentile)
 
@@ -108,12 +105,8 @@ Operations = Literal[
 def apply_arithmetic_operation(
     a: Annotated[float | int, Field(description="The first number")],
     b: Annotated[float | int, Field(description="The second number")],
-    operation: Annotated[
-        Operations, Field(description="The arithmetic operation to apply")
-    ],
-) -> Annotated[
-    float | int, Field(description="The result of the arithmetic operation")
-]:
+    operation: Annotated[Operations, Field(description="The arithmetic operation to apply")],
+) -> Annotated[float | int, Field(description="The result of the arithmetic operation")]:
     return operations[operation](a, b)  # type: ignore[operator]
 
 
@@ -123,9 +116,7 @@ def apply_arithmetic_operation_over_rows(
     column_a: Annotated[str, Field(description="The first column name")],
     column_b: Annotated[str, Field(description="The second column name")],
     output_column: Annotated[str, Field(description="The output column name")],
-    operation: Annotated[
-        Operations, Field(description="The arithmetic operation to apply")
-    ],
+    operation: Annotated[Operations, Field(description="The arithmetic operation to apply")],
 ) -> AnyDataFrame:
     df[output_column] = operations[operation](df[column_a], df[column_b])  # type: ignore[operator]
     return cast(AnyDataFrame, df)
