@@ -3,15 +3,13 @@ build:
   os: ubuntu-22.04
   tools:
     python: mambaforge-22.9
-
-sphinx:
-  configuration: doc/source/conf.py
-python:
-  install:
-    - method: pip
-      path: .
-      extra_requirements:
-        - docs
-conda:
-  environment: environment.yml
+  commands:
+    # Set up conda environment
+    - conda env update -f environment.yml -n base
+    # Install package with docs extras
+    - pip install .[docs]
+    # Build Sphinx docs
+    - sphinx-build -b html doc/source $READTHEDOCS_OUTPUT/html
+    # Build MkDocs platform-sdk docs
+    - mkdocs build -f doc/platform-sdk/mkdocs.yml -d $READTHEDOCS_OUTPUT/html/platform-sdk
 formats: []

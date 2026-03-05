@@ -70,6 +70,7 @@ platform = [
     "wt-task @ git+https://github.com/wildlife-dynamics/wt@wt-task/v0.1.0#subdirectory=wt-task",
 ]
 docs = [
+  "mkdocs-material>=9.0",
   "myst-parser",
   "nbsphinx",
   "pydata-sphinx-theme",
