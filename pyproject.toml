@@ -65,9 +65,9 @@ platform = [
     "pydantic-settings",
     "cloudpathlib[gs]",
     "astropy",
-    "wt-contracts @ git+https://github.com/wildlife-dynamics/wt@4d61240#subdirectory=wt-contracts",
-    "wt-registry @ git+https://github.com/wildlife-dynamics/wt@4d61240#subdirectory=wt-registry",
-    "wt-task @ git+https://github.com/wildlife-dynamics/wt@4d61240#subdirectory=wt-task",
+    "wt-contracts @ git+https://github.com/wildlife-dynamics/wt@wt-contracts/v0.1.0#subdirectory=wt-contracts",
+    "wt-registry @ git+https://github.com/wildlife-dynamics/wt@wt-registry/v0.1.0#subdirectory=wt-registry",
+    "wt-task @ git+https://github.com/wildlife-dynamics/wt@wt-task/v0.1.0#subdirectory=wt-task",
 ]
 docs = [
   "myst-parser",
