@@ -4,12 +4,11 @@ build:
   tools:
     python: mambaforge-22.9
   commands:
-    # Set up conda environment
-    - conda env update -f environment.yml -n base
-    # Install package with docs extras
-    - pip install .[docs]
-    # Build Sphinx docs
-    - sphinx-build -b html doc/source $READTHEDOCS_OUTPUT/html
-    # Build MkDocs platform-sdk docs
+    # Replicate existing sphinx build; xref https://app.readthedocs.org/projects/ecoscope/builds/31678340/
+    - cat environment.yml
+    - mamba env create --quiet --name docs --file environment.yml
+    - python -m pip install --upgrade --upgrade-strategy only-if-needed --no-cache-dir .[docs]
+    - python -m sphinx -T -b html -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html
+    # Build MkDocs platform-sdk docs, and append them to existing sphinx output
     - mkdocs build -f doc/platform-sdk/mkdocs.yml -d $READTHEDOCS_OUTPUT/html/platform-sdk
 formats: []
