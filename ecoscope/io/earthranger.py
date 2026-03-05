@@ -1245,9 +1245,9 @@ class EarthRangerIO(ERClient):
         If with_group_data is True this will return a dict containing the group data and a "features"
             field containing a GDF of the features within the requested group
         """
-        assert (spatial_features_group_name is None) != (spatial_features_group_id is None), (
-            "Either spatial_features_group_name or spatial_features_group_id must be provided, not both."
-        )
+        assert (spatial_features_group_name is None) != (
+            spatial_features_group_id is None
+        ), "Either spatial_features_group_name or spatial_features_group_id must be provided, not both."
         if spatial_features_group_id is None and spatial_features_group_name is not None:
             spatial_feature_groups = self._get("spatialfeaturegroup")
 
