@@ -18,7 +18,7 @@ def download_roi(
 
     import geopandas as gpd  # type: ignore[import-untyped]
 
-    from ecoscope.io import download_file  # type: ignore[import-untyped]
+    from ecoscope.io import download_file
 
     tmp_roi_path = tempfile.NamedTemporaryFile(suffix=".gpkg").name
     download_file(

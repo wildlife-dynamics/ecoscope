@@ -139,7 +139,7 @@ def add_spatial_index(
     import geopandas as gpd  # type: ignore[import-untyped]
     import numpy as np
 
-    from ecoscope.trajectory import Trajectory  # type: ignore[import-untyped]
+    from ecoscope.trajectory import Trajectory
 
     if not isinstance(groupers, AllGrouper):
         spatial_groupers = [g for g in groupers if isinstance(g, SpatialGrouper)]

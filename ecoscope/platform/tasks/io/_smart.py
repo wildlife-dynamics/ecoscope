@@ -29,7 +29,7 @@ def get_patrol_observations_from_smart(
     ] = None,
 ) -> PatrolObservationsGDF | EmptyDataFrame:
     """Get observations for a patrol type from Smart."""
-    from ecoscope.relocations import Relocations  # type: ignore[import-untyped]
+    from ecoscope.relocations import Relocations
 
     patrol_obs_relocs = client.get_patrol_observations(
         start=time_range.since.isoformat(),

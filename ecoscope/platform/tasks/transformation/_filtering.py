@@ -87,11 +87,11 @@ def apply_reloc_coord_filter(
             and geometry not in filter_point_coords  # type: ignore[operator]
         )
 
-    filtered_df = df.loc[df["geometry"].apply(envelope_reloc_filter), :]
+    filtered_df = df.loc[df["geometry"].apply(envelope_reloc_filter), :]  # type: ignore[index,assignment]
 
     if roi_gdf is not None and roi_name is not None:
         roi = roi_gdf.loc[roi_name, "geometry"]
-        filtered_df = filtered_df.loc[filtered_df.intersects(roi), :]  # type: ignore[operator]
+        filtered_df = filtered_df.loc[filtered_df.intersects(roi), :]  # type: ignore[operator,index,assignment]
 
     if reset_index:
         filtered_df = filtered_df.reset_index(drop=True)

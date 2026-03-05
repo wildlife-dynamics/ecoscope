@@ -32,7 +32,7 @@ def calculate_feature_density(
     """
     Count features or sum column values per grid cell.
     """
-    from ecoscope.analysis.feature_density import (  # type: ignore[import-untyped]
+    from ecoscope.analysis.feature_density import (
         calculate_feature_density,
     )
 

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from inspect import ismethod
-from typing import Annotated, ClassVar, Generic, Protocol, Type, TypeVar, get_args, runtime_checkable
+from typing import Annotated, Any, ClassVar, Generic, Protocol, Type, TypeVar, get_args, runtime_checkable
 
 from pydantic import Field, SecretStr, ValidationInfo, field_validator
 from pydantic.functional_validators import BeforeValidator
@@ -167,7 +167,7 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
         return v
 
     def get_client(self) -> EarthRangerClientProtocol:
-        from ecoscope.io import EarthRangerIO  # type: ignore[import-untyped]
+        from ecoscope.io import EarthRangerIO
 
         auth_kws = (
             {"token": self.token.get_secret_value()}
@@ -189,15 +189,16 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
 class SmartClientProtocol(Protocol):
     def get_patrol_observations(
         self,
-        ca_uuid,
-        language_uuid,
-        start,
-        end,
-        patrol_mandate,
-        patrol_transport,
-    ) -> AnyGeoDataFrame: ...
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+        patrol_mandate: str | None = ...,
+        patrol_transport: str | None = ...,
+        station_uuid: str | None = ...,
+    ) -> Any: ...
 
-    def get_events(self, ca_uuid, language_uuid, start, end) -> AnyGeoDataFrame: ...
+    def get_events(self, ca_uuid: str, language_uuid: str, start: str, end: str) -> AnyGeoDataFrame: ...
 
 
 class SmartConnection(DataConnection[SmartClientProtocol]):
@@ -217,7 +218,7 @@ class SmartConnection(DataConnection[SmartClientProtocol]):
         return v
 
     def get_client(self) -> SmartClientProtocol:
-        from ecoscope.io import SmartIO  # type: ignore[import-untyped]
+        from ecoscope.io import SmartIO
 
         auth_kws = (
             {"token": self.token.get_secret_value()}
@@ -247,7 +248,7 @@ class EarthEngineConnection(DataConnection[EarthEngineClientProtocol]):
     ee_project: Annotated[str, Field(description="Your EarthEngine project ID")] = ""
 
     def get_client(self):
-        from ecoscope.io import EarthEngineIO  # type: ignore[import-untyped]
+        from ecoscope.io import EarthEngineIO
 
         return EarthEngineIO(
             service_account=self.service_account,

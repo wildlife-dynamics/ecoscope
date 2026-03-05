@@ -81,6 +81,7 @@ test = ["pytest", "pytest-cov", "pytest-mock", "pytest-reportlog", "fsspec"]
 mypy = [
   "mypy",
   "pandas-stubs",
+  "pandera[mypy]",
   "types-httplib2",
   "types-python-dateutil",
   "types-pytz",
@@ -88,6 +89,9 @@ mypy = [
   "types-shapely",
   "types-tqdm",
 ]
+
+[tool.mypy]
+plugins = ["pandera.mypy", "pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"
@@ -145,6 +149,11 @@ packages = [
   "ecoscope.platform.tasks.transformation",
   "ecoscope.platform.tasks.warning",
 ]
+
+[tool.setuptools.package-data]
+"ecoscope.platform.tasks.results" = ["*.jinja2"]
+"ecoscope.platform.tasks.io" = ["*.parquet", "*.json"]
+"ecoscope.platform.tasks.preprocessing" = ["*.parquet"]
 
 [project.entry-points."wt_task.mock_loaders"]
 parquet = "ecoscope.platform.mock_loaders:load_parquet"

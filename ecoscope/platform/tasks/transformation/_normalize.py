@@ -22,7 +22,7 @@ def normalize_json_column(
         AdvancedField(description="Sort new columns alphabetically.", default=True),
     ] = True,
 ) -> AnyDataFrame:
-    import ecoscope  # type: ignore[import-untyped]
+    import ecoscope
 
     if skip_if_not_exists and column not in df.columns:
         logger.warning("Column '%s' does not exist in DataFrame. Skipping normalization.", column)

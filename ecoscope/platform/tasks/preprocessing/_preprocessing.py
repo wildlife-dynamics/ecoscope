@@ -91,7 +91,7 @@ def process_relocations(
         ),
     ],
 ) -> PatrolObservationsGDF | SubjectGroupObservationsGDF:
-    from ecoscope.relocations import (  # type: ignore[import-untyped]
+    from ecoscope.relocations import (
         Relocations,
         RelocsCoordinateFilter,
     )
@@ -131,8 +131,8 @@ def relocations_to_trajectory(
         ),
     ] = None,
 ) -> TrajectoryGDF:
-    from ecoscope.relocations import Relocations  # type: ignore[import-untyped]
-    from ecoscope.trajectory import (  # type: ignore[import-untyped]
+    from ecoscope.relocations import Relocations
+    from ecoscope.trajectory import (
         Trajectory,
         TrajSegFilter,
     )
