@@ -5,10 +5,11 @@ build:
     python: mambaforge-22.9
   commands:
     # Replicate existing sphinx build; xref https://app.readthedocs.org/projects/ecoscope/builds/31678340/
-    - cat environment.yml
-    - mamba env create --quiet --name docs --file environment.yml
+    # AFAICT the mamba env is not actually used in the legacy docs build? Leaving here for clarity.
+    # - cat environment.yml
+    # - mamba env create --quiet --name docs --file environment.yml
     - python -m pip install --upgrade --upgrade-strategy only-if-needed --no-cache-dir .[docs]
-    - python -m sphinx -T -b html -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html
+    - cd doc/source/ && python -m sphinx -T -b html -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html
     # Build MkDocs platform-sdk docs, and append them to existing sphinx output
     - mkdocs build -f doc/platform-sdk/mkdocs.yml -d $READTHEDOCS_OUTPUT/html/platform-sdk
 formats: []
