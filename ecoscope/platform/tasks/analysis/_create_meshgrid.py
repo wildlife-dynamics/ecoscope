@@ -48,7 +48,7 @@ def create_meshgrid(
         auto_scale_or_custom_cell_size = AutoScaleGridCellSize()
 
     if isinstance(auto_scale_or_custom_cell_size, CustomGridCellSize):
-        cell_size = int(auto_scale_or_custom_cell_size.grid_cell_size or 5000)
+        cell_size = auto_scale_or_custom_cell_size.grid_cell_size
 
         # Approximate the number of grid cells we'll generate
         # and error if it's above the acceptable threshold
@@ -66,7 +66,7 @@ def create_meshgrid(
         if num_cells_lat * num_cells_lon > MAX_CELL_COUNT:
             raise ValueError("Custom grid cell size is too small for the extent of the area of interest")
     else:
-        cell_size = int(grid_size_from_geographic_extent(aoi))
+        cell_size = grid_size_from_geographic_extent(aoi)
 
     result = create_meshgrid(
         box(*aoi.total_bounds),
