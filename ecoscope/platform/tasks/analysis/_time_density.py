@@ -193,14 +193,14 @@ def calculate_elliptical_time_density(
         auto_scale_or_custom_cell_size = AutoScaleGridCellSize()
 
     if isinstance(auto_scale_or_custom_cell_size, CustomGridCellSize):
-        pixel_size = auto_scale_or_custom_cell_size.grid_cell_size or 5000.0
+        pixel_size = auto_scale_or_custom_cell_size.grid_cell_size
     else:
         pixel_size = grid_size_from_geographic_extent(trajectory_gdf, scale_factor=500)
 
     raster_profile = RasterProfile(
         pixel_size=pixel_size,
         crs=crs,
-        nodata_value=float(nodata_value) if not isinstance(nodata_value, float) else nodata_value,
+        nodata_value=nodata_value,
         band_count=band_count,
     )
     trajectory_gdf.sort_values("segment_start", inplace=True)
