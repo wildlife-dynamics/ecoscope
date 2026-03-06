@@ -16,6 +16,7 @@ on:
 jobs:
   Test:
     strategy:
+      fail-fast: false
       matrix:
         to_test: ["not platform", "ecoscope.platform"]
     name: ${{ inputs.os }}, ${{ inputs.io }}, ${{ matrix.to_test }}
@@ -23,8 +24,6 @@ jobs:
     defaults:
       run:
         shell: bash -leo pipefail {0}
-    strategy:
-      fail-fast: false
 
     steps:
       - uses: actions/checkout@v6
