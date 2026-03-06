@@ -49,6 +49,7 @@ jobs:
           --ignore=tests/platform
 
       - uses: 'google-github-actions/auth@v3'
+        if: matrix.to_test == 'ecoscope.platform' && inputs.io == 'io'
         id: google-auth
         with:
           credentials_json: '${{ secrets.EE_PRIVATE_KEY_DATA }}'
