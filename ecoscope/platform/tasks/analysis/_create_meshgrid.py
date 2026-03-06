@@ -72,8 +72,8 @@ def create_meshgrid(
         box(*aoi.total_bounds),
         in_crs=aoi.crs,
         out_crs=crs,
-        xlen=cell_size,
-        ylen=cell_size,
+        xlen=cell_size,  # type: ignore[arg-type]
+        ylen=cell_size,  # type: ignore[arg-type]
         return_intersecting_only=intersecting_only,
     )
 

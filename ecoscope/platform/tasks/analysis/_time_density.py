@@ -198,9 +198,9 @@ def calculate_elliptical_time_density(
         pixel_size = grid_size_from_geographic_extent(trajectory_gdf, scale_factor=500)
 
     raster_profile = RasterProfile(
-        pixel_size=pixel_size,
+        pixel_size=pixel_size,  # type: ignore[arg-type]
         crs=crs,
-        nodata_value=nodata_value,
+        nodata_value=nodata_value,  # type: ignore[arg-type]
         band_count=band_count,
     )
     trajectory_gdf.sort_values("segment_start", inplace=True)

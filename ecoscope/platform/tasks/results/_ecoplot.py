@@ -699,12 +699,12 @@ def draw_historic_timeseries(
         dataframe,
         current_value_column=current_value_column,
         current_value_title=current_value_title,
-        time_column=time_column,
+        time_column=time_column,  # type: ignore[arg-type]
         historic_min_column=historic_min_column,
         historic_max_column=historic_max_column,
-        historic_band_title=historic_band_title,
+        historic_band_title=historic_band_title,  # type: ignore[arg-type]
         historic_mean_column=historic_mean_column,
-        historic_mean_title=historic_mean_title,
+        historic_mean_title=historic_mean_title,  # type: ignore[arg-type]
         layout_kwargs=layout_style.model_dump(exclude_none=True) if layout_style else {},
         upper_lower_band_style=upper_lower_band_style.model_dump(exclude_none=True) if upper_lower_band_style else {},
         historic_mean_style=historic_mean_style.model_dump(exclude_none=True) if historic_mean_style else {},
