@@ -15,7 +15,10 @@ on:
 
 jobs:
   Test:
-    name: ${{ inputs.os }}, ${{ inputs.io }}
+    strategy:
+      matrix:
+        to_test: ["not platform", "ecoscope.platform"]
+    name: ${{ inputs.os }}, ${{ inputs.io }}, ${{ matrix.to_test }}
     runs-on: ${{ inputs.os }}
     defaults:
       run:
@@ -34,6 +37,7 @@ jobs:
           python -m pip install ".[analysis,mapping,plotting]" --group test
 
       - name: Test
+        if: ${{ matrix.to_test }} == "not platform"
         env:
           ER_USERNAME: ${{ secrets.ER_USERNAME }}
           ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
@@ -44,6 +48,22 @@ jobs:
         run: |
           pytest -v -r s -m "${{ inputs.io }}" --color=yes --cov=ecoscope --cov-append --cov-report=xml \
           --ignore=tests/platform
+
+      - name: Test ecoscope.platform
+        if: ${{ matrix.to_test }} == "ecoscope.platform"
+        env:
+          EARTHRANGER_USERNAME: ${{ secrets.ER_USERNAME }}
+          EARTHRANGER_PASSWORD: ${{ secrets.ER_PASSWORD }}
+          EARTHRANGER_SERVER: https://mep-dev.pamdas.org
+          EE_SERVICE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
+          EE_PRIVATE_KEY_FILE: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+          SMART_USERNAME: ${{ secrets.SMART_USERNAME }}
+          SMART_PASSWORD: ${{ secrets.SMART_PASSWORD }}
+          SMART_SERVER: https://maratriangleconnect.smartconservationtools.org/smartapi/
+        run: |
+          python -m pip install -U --upgrade-strategy only-if-needed ".[platform]"
+          pytest tests/platform \
+          -v -r s -m "${{ inputs.io }}" --color=yes --cov=ecoscope --cov-append --cov-report=xml
 
       - name: Codecov
         uses: codecov/codecov-action@v5
