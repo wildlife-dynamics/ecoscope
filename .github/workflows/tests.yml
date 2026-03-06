@@ -19,7 +19,8 @@ jobs:
       fail-fast: false
       matrix:
         to_test: ["not platform", "ecoscope.platform"]
-    name: ${{ inputs.os }}, ${{ inputs.io }}${{ matrix.to_test == 'ecoscope.platform' && ', ecoscope.platform' || '' }}                                      runs-on: ${{ inputs.os }}
+    name: ${{ inputs.os }}, ${{ inputs.io }}${{ matrix.to_test == 'ecoscope.platform' && ', ecoscope.platform' || '' }}
+    runs-on: ${{ inputs.os }}
     defaults:
       run:
         shell: bash -leo pipefail {0}
