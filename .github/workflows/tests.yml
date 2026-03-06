@@ -48,6 +48,13 @@ jobs:
           pytest -v -r s -m "${{ inputs.io }}" --color=yes --cov=ecoscope --cov-append --cov-report=xml \
           --ignore=tests/platform
 
+      - uses: 'google-github-actions/auth@v3'
+        id: google-auth
+        with:
+          credentials_json: '${{ secrets.EE_PRIVATE_KEY_DATA }}'
+          create_credentials_file: true
+          cleanup_credentials: true
+
       - name: Test ecoscope.platform
         if: matrix.to_test == 'ecoscope.platform'
         env:
@@ -55,7 +62,7 @@ jobs:
           EARTHRANGER_PASSWORD: ${{ secrets.ER_PASSWORD }}
           EARTHRANGER_SERVER: https://mep-dev.pamdas.org
           EE_SERVICE_ACCOUNT: ${{ secrets.EE_ACCOUNT }}
-          EE_PRIVATE_KEY_FILE: ${{ secrets.EE_PRIVATE_KEY_DATA }}
+          EE_PRIVATE_KEY_FILE: ${{ steps.google-auth.outputs.credentials_file_path }}
           SMART_USERNAME: ${{ secrets.SMART_USERNAME }}
           SMART_PASSWORD: ${{ secrets.SMART_PASSWORD }}
           SMART_SERVER: https://maratriangleconnect.smartconservationtools.org/smartapi/
