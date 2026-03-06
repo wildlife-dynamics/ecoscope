@@ -19,8 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         to_test: ["not platform", "ecoscope.platform"]
-    name: ${{ inputs.os }}, ${{ inputs.io }}, ${{ matrix.to_test }}
-    runs-on: ${{ inputs.os }}
+    name: ${{ inputs.os }}, ${{ inputs.io }}${{ matrix.to_test == 'ecoscope.platform' && ', ecoscope.platform' || '' }}                                      runs-on: ${{ inputs.os }}
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -36,7 +35,7 @@ jobs:
           python -m pip install ".[analysis,mapping,plotting]" --group test
 
       - name: Test
-        if: ${{ matrix.to_test }} == "not platform"
+        if: matrix.to_test == 'not platform'
         env:
           ER_USERNAME: ${{ secrets.ER_USERNAME }}
           ER_PASSWORD: ${{ secrets.ER_PASSWORD }}
@@ -49,7 +48,7 @@ jobs:
           --ignore=tests/platform
 
       - name: Test ecoscope.platform
-        if: ${{ matrix.to_test }} == "ecoscope.platform"
+        if: matrix.to_test == 'ecoscope.platform'
         env:
           EARTHRANGER_USERNAME: ${{ secrets.ER_USERNAME }}
           EARTHRANGER_PASSWORD: ${{ secrets.ER_PASSWORD }}
