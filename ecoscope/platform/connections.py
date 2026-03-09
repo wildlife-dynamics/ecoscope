@@ -1,3 +1,10 @@
+"""Connection management for external data services.
+
+Defines the ``DataConnection`` base class and concrete connections for
+EarthRanger, Google Earth Engine, and SMART. Each connection lazily initializes
+its client from stored credentials and exposes a typed client protocol.
+"""
+
 from abc import ABC, abstractmethod
 from inspect import ismethod
 from typing import Annotated, Any, ClassVar, Generic, Protocol, Type, TypeVar, get_args, runtime_checkable

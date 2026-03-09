@@ -1,3 +1,10 @@
+"""Task library for ecoscope platform workflows.
+
+Re-exports all task subpackages (analysis, config, filter, groupby, io,
+preprocessing, results, skip, test, transformation, warning) so they can be
+imported as ``from ecoscope.platform.tasks import <subpackage>``.
+"""
+
 from . import analysis as analysis
 from . import config as config
 from . import filter as filter

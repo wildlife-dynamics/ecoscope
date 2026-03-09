@@ -1,3 +1,10 @@
+"""JSON schema utilities for React JSON Schema Form (RJSF) integration.
+
+Provides models for building filter schemas compatible with RJSF, including
+``oneOf`` enum fields, filter property/UI-schema pairs, and a container that
+generates combined JSON schemas for multiple named filters.
+"""
+
 from typing import Any, Literal
 
 from pydantic import BaseModel, model_serializer

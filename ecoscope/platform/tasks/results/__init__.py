@@ -1,3 +1,10 @@
+"""Visualization and output tasks for maps, plots, tables, and dashboards.
+
+Use this module to create EcoMap layers (points, polygons, polylines), build
+EcoPlot charts (bar, line, pie, time series), render HTML tables, compose
+dashboard JSON, and assemble output file bundles.
+"""
+
 from ._dashboard import DashboardJson, gather_dashboard
 from ._ecomap import (
     create_point_layer,

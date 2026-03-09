@@ -1,3 +1,10 @@
+"""Grouper types and temporal/spatial index definitions.
+
+Defines temporal index dataclasses (Year, Month, Date, Hour, etc.), spatial and
+value-based groupers, and the ``UserDefinedGroupers`` type alias used to
+configure how workflow data is split into groups.
+"""
+
 import calendar
 from dataclasses import dataclass
 from typing import Annotated, Callable, List, Literal, TypeAlias, Union

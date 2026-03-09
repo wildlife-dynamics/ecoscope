@@ -1,3 +1,9 @@
+"""Serialization and file persistence utilities.
+
+Handles writing text and binary data to local files or Google Cloud Storage,
+with automatic MIME-type detection and GCS-to-HTTPS URL conversion.
+"""
+
 import mimetypes
 import os
 from pathlib import Path

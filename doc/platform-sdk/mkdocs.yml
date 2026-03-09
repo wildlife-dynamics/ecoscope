@@ -34,10 +34,18 @@ plugins:
           options:
             show_source: true
             show_root_heading: true
-            members_order: source
+            show_root_full_path: true
+            members_order: alphabetical
             show_if_no_docstring: true
             show_signature_annotations: true
             show_labels: true
+            group_by_category: true
+            show_category_heading: true
+            merge_init_into_class: true
+            show_bases: true
+            docstring_style: google
+            filters:
+              - "!^_"
 
 markdown_extensions:
   - admonition
@@ -67,15 +75,20 @@ nav:
     - mock_loaders: reference/mock_loaders.md
     - schemas: reference/schemas.md
     - serde: reference/serde.md
-    - tasks:
-      - analysis: reference/tasks/analysis.md
-      - config: reference/tasks/config.md
-      - filter: reference/tasks/filter.md
-      - groupby: reference/tasks/groupby.md
+  - Tasks:
+    - Data Loading:
       - io: reference/tasks/io.md
+    - Processing:
+      - filter: reference/tasks/filter.md
       - preprocessing: reference/tasks/preprocessing.md
-      - results: reference/tasks/results.md
-      - skip: reference/tasks/skip.md
-      - test: reference/tasks/test.md
       - transformation: reference/tasks/transformation.md
+      - groupby: reference/tasks/groupby.md
+    - Analysis:
+      - analysis: reference/tasks/analysis.md
+    - Visualization:
+      - results: reference/tasks/results.md
+    - Workflow Utilities:
+      - config: reference/tasks/config.md
+      - skip: reference/tasks/skip.md
       - warning: reference/tasks/warning.md
+      - test: reference/tasks/test.md
