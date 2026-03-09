@@ -70,6 +70,7 @@ platform = [
 ]
 docs = [
   "mkdocs-material>=9.0",
+  "mkdocstrings[python]>=0.24.0",
   "myst-parser",
   "nbsphinx",
   "pydata-sphinx-theme",

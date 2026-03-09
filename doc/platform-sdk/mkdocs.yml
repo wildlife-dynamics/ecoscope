@@ -9,36 +9,32 @@ repo_name: wildlife-dynamics/ecoscope
 theme:
   name: material
   favicon: assets/ecoscope-favicon.ico
+  icon:
+    logo: octicons/book-24
   palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: custom
-      accent: custom
+    - scheme: default
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: custom
-      accent: custom
+    - scheme: slate
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
+    - announce.dismiss
     - content.code.copy
-    - content.code.annotate
-    - navigation.instant
-    - navigation.tracking
-    - navigation.tabs
     - navigation.sections
-    - navigation.expand
-    - navigation.top
-    - search.suggest
-    - search.highlight
-    - toc.follow
 
 plugins:
   - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [../../]
+          options:
+            show_source: true
+            show_root_heading: true
+            members_order: source
 
 markdown_extensions:
   - admonition
@@ -60,3 +56,18 @@ extra_css:
 
 nav:
   - Home: index.md
+  - API Reference:
+    - reference/index.md
+    - ecoscope.platform: reference/platform.md
+    - Tasks:
+      - Analysis: reference/tasks/analysis.md
+      - Config: reference/tasks/config.md
+      - Filter: reference/tasks/filter.md
+      - GroupBy: reference/tasks/groupby.md
+      - IO: reference/tasks/io.md
+      - Preprocessing: reference/tasks/preprocessing.md
+      - Results: reference/tasks/results.md
+      - Skip: reference/tasks/skip.md
+      - Test: reference/tasks/test.md
+      - Transformation: reference/tasks/transformation.md
+      - Warning: reference/tasks/warning.md
