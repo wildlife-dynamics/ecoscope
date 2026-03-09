@@ -56,18 +56,23 @@ extra_css:
 
 nav:
   - Home: index.md
-  - API Reference:
-    - reference/index.md
-    - ecoscope.platform: reference/platform.md
-    - Tasks:
-      - Analysis: reference/tasks/analysis.md
-      - Config: reference/tasks/config.md
-      - Filter: reference/tasks/filter.md
-      - GroupBy: reference/tasks/groupby.md
-      - IO: reference/tasks/io.md
-      - Preprocessing: reference/tasks/preprocessing.md
-      - Results: reference/tasks/results.md
-      - Skip: reference/tasks/skip.md
-      - Test: reference/tasks/test.md
-      - Transformation: reference/tasks/transformation.md
-      - Warning: reference/tasks/warning.md
+  - Reference:
+    - annotations: reference/annotations.md
+    - connections: reference/connections.md
+    - indexes: reference/indexes.md
+    - jsonschema: reference/jsonschema.md
+    - mock_loaders: reference/mock_loaders.md
+    - schemas: reference/schemas.md
+    - serde: reference/serde.md
+    - tasks:
+      - analysis: reference/tasks/analysis.md
+      - config: reference/tasks/config.md
+      - filter: reference/tasks/filter.md
+      - groupby: reference/tasks/groupby.md
+      - io: reference/tasks/io.md
+      - preprocessing: reference/tasks/preprocessing.md
+      - results: reference/tasks/results.md
+      - skip: reference/tasks/skip.md
+      - test: reference/tasks/test.md
+      - transformation: reference/tasks/transformation.md
+      - warning: reference/tasks/warning.md
