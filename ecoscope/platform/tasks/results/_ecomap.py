@@ -565,7 +565,7 @@ def draw_ecomap(
     from lonboard import BitmapTileLayer  # type: ignore[import-untyped]
     from lonboard.experimental import TextLayer  # type: ignore[import-untyped]
 
-    from ecoscope.mapping import EcoMap  # type: ignore[import-untyped]
+    from ecoscope.mapping import EcoMap
 
     if tile_layers is None:
         tile_layers = []

@@ -173,3 +173,5 @@ tests/test_output/line_density.tif
 tests/test_output/point_density.tif
 
 environment-dev.yml
+
+uv.lock

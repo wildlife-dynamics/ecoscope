@@ -214,7 +214,7 @@ def draw_ecoplot(
     Returns:
     The generated plot html as a string
     """
-    import ecoscope.plotting as plotting  # type: ignore[import-untyped]
+    import ecoscope.plotting as plotting
 
     grouped = dataframe.groupby(group_by)
 
@@ -477,7 +477,7 @@ def draw_line_chart(
     The generated chart html as a string
     """
     import ecoscope.plotting as ecoplot
-    from ecoscope.analysis.smoothing import (  # type: ignore[import-untyped]
+    from ecoscope.analysis.smoothing import (
         SmoothingConfig as EcoSmoothingConfig,
     )
 
@@ -688,27 +688,27 @@ def draw_historic_timeseries(
     -------
     fig : The generated chart html as a string
     """
-    from ecoscope.plotting import plot
+    from ecoscope.plotting.plot import draw_historic_timeseries
 
     if historic_mean_style is None:
         historic_mean_style = PlotStyle(mode="lines", line=LineStyle(color="green", dash="dot"))
     if current_value_style is None:
         current_value_style = PlotStyle(mode="lines", line=LineStyle(color="navy"))
 
-    plot = plot.draw_historic_timeseries(
+    fig = draw_historic_timeseries(
         dataframe,
         current_value_column=current_value_column,
         current_value_title=current_value_title,
-        time_column=time_column,
+        time_column=time_column,  # type: ignore[arg-type]
         historic_min_column=historic_min_column,
         historic_max_column=historic_max_column,
-        historic_band_title=historic_band_title,
+        historic_band_title=historic_band_title,  # type: ignore[arg-type]
         historic_mean_column=historic_mean_column,
-        historic_mean_title=historic_mean_title,
+        historic_mean_title=historic_mean_title,  # type: ignore[arg-type]
         layout_kwargs=layout_style.model_dump(exclude_none=True) if layout_style else {},
         upper_lower_band_style=upper_lower_band_style.model_dump(exclude_none=True) if upper_lower_band_style else {},
         historic_mean_style=historic_mean_style.model_dump(exclude_none=True) if historic_mean_style else {},
         current_value_style=current_value_style.model_dump(exclude_none=True) if current_value_style else {},
     )
 
-    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return fig.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))

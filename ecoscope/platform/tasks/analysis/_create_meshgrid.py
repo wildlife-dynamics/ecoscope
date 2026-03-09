@@ -39,16 +39,16 @@ def create_meshgrid(
     import geopandas as gpd  # type: ignore[import-untyped]
     from shapely.geometry import box
 
-    from ecoscope.analysis.UD import (  # type: ignore[import-untyped]
+    from ecoscope.analysis.UD import (
         grid_size_from_geographic_extent,
     )
-    from ecoscope.base.utils import create_meshgrid  # type: ignore[import-untyped]
+    from ecoscope.base.utils import create_meshgrid
 
     if auto_scale_or_custom_cell_size is None:
         auto_scale_or_custom_cell_size = AutoScaleGridCellSize()
 
     if isinstance(auto_scale_or_custom_cell_size, CustomGridCellSize):
-        cell_size = auto_scale_or_custom_cell_size.grid_cell_size  # type: ignore[union-attr]
+        cell_size = auto_scale_or_custom_cell_size.grid_cell_size
 
         # Approximate the number of grid cells we'll generate
         # and error if it's above the acceptable threshold
@@ -72,8 +72,8 @@ def create_meshgrid(
         box(*aoi.total_bounds),
         in_crs=aoi.crs,
         out_crs=crs,
-        xlen=cell_size,
-        ylen=cell_size,
+        xlen=cell_size,  # type: ignore[arg-type]
+        ylen=cell_size,  # type: ignore[arg-type]
         return_intersecting_only=intersecting_only,
     )
 

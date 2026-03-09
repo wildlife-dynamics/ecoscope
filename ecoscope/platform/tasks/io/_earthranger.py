@@ -393,7 +393,7 @@ def get_subjectgroup_observations(
     ] = "clean",
 ) -> SubjectGroupObservationsGDF | EmptyDataFrame:
     """Get observations for a subject group from EarthRanger."""
-    from ecoscope.relocations import Relocations  # type: ignore[import-untyped]
+    from ecoscope.relocations import Relocations
 
     filter_int = _EXCLUSION_FILTER_TO_INT[filter]
     subject_group_obs_relocs = client.get_subjectgroup_observations(
@@ -426,7 +426,7 @@ def get_patrol_observations(
     sub_page_size: SubPageSizeAnnotation = 100,
 ) -> PatrolObservationsGDF | EmptyDataFrame:
     """Get observations for a patrol type from EarthRanger."""
-    from ecoscope.relocations import Relocations  # type: ignore[import-untyped]
+    from ecoscope.relocations import Relocations
 
     if status is None:
         status = ["done"]
@@ -632,7 +632,7 @@ def get_patrol_observations_from_patrols_df(
     sub_page_size: SubPageSizeAnnotation = 100,
 ) -> PatrolObservationsGDF | EmptyDataFrame:
     """Get observations for a patrol type from EarthRanger."""
-    from ecoscope.relocations import Relocations  # type: ignore[import-untyped]
+    from ecoscope.relocations import Relocations
 
     patrol_obs_relocs = client.get_patrol_observations(
         patrols_df=patrols_df,
@@ -657,7 +657,7 @@ def unpack_events_from_patrols_df(
     truncate_to_time_range: TruncateToTimeRangeAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
 ) -> EventGDF | EmptyDataFrame:
-    from ecoscope.io.earthranger_utils import (  # type: ignore[import-untyped]
+    from ecoscope.io.earthranger_utils import (
         unpack_events_from_patrols_df,
     )
 
@@ -822,7 +822,7 @@ def get_choices_from_v2_event_type(
         Field(description="The choice field to lookup values from"),
     ],
 ) -> dict[str, str]:
-    from ecoscope.io.earthranger import ERClientNotFound  # type: ignore[import-untyped]
+    from ecoscope.io.earthranger import ERClientNotFound
 
     choices: dict[str, str] = {}
     try:
@@ -845,7 +845,7 @@ def get_spatial_features_group(
     )
     sfg = SpatialFeaturesGroup(**spatial_features_group)  # type: ignore[arg-type]
     regions_gdf = sfg.features
-    regions_gdf["metadata"] = [{"id": sfg.id, "display_name": sfg.name}] * len(regions_gdf)
+    regions_gdf["metadata"] = [{"id": sfg.id, "display_name": sfg.name}] * len(regions_gdf)  # type: ignore[assignment]
     return cast(RegionsGDF, regions_gdf)
 
 

@@ -65,9 +65,8 @@ platform = [
     "pydantic-settings",
     "cloudpathlib[gs]",
     "astropy",
-    "wt-contracts @ git+https://github.com/wildlife-dynamics/wt@wt-contracts/v0.1.0#subdirectory=wt-contracts",
-    "wt-registry @ git+https://github.com/wildlife-dynamics/wt@wt-registry/v0.1.0#subdirectory=wt-registry",
-    "wt-task @ git+https://github.com/wildlife-dynamics/wt@wt-task/v0.1.0#subdirectory=wt-task",
+    "wt-registry>=0.1.0,<0.2.0",
+    "wt-task>=0.1.0,<0.2.0",
 ]
 docs = [
   "mkdocs-material>=9.0",
@@ -83,6 +82,7 @@ test = ["pytest", "pytest-cov", "pytest-mock", "pytest-reportlog", "fsspec"]
 mypy = [
   "mypy",
   "pandas-stubs",
+  "pandera[mypy]",
   "types-httplib2",
   "types-python-dateutil",
   "types-pytz",
@@ -90,6 +90,9 @@ mypy = [
   "types-shapely",
   "types-tqdm",
 ]
+
+[tool.mypy]
+plugins = ["pandera.mypy", "pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"
@@ -147,6 +150,11 @@ packages = [
   "ecoscope.platform.tasks.transformation",
   "ecoscope.platform.tasks.warning",
 ]
+
+[tool.setuptools.package-data]
+"ecoscope.platform.tasks.results" = ["*.jinja2"]
+"ecoscope.platform.tasks.io" = ["*.parquet", "*.json"]
+"ecoscope.platform.tasks.preprocessing" = ["*.parquet"]
 
 [project.entry-points."wt_task.mock_loaders"]
 parquet = "ecoscope.platform.mock_loaders:load_parquet"

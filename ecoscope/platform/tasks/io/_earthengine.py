@@ -23,7 +23,7 @@ def calculate_ndvi_range(
     import ee
     import pandas as pd
 
-    from ecoscope.io import eetools  # type: ignore[import-untyped]
+    from ecoscope.io import eetools
 
     img_coll = (
         ee.ImageCollection(img_coll_name)
@@ -86,7 +86,7 @@ def determine_season_windows(
 ) -> Any:
     import pandas as pd
 
-    from ecoscope.analysis.seasons import (  # type: ignore[import-untyped]
+    from ecoscope.analysis.seasons import (
         seasonal_windows,
         std_ndvi_vals,
         val_cuts,
@@ -102,9 +102,9 @@ def determine_season_windows(
         .apply(lambda x: x.isoformat())
         .values
     )
-    ndvi_vals = []
+    ndvi_vals_list = []
     for t in range(1, len(date_chunks)):
-        ndvi_vals.append(
+        ndvi_vals_list.append(
             std_ndvi_vals(
                 img_coll="MODIS/061/MCD43A4",
                 nir_band="Nadir_Reflectance_Band2",
@@ -114,7 +114,7 @@ def determine_season_windows(
                 end=date_chunks[t],
             )
         )
-    ndvi_vals = pd.concat(ndvi_vals)
+    ndvi_vals = pd.concat(ndvi_vals_list)
 
     # Calculate the seasonal transition point
     cuts = val_cuts(ndvi_vals, 2)

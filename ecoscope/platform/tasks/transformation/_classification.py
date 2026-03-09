@@ -132,11 +132,11 @@ def apply_classification(
     Returns:
         The input dataframe with a classification column appended.
     """
-    from ecoscope.analysis.classifier import (  # type: ignore[import-untyped]
+    from ecoscope.analysis.classifier import (
         apply_classification,
     )
 
-    return apply_classification(
+    return apply_classification(  # type: ignore[return-value]
         df,
         input_column_name=input_column_name,
         output_column_name=output_column_name,
@@ -176,10 +176,10 @@ def apply_color_map(
     pd.DataFrame: The dataframe with an additional color column.
     """
     from ecoscope.analysis.classifier import (
-        apply_color_map,  # type: ignore[import-untyped]
+        apply_color_map,
     )
 
-    return apply_color_map(
+    return apply_color_map(  # type: ignore[return-value]
         dataframe=df,
         input_column_name=input_column_name,
         cmap=colormap,
@@ -203,7 +203,7 @@ def classify_is_night(
     Returns:
         The input dataframe with a `is_night` column appended.
     """
-    from ecoscope.analysis.astronomy import is_night  # type: ignore[import-untyped]
+    from ecoscope.analysis.astronomy import is_night
 
     relocations["is_night"] = is_night(relocations.geometry, relocations.fixtime)
 

@@ -127,6 +127,6 @@ def apply_arithmetic_operation_over_rows(
 def get_night_day_ratio(
     df: AnyGeoDataFrame,
 ) -> Annotated[float, Field(description="Night/Day ratio")]:
-    from ecoscope.analysis import astronomy  # type: ignore[import-untyped]
+    from ecoscope.analysis import astronomy
 
     return astronomy.get_nightday_ratio(df)

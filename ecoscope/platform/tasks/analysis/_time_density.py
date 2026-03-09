@@ -163,15 +163,15 @@ def calculate_elliptical_time_density(
     import geopandas as gpd  # type: ignore[import-untyped]
     import pandas as pd  # type: ignore[import-untyped]
 
-    from ecoscope.analysis.percentile import (  # type: ignore[import-untyped]
+    from ecoscope.analysis.percentile import (
         get_percentile_area,
     )
-    from ecoscope.analysis.UD import (  # type: ignore[import-untyped]
+    from ecoscope.analysis.UD import (
         calculate_etd_range,
         grid_size_from_geographic_extent,
     )
-    from ecoscope.io.raster import RasterProfile  # type: ignore[import-untyped]
-    from ecoscope.trajectory import Trajectory  # type: ignore[import-untyped]
+    from ecoscope.io.raster import RasterProfile
+    from ecoscope.trajectory import Trajectory
 
     if percentiles is not None and len(percentiles) == 0:
         raise ValueError("Percentile values, if provided, cannot be empty.")
@@ -193,14 +193,14 @@ def calculate_elliptical_time_density(
         auto_scale_or_custom_cell_size = AutoScaleGridCellSize()
 
     if isinstance(auto_scale_or_custom_cell_size, CustomGridCellSize):
-        pixel_size = auto_scale_or_custom_cell_size.grid_cell_size  # type: ignore[union-attr]
+        pixel_size = auto_scale_or_custom_cell_size.grid_cell_size
     else:
         pixel_size = grid_size_from_geographic_extent(trajectory_gdf, scale_factor=500)
 
     raster_profile = RasterProfile(
-        pixel_size=pixel_size,
+        pixel_size=pixel_size,  # type: ignore[arg-type]
         crs=crs,
-        nodata_value=nodata_value,
+        nodata_value=nodata_value,  # type: ignore[arg-type]
         band_count=band_count,
     )
     trajectory_gdf.sort_values("segment_start", inplace=True)
@@ -217,7 +217,7 @@ def calculate_elliptical_time_density(
         return cast(DataFrame[TimeDensityReturnGDFSchema], result)
 
     result = get_percentile_area(
-        percentile_levels=percentiles,
+        percentile_levels=percentiles,  # type: ignore[arg-type]
         raster_data=raster_data,
     )
     result.drop(columns="subject_id", inplace=True)
@@ -232,11 +232,11 @@ def calculate_linear_time_density(
     meshgrid: MeshGridAnnotation,
     percentiles: LtdPercentileAnnotation = None,
 ) -> AnyGeoDataFrame:
-    from ecoscope import Trajectory  # type: ignore[import-untyped]
-    from ecoscope.analysis.classifier import (  # type: ignore[import-untyped]
+    from ecoscope import Trajectory
+    from ecoscope.analysis.classifier import (
         classify_percentile,
     )
-    from ecoscope.analysis.linear_time_density import (  # type: ignore[import-untyped]
+    from ecoscope.analysis.linear_time_density import (
         calculate_ltd,
     )
 
@@ -251,7 +251,7 @@ def calculate_linear_time_density(
     density_grid = calculate_ltd(traj=Trajectory(trajectory_gdf), grid=meshgrid)
     result = classify_percentile(
         df=density_grid,
-        percentile_levels=percentiles,
+        percentile_levels=percentiles,  # type: ignore[arg-type]
         input_column_name="density",
     )
     return cast(AnyGeoDataFrame, result)
