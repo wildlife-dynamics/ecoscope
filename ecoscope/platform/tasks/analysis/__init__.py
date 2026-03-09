@@ -1,3 +1,10 @@
+"""Aggregation, density, and summary analysis functions.
+
+Use this module to compute statistics over DataFrame columns, calculate spatial
+feature densities and time-density surfaces, and summarize rows with custom
+aggregation operations.
+"""
+
 from ._aggregation import (
     apply_arithmetic_operation,
     apply_arithmetic_operation_over_rows,

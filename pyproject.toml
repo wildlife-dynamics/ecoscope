@@ -69,6 +69,8 @@ platform = [
     "wt-task>=0.1.0,<0.2.0",
 ]
 docs = [
+  "mkdocs-material>=9.0",
+  "mkdocstrings[python]>=0.24.0",
   "myst-parser",
   "nbsphinx",
   "pydata-sphinx-theme",

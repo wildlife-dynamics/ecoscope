@@ -1,3 +1,10 @@
+"""Custom field annotations and DataFrame type aliases.
+
+Provides ``AdvancedField`` for marking UI-hidden parameters, base Pandera
+models with JSON-schema support, and annotated type aliases (``AnyDataFrame``,
+``AnyGeoDataFrame``, etc.) used across the platform SDK.
+"""
+
 from typing import Annotated, Any, Callable, ParamSpec, TypeVar, Union, get_origin
 
 import pandas as pd

@@ -1,0 +1,3 @@
+# annotations
+
+::: ecoscope.platform.annotations

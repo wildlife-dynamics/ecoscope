@@ -1,3 +1,10 @@
+"""Configuration helpers for workflow variables and composite task parameters.
+
+Provides functions for setting workflow-level variables (strings, booleans, lists),
+managing workflow metadata, and calling composite analysis tasks (ETD, LTD,
+meshgrid) with combined parameter objects.
+"""
+
 from ._meta_tasks import (
     call_etd_from_combined_params,
     call_ltd_from_combined_params,
