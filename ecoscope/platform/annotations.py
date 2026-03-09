@@ -96,7 +96,7 @@ DataFrame = Annotated[
     # to make it work. So in the interim, we will just always use the generic schema declared
     # below, which will not contain any schema-specific information. This *will not* affect
     # validation behavior, only JSON Schema generation.
-    WithJsonSchema({"type": "ecoscope_workflows.annotations.DataFrame"}),
+    WithJsonSchema({"type": "ecoscope.platform.annotations.DataFrame"}),
 ]
 
 
