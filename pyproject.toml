@@ -59,6 +59,15 @@ mapping = [
   "pyarrow",
 ]
 plotting = ["plotly", "scikit-learn"]
+platform = [
+    "pandera>=0.24.0,<0.29",
+    "pydantic<2.9.0",
+    "pydantic-settings",
+    "cloudpathlib[gs]",
+    "astropy",
+    "wt-registry>=0.1.0,<0.2.0",
+    "wt-task>=0.1.0,<0.2.0",
+]
 docs = [
   "myst-parser",
   "nbsphinx",
@@ -72,6 +81,7 @@ test = ["pytest", "pytest-cov", "pytest-mock", "pytest-reportlog", "fsspec"]
 mypy = [
   "mypy",
   "pandas-stubs",
+  "pandera[mypy]",
   "types-httplib2",
   "types-python-dateutil",
   "types-pytz",
@@ -79,6 +89,9 @@ mypy = [
   "types-shapely",
   "types-tqdm",
 ]
+
+[tool.mypy]
+plugins = ["pandera.mypy", "pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = "tests"
@@ -122,7 +135,28 @@ packages = [
   "ecoscope.io",
   "ecoscope.mapping",
   "ecoscope.plotting",
+  "ecoscope.platform",
+  "ecoscope.platform.tasks",
+  "ecoscope.platform.tasks.analysis",
+  "ecoscope.platform.tasks.config",
+  "ecoscope.platform.tasks.filter",
+  "ecoscope.platform.tasks.groupby",
+  "ecoscope.platform.tasks.io",
+  "ecoscope.platform.tasks.preprocessing",
+  "ecoscope.platform.tasks.results",
+  "ecoscope.platform.tasks.skip",
+  "ecoscope.platform.tasks.test",
+  "ecoscope.platform.tasks.transformation",
+  "ecoscope.platform.tasks.warning",
 ]
+
+[tool.setuptools.package-data]
+"ecoscope.platform.tasks.results" = ["*.jinja2"]
+"ecoscope.platform.tasks.io" = ["*.parquet", "*.json"]
+"ecoscope.platform.tasks.preprocessing" = ["*.parquet"]
+
+[project.entry-points."wt_task.mock_loaders"]
+parquet = "ecoscope.platform.mock_loaders:load_parquet"
 
 [tool.setuptools_scm]
 write_to = "ecoscope/_version.py"
