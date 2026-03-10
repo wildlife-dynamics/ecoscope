@@ -1280,7 +1280,7 @@ class EarthRangerIO(ERClient):
             crs = fc.get("crs", {}).get("properties", {}).get("name", None)
             if crs is None:
                 raise ValueError(
-                    f'CRS information missing for spatial feature group {spatial_features_group.get("id")}'
+                    f"CRS information missing for spatial feature group {spatial_features_group.get('id')}"
                 )
             feature = gpd.GeoDataFrame.from_features(fc, crs=crs)
             feature = feature.to_crs(4326)

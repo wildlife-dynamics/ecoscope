@@ -22,7 +22,7 @@ jobs:
       - name: Install ecoscope
         run: |
           python -m ensurepip --upgrade  
-          python -m pip install ".[analysis,mapping,plotting]" --group mypy
+          python -m pip install ".[analysis,mapping,plotting,platform]" --group mypy
       - name: Mypy
         run: |
           mypy ecoscope

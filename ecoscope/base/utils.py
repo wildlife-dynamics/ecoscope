@@ -275,4 +275,4 @@ def hex_to_rgba(input: str) -> tuple:
 
 def color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     # eg [255,0,120,255] converts to 'rgba(255,0,120,1)'
-    return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3]/255})"
+    return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3] / 255})"

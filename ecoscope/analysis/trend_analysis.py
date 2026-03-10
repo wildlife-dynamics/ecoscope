@@ -31,7 +31,7 @@ try:
     from statsmodels.genmod.families import Binomial, Gaussian, Poisson  # type: ignore[import-not-found,import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
-        "Missing optional dependencies required by this module. " 'Please run pip install ecoscope["analysis"]'
+        'Missing optional dependencies required by this module. Please run pip install ecoscope["analysis"]'
     )
 
 
