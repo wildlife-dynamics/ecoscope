@@ -574,6 +574,7 @@ def test_patrol_events_combined(named_mock_env):
         ],
         "include_patrol_details": patrol_obs_args["include_patrol_details"],
         "sub_page_size": 100,
+        "patrols_overlap_daterange": True,
     }
     expected_patrol_events_call_args = {
         "since": patrol_events_args["time_range"].since.isoformat(),
@@ -586,6 +587,7 @@ def test_patrol_events_combined(named_mock_env):
         # We expect this to be inverted since this is checked against the core lib
         "drop_null_geometry": not patrol_events_args["include_null_geometry"],
         "sub_page_size": 100,
+        "patrols_overlap_daterange": True,
     }
 
     with patch.dict(os.environ, named_mock_env):
