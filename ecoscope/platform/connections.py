@@ -88,6 +88,7 @@ class EarthRangerClientProtocol(Protocol):
         status,
         include_patrol_details,
         sub_page_size,
+        patrols_overlap_daterange,
     ) -> AnyGeoDataFrame: ...
 
     def get_patrol_events(
@@ -99,6 +100,7 @@ class EarthRangerClientProtocol(Protocol):
         status,
         drop_null_geometry,
         sub_page_size,
+        patrols_overlap_daterange,
     ) -> AnyGeoDataFrame: ...
 
     def get_events(
@@ -121,6 +123,7 @@ class EarthRangerClientProtocol(Protocol):
         patrol_type_value,
         status,
         sub_page_size,
+        patrols_overlap_daterange,
     ) -> AnyDataFrame: ...
 
     def get_patrol_observations(
