@@ -916,6 +916,8 @@ class EarthRangerIO(ERClient):
             Accept a status string or a list of statuses
         sub_page_size: int | None
             Optionally set a specific sub_page_size for this request, instead of using the client default
+        patrols_overlap_daterange: bool, default True
+            If false, restricts patrols to only those that start within the bounds of the provided time range
         Returns
         -------
         patrols : pd.DataFrame
