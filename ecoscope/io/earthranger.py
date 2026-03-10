@@ -897,6 +897,7 @@ class EarthRangerIO(ERClient):
         patrol_type_value: str | list[str] | None = None,
         status: list[StatusOptions] | None = None,
         sub_page_size: int | None = None,
+        patrols_overlap_daterange: bool = True,
         **addl_kwargs,
     ) -> pd.DataFrame:
         """
@@ -946,6 +947,8 @@ class EarthRangerIO(ERClient):
                 raise ValueError(f"Failed to find IDs for values: {missing_values}")
 
             filter["patrol_type"] = matching_rows.index.tolist()
+        if filter.get("date_range", False):
+            filter["patrols_overlap_daterange"] = patrols_overlap_daterange
 
         params["filter"] = json.dumps(filter)
 
