@@ -71,7 +71,7 @@ outputs:
       number: 0
     requirements:
       run:
-        - ecoscope =={{ version }}
+        - ecoscope ==${{ version }}
         - pandera >=0.24.0,<0.29
         - pydantic <2.9.0
         - pydantic-settings
