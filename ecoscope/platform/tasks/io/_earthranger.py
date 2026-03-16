@@ -127,6 +127,13 @@ IncludeDisplayValuesAnnotation = Annotated[
         description="Whether or not to include display values for event types",
     ),
 ]
+PatrolsOverlapDateRangeAnnotation = Annotated[
+    bool,
+    AdvancedField(
+        default=True,
+        description="Whether or not to include patrols that start or end outside of the time range",
+    ),
+]
 
 
 EventColumns = Literal[
@@ -261,6 +268,7 @@ class CombinedPatrolAndEventsParams:
     include_null_geometry: IncludeNullGeometryAnnotation = True
     truncate_to_time_range: TruncateToTimeRangeAnnotation = True
     sub_page_size: SubPageSizeAnnotation = 100
+    patrols_overlap_daterange: PatrolsOverlapDateRangeAnnotation = True
 
     def get_patrol_observations_params(self):
         return {
@@ -271,6 +279,7 @@ class CombinedPatrolAndEventsParams:
             "include_patrol_details": self.include_patrol_details,
             "raise_on_empty": self.raise_on_empty,
             "sub_page_size": self.sub_page_size,
+            "patrols_overlap_daterange": self.patrols_overlap_daterange,
         }
 
     def get_patrol_events_params(self):
@@ -284,6 +293,7 @@ class CombinedPatrolAndEventsParams:
             "truncate_to_time_range": self.truncate_to_time_range,
             "raise_on_empty": self.raise_on_empty,
             "sub_page_size": self.sub_page_size,
+            "patrols_overlap_daterange": self.patrols_overlap_daterange,
         }
 
     def get_patrols_params(self):
@@ -294,6 +304,7 @@ class CombinedPatrolAndEventsParams:
             "status": self.status,
             "raise_on_empty": self.raise_on_empty,
             "sub_page_size": self.sub_page_size,
+            "patrols_overlap_daterange": self.patrols_overlap_daterange,
         }
 
     def get_patrol_observations_from_patrols_df_params(self):
@@ -335,6 +346,7 @@ def set_patrols_and_patrol_events_params(
     include_null_geometry: IncludeNullGeometryAnnotation = True,
     truncate_to_time_range: TruncateToTimeRangeAnnotation = True,
     sub_page_size: SubPageSizeAnnotation = 100,
+    patrols_overlap_daterange: PatrolsOverlapDateRangeAnnotation = True,
 ) -> Annotated[
     CombinedPatrolAndEventsParams,
     Field(description="Passthrough selected patrol and event types for use in downstream EarthRanger queries"),
@@ -350,6 +362,7 @@ def set_patrols_and_patrol_events_params(
         include_null_geometry=include_null_geometry,
         truncate_to_time_range=truncate_to_time_range,
         sub_page_size=sub_page_size,
+        patrols_overlap_daterange=patrols_overlap_daterange,
     )
 
 
@@ -424,6 +437,7 @@ def get_patrol_observations(
     include_patrol_details: IncludePatrolDetailsAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
     sub_page_size: SubPageSizeAnnotation = 100,
+    patrols_overlap_daterange: PatrolsOverlapDateRangeAnnotation = True,
 ) -> PatrolObservationsGDF | EmptyDataFrame:
     """Get observations for a patrol type from EarthRanger."""
     from ecoscope.relocations import Relocations
@@ -438,6 +452,7 @@ def get_patrol_observations(
         status=status,
         include_patrol_details=include_patrol_details,
         sub_page_size=sub_page_size,
+        patrols_overlap_daterange=patrols_overlap_daterange,
     )
     if isinstance(patrol_obs_relocs, Relocations):
         patrol_obs_relocs = patrol_obs_relocs.gdf
@@ -460,6 +475,7 @@ def get_patrol_events(
     raise_on_empty: RaiseOnEmptyAnnotation = True,
     sub_page_size: SubPageSizeAnnotation = 100,
     include_display_values: IncludeDisplayValuesAnnotation = False,
+    patrols_overlap_daterange: PatrolsOverlapDateRangeAnnotation = True,
 ) -> EventGDF | EventsWithDisplayNamesGDF | EmptyDataFrame:
     """Get events from patrols."""
 
@@ -474,6 +490,7 @@ def get_patrol_events(
         status=status,
         drop_null_geometry=not include_null_geometry,
         sub_page_size=sub_page_size,
+        patrols_overlap_daterange=patrols_overlap_daterange,
     )
 
     if raise_on_empty and events.empty:
@@ -605,6 +622,7 @@ def get_patrols(
     status: PatrolStatusAnnotation = None,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
     sub_page_size: SubPageSizeAnnotation = 100,
+    patrols_overlap_daterange: PatrolsOverlapDateRangeAnnotation = True,
 ) -> PatrolsDF | EmptyDataFrame:
     if status is None:
         status = ["done"]
@@ -615,6 +633,7 @@ def get_patrols(
         patrol_type_value=patrol_types,
         status=status,
         sub_page_size=sub_page_size,
+        patrols_overlap_daterange=patrols_overlap_daterange,
     )
 
     if raise_on_empty and patrols.empty:
