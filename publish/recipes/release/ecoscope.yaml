@@ -77,7 +77,7 @@ outputs:
         - pydantic-settings
         - cloudpathlib-gs
         - astropy
-        - wt-registry >=0.1.0,<0.2.0
+        - wt-registry >=0.2.0,<0.3.0
         - wt-task >=0.1.0,<0.2.0
     tests:
       - python:
