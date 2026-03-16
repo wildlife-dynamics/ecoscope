@@ -110,7 +110,7 @@ jobs:
           name: pip-dist
           path: dist/
       - name: Add tag to recipe
-        run: sed -i "s/TAG_VERSION/${{ github.ref_name }}/g" publish/recipes/release/ecoscope.yaml
+        run: sed -i "s/TAG_VERSION/${GITHUB_REF_NAME#v}/g" publish/recipes/release/ecoscope.yaml
       - name: Add dist to recipe
         run: sed -i "s/DIST_NAME/$(find ./dist/*.tar.gz  -printf "%f\n")/g" publish/recipes/release/ecoscope.yaml
       - name: Log the generated recipe
