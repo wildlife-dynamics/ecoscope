@@ -173,6 +173,18 @@ def test_get_patrols_with_invalid_type_value(er_io):
         er_io.get_patrols(since="2017-01-01", until="2017-04-01", patrol_type_value="invalid")
 
 
+def test_get_patrols_overlap_daterange_filters(er_io):
+    since_str = "2017-02-05"
+    until_str = "2017-03-01"
+
+    patrols = er_io.get_patrols(since=since_str, until=until_str)
+    filtered = er_io.get_patrols(since=since_str, until=until_str, patrols_overlap_daterange=False)
+
+    assert len(patrols) > 0
+    assert len(patrols) > 0
+    assert 0 < len(filtered) < len(patrols)
+
+
 def test_get_patrol_events(er_io):
     events = er_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
