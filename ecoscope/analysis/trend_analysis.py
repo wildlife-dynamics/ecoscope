@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 
 try:
+    import statsmodels.api as sm  # type: ignore[import-not-found,import-untyped]
     from joblib import Parallel, delayed  # type: ignore[import-not-found,import-untyped]
     from scipy.spatial.distance import euclidean  # type: ignore[import-not-found,import-untyped]
     from sklearn.base import BaseEstimator, RegressorMixin  # type: ignore[import-not-found,import-untyped]
@@ -248,6 +249,191 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
 
         exog = np.ones((len(X), 1))
         summary_frame = self._res_.get_prediction(exog=exog, exog_smooth=X).summary_frame()
+        return (
+            summary_frame["mean"].to_numpy(),
+            summary_frame["mean_ci_lower"].to_numpy(),
+            summary_frame["mean_ci_upper"].to_numpy(),
+        )
+
+
+class GLMRegressor(BaseEstimator, RegressorMixin):
+    """
+    Generalized Linear Model (GLM) Regressor.
+
+    Parameters
+    ----------
+    family : {"gaussian", "poisson", "binomial"}, default="gaussian"
+        Distribution family for the GLM.
+    add_intercept : bool, default=True
+        Whether to include an intercept term in the model.
+    """
+
+    def __init__(
+        self,
+        family: Literal["gaussian", "poisson", "binomial"] = "gaussian",
+        add_intercept: bool = True,
+    ):
+        self.add_intercept = add_intercept
+
+        if family == "gaussian":
+            self.family = Gaussian()
+        elif family == "poisson":
+            self.family = Poisson()
+        elif family == "binomial":
+            self.family = Binomial()
+        else:
+            raise ValueError(f"Unsupported family: {family}. Must be 'gaussian', 'poisson', or 'binomial'")
+
+    def fit(self, X, y):
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+        y = np.asarray(y).ravel()
+
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        self._res_ = sm.GLM(y, exog, family=self.family).fit()
+        return self
+
+    def _check_is_fitted(self) -> None:
+        if not hasattr(self, "_res_"):
+            raise ValueError("Model has not been fitted. Call fit() before using this method.")
+
+    def predict(self, X):
+        self._check_is_fitted()
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+        return self._res_.predict(exog=exog)
+
+    def aic(self) -> float:
+        self._check_is_fitted()
+        return float(self._res_.aic)
+
+    def bic(self) -> float:
+        self._check_is_fitted()
+        # statsmodels GLM uses bic (or bic_llf depending on version); prefer bic if available
+        bic = getattr(self._res_, "bic", None)
+        if bic is None:
+            return float(self._res_.bic_llf)
+        return float(bic)
+
+    def mse(self, X, y) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X)
+        y = np.asarray(y).ravel()
+        return float(np.mean((y - y_pred) ** 2))
+
+    def r_squared(self, X, y) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X)
+        y = np.asarray(y).ravel()
+        ss_res = np.sum((y - y_pred) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        if ss_tot == 0:
+            return 1.0 if ss_res == 0 else 0.0
+        return float(1 - ss_res / ss_tot)
+
+    def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self._check_is_fitted()
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        summary_frame = self._res_.get_prediction(exog=exog).summary_frame()
+        return (
+            summary_frame["mean"].to_numpy(),
+            summary_frame["mean_ci_lower"].to_numpy(),
+            summary_frame["mean_ci_upper"].to_numpy(),
+        )
+
+
+class LinearRegressionRegressor(BaseEstimator, RegressorMixin):
+    """
+    Standard Linear Regression (OLS) Regressor.
+
+    Parameters
+    ----------
+    add_intercept : bool, default=True
+        Whether to include an intercept term in the model.
+    """
+
+    def __init__(self, add_intercept: bool = True):
+        self.add_intercept = add_intercept
+
+    def fit(self, X, y):
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+        y = np.asarray(y).ravel()
+
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        self._res_ = sm.OLS(y, exog).fit()
+        return self
+
+    def _check_is_fitted(self) -> None:
+        if not hasattr(self, "_res_"):
+            raise ValueError("Model has not been fitted. Call fit() before using this method.")
+
+    def predict(self, X):
+        self._check_is_fitted()
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+        return self._res_.predict(exog)
+
+    def aic(self) -> float:
+        self._check_is_fitted()
+        return float(self._res_.aic)
+
+    def bic(self) -> float:
+        self._check_is_fitted()
+        return float(self._res_.bic)
+
+    def mse(self, X, y) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X)
+        y = np.asarray(y).ravel()
+        return float(np.mean((y - y_pred) ** 2))
+
+    def r_squared(self, X, y) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X)
+        y = np.asarray(y).ravel()
+        ss_res = np.sum((y - y_pred) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        if ss_tot == 0:
+            return 1.0 if ss_res == 0 else 0.0
+        return float(1 - ss_res / ss_tot)
+
+    def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self._check_is_fitted()
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        summary_frame = self._res_.get_prediction(exog).summary_frame()
         return (
             summary_frame["mean"].to_numpy(),
             summary_frame["mean_ci_lower"].to_numpy(),
@@ -565,7 +751,9 @@ def get_forest_cover_trends(
         aoi = aoi.to_crs(4326)
 
     feat_coll = ee.FeatureCollection(aoi.__geo_interface__)
-    gfc = ee.Image("UMD/hansen/global_forest_change_2023_v1_11")
+
+    # @see: https://developers.google.com/earth-engine/datasets/catalog/UMD_hansen_global_forest_change_2024_v1_12
+    gfc = ee.Image("UMD/hansen/global_forest_change_2024_v1_12")
 
     # Calculate forested area in 2000
     treecover2000 = gfc.select(["treecover2000"])
