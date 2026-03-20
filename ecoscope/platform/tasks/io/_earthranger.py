@@ -34,7 +34,7 @@ def _make_warehouse_client_from_env(er_site_url: str, er_api_token):
     if os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true" and (
         warehouse_api_base_url := os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL")
     ):
-        from ecoscope_earthranger_io_core.client import ERWarehouseClient
+        from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
 
         logger.debug("Using ERWarehouseClient with base_url=%s", warehouse_api_base_url)
         return ERWarehouseClient(
@@ -434,7 +434,7 @@ def get_subjectgroup_observations(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=getattr(client, "token", None) or (client.auth or {}).get("access_token"),
+        er_api_token=client.token,
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
@@ -489,7 +489,7 @@ def get_patrol_observations(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=getattr(client, "token", None) or (client.auth or {}).get("access_token"),
+        er_api_token=client.token,
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
@@ -713,7 +713,7 @@ def get_patrol_observations_from_patrols_df(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=getattr(client, "token", None) or (client.auth or {}).get("access_token"),
+        er_api_token=client.token,
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
