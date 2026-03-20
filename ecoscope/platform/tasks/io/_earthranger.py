@@ -500,6 +500,8 @@ def get_patrol_observations(
             status=status,
             include_patrol_details=include_patrol_details,
             sub_page_size=sub_page_size,
+            # TODO: pass patrols_overlap_daterange once the warehouse API supports it;
+            # currently the API always uses overlap semantics (equivalent to True).
         )
         patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
     else:
@@ -721,6 +723,8 @@ def get_patrol_observations_from_patrols_df(
             patrols_df=patrols_df,
             include_patrol_details=include_patrol_details,
             sub_page_size=sub_page_size,
+            # TODO: pass patrols_overlap_daterange once the warehouse API supports it;
+            # currently the API always uses overlap semantics (equivalent to True).
         )
         patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
     else:
