@@ -434,7 +434,7 @@ def get_subjectgroup_observations(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=client.token,
+        er_api_token=getattr(client, "token", None),
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
@@ -489,7 +489,7 @@ def get_patrol_observations(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=client.token,
+        er_api_token=getattr(client, "token", None),
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
@@ -715,7 +715,7 @@ def get_patrol_observations_from_patrols_df(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=client.token,
+        er_api_token=getattr(client, "token", None),
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
