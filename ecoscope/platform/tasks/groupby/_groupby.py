@@ -140,7 +140,7 @@ def _drop_skip_sentinels(
     iterables: list[KeyedIterableOfAny],
 ) -> list[KeyedIterableOfAny]:
     """Drop any SkipSentinel values from the keyed iterable."""
-    return [i for i in iterables for elem in i if not isinstance(elem[1], SkipSentinel)]
+    return [[(key, value) for key, value in i if not isinstance(value, SkipSentinel)] for i in iterables]
 
 
 @register()

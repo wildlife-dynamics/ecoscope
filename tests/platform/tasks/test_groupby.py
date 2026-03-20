@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from wt_task.skip import SKIP_SENTINEL
 
 from ecoscope.platform.indexes import CompositeFilter, IndexName, IndexValue
 from ecoscope.platform.tasks.groupby import (
