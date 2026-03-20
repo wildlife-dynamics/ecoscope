@@ -51,6 +51,7 @@ class EarthRangerIO(ERClient):
             kwargs["service_root"] = f"{self.server}/api/v1.0"
             kwargs["token_url"] = f"{self.server}/oauth2/token"
 
+        self.token = kwargs.get("token")
         self.sub_page_size = sub_page_size
         self.tcp_limit = tcp_limit
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
