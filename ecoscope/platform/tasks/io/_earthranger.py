@@ -433,7 +433,8 @@ def get_subjectgroup_observations(
     from ecoscope.relocations import Relocations
 
     if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server, er_api_token=client.token.get_secret_value()
+        er_site_url=client.server,
+        er_api_token=getattr(client, "token", None) or (client.auth or {}).get("access_token"),
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
@@ -487,7 +488,8 @@ def get_patrol_observations(
         status = ["done"]
 
     if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server, er_api_token=client.token.get_secret_value()
+        er_site_url=client.server,
+        er_api_token=getattr(client, "token", None) or (client.auth or {}).get("access_token"),
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
@@ -710,7 +712,8 @@ def get_patrol_observations_from_patrols_df(
     from ecoscope.relocations import Relocations
 
     if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server, er_api_token=client.token.get_secret_value()
+        er_site_url=client.server,
+        er_api_token=getattr(client, "token", None) or (client.auth or {}).get("access_token"),
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
