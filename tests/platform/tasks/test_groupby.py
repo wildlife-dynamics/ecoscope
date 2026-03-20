@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from wt_task.skip import SKIP_SENTINEL
 
 from ecoscope.platform.indexes import CompositeFilter, IndexName, IndexValue
 from ecoscope.platform.tasks.groupby import (
@@ -12,6 +13,7 @@ from ecoscope.platform.tasks.groupby import (
 from ecoscope.platform.tasks.groupby._groupby import (
     KeyedIterableOfAny,
     ValueGrouper,
+    _drop_skip_sentinels,
     _groupkey_to_composite_filter,
 )
 
@@ -231,3 +233,59 @@ def test_split_groups_value_grouper_multi_index():
         getvalue((("order", "=", "None"),), groups),
         order_none_expected_df,
     )
+
+
+def test_drop_skip_sentinels_no_skips():
+    """When there are no SkipSentinel values, the structure should be preserved."""
+    iterable_0 = [
+        ((("class", "=", "bird"),), "falcon"),
+        ((("class", "=", "mammal"),), "lion"),
+    ]
+    iterable_1 = [
+        ((("class", "=", "bird"),), "parrot"),
+        ((("class", "=", "mammal"),), "monkey"),
+    ]
+    result = _drop_skip_sentinels([iterable_0, iterable_1])
+    assert result == [iterable_0, iterable_1]
+
+
+def test_drop_skip_sentinels_with_skips():
+    """SkipSentinel values should be filtered out from each iterable."""
+    iterable_0 = [
+        ((("class", "=", "bird"),), "falcon"),
+        ((("class", "=", "mammal"),), SKIP_SENTINEL),
+    ]
+    iterable_1 = [
+        ((("class", "=", "bird"),), SKIP_SENTINEL),
+        ((("class", "=", "mammal"),), "monkey"),
+    ]
+    result = _drop_skip_sentinels([iterable_0, iterable_1])
+    assert result == [
+        [((("class", "=", "bird"),), "falcon")],
+        [((("class", "=", "mammal"),), "monkey")],
+    ]
+
+
+def test_drop_skip_sentinels_all_skipped():
+    """When all values in an iterable are SkipSentinel, the iterable should be empty."""
+    iterable_0 = [
+        ((("class", "=", "bird"),), SKIP_SENTINEL),
+        ((("class", "=", "mammal"),), SKIP_SENTINEL),
+    ]
+    iterable_1 = [
+        ((("class", "=", "bird"),), "parrot"),
+    ]
+    result = _drop_skip_sentinels([iterable_0, iterable_1])
+    assert result == [
+        [],
+        [((("class", "=", "bird"),), "parrot")],
+    ]
+
+
+def test_drop_skip_sentinels_empty_iterables():
+    """Empty iterables should be preserved as empty."""
+    result = _drop_skip_sentinels([[], []])
+    assert result == [[], []]
+
+    result = _drop_skip_sentinels([])
+    assert result == []
