@@ -21,6 +21,7 @@ from ._output_files import OutputFiles, gather_output_files
 from ._table import draw_table
 from ._widget_tasks import (
     create_map_widget_single_view,
+    create_mapv2_widget_single_view,
     create_plot_widget_single_view,
     create_single_value_widget_single_view,
     create_table_widget_single_view,
@@ -49,6 +50,7 @@ __all__ = [
     "gather_output_files",
     "draw_table",
     "create_map_widget_single_view",
+    "create_mapv2_widget_single_view",
     "create_plot_widget_single_view",
     "create_single_value_widget_single_view",
     "create_table_widget_single_view",

@@ -10,10 +10,7 @@ from ecoscope.platform.tasks.results import (
     create_text_widget_single_view,
     merge_widget_views,
 )
-from ecoscope.platform.tasks.results._widget_tasks import (
-    GroupedWidget,
-    WidgetSingleView,
-)
+from ecoscope.platform.tasks.results._widget_tasks import GroupedWidget, WidgetSingleView
 from ecoscope.platform.tasks.transformation._unit import Quantity, Unit
 
 
