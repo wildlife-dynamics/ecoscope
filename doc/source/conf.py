@@ -8,7 +8,7 @@
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
+# documentation root, use os.path.abspath to show here.
 #
 
 # -- Project information -----------------------------------------------------
@@ -20,7 +20,7 @@ import sys
 sys.path.insert(0, os.path.abspath("../.."))  # Necessary for viewcode
 sys.path.insert(0, os.path.abspath(".."))
 
-project = "Ecocope"
+project = "Ecoscope"
 copyright = "2025, Wildlife Dynamics"
 author = "Wildlife Dynamics"
 
@@ -92,15 +92,34 @@ html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 
 
-html_title = "Ecoscope Docs"
+html_title = "Ecoscope Documentation"
 html_favicon = "_static/images/favicon.ico"
 html_logo = "_static/images/logo.svg"
 
-# material theme options (see theme.conf for more information)
+# Modern pydata-sphinx-theme configuration for responsive, accessible design
 html_theme_options = {
+    "logo": {
+        "text": "Ecoscope",
+        "image_light": "_static/images/logo.svg",
+        "image_dark": "_static/images/logo.svg",
+    },
+    "header_links_before_dropdown": 7,
+    "navbar_align": "left",
+    "show_nav_level": 2,
+    "navbar_center": ["navbar-nav"],
+    "navbar_end": ["navbar-icon-links"],
     "github_url": "https://github.com/wildlife-dynamics/ecoscope",
-    "pygment_light_style": "rainbow_dash",
-    "pygment_dark_style": "dracula",
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/wildlife-dynamics/ecoscope",
+            "icon": "fab fa-github-square",
+        },
+    ],
+    "pygments_light_style": "rainbow_dash",
+    "pygments_dark_style": "dracula",
+    "use_edit_page_button": True,
+    "announcement": "🌍 Conservation Data Analytics for Wildlife Researchers",
 }
 
 commit_id = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("ascii")
@@ -110,3 +129,8 @@ nbsphinx_prolog = f"""
 
 ----
 """  # noqa
+
+# Custom CSS for enhanced styling
+html_css_files = [
+    "custom.css",
+]

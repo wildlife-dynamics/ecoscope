@@ -1,0 +1,73 @@
+/* Custom styling for Ecoscope documentation */
+
+:root {
+  --ecoscope-green: #2d8a4f;
+  --ecoscope-light-green: #e8f4f1;
+  --ecoscope-dark: #1a3a2a;
+}
+
+/* Enhanced hero section */
+.sd-hero {
+  background: linear-gradient(135deg, var(--ecoscope-green) 0%, #2d5a4f 100%);
+  color: white;
+  padding: 4rem 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+/* Feature cards */
+.sd-card {
+  border-left: 4px solid var(--ecoscope-green);
+  transition: all 0.3s ease;
+}
+
+.sd-card:hover {
+  box-shadow: 0 8px 16px rgba(45, 138, 79, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Code blocks styling */
+.highlight {
+  border-radius: 6px;
+  padding: 1rem;
+  background-color: #f5f5f5;
+}
+
+/* Sidebar navigation */
+.bd-sidebar {
+  background-color: #fafafa;
+}
+
+/* Links styling */
+a {
+  color: var(--ecoscope-green);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--ecoscope-dark);
+  text-decoration: underline;
+}
+
+/* Responsive design improvements */
+@media (max-width: 768px) {
+  .sd-card {
+    margin-bottom: 1.5rem;
+  }
+  
+  .sd-hero {
+    padding: 2rem 1rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .highlight {
+    background-color: #2d2d2d;
+  }
+  
+  .bd-sidebar {
+    background-color: #1a1a1a;
+  }
+}
