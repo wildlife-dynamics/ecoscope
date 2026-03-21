@@ -6,7 +6,7 @@ from pydantic_core import Url
 
 from ecoscope.platform.indexes import CompositeFilter
 
-WidgetTypes = Literal["graph", "map", "text", "stat", "table"]
+WidgetTypes = Literal["graph", "map", "mapV2", "text", "stat", "table"]
 
 PrecomputedHTMLWidgetData: TypeAlias = Path | Url | None
 TextWidgetData: TypeAlias = str | None
