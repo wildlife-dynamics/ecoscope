@@ -410,3 +410,100 @@ def test_clean_gdf_with_multi_index(point_gdf):
     assert "source_id" in clean_gdf.columns
     assert clean_gdf["time_bin"].to_list() == expected_time_bins
     assert clean_gdf["source_id"].to_list() == expected_sources
+
+
+def test_to_deckgl_json():
+    """Test serialization of map to deck.gl JSON format."""
+    m = EcoMap(default_widgets=False)
+    json_str = m.to_deckgl_json()
+
+    import json
+
+    data = json.loads(json_str)
+
+    assert "version" in data
+    assert "layers" in data
+    assert "view_state" in data
+    assert "deck_widgets" in data
+    assert data["height"] == 600
+    assert data["width"] == 800
+
+
+def test_from_deckgl_json():
+    """Test deserialization of map from deck.gl JSON format."""
+    # Create an original map
+    m_original = EcoMap(default_widgets=False)
+    m_original.height = 700
+    m_original.width = 900
+
+    # Serialize
+    json_str = m_original.to_deckgl_json()
+
+    # Deserialize
+    m_restored = EcoMap.from_deckgl_json(json_str, default_widgets=False)
+
+    # Check that properties are preserved
+    assert m_restored.height == 700
+    assert m_restored.width == 900
+    assert len(m_restored.layers) == 0
+
+
+def test_roundtrip_serialization():
+    """Test complete round-trip serialization and deserialization."""
+    # Create a map with some layers
+    m_original = EcoMap(default_widgets=False)
+
+    # Create a simple GeoDataFrame
+    import shapely
+
+    gdf = gpd.GeoDataFrame(
+        {"value": [1, 2, 3]},
+        geometry=[shapely.Point(34.5, -2.5), shapely.Point(35.5, -1.5), shapely.Point(36.5, -0.5)],
+        crs=4326,
+    )
+
+    # Add a point layer
+    m_original.add_layer(m_original.point_layer(gdf))
+
+    # Serialize
+    json_str = m_original.to_deckgl_json()
+
+    # Deserialize
+    m_restored = EcoMap.from_deckgl_json(json_str, default_widgets=False)
+
+    # Check that the layer is preserved
+    assert len(m_restored.layers) == 1
+    assert isinstance(m_restored.layers[0], ScatterplotLayer)
+
+
+def test_to_dict():
+    """Test conversion of map to dictionary."""
+    m = EcoMap(default_widgets=False)
+    m_dict = m.to_dict()
+
+    assert isinstance(m_dict, dict)
+    assert "version" in m_dict
+    assert "layers" in m_dict
+    assert "view_state" in m_dict
+    assert "deck_widgets" in m_dict
+    assert m_dict["height"] == 600
+    assert m_dict["width"] == 800
+
+
+def test_serialization_with_view_state():
+    """Test serialization preserves view state."""
+    m_original = EcoMap(default_widgets=False)
+
+    # Set a specific view state
+    m_original.set_view_state(longitude=35.0, latitude=-2.0, zoom=10)
+
+    # Serialize
+    json_str = m_original.to_deckgl_json()
+
+    # Deserialize
+    m_restored = EcoMap.from_deckgl_json(json_str, default_widgets=False)
+
+    # Check view state is restored
+    assert m_restored.view_state.longitude == 35.0
+    assert m_restored.view_state.latitude == -2.0
+    assert m_restored.view_state.zoom == 10

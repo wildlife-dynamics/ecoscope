@@ -1,7 +1,8 @@
 import base64
+import json
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Dict, Optional, Sequence, TextIO, Union, overload
+from typing import IO, Any, Dict, Optional, Sequence, TextIO, Union, overload
 
 import ee
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -525,6 +526,82 @@ class EcoMap(Map):
             max_requests=layer_def.get("max_requests", None),  # type: ignore[arg-type]
             opacity=opacity,  # type: ignore[arg-type]
         )
+
+    def to_deckgl_json(self) -> str:
+        """
+        Serialize the map definition to deck.gl JSON format.
+
+        Returns
+        -------
+        str
+            JSON string containing the serialized map definition
+        """
+        map_dict = {
+            "version": "1.0",
+            "layers": [layer.to_dict() for layer in self.layers],
+            "view_state": dict(self.view_state) if self.view_state else {},
+            "deck_widgets": [widget.to_dict() for widget in self.deck_widgets],
+            "height": self.height,
+            "width": self.width,
+            "controller": self.controller,
+        }
+        return json.dumps(map_dict)
+
+    @classmethod
+    def from_deckgl_json(cls, json_str: str, **kwargs) -> "EcoMap":
+        """
+        Deserialize a map definition from deck.gl JSON format.
+
+        Parameters
+        ----------
+        json_str : str
+            JSON string containing the serialized map definition
+        **kwargs
+            Additional keyword arguments passed to the EcoMap constructor
+
+        Returns
+        -------
+        EcoMap
+            A new EcoMap instance with the deserialized definition
+        """
+        map_dict = json.loads(json_str)
+
+        # Extract the basic properties
+        height = map_dict.get("height", 600)
+        width = map_dict.get("width", 800)
+        controller = map_dict.get("controller", True)
+        view_state = map_dict.get("view_state", {})
+
+        # Merge with any provided kwargs
+        init_kwargs = {"height": height, "width": width, "controller": controller, **kwargs}
+
+        # Create the map instance
+        eco_map = cls(**init_kwargs)
+
+        # Set the view state if provided
+        if view_state:
+            eco_map.set_view_state(**view_state)
+
+        return eco_map
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the map to a dictionary representation.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the map definition
+        """
+        return {
+            "version": "1.0",
+            "layers": [layer.to_dict() for layer in self.layers],
+            "view_state": dict(self.view_state) if self.view_state else {},
+            "deck_widgets": [widget.to_dict() for widget in self.deck_widgets],
+            "height": self.height,
+            "width": self.width,
+            "controller": self.controller,
+        }
 
     @overload
     def to_html(
