@@ -116,8 +116,8 @@ html_theme_options = {
             "icon": "fab fa-github-square",
         },
     ],
-    "pygments_light_style": "rainbow_dash",
-    "pygments_dark_style": "dracula",
+    "pygment_light_style": "rainbow_dash",
+    "pygment_dark_style": "dracula",
     "use_edit_page_button": True,
     "announcement": "🌍 Conservation Data Analytics for Wildlife Researchers",
 }
