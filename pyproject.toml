@@ -60,7 +60,6 @@ mapping = [
 ]
 plotting = ["plotly", "scikit-learn"]
 platform = [
-    "matplotlib",
     "pandera>=0.24.0,<0.29",
     "pydantic<2.9.0",
     "pydantic-settings",
