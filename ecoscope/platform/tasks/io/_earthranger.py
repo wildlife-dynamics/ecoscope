@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Annotated, Literal, cast
 
 import pandas as pd
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, Field, SecretStr
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 from wt_task import task
@@ -25,14 +25,16 @@ from ecoscope.platform.tasks.filter._filter import TimeRange
 logger = logging.getLogger(__name__)
 
 
-def _make_warehouse_client_from_env(er_site_url: str, er_api_token):
+def _make_warehouse_client_from_env(er_site_url: str, er_api_token: SecretStr | None):
     """Create an ERWarehouseClient if warehouse env vars are configured.
 
     Returns None when the warehouse is not enabled, causing callers to
     fall back to the legacy EarthRanger API client.
     """
-    if os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true" and (
-        warehouse_api_base_url := os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL")
+    if (
+        os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
+        and (warehouse_api_base_url := os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL"))
+        and er_api_token is not None
     ):
         from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
 
@@ -434,10 +436,11 @@ def get_subjectgroup_observations(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=getattr(client, "token", None),
+        er_api_token=SecretStr(client.token) if client.token else None,
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
+        logger.warning("Exclusion flags filter is not yet supported by the warehouse API and will be ignored")
         table = warehouse_client.get_subjectgroup_observations(
             subject_group_name=subject_group_name,
             include_subject_details=True,
@@ -446,7 +449,7 @@ def get_subjectgroup_observations(
             include_subjectsource_details=include_subjectsource_details,
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
-            # ToDo: Pass exclusion flags filter once supported in the DWH API
+            # TODO: pass exclusion flags filter once supported in the DWH API
         )
         subject_group_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
     else:
@@ -489,10 +492,15 @@ def get_patrol_observations(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=getattr(client, "token", None),
+        er_api_token=SecretStr(client.token) if client.token else None,
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
+        if not patrols_overlap_daterange:
+            logger.warning(
+                "patrols_overlap_daterange=False is not yet supported by the warehouse API; "
+                "overlap semantics will be used"
+            )
         table = warehouse_client.get_patrol_observations_with_patrol_filter(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
@@ -715,7 +723,7 @@ def get_patrol_observations_from_patrols_df(
 
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
-        er_api_token=getattr(client, "token", None),
+        er_api_token=SecretStr(client.token) if client.token else None,
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 

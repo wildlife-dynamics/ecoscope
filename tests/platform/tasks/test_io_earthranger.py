@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, call, patch
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+from pydantic import SecretStr
 from wt_task import task
 
 from ecoscope.platform.connections import EarthRangerConnection
@@ -1155,7 +1156,7 @@ def test_make_warehouse_client_from_env_enabled():
     from ecoscope_earthranger_io_core.client import ERWarehouseClient
 
     with patch.dict(os.environ, _WAREHOUSE_ENV):
-        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token="test-token")
+        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
 
     assert isinstance(result, ERWarehouseClient)
     assert result.server == "mep-dev.pamdas.org"
@@ -1165,7 +1166,7 @@ def test_make_warehouse_client_from_env_enabled():
 def test_make_warehouse_client_from_env_missing_url():
     env = {"USE_EARTHRANGER_WAREHOUSE_API": "true"}
     with patch.dict(os.environ, env, clear=True):
-        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token="test-token")
+        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
     assert result is None
 
 
