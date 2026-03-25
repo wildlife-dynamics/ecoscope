@@ -64,7 +64,6 @@ platform = [
     "pydantic<2.9.0",
     "pydantic-settings",
     "cloudpathlib[gs]",
-    "astropy",
     "wt-registry>=0.2.0,<0.3.0",
     "wt-task>=0.1.0,<0.2.0",
 ]
