@@ -64,9 +64,12 @@ platform = [
     "pydantic<2.9.0",
     "pydantic-settings",
     "cloudpathlib[gs]",
-    "astropy",
-    "wt-registry>=0.1.0,<0.2.0",
+    "wt-registry>=0.2.0,<0.3.0",
     "wt-task>=0.1.0,<0.2.0",
+    "ecoscope-earthranger-io-core @ git+https://github.com/wildlife-dynamics/ecoscope-earthranger-io-core.git@v0.0.4",
+    "fastapi",  # required at import time by ecoscope-earthranger-io-core but not in its core dependencies
+    "pyarrow>=20",
+    "geoarrow-pyarrow>=0.2.0,<0.3",
 ]
 docs = [
   "mkdocs-material>=9.0",
@@ -157,6 +160,8 @@ packages = [
 "ecoscope.platform.tasks.io" = ["*.parquet", "*.json"]
 "ecoscope.platform.tasks.preprocessing" = ["*.parquet"]
 
+[project.entry-points."wt_registry"]
+ecoscope = "ecoscope.platform.tasks"
 [project.entry-points."wt_task.mock_loaders"]
 parquet = "ecoscope.platform.mock_loaders:load_parquet"
 

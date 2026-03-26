@@ -51,6 +51,7 @@ class EarthRangerIO(ERClient):
             kwargs["service_root"] = f"{self.server}/api/v1.0"
             kwargs["token_url"] = f"{self.server}/oauth2/token"
 
+        self.token = kwargs.get("token")
         self.sub_page_size = sub_page_size
         self.tcp_limit = tcp_limit
         kwargs["client_id"] = kwargs.get("client_id", "das_web_client")
@@ -897,6 +898,7 @@ class EarthRangerIO(ERClient):
         patrol_type_value: str | list[str] | None = None,
         status: list[StatusOptions] | None = None,
         sub_page_size: int | None = None,
+        patrols_overlap_daterange: bool = True,
         **addl_kwargs,
     ) -> pd.DataFrame:
         """
@@ -915,6 +917,8 @@ class EarthRangerIO(ERClient):
             Accept a status string or a list of statuses
         sub_page_size: int | None
             Optionally set a specific sub_page_size for this request, instead of using the client default
+        patrols_overlap_daterange: bool, default True
+            If false, restricts patrols to only those that start within the bounds of the provided time range
         Returns
         -------
         patrols : pd.DataFrame
@@ -946,6 +950,8 @@ class EarthRangerIO(ERClient):
                 raise ValueError(f"Failed to find IDs for values: {missing_values}")
 
             filter["patrol_type"] = matching_rows.index.tolist()
+        if filter.get("date_range", False):
+            filter["patrols_overlap_daterange"] = patrols_overlap_daterange
 
         params["filter"] = json.dumps(filter)
 
@@ -973,6 +979,7 @@ class EarthRangerIO(ERClient):
         force_point_geometry: bool = True,
         drop_null_geometry: bool = True,
         sub_page_size: int | None = None,
+        patrols_overlap_daterange: bool = True,
         **addl_kwargs,
     ) -> gpd.GeoDataFrame | pd.DataFrame:
         """
@@ -995,6 +1002,8 @@ class EarthRangerIO(ERClient):
             If true, events with no geometry will be removed from output
         sub_page_size: int | None
             Optionally set a specific sub_page_size for this request, instead of using the client default
+        patrols_overlap_daterange: bool, default True
+            If false, restricts patrols to only those that start within the bounds of the provided time range
         Returns
         -------
         events : pd.DataFrame
@@ -1007,6 +1016,7 @@ class EarthRangerIO(ERClient):
             patrol_type_value=patrol_type_value,
             status=status,
             sub_page_size=sub_page_size,
+            patrols_overlap_daterange=patrols_overlap_daterange,
             **addl_kwargs,
         )
 
@@ -1053,6 +1063,7 @@ class EarthRangerIO(ERClient):
         status: list[StatusOptions] | None = None,
         include_patrol_details: bool = False,
         sub_page_size: int | None = None,
+        patrols_overlap_daterange: bool = True,
         **kwargs,
     ) -> Relocations | pd.DataFrame:
         """
@@ -1075,6 +1086,8 @@ class EarthRangerIO(ERClient):
             Whether to merge patrol details into dataframe
         sub_page_size: int | None
             Optionally set a specific sub_page_size for this request, instead of using the client default
+        patrols_overlap_daterange: bool, default True
+            If false, restricts patrols to only those that start within the bounds of the provided time range
         kwargs
             Additional parameters to pass to `get_subject_observations`.
 
@@ -1090,6 +1103,7 @@ class EarthRangerIO(ERClient):
             patrol_type_value=patrol_type_value,
             status=status,
             sub_page_size=sub_page_size,
+            patrols_overlap_daterange=patrols_overlap_daterange,
             **kwargs,
         )
         return self.get_patrol_observations(

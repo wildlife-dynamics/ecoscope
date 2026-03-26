@@ -1,10 +1,3 @@
-"""Skip-condition predicates for conditional task execution.
-
-Each function in this module evaluates whether a task should be skipped based
-on its inputs (e.g., empty DataFrames, None dependencies, missing geometry).
-Use these as ``skip_if`` callbacks in workflow task definitions.
-"""
-
 from ._skip import (
     all_geometry_are_none,
     all_keyed_iterables_are_skips,

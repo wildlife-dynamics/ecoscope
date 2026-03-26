@@ -1,10 +1,3 @@
-"""Data loading and persistence tasks for external services.
-
-Provides functions for fetching data from EarthRanger, Google Earth Engine, and
-SMART, as well as downloading raster regions-of-interest and persisting
-DataFrames or text to local or cloud storage.
-"""
-
 from ._downloader import download_roi
 from ._earthengine import calculate_ndvi_range, determine_season_windows
 from ._earthranger import (

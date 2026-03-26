@@ -1,10 +1,3 @@
-"""Data transformation tasks for reshaping, classifying, and converting DataFrames.
-
-Includes classification (night/season/color), column mapping and renaming, type
-conversions, spatial filtering, temporal and spatial indexing, normalization,
-sorting, unit conversion, and DataFrame restructuring.
-"""
-
 from ._classification import (
     apply_classification,
     apply_color_map,

@@ -1,10 +1,3 @@
-"""Connection management for external data services.
-
-Defines the ``DataConnection`` base class and concrete connections for
-EarthRanger, Google Earth Engine, and SMART. Each connection lazily initializes
-its client from stored credentials and exposes a typed client protocol.
-"""
-
 from abc import ABC, abstractmethod
 from inspect import ismethod
 from typing import Annotated, Any, ClassVar, Generic, Protocol, Type, TypeVar, get_args, runtime_checkable
@@ -75,6 +68,9 @@ def connection_from_client(obj) -> DataConnection:
 
 @runtime_checkable
 class EarthRangerClientProtocol(Protocol):
+    server: str
+    token: str | None
+
     def get_subjectgroup_observations(
         self,
         subject_group_name: str,
@@ -95,6 +91,7 @@ class EarthRangerClientProtocol(Protocol):
         status,
         include_patrol_details,
         sub_page_size,
+        patrols_overlap_daterange,
     ) -> AnyGeoDataFrame: ...
 
     def get_patrol_events(
@@ -106,6 +103,7 @@ class EarthRangerClientProtocol(Protocol):
         status,
         drop_null_geometry,
         sub_page_size,
+        patrols_overlap_daterange,
     ) -> AnyGeoDataFrame: ...
 
     def get_events(
@@ -128,6 +126,7 @@ class EarthRangerClientProtocol(Protocol):
         patrol_type_value,
         status,
         sub_page_size,
+        patrols_overlap_daterange,
     ) -> AnyDataFrame: ...
 
     def get_patrol_observations(

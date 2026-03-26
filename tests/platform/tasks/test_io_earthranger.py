@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, call, patch
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+from pydantic import SecretStr
 from wt_task import task
 
 from ecoscope.platform.connections import EarthRangerConnection
@@ -37,6 +38,7 @@ from ecoscope.platform.tasks.io import (
 from ecoscope.platform.tasks.io._earthranger import (
     _EXCLUSION_FILTER_TO_INT,
     CombinedPatrolAndEventsParams,
+    _make_warehouse_client_from_env,
 )
 
 pytestmark = pytest.mark.io
@@ -574,6 +576,7 @@ def test_patrol_events_combined(named_mock_env):
         ],
         "include_patrol_details": patrol_obs_args["include_patrol_details"],
         "sub_page_size": 100,
+        "patrols_overlap_daterange": True,
     }
     expected_patrol_events_call_args = {
         "since": patrol_events_args["time_range"].since.isoformat(),
@@ -586,6 +589,7 @@ def test_patrol_events_combined(named_mock_env):
         # We expect this to be inverted since this is checked against the core lib
         "drop_null_geometry": not patrol_events_args["include_null_geometry"],
         "sub_page_size": 100,
+        "patrols_overlap_daterange": True,
     }
 
     with patch.dict(os.environ, named_mock_env):
@@ -1083,3 +1087,189 @@ def test_get_fields_from_bad_event_type_schema(client):
 
     with pytest.raises(ERClientNotFound):
         client.get_fields_from_event_type_schema(event_type="  ")
+
+
+# ---------------------------------------------------------------------------
+# ERWarehouseClient integration tests
+# ---------------------------------------------------------------------------
+
+
+def _make_observations_arrow_table():
+    """Build a minimal pa.Table matching OBSERVATIONS_SCHEMA__ECOSCOPE_SLIM_V1."""
+    import geoarrow.pyarrow as ga  # type: ignore[import-untyped]
+    import pyarrow as pa
+    from shapely.geometry import Point
+
+    wkb_geom = Point(36.8, -1.3).wkb
+    return pa.table(
+        {
+            "geometry": ga.array([wkb_geom]),
+            "fixtime": pa.array(
+                [pd.Timestamp("2024-01-15", tz="UTC")],
+                type=pa.timestamp("ns", tz="UTC"),
+            ),
+            "groupby_col": pa.array(["subject-1"]),
+            "extra__subject__name": pa.array(["Elephant A"]),
+            "extra__subject__subject_subtype": pa.array(["elephant"]),
+            "junk_status": pa.array([False]),
+        },
+    )
+
+
+def _make_patrol_observations_arrow_table():
+    """Build a minimal pa.Table matching OBSERVATIONS_WITH_PATROL_SCHEMA_SLIM_V1."""
+    import geoarrow.pyarrow as ga  # type: ignore[import-untyped]
+    import pyarrow as pa
+    from shapely.geometry import Point
+
+    wkb_geom = Point(36.8, -1.3).wkb
+    return pa.table(
+        {
+            "geometry": ga.array([wkb_geom]),
+            "fixtime": pa.array(
+                [pd.Timestamp("2024-01-15", tz="UTC")],
+                type=pa.timestamp("ns", tz="UTC"),
+            ),
+            "groupby_col": pa.array(["subject-1"]),
+            "extra__subject__name": pa.array(["Elephant A"]),
+            "extra__subject__subject_subtype": pa.array(["elephant"]),
+            "junk_status": pa.array([False]),
+            "patrol_id": pa.array(["patrol-1"]),
+            "patrol_title": pa.array(["Routine patrol"]),
+            "patrol_serial_number": pa.array([1], type=pa.int64()),
+            "patrol_status": pa.array(["done"]),
+            "patrol_type__value": pa.array(["routine_patrol"]),
+            "patrol_type__display": pa.array(["Routine Patrol"]),
+            "patrol_start_time": pa.array(["2024-01-15T00:00:00"]),
+            "patrol_end_time": pa.array(["2024-01-15T23:59:59"]),
+        },
+    )
+
+
+_WAREHOUSE_ENV = {
+    "USE_EARTHRANGER_WAREHOUSE_API": "true",
+    "EARTHRANGER_WAREHOUSE_API_BASE_URL": "http://warehouse-test",
+}
+
+
+def test_make_warehouse_client_from_env_enabled():
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient
+
+    with patch.dict(os.environ, _WAREHOUSE_ENV):
+        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
+
+    assert isinstance(result, ERWarehouseClient)
+    assert result.server == "mep-dev.pamdas.org"
+    assert result.warehouse_base_url == "http://warehouse-test"
+
+
+def test_make_warehouse_client_from_env_missing_url():
+    env = {"USE_EARTHRANGER_WAREHOUSE_API": "true"}
+    with patch.dict(os.environ, env, clear=True):
+        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
+    assert result is None
+
+
+def test_get_subjectgroup_observations_via_warehouse_client():
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_subjectgroup_observations.return_value = _make_observations_arrow_table()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_subjectgroup_observations(
+            client=mock_legacy_client,
+            subject_group_name="Ecoscope",
+            time_range=TimeRange(
+                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                timezone=UTC_TIMEZONEINFO,
+            ),
+            raise_on_empty=False,
+        )
+
+    mock_warehouse_client.get_subjectgroup_observations.assert_called_once()
+    mock_legacy_client.get_subjectgroup_observations.assert_not_called()
+    assert isinstance(result, gpd.GeoDataFrame)
+    assert "geometry" in result
+    assert "fixtime" in result
+    assert "groupby_col" in result
+    assert "junk_status" in result
+
+
+def test_get_patrol_observations_via_warehouse_client():
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_patrol_observations_with_patrol_filter.return_value = (
+        _make_patrol_observations_arrow_table()
+    )
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_patrol_observations(
+            client=mock_legacy_client,
+            time_range=TimeRange(
+                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                timezone=UTC_TIMEZONEINFO,
+            ),
+            patrol_types=["routine_patrol"],
+            raise_on_empty=False,
+        )
+
+    mock_warehouse_client.get_patrol_observations_with_patrol_filter.assert_called_once()
+    mock_legacy_client.get_patrol_observations_with_patrol_filter.assert_not_called()
+    assert isinstance(result, gpd.GeoDataFrame)
+    assert "geometry" in result
+    assert "patrol_type__value" in result
+
+
+def test_get_patrol_observations_from_patrols_df_via_warehouse_client():
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_patrol_observations.return_value = _make_patrol_observations_arrow_table()
+    patrols_df = pd.DataFrame({"id": ["patrol-1"], "state": ["done"]})
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_patrol_observations_from_patrols_df(
+            client=mock_legacy_client,
+            patrols_df=patrols_df,
+            raise_on_empty=False,
+        )
+
+    mock_warehouse_client.get_patrol_observations.assert_called_once()
+    mock_legacy_client.get_patrol_observations.assert_not_called()
+    assert isinstance(result, gpd.GeoDataFrame)
+    assert "geometry" in result
+    assert "patrol_type__value" in result
+
+
+def test_warehouse_disabled_falls_back_to_legacy_client():
+    """When warehouse is not configured, the legacy client should be used."""
+    mock_legacy_client = MagicMock()
+    mock_legacy_client.get_subjectgroup_observations.return_value = pd.DataFrame()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=None,
+    ):
+        result = get_subjectgroup_observations(
+            client=mock_legacy_client,
+            subject_group_name="Ecoscope",
+            time_range=TimeRange(
+                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                timezone=UTC_TIMEZONEINFO,
+            ),
+            raise_on_empty=False,
+        )
+
+    mock_legacy_client.get_subjectgroup_observations.assert_called_once()
+    assert result.empty

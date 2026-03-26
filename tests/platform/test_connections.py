@@ -133,7 +133,9 @@ def test_resolve_er_client_from_env(named_mock_env):
         return client
 
     with patch.dict(os.environ, named_mock_env):
-        with patch("ecoscope.io.EarthRangerIO", autospec=True):
+        with patch("ecoscope.io.EarthRangerIO", autospec=True) as mock_cls:
+            mock_cls.return_value.server = "https://mep-dev.pamdas.org"
+            mock_cls.return_value.token = None
             client = f(client="mep_dev")
             assert hasattr(client, "get_subjectgroup_observations")
             assert callable(client.get_subjectgroup_observations)

@@ -466,32 +466,38 @@ def line_chart(
     fig = go.Figure(layout=layout_kwargs)
 
     groups = [(None, data)] if not category_column else data.groupby(category_column)
+    default_colors = go.Figure().layout.template.layout.colorway or go.Layout().template.layout.colorway
 
-    for name, group_data in groups:
+    for i, (name, group_data) in enumerate(groups):
         x = np.asarray(group_data[x_column])
         y = np.asarray(group_data[y_column])
 
         if smoothing is not None:
             x_smooth, y_smooth = apply_smoothing(x, y, smoothing)
+            color = (line_kwargs or {}).get("color") or default_colors[i % len(default_colors)]
+            line_style = dict(line_kwargs or {}, color=color)
             # Layer 1: Smoothed line (no markers, no hover)
             fig.add_trace(
                 go.Scatter(
                     x=x_smooth,
                     y=y_smooth,
                     mode="lines",
-                    line=line_kwargs,
+                    line=line_style,
                     name=name,
+                    legendgroup=name,
                     showlegend=name is not None,
                     hoverinfo="skip",
                 )
             )
-            # Layer 2: Original data points (markers only)
+            # Layer 2: Original data points (markers only, same color as line)
             fig.add_trace(
                 go.Scatter(
                     x=x,
                     y=y,
                     mode="markers",
+                    marker=dict(color=color),
                     name=name,
+                    legendgroup=name,
                     showlegend=False,
                 )
             )

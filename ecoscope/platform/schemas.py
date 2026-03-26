@@ -1,10 +1,3 @@
-"""Pandera DataFrame schemas for validated ecoscope data types.
-
-Provides schema classes for relocations, events, trajectories, patrols, and
-regions, each enforcing column types, required attributes, and timezone
-awareness. Strict variants raise on extra columns.
-"""
-
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Annotated, Any, TypeAlias

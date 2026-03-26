@@ -32,7 +32,7 @@ jobs:
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
     - name: Store the distribution packages
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: pip-dist
         path: dist/
@@ -46,7 +46,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: pip-dist
           path: dist/
@@ -69,7 +69,7 @@ jobs:
 
     steps:
     - name: Download all the dists
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: pip-dist
         path: dist/
@@ -105,12 +105,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Download the built dist
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: pip-dist
           path: dist/
       - name: Add tag to recipe
-        run: sed -i "s/TAG_VERSION/${{ github.ref_name }}/g" publish/recipes/release/ecoscope.yaml
+        run: sed -i "s/TAG_VERSION/${GITHUB_REF_NAME#v}/g" publish/recipes/release/ecoscope.yaml
       - name: Add dist to recipe
         run: sed -i "s/DIST_NAME/$(find ./dist/*.tar.gz  -printf "%f\n")/g" publish/recipes/release/ecoscope.yaml
       - name: Log the generated recipe
@@ -118,7 +118,7 @@ jobs:
       - name: Create channel
         run: mkdir -p /tmp/ecoscope/release/artifacts
       - name: Build prefix release
-        uses: prefix-dev/rattler-build-action@v0.2.34
+        uses: prefix-dev/rattler-build-action@v0.2.36
         with:
           recipe-path: publish/recipes/release/ecoscope.yaml
           build-args: --output-dir /tmp/ecoscope/release/artifacts --channel https://prefix.dev/ecoscope-workflows --channel conda-forge
@@ -144,7 +144,7 @@ jobs:
       
     steps:
       - name: Grab the previously stored build
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: pip-dist
           path: dist/
