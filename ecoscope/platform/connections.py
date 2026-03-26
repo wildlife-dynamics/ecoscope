@@ -68,6 +68,9 @@ def connection_from_client(obj) -> DataConnection:
 
 @runtime_checkable
 class EarthRangerClientProtocol(Protocol):
+    server: str
+    token: str | None
+
     def get_subjectgroup_observations(
         self,
         subject_group_name: str,

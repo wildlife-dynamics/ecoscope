@@ -1,8 +1,10 @@
+import logging
+import os
 from dataclasses import dataclass
 from typing import Annotated, Literal, cast
 
 import pandas as pd
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, Field, SecretStr
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 from wt_task import task
@@ -19,6 +21,30 @@ from ecoscope.platform.schemas import (
     SubjectGroupObservationsGDF,
 )
 from ecoscope.platform.tasks.filter._filter import TimeRange
+
+logger = logging.getLogger(__name__)
+
+
+def _make_warehouse_client_from_env(er_site_url: str, er_api_token: SecretStr | None):
+    """Create an ERWarehouseClient if warehouse env vars are configured.
+
+    Returns None when the warehouse is not enabled, causing callers to
+    fall back to the legacy EarthRanger API client.
+    """
+    if (
+        os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
+        and (warehouse_api_base_url := os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL"))
+        and er_api_token is not None
+    ):
+        from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
+
+        logger.debug("Using ERWarehouseClient with base_url=%s", warehouse_api_base_url)
+        return ERWarehouseClient(
+            server=er_site_url,
+            token=er_api_token,
+            warehouse_base_url=warehouse_api_base_url,
+        )
+    return None
 
 
 def _strip_whitespace_from_list_items(v: list[str]):
@@ -408,19 +434,38 @@ def get_subjectgroup_observations(
     """Get observations for a subject group from EarthRanger."""
     from ecoscope.relocations import Relocations
 
-    filter_int = _EXCLUSION_FILTER_TO_INT[filter]
-    subject_group_obs_relocs = client.get_subjectgroup_observations(
-        subject_group_name=subject_group_name,
-        include_subject_details=True,
-        include_inactive=True,
-        include_details=include_details,
-        include_subjectsource_details=include_subjectsource_details,
-        since=time_range.since.isoformat(),
-        until=time_range.until.isoformat(),
-        filter=filter_int,
-    )
-    if isinstance(subject_group_obs_relocs, Relocations):
-        subject_group_obs_relocs = subject_group_obs_relocs.gdf
+    if warehouse_client := _make_warehouse_client_from_env(
+        er_site_url=client.server,
+        er_api_token=SecretStr(client.token) if client.token else None,
+    ):
+        import geopandas as gpd  # type: ignore[import-untyped]
+
+        logger.warning("Exclusion flags filter is not yet supported by the warehouse API and will be ignored")
+        table = warehouse_client.get_subjectgroup_observations(
+            subject_group_name=subject_group_name,
+            include_subject_details=True,
+            include_inactive=True,
+            include_details=include_details,
+            include_subjectsource_details=include_subjectsource_details,
+            since=time_range.since.isoformat(),
+            until=time_range.until.isoformat(),
+            # TODO: pass exclusion flags filter once supported in the DWH API
+        )
+        subject_group_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+    else:
+        filter_int = _EXCLUSION_FILTER_TO_INT[filter]
+        subject_group_obs_relocs = client.get_subjectgroup_observations(
+            subject_group_name=subject_group_name,
+            include_subject_details=True,
+            include_inactive=True,
+            include_details=include_details,
+            include_subjectsource_details=include_subjectsource_details,
+            since=time_range.since.isoformat(),
+            until=time_range.until.isoformat(),
+            filter=filter_int,
+        )
+        if isinstance(subject_group_obs_relocs, Relocations):
+            subject_group_obs_relocs = subject_group_obs_relocs.gdf
 
     if raise_on_empty and subject_group_obs_relocs.empty:
         raise ValueError("No data returned from EarthRanger for get_subjectgroup_observations")
@@ -445,17 +490,40 @@ def get_patrol_observations(
     if status is None:
         status = ["done"]
 
-    patrol_obs_relocs = client.get_patrol_observations_with_patrol_filter(
-        since=time_range.since.isoformat(),
-        until=time_range.until.isoformat(),
-        patrol_type_value=patrol_types,
-        status=status,
-        include_patrol_details=include_patrol_details,
-        sub_page_size=sub_page_size,
-        patrols_overlap_daterange=patrols_overlap_daterange,
-    )
-    if isinstance(patrol_obs_relocs, Relocations):
-        patrol_obs_relocs = patrol_obs_relocs.gdf
+    if warehouse_client := _make_warehouse_client_from_env(
+        er_site_url=client.server,
+        er_api_token=SecretStr(client.token) if client.token else None,
+    ):
+        import geopandas as gpd  # type: ignore[import-untyped]
+
+        if not patrols_overlap_daterange:
+            logger.warning(
+                "patrols_overlap_daterange=False is not yet supported by the warehouse API; "
+                "overlap semantics will be used"
+            )
+        table = warehouse_client.get_patrol_observations_with_patrol_filter(
+            since=time_range.since.isoformat(),
+            until=time_range.until.isoformat(),
+            patrol_type_value=patrol_types,
+            status=status,
+            include_patrol_details=include_patrol_details,
+            sub_page_size=sub_page_size,
+            # TODO: pass patrols_overlap_daterange once the warehouse API supports it;
+            # currently the API always uses overlap semantics (equivalent to True).
+        )
+        patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+    else:
+        patrol_obs_relocs = client.get_patrol_observations_with_patrol_filter(
+            since=time_range.since.isoformat(),
+            until=time_range.until.isoformat(),
+            patrol_type_value=patrol_types,
+            status=status,
+            include_patrol_details=include_patrol_details,
+            sub_page_size=sub_page_size,
+            patrols_overlap_daterange=patrols_overlap_daterange,
+        )
+        if isinstance(patrol_obs_relocs, Relocations):
+            patrol_obs_relocs = patrol_obs_relocs.gdf
 
     if raise_on_empty and patrol_obs_relocs.empty:
         raise ValueError("No data returned from EarthRanger for get_patrol_observations_with_patrol_filter")
@@ -653,13 +721,28 @@ def get_patrol_observations_from_patrols_df(
     """Get observations for a patrol type from EarthRanger."""
     from ecoscope.relocations import Relocations
 
-    patrol_obs_relocs = client.get_patrol_observations(
-        patrols_df=patrols_df,
-        include_patrol_details=include_patrol_details,
-        sub_page_size=sub_page_size,
-    )
-    if isinstance(patrol_obs_relocs, Relocations):
-        patrol_obs_relocs = patrol_obs_relocs.gdf
+    if warehouse_client := _make_warehouse_client_from_env(
+        er_site_url=client.server,
+        er_api_token=SecretStr(client.token) if client.token else None,
+    ):
+        import geopandas as gpd  # type: ignore[import-untyped]
+
+        table = warehouse_client.get_patrol_observations(
+            patrols_df=patrols_df,
+            include_patrol_details=include_patrol_details,
+            sub_page_size=sub_page_size,
+            # TODO: pass patrols_overlap_daterange once the warehouse API supports it;
+            # currently the API always uses overlap semantics (equivalent to True).
+        )
+        patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+    else:
+        patrol_obs_relocs = client.get_patrol_observations(
+            patrols_df=patrols_df,
+            include_patrol_details=include_patrol_details,
+            sub_page_size=sub_page_size,
+        )
+        if isinstance(patrol_obs_relocs, Relocations):
+            patrol_obs_relocs = patrol_obs_relocs.gdf
 
     if raise_on_empty and patrol_obs_relocs.empty:
         raise ValueError("No data returned from EarthRanger for get_patrol_observations_with_patrol_filter")
