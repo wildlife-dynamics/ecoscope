@@ -7,7 +7,9 @@ name = "ecoscope-events-dashboard-wizard-provider"
 version = "0.1.0"
 description = "Wizard provider for scaffolding Ecoscope events dashboard workflows"
 requires-python = ">=3.12"
-dependencies = ["wt-compiler"]
+dependencies = [
+    "wt-compiler",
+]
 
 [project.entry-points."wt_compiler.wizard_providers"]
 ecoscope-events-dashboard = "ecoscope_events_dashboard_wizard_provider:EcoscopeEventsDashboardWizardProvider"
@@ -52,3 +54,6 @@ pip = "*"
 [tool.pixi.package.run-dependencies]
 python = ">=3.12,<3.16"
 wt-compiler = ">=0.1.0"
+
+[tool.uv.sources]
+wt-compiler = { path = "../../../../../../wt/wt-compiler", editable = true }
