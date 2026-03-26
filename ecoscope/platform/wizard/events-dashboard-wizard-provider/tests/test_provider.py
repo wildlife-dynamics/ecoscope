@@ -6,13 +6,12 @@ import argparse
 import json
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import pytest
 from ecoscope_events_dashboard_wizard_provider import EcoscopeEventsDashboardWizardProvider
 from ecoscope_events_dashboard_wizard_provider.provider import (
     WIDGET_CHOICES,
-    _widget_batch_type,
+    WIDGET_LABELS,
     widget_title_type,
 )
 
@@ -43,19 +42,20 @@ def drive_wizard(
 
 
 def make_provider_with_widgets(
-    widgets: list[dict[str, Any]],
+    enabled: dict[str, str],
 ) -> EcoscopeEventsDashboardWizardProvider:
-    """Drive a provider through default questions and the widgets loop.
+    """Drive a provider through default questions and per-widget include/title questions.
 
     Args:
-        widgets: List of dicts with ``widget`` and ``title`` keys.
+        enabled: Mapping of widget type to display title for widgets that
+            should be included.  Widget types absent from the mapping are
+            answered ``"no"`` and their title question is skipped.
 
     Returns:
-        A provider whose answers include all default fields and ``widgets``.
+        A provider whose answers include all default fields and the widget
+        include/title answers.
     """
     provider = EcoscopeEventsDashboardWizardProvider()
-    # Build answers for default questions: workflow_id, workflow_name,
-    # workflow_description, author_name, license_type, then empty requirements loop.
     base_answers: list[str | None] = [
         "my_dashboard",  # workflow_id
         "My Dashboard",  # workflow_name
@@ -64,29 +64,27 @@ def make_provider_with_widgets(
         "MIT",  # license_type
         None,  # terminate requirements loop
     ]
-    # Now drive the widgets loop: for each widget, send widget type then title,
-    # then terminate with None for the sentinel (widget type).
     widget_answers: list[str | None] = []
-    for w in widgets:
-        widget_answers.append(w["widget"])  # sentinel question answer
-        widget_answers.append(w["title"])  # title question answer
-    widget_answers.append(None)  # terminate loop
+    for wtype in WIDGET_CHOICES:
+        if wtype in enabled:
+            widget_answers.append("yes")  # include_<wtype>
+            widget_answers.append(enabled[wtype])  # <wtype>_title
+        else:
+            widget_answers.append("no")  # include_<wtype>; title skipped
     drive_wizard(provider, base_answers + widget_answers)
     return provider
 
 
-def render_templates(
-    widgets: list[dict[str, Any]],
-) -> dict[str, str]:
-    """Render spec.yaml and layout.json for the given widgets, return file contents.
+def render_templates(enabled: dict[str, str]) -> dict[str, str]:
+    """Render spec.yaml and layout.json for the given enabled widgets.
 
     Args:
-        widgets: List of dicts with ``widget`` and ``title`` keys.
+        enabled: Mapping of widget type to display title for enabled widgets.
 
     Returns:
         Dict with keys ``spec`` and ``layout`` containing rendered file text.
     """
-    provider = make_provider_with_widgets(widgets)
+    provider = make_provider_with_widgets(enabled)
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp)
         provider.dump(out)
@@ -132,54 +130,6 @@ class TestWidgetTitleType:
 
 
 # ---------------------------------------------------------------------------
-# _widget_batch_type
-# ---------------------------------------------------------------------------
-
-
-class TestWidgetBatchType:
-    """Tests for _widget_batch_type JSON validator."""
-
-    def test_valid_object_parsed(self) -> None:
-        d = _widget_batch_type('{"widget": "bar_chart", "title": "My Bar Chart"}')
-        assert d["widget"] == "bar_chart"
-        assert d["title"] == "My Bar Chart"
-
-    def test_all_widget_choices_accepted(self) -> None:
-        for choice in WIDGET_CHOICES:
-            d = _widget_batch_type(f'{{"widget": "{choice}", "title": "Title"}}')
-            assert d["widget"] == choice
-
-    def test_invalid_widget_raises(self) -> None:
-        with pytest.raises(argparse.ArgumentTypeError, match="unknown"):
-            _widget_batch_type('{"widget": "unknown", "title": "X"}')
-
-    def test_missing_widget_field_raises(self) -> None:
-        with pytest.raises(argparse.ArgumentTypeError, match="widget"):
-            _widget_batch_type('{"title": "My Title"}')
-
-    def test_missing_title_field_raises(self) -> None:
-        with pytest.raises(argparse.ArgumentTypeError, match="title"):
-            _widget_batch_type('{"widget": "bar_chart"}')
-
-    def test_title_too_long_raises(self) -> None:
-        payload = json.dumps({"widget": "bar_chart", "title": "A" * 51})
-        with pytest.raises(argparse.ArgumentTypeError, match="50 characters"):
-            _widget_batch_type(payload)
-
-    def test_invalid_json_raises(self) -> None:
-        with pytest.raises(argparse.ArgumentTypeError, match="JSON"):
-            _widget_batch_type("not-json")
-
-    def test_json_array_raises(self) -> None:
-        with pytest.raises(argparse.ArgumentTypeError, match="object"):
-            _widget_batch_type('[{"widget": "bar_chart", "title": "X"}]')
-
-    def test_title_stripped_whitespace(self) -> None:
-        d = _widget_batch_type('{"widget": "events_map", "title": "  My Map  "}')
-        assert d["title"] == "My Map"
-
-
-# ---------------------------------------------------------------------------
 # Question structure
 # ---------------------------------------------------------------------------
 
@@ -187,30 +137,81 @@ class TestWidgetBatchType:
 class TestQuestionStructure:
     """Tests for provider question list structure."""
 
-    def test_last_question_is_widgets_loop(self) -> None:
+    def test_last_question_is_events_table_title(self) -> None:
         p = EcoscopeEventsDashboardWizardProvider()
         questions = p.get_questions()
-        last = questions[-1]
-        assert last["dest"] == "widgets"
+        assert questions[-1]["dest"] == "events_table_title"
 
-    def test_widgets_loop_has_widget_sub_question(self) -> None:
+    def test_second_to_last_is_include_events_table(self) -> None:
         p = EcoscopeEventsDashboardWizardProvider()
         questions = p.get_questions()
-        loop = questions[-1]
-        assert loop["questions"][0]["dest"] == "widget"
+        assert questions[-2]["dest"] == "include_events_table"
 
-    def test_widgets_loop_sentinel_choices(self) -> None:
-        p = EcoscopeEventsDashboardWizardProvider()
-        questions = p.get_questions()
-        loop = questions[-1]
-        sentinel = loop["questions"][0]
-        assert sentinel["argparse"]["choices"] == WIDGET_CHOICES
+    def test_ten_widget_questions_appended(self) -> None:
+        from wt_compiler.wizard.default import DefaultWizardProvider
 
-    def test_widgets_loop_has_title_sub_question(self) -> None:
+        default_count = len(DefaultWizardProvider().get_questions())
+        provider_count = len(EcoscopeEventsDashboardWizardProvider().get_questions())
+        assert provider_count == default_count + 10
+
+    def test_include_questions_have_yes_no_choices(self) -> None:
         p = EcoscopeEventsDashboardWizardProvider()
         questions = p.get_questions()
-        loop = questions[-1]
-        assert loop["questions"][1]["dest"] == "title"
+        include_qs = [q for q in questions if q["dest"].startswith("include_")]
+        assert len(include_qs) == 5
+        for q in include_qs:
+            assert q["argparse"]["choices"] == ["yes", "no"]
+
+    def test_title_questions_have_default_labels(self) -> None:
+        p = EcoscopeEventsDashboardWizardProvider()
+        questions = p.get_questions()
+        for wtype, label in WIDGET_LABELS.items():
+            title_q = next(q for q in questions if q["dest"] == f"{wtype}_title")
+            assert title_q["argparse"]["default"] == label
+
+    def test_title_question_condition_skipped_when_no(self) -> None:
+        """Title question is not yielded when include answer is 'no'."""
+        provider = EcoscopeEventsDashboardWizardProvider()
+        base_answers: list[str | None] = [
+            "my_wf",
+            "My WF",
+            "desc",
+            "Author",
+            "MIT",
+            None,
+        ]
+        # Answer "no" to all include questions
+        widget_answers: list[str | None] = ["no"] * len(WIDGET_CHOICES)
+        questions = drive_wizard(provider, base_answers + widget_answers)
+        yielded_dests = {q["dest"] for q in questions}
+        for wtype in WIDGET_CHOICES:
+            assert f"{wtype}_title" not in yielded_dests
+
+    def test_title_question_yielded_when_yes(self) -> None:
+        """Title question is yielded when include answer is 'yes'."""
+        provider = EcoscopeEventsDashboardWizardProvider()
+        base_answers: list[str | None] = [
+            "my_wf",
+            "My WF",
+            "desc",
+            "Author",
+            "MIT",
+            None,
+        ]
+        # Answer "yes" only for bar_chart; "no" for rest
+        widget_answers: list[str | None] = [
+            "yes",
+            "My Chart",  # bar_chart
+            "no",  # events_map
+            "no",  # pie_chart
+            "no",  # event_count_map
+            "no",  # events_table
+        ]
+        questions = drive_wizard(provider, base_answers + widget_answers)
+        yielded_dests = {q["dest"] for q in questions}
+        assert "bar_chart_title" in yielded_dests
+        for wtype in ("events_map", "pie_chart", "event_count_map", "events_table"):
+            assert f"{wtype}_title" not in yielded_dests
 
     def test_inherits_default_questions(self) -> None:
         from wt_compiler.wizard.default import DefaultWizardProvider
@@ -223,7 +224,7 @@ class TestQuestionStructure:
             assert dest in provider_dests
 
     def test_get_questions_returns_independent_copies(self) -> None:
-        """Each call to get_questions() returns a fresh deep copy of the loop."""
+        """Each call to get_questions() returns fresh deep copies."""
         p = EcoscopeEventsDashboardWizardProvider()
         q1 = p.get_questions()
         q2 = p.get_questions()
@@ -238,8 +239,8 @@ class TestQuestionStructure:
 class TestDumpValidation:
     """Tests for dump() widget validation."""
 
-    def test_dump_raises_on_empty_widgets(self, tmp_path: Path) -> None:
-        """dump() raises ValueError when no widgets are selected."""
+    def test_dump_raises_on_no_widgets_selected(self, tmp_path: Path) -> None:
+        """dump() raises ValueError when all widgets are answered 'no'."""
         provider = EcoscopeEventsDashboardWizardProvider()
         base_answers: list[str | None] = [
             "my_dashboard",
@@ -247,36 +248,16 @@ class TestDumpValidation:
             "Dashboard description",
             "Test Author",
             "MIT",
-            None,  # terminate requirements loop
-            None,  # terminate widgets loop immediately
+            None,
         ]
-        drive_wizard(provider, base_answers)
+        widget_answers: list[str | None] = ["no"] * len(WIDGET_CHOICES)
+        drive_wizard(provider, base_answers + widget_answers)
         with pytest.raises(ValueError, match="[Aa]t least one widget"):
-            provider.dump(tmp_path)
-
-    def test_dump_raises_on_duplicate_widget_type(self, tmp_path: Path) -> None:
-        """dump() raises ValueError when a duplicate widget type is present."""
-        provider = EcoscopeEventsDashboardWizardProvider()
-        base_answers: list[str | None] = [
-            "my_dashboard",
-            "My Dashboard",
-            "Dashboard description",
-            "Test Author",
-            "MIT",
-            None,  # terminate requirements loop
-            "bar_chart",
-            "First Bar Chart",
-            "bar_chart",
-            "Second Bar Chart",
-            None,  # terminate widgets loop
-        ]
-        drive_wizard(provider, base_answers)
-        with pytest.raises(ValueError, match="[Dd]uplicate"):
             provider.dump(tmp_path)
 
     def test_dump_succeeds_with_one_widget(self, tmp_path: Path) -> None:
         """dump() succeeds and writes files when exactly one widget is selected."""
-        provider = make_provider_with_widgets([{"widget": "bar_chart", "title": "Events"}])
+        provider = make_provider_with_widgets({"bar_chart": "Events"})
         provider.dump(tmp_path)
         assert (tmp_path / "spec.yaml").exists()
         assert (tmp_path / "layout.json").exists()
@@ -291,69 +272,61 @@ class TestSpecRendering:
     """Tests for spec.yaml template rendering."""
 
     def test_bar_chart_tasks_present_when_enabled(self) -> None:
-        result = render_templates([{"widget": "bar_chart", "title": "My Bar Chart"}])
+        result = render_templates({"bar_chart": "My Bar Chart"})
         assert "events_bar_chart" in result["spec"]
         assert "grouped_bar_plot_widget_merge" in result["spec"]
 
     def test_events_map_tasks_present_when_enabled(self) -> None:
-        result = render_templates([{"widget": "events_map", "title": "My Map"}])
+        result = render_templates({"events_map": "My Map"})
         assert "grouped_events_map_layer" in result["spec"]
         assert "grouped_events_map_widget_merge" in result["spec"]
 
     def test_pie_chart_tasks_present_when_enabled(self) -> None:
-        result = render_templates([{"widget": "pie_chart", "title": "My Pie"}])
+        result = render_templates({"pie_chart": "My Pie"})
         assert "grouped_events_pie_chart" in result["spec"]
         assert "grouped_events_pie_widget_merge" in result["spec"]
 
     def test_event_count_map_tasks_present_when_enabled(self) -> None:
-        result = render_templates([{"widget": "event_count_map", "title": "Heatmap"}])
+        result = render_templates({"event_count_map": "Heatmap"})
         assert "events_meshgrid" in result["spec"]
         assert "grouped_fd_map_widget_merge" in result["spec"]
 
     def test_events_table_tasks_present_when_enabled(self) -> None:
-        result = render_templates([{"widget": "events_table", "title": "Event List"}])
+        result = render_templates({"events_table": "Event List"})
         assert "events_table" in result["spec"]
         assert "grouped_table_widget_merge" in result["spec"]
 
     def test_disabled_widget_tasks_absent(self) -> None:
-        """Only bar_chart selected — event_count_map tasks must not appear."""
-        result = render_templates([{"widget": "bar_chart", "title": "Chart"}])
+        """Only bar_chart selected — other widget tasks must not appear."""
+        result = render_templates({"bar_chart": "Chart"})
         assert "events_meshgrid" not in result["spec"]
         assert "grouped_events_pie_chart" not in result["spec"]
         assert "grouped_events_map_layer" not in result["spec"]
         assert "grouped_table_widget_merge" not in result["spec"]
 
     def test_custom_title_appears_in_set_string_var(self) -> None:
-        result = render_templates([{"widget": "bar_chart", "title": "My Custom Title"}])
+        result = render_templates({"bar_chart": "My Custom Title"})
         assert "My Custom Title" in result["spec"]
 
-    def test_gather_dashboard_widgets_in_loop_order(self) -> None:
-        """gather_dashboard.widgets respects user-defined order, not canonical order."""
-        result = render_templates(
-            [
-                {"widget": "events_map", "title": "Events Map"},
-                {"widget": "bar_chart", "title": "Bar Chart"},
-            ]
-        )
+    def test_gather_dashboard_widgets_in_canonical_order(self) -> None:
+        """With bar_chart and events_map enabled, bar_chart appears first."""
+        result = render_templates({"bar_chart": "Bar Chart", "events_map": "Events Map"})
         spec = result["spec"]
-        map_pos = spec.index("grouped_events_map_widget_merge")
-        bar_pos = spec.index("grouped_bar_plot_widget_merge")
-        # In gather_dashboard section, map merge should appear before bar merge
         gather_pos = spec.index("gather_dashboard")
-        # Find occurrences after gather_dashboard
-        map_in_gather = spec.index("grouped_events_map_widget_merge", gather_pos)
         bar_in_gather = spec.index("grouped_bar_plot_widget_merge", gather_pos)
-        assert map_in_gather < bar_in_gather
+        map_in_gather = spec.index("grouped_events_map_widget_merge", gather_pos)
+        assert bar_in_gather < map_in_gather
 
     def test_all_five_widgets_render_all_tasks(self) -> None:
-        widgets = [
-            {"widget": "events_map", "title": "Events Map"},
-            {"widget": "bar_chart", "title": "Bar Chart"},
-            {"widget": "pie_chart", "title": "Pie Chart"},
-            {"widget": "event_count_map", "title": "Heatmap"},
-            {"widget": "events_table", "title": "Table"},
-        ]
-        result = render_templates(widgets)
+        result = render_templates(
+            {
+                "bar_chart": "Bar Chart",
+                "events_map": "Events Map",
+                "pie_chart": "Pie Chart",
+                "event_count_map": "Heatmap",
+                "events_table": "Table",
+            }
+        )
         spec = result["spec"]
         assert "grouped_bar_plot_widget_merge" in spec
         assert "grouped_events_map_widget_merge" in spec
@@ -362,51 +335,43 @@ class TestSpecRendering:
         assert "grouped_table_widget_merge" in spec
 
     def test_rename_display_columns_present_for_map(self) -> None:
-        result = render_templates([{"widget": "events_map", "title": "Map"}])
+        result = render_templates({"events_map": "Map"})
         assert "rename_display_columns" in result["spec"]
 
     def test_rename_display_columns_present_for_table(self) -> None:
-        result = render_templates([{"widget": "events_table", "title": "Table"}])
+        result = render_templates({"events_table": "Table"})
         assert "rename_display_columns" in result["spec"]
 
     def test_rename_display_columns_absent_for_bar_only(self) -> None:
-        result = render_templates([{"widget": "bar_chart", "title": "Chart"}])
+        result = render_templates({"bar_chart": "Chart"})
         assert "rename_display_columns" not in result["spec"]
 
     def test_base_map_defs_task_present_for_map_widget(self) -> None:
-        result = render_templates([{"widget": "events_map", "title": "Map"}])
+        result = render_templates({"events_map": "Map"})
         assert "set_base_maps" in result["spec"]
 
     def test_base_map_defs_task_present_for_event_count_map(self) -> None:
-        result = render_templates([{"widget": "event_count_map", "title": "Heatmap"}])
+        result = render_templates({"event_count_map": "Heatmap"})
         assert "set_base_maps" in result["spec"]
 
     def test_base_map_defs_task_absent_when_no_map_widgets(self) -> None:
-        """When no map widgets are selected, the set_base_maps task is not rendered."""
-        result = render_templates(
-            [
-                {"widget": "bar_chart", "title": "Chart"},
-                {"widget": "pie_chart", "title": "Pie"},
-            ]
-        )
-        # The task references set_base_maps — absent when no map widgets enabled
+        result = render_templates({"bar_chart": "Chart", "pie_chart": "Pie"})
         assert "set_base_maps" not in result["spec"]
 
     def test_wt_compiler_references_not_evaluated(self) -> None:
-        """${{ }} references must appear literally in rendered output."""
-        result = render_templates([{"widget": "bar_chart", "title": "Chart"}])
+        result = render_templates({"bar_chart": "Chart"})
         assert "${{ workflow." in result["spec"]
 
     def test_workflow_id_in_spec(self) -> None:
-        result = render_templates([{"widget": "bar_chart", "title": "Chart"}])
+        result = render_templates({"bar_chart": "Chart"})
         assert "my_dashboard" in result["spec"]
 
     def test_fd_uischema_absent_when_event_count_map_disabled(self) -> None:
-        result = render_templates([{"widget": "bar_chart", "title": "Chart"}])
+        result = render_templates({"bar_chart": "Chart"})
         assert "auto_scale_or_custom_cell_size" not in result["spec"]
 
     def test_fd_uischema_present_when_event_count_map_enabled(self) -> None:
-        result = render_templates([{"widget": "event_count_map", "title": "Heatmap"}])
+        result = render_templates({"event_count_map": "Heatmap"})
         assert "auto_scale_or_custom_cell_size" in result["spec"]
 
 
@@ -422,7 +387,7 @@ class TestLayoutRendering:
         return json.loads(layout_text)
 
     def test_single_widget_layout(self) -> None:
-        result = render_templates([{"widget": "bar_chart", "title": "Chart"}])
+        result = render_templates({"bar_chart": "Chart"})
         entries = self._parse_layout(result["layout"])
         assert len(entries) == 1
         e = entries[0]
@@ -434,70 +399,42 @@ class TestLayoutRendering:
         assert e["static"] is False
 
     def test_two_widgets_correct_count(self) -> None:
-        result = render_templates(
-            [
-                {"widget": "bar_chart", "title": "Chart"},
-                {"widget": "events_map", "title": "Map"},
-            ]
-        )
+        result = render_templates({"bar_chart": "Chart", "events_map": "Map"})
         entries = self._parse_layout(result["layout"])
         assert len(entries) == 2
 
     def test_widget_ids_are_sequential(self) -> None:
-        widgets = [
-            {"widget": "events_map", "title": "Map"},
-            {"widget": "bar_chart", "title": "Chart"},
-            {"widget": "pie_chart", "title": "Pie"},
-        ]
-        result = render_templates(widgets)
+        result = render_templates(
+            {
+                "bar_chart": "Chart",
+                "events_map": "Map",
+                "pie_chart": "Pie",
+            }
+        )
         entries = self._parse_layout(result["layout"])
-        ids = [e["i"] for e in entries]
-        assert ids == [0, 1, 2]
+        assert [e["i"] for e in entries] == [0, 1, 2]
 
-    def test_widget_ids_match_loop_order(self) -> None:
-        """Widget at loop index 0 gets widget_id 0, etc."""
-        widgets = [
-            {"widget": "events_map", "title": "Map"},
-            {"widget": "bar_chart", "title": "Chart"},
-            {"widget": "pie_chart", "title": "Pie"},
-            {"widget": "event_count_map", "title": "Heatmap"},
-            {"widget": "events_table", "title": "Table"},
-        ]
-        result = render_templates(widgets)
+    def test_widget_ids_canonical_order(self) -> None:
+        """Widget ids follow canonical order regardless of dict insertion order."""
+        result = render_templates(
+            {
+                "events_table": "Table",
+                "bar_chart": "Chart",
+                "event_count_map": "Heatmap",
+                "pie_chart": "Pie",
+                "events_map": "Map",
+            }
+        )
         entries = self._parse_layout(result["layout"])
         assert len(entries) == 5
-        for idx, entry in enumerate(entries):
-            assert entry["i"] == idx
+        assert [e["i"] for e in entries] == [0, 1, 2, 3, 4]
 
     def test_map_chart_pair_widths(self) -> None:
-        """map left + chart right: map w=6, chart w=4."""
-        result = render_templates(
-            [
-                {"widget": "events_map", "title": "Map"},
-                {"widget": "bar_chart", "title": "Chart"},
-            ]
-        )
+        """bar_chart (canonical pos 0) + events_map (pos 1): chart left, map right."""
+        result = render_templates({"bar_chart": "Chart", "events_map": "Map"})
         entries = self._parse_layout(result["layout"])
-        map_entry = entries[0]
-        chart_entry = entries[1]
-        assert map_entry["x"] == 0
-        assert map_entry["w"] == 6
-        assert map_entry["minW"] == 5
-        assert chart_entry["x"] == 6
-        assert chart_entry["w"] == 4
-        assert chart_entry["minW"] == 4
-
-    def test_chart_map_pair_widths(self) -> None:
-        """chart left + map right: chart w=4, map w=6."""
-        result = render_templates(
-            [
-                {"widget": "bar_chart", "title": "Chart"},
-                {"widget": "events_map", "title": "Map"},
-            ]
-        )
-        entries = self._parse_layout(result["layout"])
-        chart_entry = entries[0]
-        map_entry = entries[1]
+        chart_entry = entries[0]  # bar_chart is canonical position 0
+        map_entry = entries[1]  # events_map is canonical position 1
         assert chart_entry["x"] == 0
         assert chart_entry["w"] == 4
         assert chart_entry["minW"] == 4
@@ -506,13 +443,8 @@ class TestLayoutRendering:
         assert map_entry["minW"] == 5
 
     def test_map_map_pair_widths(self) -> None:
-        """map + map: each w=5."""
-        result = render_templates(
-            [
-                {"widget": "events_map", "title": "Map 1"},
-                {"widget": "event_count_map", "title": "Map 2"},
-            ]
-        )
+        """events_map + event_count_map: each w=5."""
+        result = render_templates({"events_map": "Map 1", "event_count_map": "Map 2"})
         entries = self._parse_layout(result["layout"])
         assert entries[0]["x"] == 0
         assert entries[0]["w"] == 5
@@ -522,13 +454,8 @@ class TestLayoutRendering:
         assert entries[1]["minW"] == 5
 
     def test_chart_chart_pair_widths(self) -> None:
-        """chart + chart: each w=5."""
-        result = render_templates(
-            [
-                {"widget": "bar_chart", "title": "Bar"},
-                {"widget": "pie_chart", "title": "Pie"},
-            ]
-        )
+        """bar_chart + pie_chart: each w=5."""
+        result = render_templates({"bar_chart": "Bar", "pie_chart": "Pie"})
         entries = self._parse_layout(result["layout"])
         assert entries[0]["x"] == 0
         assert entries[0]["w"] == 5
@@ -540,27 +467,28 @@ class TestLayoutRendering:
     def test_row_y_values(self) -> None:
         """Three widgets: first pair y=0, solo third widget y=10."""
         result = render_templates(
-            [
-                {"widget": "bar_chart", "title": "Chart 1"},
-                {"widget": "pie_chart", "title": "Chart 2"},
-                {"widget": "events_map", "title": "Map"},
-            ]
+            {
+                "bar_chart": "Chart 1",
+                "pie_chart": "Chart 2",
+                "events_map": "Map",
+            }
         )
         entries = self._parse_layout(result["layout"])
         assert entries[0]["y"] == 0
         assert entries[1]["y"] == 0
         assert entries[2]["y"] == 10
 
-    def test_five_widgets_two_rows(self) -> None:
-        """5 widgets: pair in row 0, pair in row 1, solo in row 2."""
-        widgets = [
-            {"widget": "events_map", "title": "Map"},
-            {"widget": "bar_chart", "title": "Chart"},
-            {"widget": "pie_chart", "title": "Pie"},
-            {"widget": "event_count_map", "title": "Heatmap"},
-            {"widget": "events_table", "title": "Table"},
-        ]
-        result = render_templates(widgets)
+    def test_five_widgets_three_rows(self) -> None:
+        """5 widgets: pair row 0, pair row 1, solo row 2."""
+        result = render_templates(
+            {
+                "bar_chart": "Chart",
+                "events_map": "Map",
+                "pie_chart": "Pie",
+                "event_count_map": "Heatmap",
+                "events_table": "Table",
+            }
+        )
         entries = self._parse_layout(result["layout"])
         assert entries[0]["y"] == 0
         assert entries[1]["y"] == 0
@@ -569,28 +497,30 @@ class TestLayoutRendering:
         assert entries[4]["y"] == 20
 
     def test_all_entries_height_10(self) -> None:
-        widgets = [
-            {"widget": "bar_chart", "title": "A"},
-            {"widget": "pie_chart", "title": "B"},
-            {"widget": "events_map", "title": "C"},
-        ]
-        result = render_templates(widgets)
+        result = render_templates(
+            {
+                "bar_chart": "A",
+                "pie_chart": "B",
+                "events_map": "C",
+            }
+        )
         entries = self._parse_layout(result["layout"])
         for e in entries:
             assert e["h"] == 10
 
     def test_all_entries_static_false(self) -> None:
-        result = render_templates([{"widget": "bar_chart", "title": "Chart"}])
+        result = render_templates({"bar_chart": "Chart"})
         entries = self._parse_layout(result["layout"])
         for e in entries:
             assert e["static"] is False
 
     def test_layout_is_valid_json(self) -> None:
-        widgets = [
-            {"widget": "events_map", "title": "Map"},
-            {"widget": "bar_chart", "title": "Chart"},
-            {"widget": "pie_chart", "title": "Pie"},
-        ]
-        result = render_templates(widgets)
+        result = render_templates(
+            {
+                "events_map": "Map",
+                "bar_chart": "Chart",
+                "pie_chart": "Pie",
+            }
+        )
         parsed = json.loads(result["layout"])
         assert isinstance(parsed, list)
