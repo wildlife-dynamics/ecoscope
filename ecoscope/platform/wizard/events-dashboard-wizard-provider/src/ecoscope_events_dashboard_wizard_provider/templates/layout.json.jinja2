@@ -1,0 +1,73 @@
+{%- set MAP_TYPES = ["events_map", "event_count_map"] -%}
+{%- macro is_map(widget_type) -%}{{ widget_type in MAP_TYPES }}{%- endmacro -%}
+{%- set ns = namespace(row=0) -%}
+[
+{%- for i in range(widgets | length) %}
+{%-   set widget = widgets[i] %}
+{%-   set wtype = widget.widget %}
+{%-   set widget_id = i %}
+{%-   set paired_index = i - (i % 2) + (1 - (i % 2)) %}
+{%-   set is_left = (i % 2 == 0) %}
+{%-   set is_last = (i == (widgets | length) - 1) %}
+{%-   set is_solo = is_left and is_last %}
+{%-   if is_left %}
+{%-     set ns.row = i // 2 %}
+{%-   endif %}
+{%-   if is_solo %}
+{%-     set x = 0 %}
+{%-     set w = 10 %}
+{%-     set minW = 5 %}
+{%-   elif is_left %}
+{%-     set right_type = widgets[i + 1].widget %}
+{%-     set left_is_map = wtype in MAP_TYPES %}
+{%-     set right_is_map = right_type in MAP_TYPES %}
+{%-     if left_is_map and not right_is_map %}
+{%-       set x = 0 %}
+{%-       set w = 6 %}
+{%-       set minW = 5 %}
+{%-     elif not left_is_map and right_is_map %}
+{%-       set x = 0 %}
+{%-       set w = 4 %}
+{%-       set minW = 4 %}
+{%-     elif left_is_map and right_is_map %}
+{%-       set x = 0 %}
+{%-       set w = 5 %}
+{%-       set minW = 5 %}
+{%-     else %}
+{%-       set x = 0 %}
+{%-       set w = 5 %}
+{%-       set minW = 4 %}
+{%-     endif %}
+{%-   else %}
+{%-     set left_type = widgets[i - 1].widget %}
+{%-     set left_is_map = left_type in MAP_TYPES %}
+{%-     set right_is_map = wtype in MAP_TYPES %}
+{%-     if left_is_map and not right_is_map %}
+{%-       set x = 6 %}
+{%-       set w = 4 %}
+{%-       set minW = 4 %}
+{%-     elif not left_is_map and right_is_map %}
+{%-       set x = 4 %}
+{%-       set w = 6 %}
+{%-       set minW = 5 %}
+{%-     elif left_is_map and right_is_map %}
+{%-       set x = 5 %}
+{%-       set w = 5 %}
+{%-       set minW = 5 %}
+{%-     else %}
+{%-       set x = 5 %}
+{%-       set w = 5 %}
+{%-       set minW = 4 %}
+{%-     endif %}
+{%-   endif %}
+  {
+    "i": {{ widget_id }},
+    "x": {{ x }},
+    "y": {{ ns.row * 10 }},
+    "w": {{ w }},
+    "h": 10,
+    "minW": {{ minW }},
+    "static": false
+  }{% if not is_last %},{% endif %}
+{%- endfor %}
+]
