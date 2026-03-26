@@ -56,4 +56,4 @@ python = ">=3.12,<3.16"
 wt-compiler = ">=0.1.0"
 
 [tool.uv.sources]
-wt-compiler = { path = "../../../../../../wt/wt-compiler", editable = true }
+wt-compiler = { path = "../../../../../../wt__worktrees/am-events-dashboard-wizard-provider/wt-compiler", editable = true }
