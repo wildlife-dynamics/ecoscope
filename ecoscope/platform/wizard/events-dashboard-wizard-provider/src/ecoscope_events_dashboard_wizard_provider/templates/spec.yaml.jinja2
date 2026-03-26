@@ -1,22 +1,12 @@
 {#- Macros to emit wt-compiler ${{ }} references without Jinja2 evaluating them -#}
 {%- macro wf(task_id) -%}${{ '{{' }} workflow.{{ task_id }}.return {{ '}}' }}{%- endmacro -%}
 {%- macro env(var_name) -%}${{ '{{' }} env.{{ var_name }} {{ '}}' }}{%- endmacro -%}
-{#- Pre-compute enabled flags and titles from the widgets loop answers -#}
-{%- set _bar   = widgets | selectattr("widget", "equalto", "bar_chart")      | list -%}
-{%- set _map   = widgets | selectattr("widget", "equalto", "events_map")     | list -%}
-{%- set _pie   = widgets | selectattr("widget", "equalto", "pie_chart")      | list -%}
-{%- set _fd    = widgets | selectattr("widget", "equalto", "event_count_map")| list -%}
-{%- set _tbl   = widgets | selectattr("widget", "equalto", "events_table")   | list -%}
-{%- set bar_enabled = _bar | length > 0 -%}
-{%- set map_enabled = _map | length > 0 -%}
-{%- set pie_enabled = _pie | length > 0 -%}
-{%- set fd_enabled  = _fd  | length > 0 -%}
-{%- set tbl_enabled = _tbl | length > 0 -%}
-{%- set bar_title = _bar[0].title if bar_enabled else "" -%}
-{%- set map_title = _map[0].title if map_enabled else "" -%}
-{%- set pie_title = _pie[0].title if pie_enabled else "" -%}
-{%- set fd_title  = _fd[0].title  if fd_enabled  else "" -%}
-{%- set tbl_title = _tbl[0].title if tbl_enabled else "" -%}
+{#- Enabled flags from provider answers; titles are in context as <wtype>_title -#}
+{%- set bar_enabled = include_bar_chart == "yes" -%}
+{%- set map_enabled = include_events_map == "yes" -%}
+{%- set pie_enabled = include_pie_chart == "yes" -%}
+{%- set fd_enabled  = include_event_count_map == "yes" -%}
+{%- set tbl_enabled = include_events_table == "yes" -%}
 id: {{ workflow_id }}
 
 requirements:
@@ -82,7 +72,7 @@ rjsf-overrides:
     filter_events.filter_point_coords.items.ui:options.label: false
     base_map_defs.base_maps.items.ui:options.label: false
 {% if fd_enabled %}
-    {{ fd_title }}.events_meshgrid.auto_scale_or_custom_cell_size:
+    {{ event_count_map_title }}.events_meshgrid.auto_scale_or_custom_cell_size:
       anyOf:
         - ui:help: Auto-scale for an optimized grid cell size based the workflow data or Customize to set a specific grid cell size.
           ui:options:
@@ -215,35 +205,35 @@ workflow:
     id: set_bar_chart_title
     task: set_string_var
     partial:
-      var: {{ bar_title }}
+      var: {{ bar_chart_title }}
 {% endif %}
 {% if map_enabled %}
   - name: Set Events Map Title
     id: set_events_map_title
     task: set_string_var
     partial:
-      var: {{ map_title }}
+      var: {{ events_map_title }}
 {% endif %}
 {% if pie_enabled %}
   - name: Set Pie Chart Title
     id: set_pie_chart_title
     task: set_string_var
     partial:
-      var: {{ pie_title }}
+      var: {{ pie_chart_title }}
 {% endif %}
 {% if fd_enabled %}
   - name: Set Event Count Map Title
     id: set_fd_map_title
     task: set_string_var
     partial:
-      var: {{ fd_title }}
+      var: {{ event_count_map_title }}
 {% endif %}
 {% if tbl_enabled %}
   - name: Set Events Table Title
     id: set_events_table_title
     task: set_string_var
     partial:
-      var: {{ tbl_title }}
+      var: {{ events_table_title }}
 {% endif %}
   - name: Split Events by Group
     id: split_event_groups
@@ -252,7 +242,7 @@ workflow:
       df: {{ wf("events_colormap") }}
       groupers: {{ wf("resolved_groupers") }}
 {% if bar_enabled %}
-  - title: {{ bar_title }}
+  - title: {{ bar_chart_title }}
     type: task-group
     description: The bar chart shows how many events of different types occurred over time. Choose the time interval for the x-axis to control how event counts are summarized over time.
     tasks:
@@ -436,7 +426,7 @@ workflow:
       widgets: {{ wf("grouped_events_pie_chart_widgets") }}
 {% endif %}
 {% if fd_enabled %}
-  - title: {{ fd_title }}
+  - title: {{ event_count_map_title }}
     type: task-group
     description: These settings generate a grid-based heatmap showing where events are concentrated.
     tasks:
@@ -635,18 +625,20 @@ workflow:
     partial:
       details: {{ wf("workflow_details") }}
       widgets:
-{% for w in widgets %}
-{% if w.widget == "bar_chart" %}
+{% if bar_enabled %}
         - {{ wf("grouped_bar_plot_widget_merge") }}
-{% elif w.widget == "events_map" %}
+{% endif %}
+{% if map_enabled %}
         - {{ wf("grouped_events_map_widget_merge") }}
-{% elif w.widget == "pie_chart" %}
+{% endif %}
+{% if pie_enabled %}
         - {{ wf("grouped_events_pie_widget_merge") }}
-{% elif w.widget == "event_count_map" %}
+{% endif %}
+{% if fd_enabled %}
         - {{ wf("grouped_fd_map_widget_merge") }}
-{% elif w.widget == "events_table" %}
+{% endif %}
+{% if tbl_enabled %}
         - {{ wf("grouped_table_widget_merge") }}
 {% endif %}
-{% endfor %}
       groupers: {{ wf("resolved_groupers") }}
       time_range: {{ wf("time_range") }}
