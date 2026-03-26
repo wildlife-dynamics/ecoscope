@@ -1,0 +1,4670 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ecoscope.io/platform-sdk/reference/connections/">
+      
+      
+        <link rel="prev" href="../annotations/">
+      
+      
+        <link rel="next" href="../indexes/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/ecoscope-favicon.ico">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>connections - Ecoscope Platform SDK</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#connections" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Ecoscope Platform SDK" class="md-header__button md-logo" aria-label="Ecoscope Platform SDK" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 3.75A.75.75 0 0 1 .75 3h7.497c1.566 0 2.945.8 3.751 2.014A4.5 4.5 0 0 1 15.75 3h7.5a.75.75 0 0 1 .75.75v15.063a.75.75 0 0 1-.755.75l-7.682-.052a3 3 0 0 0-2.142.878l-.89.891a.75.75 0 0 1-1.061 0l-.902-.901a3 3 0 0 0-2.121-.879H.75a.75.75 0 0 1-.75-.75Zm12.75 15.232a4.5 4.5 0 0 1 2.823-.971l6.927.047V4.5h-6.75a3 3 0 0 0-3 3ZM11.247 7.497a3 3 0 0 0-3-2.997H1.5V18h6.947c1.018 0 2.006.346 2.803.98Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Ecoscope Platform SDK
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              connections
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/wildlife-dynamics/ecoscope" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    wildlife-dynamics/ecoscope
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Ecoscope Platform SDK" class="md-nav__button md-logo" aria-label="Ecoscope Platform SDK" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 3.75A.75.75 0 0 1 .75 3h7.497c1.566 0 2.945.8 3.751 2.014A4.5 4.5 0 0 1 15.75 3h7.5a.75.75 0 0 1 .75.75v15.063a.75.75 0 0 1-.755.75l-7.682-.052a3 3 0 0 0-2.142.878l-.89.891a.75.75 0 0 1-1.061 0l-.902-.901a3 3 0 0 0-2.121-.879H.75a.75.75 0 0 1-.75-.75Zm12.75 15.232a4.5 4.5 0 0 1 2.823-.971l6.927.047V4.5h-6.75a3 3 0 0 0-3 3ZM11.247 7.497a3 3 0 0 0-3-2.997H1.5V18h6.947c1.018 0 2.006.346 2.803.98Z"/></svg>
+
+    </a>
+    Ecoscope Platform SDK
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/wildlife-dynamics/ecoscope" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    wildlife-dynamics/ecoscope
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to-guides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-To Guides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../annotations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    annotations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    connections
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    connections
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connections
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="connections">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.ClientProtocolType" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ClientProtocolType
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnectionType" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataConnectionType
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineClient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthEngineClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthRangerClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmartClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataConnection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DataConnection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnection-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnection.client_from_named_connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        client_from_named_connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnection.get_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineClientProtocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthEngineClientProtocol
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthEngineConnection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="EarthEngineConnection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.ee_project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ee_project
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.private_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        private_key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.private_key_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        private_key_file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.service_account" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        service_account
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.get_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthRangerClientProtocol
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="EarthRangerClientProtocol">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_choices_from_v2_event_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_choices_from_v2_event_type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_event_type_display_names_from_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_event_type_display_names_from_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_event_types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_event_types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_fields_from_event_type_schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_fields_from_event_type_schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrol_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_observations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrol_observations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_observations_with_patrol_filter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrol_observations_with_patrol_filter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrols" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrols
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_spatial_features_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_spatial_features_group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_subjectgroup_observations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_subjectgroup_observations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthRangerConnection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="EarthRangerConnection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        password
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.sub_page_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sub_page_size
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.tcp_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tcp_limit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.username" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        username
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.get_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.token_or_password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token_or_password
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClientProtocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmartClientProtocol
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SmartClientProtocol">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClientProtocol-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClientProtocol.get_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClientProtocol.get_patrol_observations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrol_observations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmartConnection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SmartConnection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        password
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.username" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        username
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.get_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.token_or_password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token_or_password
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.connection_from_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connection_from_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.is_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        is_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../indexes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    indexes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../jsonschema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jsonschema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mock_loaders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mock_loaders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../schemas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    schemas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serde/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    serde
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8" id="__nav_5_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tasks
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tasks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8_1" id="__nav_5_8_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Loading
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_8_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data Loading
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/io/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    io
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8_2" id="__nav_5_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Processing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/filter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    filter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/transformation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    transformation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/groupby/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    groupby
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8_3" id="__nav_5_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysis
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysis
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8_4" id="__nav_5_8_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualization
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Visualization
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_8_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_8_5" id="__nav_5_8_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow Utilities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_5_8_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_8_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflow Utilities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/skip/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    skip
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/warning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    warning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tasks/test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connections
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="connections">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.ClientProtocolType" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ClientProtocolType
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnectionType" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataConnectionType
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineClient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthEngineClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthRangerClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmartClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataConnection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DataConnection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnection-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnection.client_from_named_connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        client_from_named_connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.DataConnection.get_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineClientProtocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthEngineClientProtocol
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthEngineConnection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="EarthEngineConnection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.ee_project" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ee_project
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.private_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        private_key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.private_key_file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        private_key_file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.service_account" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        service_account
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthEngineConnection.get_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthRangerClientProtocol
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="EarthRangerClientProtocol">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_choices_from_v2_event_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_choices_from_v2_event_type
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_event_type_display_names_from_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_event_type_display_names_from_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_event_types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_event_types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_fields_from_event_type_schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_fields_from_event_type_schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrol_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_observations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrol_observations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_observations_with_patrol_filter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrol_observations_with_patrol_filter
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrols" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrols
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_spatial_features_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_spatial_features_group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_subjectgroup_observations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_subjectgroup_observations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EarthRangerConnection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="EarthRangerConnection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        password
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.sub_page_size" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sub_page_size
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.tcp_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tcp_limit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.username" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        username
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.get_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.EarthRangerConnection.token_or_password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token_or_password
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClientProtocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmartClientProtocol
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SmartClientProtocol">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClientProtocol-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClientProtocol.get_events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartClientProtocol.get_patrol_observations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_patrol_observations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SmartConnection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SmartConnection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        password
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.token" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.username" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        username
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.get_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.SmartConnection.token_or_password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        token_or_password
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.connection_from_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        connection_from_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ecoscope.platform.connections.is_client" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        is_client
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="connections">connections<a class="headerlink" href="#connections" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="ecoscope.platform.connections" class="doc doc-heading">
+            <code>ecoscope.platform.connections</code>
+
+
+<a href="#ecoscope.platform.connections" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+<h3 id="ecoscope.platform.connections-attributes">Attributes<a href="#ecoscope.platform.connections-attributes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="ecoscope.platform.connections.ClientProtocolType" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">ClientProtocolType</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;ClientProtocolType&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.ClientProtocolType" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="ecoscope.platform.connections.DataConnectionType" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">DataConnectionType</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;DataConnectionType&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="s1">&#39;DataConnection&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.DataConnectionType" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="ecoscope.platform.connections.EarthEngineClient" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">EarthEngineClient</span> <span class="o">=</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">EarthEngineClientProtocol</span><span class="p">,</span> <span class="n">BeforeValidator</span><span class="p">(</span><span class="n">EarthEngineConnection</span><span class="o">.</span><span class="n">client_from_named_connection</span><span class="p">),</span> <span class="n">WithJsonSchema</span><span class="p">({</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;A named Google EarthEngine connection.&#39;</span><span class="p">})]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthEngineClient" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="ecoscope.platform.connections.EarthRangerClient" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">EarthRangerClient</span> <span class="o">=</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">EarthRangerClientProtocol</span><span class="p">,</span> <span class="n">BeforeValidator</span><span class="p">(</span><span class="n">EarthRangerConnection</span><span class="o">.</span><span class="n">client_from_named_connection</span><span class="p">),</span> <span class="n">WithJsonSchema</span><span class="p">({</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;A named EarthRanger connection.&#39;</span><span class="p">})]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerClient" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h4 id="ecoscope.platform.connections.SmartClient" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">SmartClient</span> <span class="o">=</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">SmartClientProtocol</span><span class="p">,</span> <span class="n">BeforeValidator</span><span class="p">(</span><span class="n">SmartConnection</span><span class="o">.</span><span class="n">client_from_named_connection</span><span class="p">),</span> <span class="n">WithJsonSchema</span><span class="p">({</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;string&#39;</span><span class="p">,</span> <span class="s1">&#39;description&#39;</span><span class="p">:</span> <span class="s1">&#39;A named SMART connection.&#39;</span><span class="p">})]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-module-attribute"><code>module-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.SmartClient" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<h3 id="ecoscope.platform.connections-classes">Classes<a href="#ecoscope.platform.connections-classes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="ecoscope.platform.connections.DataConnection" class="doc doc-heading">
+            <code>DataConnection</code>
+
+
+<a href="#ecoscope.platform.connections.DataConnection" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="abc.ABC">ABC</span></code>, <code><span title="ecoscope.platform.connections._DataConnection">_DataConnection</span></code>, <code><span title="typing.Generic">Generic</span>[<a class="autorefs autorefs-internal" title="ClientProtocolType = TypeVar('ClientProtocolType')
+
+  
+      module-attribute
+   (ecoscope.platform.connections.ClientProtocolType)" href="#ecoscope.platform.connections.ClientProtocolType">ClientProtocolType</a>]</code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+<h5 id="ecoscope.platform.connections.DataConnection-functions">Functions<a href="#ecoscope.platform.connections.DataConnection-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.DataConnection.client_from_named_connection" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">client_from_named_connection</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClientProtocolType</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.DataConnection.client_from_named_connection" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-47">47</a></span>
+<span class="normal"><a href="#__codelineno-0-48">48</a></span>
+<span class="normal"><a href="#__codelineno-0-49">49</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-47" name="__codelineno-0-47"></a><span class="nd">@classmethod</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48"></a><span class="k">def</span><span class="w"> </span><span class="nf">client_from_named_connection</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClientProtocolType</span><span class="p">:</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49"></a>    <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_named_connection</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">get_client</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.DataConnection.get_client" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">ClientProtocolType</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-abstractmethod"><code>abstractmethod</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.DataConnection.get_client" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-41">41</a></span>
+<span class="normal"><a href="#__codelineno-0-42">42</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-41" name="__codelineno-0-41"></a><span class="nd">@abstractmethod</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_client</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ClientProtocolType</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="ecoscope.platform.connections.EarthEngineClientProtocol" class="doc doc-heading">
+            <code>EarthEngineClientProtocol</code>
+
+
+<a href="#ecoscope.platform.connections.EarthEngineClientProtocol" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="ecoscope.platform.connections.EarthEngineConnection" class="doc doc-heading">
+            <code>EarthEngineConnection</code>
+
+
+<a href="#ecoscope.platform.connections.EarthEngineConnection" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="DataConnection (ecoscope.platform.connections.DataConnection)" href="#ecoscope.platform.connections.DataConnection">DataConnection</a>[<a class="autorefs autorefs-internal" title="EarthEngineClientProtocol (ecoscope.platform.connections.EarthEngineClientProtocol)" href="#ecoscope.platform.connections.EarthEngineClientProtocol">EarthEngineClientProtocol</a>]</code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+<h5 id="ecoscope.platform.connections.EarthEngineConnection-attributes">Attributes<a href="#ecoscope.platform.connections.EarthEngineConnection-attributes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthEngineConnection.ee_project" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">ee_project</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;Your EarthEngine project ID&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthEngineConnection.ee_project" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthEngineConnection.private_key" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">private_key</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">SecretStr</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Your service account&#39;s private key&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">SecretStr</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthEngineConnection.private_key" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthEngineConnection.private_key_file" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">private_key_file</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Your service account&#39;s private key&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthEngineConnection.private_key_file" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthEngineConnection.service_account" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">service_account</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;Your Google Cloud Service Account&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthEngineConnection.service_account" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+<h5 id="ecoscope.platform.connections.EarthEngineConnection-functions">Functions<a href="#ecoscope.platform.connections.EarthEngineConnection-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthEngineConnection.get_client" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_client</span><span class="p">()</span></code>
+
+<a href="#ecoscope.platform.connections.EarthEngineConnection.get_client" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-256">256</a></span>
+<span class="normal"><a href="#__codelineno-0-257">257</a></span>
+<span class="normal"><a href="#__codelineno-0-258">258</a></span>
+<span class="normal"><a href="#__codelineno-0-259">259</a></span>
+<span class="normal"><a href="#__codelineno-0-260">260</a></span>
+<span class="normal"><a href="#__codelineno-0-261">261</a></span>
+<span class="normal"><a href="#__codelineno-0-262">262</a></span>
+<span class="normal"><a href="#__codelineno-0-263">263</a></span>
+<span class="normal"><a href="#__codelineno-0-264">264</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-256" name="__codelineno-0-256"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<a id="__codelineno-0-257" name="__codelineno-0-257"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">ecoscope.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">EarthEngineIO</span>
+<a id="__codelineno-0-258" name="__codelineno-0-258"></a>
+<a id="__codelineno-0-259" name="__codelineno-0-259"></a>    <span class="k">return</span> <span class="n">EarthEngineIO</span><span class="p">(</span>
+<a id="__codelineno-0-260" name="__codelineno-0-260"></a>        <span class="n">service_account</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">service_account</span><span class="p">,</span>
+<a id="__codelineno-0-261" name="__codelineno-0-261"></a>        <span class="n">private_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">private_key</span><span class="o">.</span><span class="n">get_secret_value</span><span class="p">(),</span>
+<a id="__codelineno-0-262" name="__codelineno-0-262"></a>        <span class="n">private_key_file</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">private_key_file</span><span class="p">,</span>
+<a id="__codelineno-0-263" name="__codelineno-0-263"></a>        <span class="n">ee_project</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ee_project</span><span class="p">,</span>
+<a id="__codelineno-0-264" name="__codelineno-0-264"></a>    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="ecoscope.platform.connections.EarthRangerClientProtocol" class="doc doc-heading">
+            <code>EarthRangerClientProtocol</code>
+
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+<h5 id="ecoscope.platform.connections.EarthRangerClientProtocol-attributes">Attributes<a href="#ecoscope.platform.connections.EarthRangerClientProtocol-attributes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.server" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">server</span><span class="p">:</span> <span class="nb">str</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.server" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.token" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">token</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.token" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+<h5 id="ecoscope.platform.connections.EarthRangerClientProtocol-functions">Functions<a href="#ecoscope.platform.connections.EarthRangerClientProtocol-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_choices_from_v2_event_type" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_choices_from_v2_event_type</span><span class="p">(</span><span class="n">event_type</span><span class="p">,</span> <span class="n">choice_field</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_choices_from_v2_event_type" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-145">145</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-145" name="__codelineno-0-145"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_choices_from_v2_event_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event_type</span><span class="p">,</span> <span class="n">choice_field</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_event_type_display_names_from_events" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_event_type_display_names_from_events</span><span class="p">(</span><span class="n">events_gdf</span><span class="p">,</span> <span class="n">append_category_names</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_event_type_display_names_from_events" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-139">139</a></span>
+<span class="normal"><a href="#__codelineno-0-140">140</a></span>
+<span class="normal"><a href="#__codelineno-0-141">141</a></span>
+<span class="normal"><a href="#__codelineno-0-142">142</a></span>
+<span class="normal"><a href="#__codelineno-0-143">143</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-139" name="__codelineno-0-139"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_event_type_display_names_from_events</span><span class="p">(</span>
+<a id="__codelineno-0-140" name="__codelineno-0-140"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-141" name="__codelineno-0-141"></a>    <span class="n">events_gdf</span><span class="p">,</span>
+<a id="__codelineno-0-142" name="__codelineno-0-142"></a>    <span class="n">append_category_names</span><span class="p">,</span>
+<a id="__codelineno-0-143" name="__codelineno-0-143"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_event_types" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_event_types</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">AnyDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_event_types" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-120">120</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-120" name="__codelineno-0-120"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_event_types</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_events" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_events</span><span class="p">(</span><span class="n">since</span><span class="p">,</span> <span class="n">until</span><span class="p">,</span> <span class="n">event_type</span><span class="p">,</span> <span class="n">drop_null_geometry</span><span class="p">,</span> <span class="n">include_details</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">include_updates</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">include_related_events</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_events" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-109">109</a></span>
+<span class="normal"><a href="#__codelineno-0-110">110</a></span>
+<span class="normal"><a href="#__codelineno-0-111">111</a></span>
+<span class="normal"><a href="#__codelineno-0-112">112</a></span>
+<span class="normal"><a href="#__codelineno-0-113">113</a></span>
+<span class="normal"><a href="#__codelineno-0-114">114</a></span>
+<span class="normal"><a href="#__codelineno-0-115">115</a></span>
+<span class="normal"><a href="#__codelineno-0-116">116</a></span>
+<span class="normal"><a href="#__codelineno-0-117">117</a></span>
+<span class="normal"><a href="#__codelineno-0-118">118</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-109" name="__codelineno-0-109"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_events</span><span class="p">(</span>
+<a id="__codelineno-0-110" name="__codelineno-0-110"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-111" name="__codelineno-0-111"></a>    <span class="n">since</span><span class="p">,</span>
+<a id="__codelineno-0-112" name="__codelineno-0-112"></a>    <span class="n">until</span><span class="p">,</span>
+<a id="__codelineno-0-113" name="__codelineno-0-113"></a>    <span class="n">event_type</span><span class="p">,</span>
+<a id="__codelineno-0-114" name="__codelineno-0-114"></a>    <span class="n">drop_null_geometry</span><span class="p">,</span>
+<a id="__codelineno-0-115" name="__codelineno-0-115"></a>    <span class="n">include_details</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<a id="__codelineno-0-116" name="__codelineno-0-116"></a>    <span class="n">include_updates</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<a id="__codelineno-0-117" name="__codelineno-0-117"></a>    <span class="n">include_related_events</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<a id="__codelineno-0-118" name="__codelineno-0-118"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_fields_from_event_type_schema" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_fields_from_event_type_schema</span><span class="p">(</span><span class="n">event_type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_fields_from_event_type_schema" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-154">154</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-154" name="__codelineno-0-154"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_fields_from_event_type_schema</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event_type</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_events" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_patrol_events</span><span class="p">(</span><span class="n">since</span><span class="p">,</span> <span class="n">until</span><span class="p">,</span> <span class="n">patrol_type_value</span><span class="p">,</span> <span class="n">event_type</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">drop_null_geometry</span><span class="p">,</span> <span class="n">sub_page_size</span><span class="p">,</span> <span class="n">patrols_overlap_daterange</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_events" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-97"> 97</a></span>
+<span class="normal"><a href="#__codelineno-0-98"> 98</a></span>
+<span class="normal"><a href="#__codelineno-0-99"> 99</a></span>
+<span class="normal"><a href="#__codelineno-0-100">100</a></span>
+<span class="normal"><a href="#__codelineno-0-101">101</a></span>
+<span class="normal"><a href="#__codelineno-0-102">102</a></span>
+<span class="normal"><a href="#__codelineno-0-103">103</a></span>
+<span class="normal"><a href="#__codelineno-0-104">104</a></span>
+<span class="normal"><a href="#__codelineno-0-105">105</a></span>
+<span class="normal"><a href="#__codelineno-0-106">106</a></span>
+<span class="normal"><a href="#__codelineno-0-107">107</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-97" name="__codelineno-0-97"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_patrol_events</span><span class="p">(</span>
+<a id="__codelineno-0-98" name="__codelineno-0-98"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-99" name="__codelineno-0-99"></a>    <span class="n">since</span><span class="p">,</span>
+<a id="__codelineno-0-100" name="__codelineno-0-100"></a>    <span class="n">until</span><span class="p">,</span>
+<a id="__codelineno-0-101" name="__codelineno-0-101"></a>    <span class="n">patrol_type_value</span><span class="p">,</span>
+<a id="__codelineno-0-102" name="__codelineno-0-102"></a>    <span class="n">event_type</span><span class="p">,</span>
+<a id="__codelineno-0-103" name="__codelineno-0-103"></a>    <span class="n">status</span><span class="p">,</span>
+<a id="__codelineno-0-104" name="__codelineno-0-104"></a>    <span class="n">drop_null_geometry</span><span class="p">,</span>
+<a id="__codelineno-0-105" name="__codelineno-0-105"></a>    <span class="n">sub_page_size</span><span class="p">,</span>
+<a id="__codelineno-0-106" name="__codelineno-0-106"></a>    <span class="n">patrols_overlap_daterange</span><span class="p">,</span>
+<a id="__codelineno-0-107" name="__codelineno-0-107"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_observations" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_patrol_observations</span><span class="p">(</span><span class="n">patrols_df</span><span class="p">,</span> <span class="n">include_patrol_details</span><span class="p">,</span> <span class="n">sub_page_size</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_observations" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-132">132</a></span>
+<span class="normal"><a href="#__codelineno-0-133">133</a></span>
+<span class="normal"><a href="#__codelineno-0-134">134</a></span>
+<span class="normal"><a href="#__codelineno-0-135">135</a></span>
+<span class="normal"><a href="#__codelineno-0-136">136</a></span>
+<span class="normal"><a href="#__codelineno-0-137">137</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-132" name="__codelineno-0-132"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_patrol_observations</span><span class="p">(</span>
+<a id="__codelineno-0-133" name="__codelineno-0-133"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-134" name="__codelineno-0-134"></a>    <span class="n">patrols_df</span><span class="p">,</span>
+<a id="__codelineno-0-135" name="__codelineno-0-135"></a>    <span class="n">include_patrol_details</span><span class="p">,</span>
+<a id="__codelineno-0-136" name="__codelineno-0-136"></a>    <span class="n">sub_page_size</span><span class="p">,</span>
+<a id="__codelineno-0-137" name="__codelineno-0-137"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_observations_with_patrol_filter" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_patrol_observations_with_patrol_filter</span><span class="p">(</span><span class="n">since</span><span class="p">,</span> <span class="n">until</span><span class="p">,</span> <span class="n">patrol_type_value</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">include_patrol_details</span><span class="p">,</span> <span class="n">sub_page_size</span><span class="p">,</span> <span class="n">patrols_overlap_daterange</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrol_observations_with_patrol_filter" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-86">86</a></span>
+<span class="normal"><a href="#__codelineno-0-87">87</a></span>
+<span class="normal"><a href="#__codelineno-0-88">88</a></span>
+<span class="normal"><a href="#__codelineno-0-89">89</a></span>
+<span class="normal"><a href="#__codelineno-0-90">90</a></span>
+<span class="normal"><a href="#__codelineno-0-91">91</a></span>
+<span class="normal"><a href="#__codelineno-0-92">92</a></span>
+<span class="normal"><a href="#__codelineno-0-93">93</a></span>
+<span class="normal"><a href="#__codelineno-0-94">94</a></span>
+<span class="normal"><a href="#__codelineno-0-95">95</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-86" name="__codelineno-0-86"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_patrol_observations_with_patrol_filter</span><span class="p">(</span>
+<a id="__codelineno-0-87" name="__codelineno-0-87"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88"></a>    <span class="n">since</span><span class="p">,</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89"></a>    <span class="n">until</span><span class="p">,</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90"></a>    <span class="n">patrol_type_value</span><span class="p">,</span>
+<a id="__codelineno-0-91" name="__codelineno-0-91"></a>    <span class="n">status</span><span class="p">,</span>
+<a id="__codelineno-0-92" name="__codelineno-0-92"></a>    <span class="n">include_patrol_details</span><span class="p">,</span>
+<a id="__codelineno-0-93" name="__codelineno-0-93"></a>    <span class="n">sub_page_size</span><span class="p">,</span>
+<a id="__codelineno-0-94" name="__codelineno-0-94"></a>    <span class="n">patrols_overlap_daterange</span><span class="p">,</span>
+<a id="__codelineno-0-95" name="__codelineno-0-95"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_patrols" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_patrols</span><span class="p">(</span><span class="n">since</span><span class="p">,</span> <span class="n">until</span><span class="p">,</span> <span class="n">patrol_type_value</span><span class="p">,</span> <span class="n">status</span><span class="p">,</span> <span class="n">sub_page_size</span><span class="p">,</span> <span class="n">patrols_overlap_daterange</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_patrols" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-122">122</a></span>
+<span class="normal"><a href="#__codelineno-0-123">123</a></span>
+<span class="normal"><a href="#__codelineno-0-124">124</a></span>
+<span class="normal"><a href="#__codelineno-0-125">125</a></span>
+<span class="normal"><a href="#__codelineno-0-126">126</a></span>
+<span class="normal"><a href="#__codelineno-0-127">127</a></span>
+<span class="normal"><a href="#__codelineno-0-128">128</a></span>
+<span class="normal"><a href="#__codelineno-0-129">129</a></span>
+<span class="normal"><a href="#__codelineno-0-130">130</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-122" name="__codelineno-0-122"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_patrols</span><span class="p">(</span>
+<a id="__codelineno-0-123" name="__codelineno-0-123"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-124" name="__codelineno-0-124"></a>    <span class="n">since</span><span class="p">,</span>
+<a id="__codelineno-0-125" name="__codelineno-0-125"></a>    <span class="n">until</span><span class="p">,</span>
+<a id="__codelineno-0-126" name="__codelineno-0-126"></a>    <span class="n">patrol_type_value</span><span class="p">,</span>
+<a id="__codelineno-0-127" name="__codelineno-0-127"></a>    <span class="n">status</span><span class="p">,</span>
+<a id="__codelineno-0-128" name="__codelineno-0-128"></a>    <span class="n">sub_page_size</span><span class="p">,</span>
+<a id="__codelineno-0-129" name="__codelineno-0-129"></a>    <span class="n">patrols_overlap_daterange</span><span class="p">,</span>
+<a id="__codelineno-0-130" name="__codelineno-0-130"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_spatial_features_group" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_spatial_features_group</span><span class="p">(</span><span class="n">spatial_features_group_name</span><span class="p">,</span> <span class="n">spatial_features_group_id</span><span class="p">,</span> <span class="n">with_group_data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">AnyGeoDataFrame</span><span class="p">]</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_spatial_features_group" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-147">147</a></span>
+<span class="normal"><a href="#__codelineno-0-148">148</a></span>
+<span class="normal"><a href="#__codelineno-0-149">149</a></span>
+<span class="normal"><a href="#__codelineno-0-150">150</a></span>
+<span class="normal"><a href="#__codelineno-0-151">151</a></span>
+<span class="normal"><a href="#__codelineno-0-152">152</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-147" name="__codelineno-0-147"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_spatial_features_group</span><span class="p">(</span>
+<a id="__codelineno-0-148" name="__codelineno-0-148"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-149" name="__codelineno-0-149"></a>    <span class="n">spatial_features_group_name</span><span class="p">,</span>
+<a id="__codelineno-0-150" name="__codelineno-0-150"></a>    <span class="n">spatial_features_group_id</span><span class="p">,</span>
+<a id="__codelineno-0-151" name="__codelineno-0-151"></a>    <span class="n">with_group_data</span><span class="p">,</span>
+<a id="__codelineno-0-152" name="__codelineno-0-152"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">AnyGeoDataFrame</span><span class="p">]:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerClientProtocol.get_subjectgroup_observations" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_subjectgroup_observations</span><span class="p">(</span><span class="n">subject_group_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">include_subject_details</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">include_inactive</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">include_details</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">include_subjectsource_details</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">since</span><span class="p">,</span> <span class="n">until</span><span class="p">,</span> <span class="nb">filter</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerClientProtocol.get_subjectgroup_observations" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-74">74</a></span>
+<span class="normal"><a href="#__codelineno-0-75">75</a></span>
+<span class="normal"><a href="#__codelineno-0-76">76</a></span>
+<span class="normal"><a href="#__codelineno-0-77">77</a></span>
+<span class="normal"><a href="#__codelineno-0-78">78</a></span>
+<span class="normal"><a href="#__codelineno-0-79">79</a></span>
+<span class="normal"><a href="#__codelineno-0-80">80</a></span>
+<span class="normal"><a href="#__codelineno-0-81">81</a></span>
+<span class="normal"><a href="#__codelineno-0-82">82</a></span>
+<span class="normal"><a href="#__codelineno-0-83">83</a></span>
+<span class="normal"><a href="#__codelineno-0-84">84</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-74" name="__codelineno-0-74"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_subjectgroup_observations</span><span class="p">(</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-76" name="__codelineno-0-76"></a>    <span class="n">subject_group_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-77" name="__codelineno-0-77"></a>    <span class="n">include_subject_details</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78"></a>    <span class="n">include_inactive</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79"></a>    <span class="n">include_details</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<a id="__codelineno-0-80" name="__codelineno-0-80"></a>    <span class="n">include_subjectsource_details</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+<a id="__codelineno-0-81" name="__codelineno-0-81"></a>    <span class="n">since</span><span class="p">,</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82"></a>    <span class="n">until</span><span class="p">,</span>
+<a id="__codelineno-0-83" name="__codelineno-0-83"></a>    <span class="nb">filter</span><span class="p">,</span>
+<a id="__codelineno-0-84" name="__codelineno-0-84"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="ecoscope.platform.connections.EarthRangerConnection" class="doc doc-heading">
+            <code>EarthRangerConnection</code>
+
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="DataConnection (ecoscope.platform.connections.DataConnection)" href="#ecoscope.platform.connections.DataConnection">DataConnection</a>[<a class="autorefs autorefs-internal" title="EarthRangerClientProtocol (ecoscope.platform.connections.EarthRangerClientProtocol)" href="#ecoscope.platform.connections.EarthRangerClientProtocol">EarthRangerClientProtocol</a>]</code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+<h5 id="ecoscope.platform.connections.EarthRangerConnection-attributes">Attributes<a href="#ecoscope.platform.connections.EarthRangerConnection-attributes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerConnection.password" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">password</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">SecretStr</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;EarthRanger password&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">SecretStr</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection.password" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerConnection.server" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">server</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;EarthRanger API URL&#39;</span><span class="p">)]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection.server" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerConnection.sub_page_size" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">sub_page_size</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;Sub page size for API requests&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">4000</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection.sub_page_size" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerConnection.tcp_limit" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">tcp_limit</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;TCP limit for API requests&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">5</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection.tcp_limit" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerConnection.token" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">token</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">SecretStr</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;EarthRanger access token&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">SecretStr</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection.token" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerConnection.username" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">username</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;EarthRanger username&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection.username" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+<h5 id="ecoscope.platform.connections.EarthRangerConnection-functions">Functions<a href="#ecoscope.platform.connections.EarthRangerConnection-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerConnection.get_client" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">EarthRangerClientProtocol</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection.get_client" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-175">175</a></span>
+<span class="normal"><a href="#__codelineno-0-176">176</a></span>
+<span class="normal"><a href="#__codelineno-0-177">177</a></span>
+<span class="normal"><a href="#__codelineno-0-178">178</a></span>
+<span class="normal"><a href="#__codelineno-0-179">179</a></span>
+<span class="normal"><a href="#__codelineno-0-180">180</a></span>
+<span class="normal"><a href="#__codelineno-0-181">181</a></span>
+<span class="normal"><a href="#__codelineno-0-182">182</a></span>
+<span class="normal"><a href="#__codelineno-0-183">183</a></span>
+<span class="normal"><a href="#__codelineno-0-184">184</a></span>
+<span class="normal"><a href="#__codelineno-0-185">185</a></span>
+<span class="normal"><a href="#__codelineno-0-186">186</a></span>
+<span class="normal"><a href="#__codelineno-0-187">187</a></span>
+<span class="normal"><a href="#__codelineno-0-188">188</a></span>
+<span class="normal"><a href="#__codelineno-0-189">189</a></span>
+<span class="normal"><a href="#__codelineno-0-190">190</a></span>
+<span class="normal"><a href="#__codelineno-0-191">191</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-175" name="__codelineno-0-175"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_client</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EarthRangerClientProtocol</span><span class="p">:</span>
+<a id="__codelineno-0-176" name="__codelineno-0-176"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">ecoscope.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">EarthRangerIO</span>
+<a id="__codelineno-0-177" name="__codelineno-0-177"></a>
+<a id="__codelineno-0-178" name="__codelineno-0-178"></a>    <span class="n">auth_kws</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-179" name="__codelineno-0-179"></a>        <span class="p">{</span><span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="o">.</span><span class="n">get_secret_value</span><span class="p">()}</span>
+<a id="__codelineno-0-180" name="__codelineno-0-180"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span>
+<a id="__codelineno-0-181" name="__codelineno-0-181"></a>        <span class="k">else</span> <span class="p">{</span>
+<a id="__codelineno-0-182" name="__codelineno-0-182"></a>            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
+<a id="__codelineno-0-183" name="__codelineno-0-183"></a>            <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="o">.</span><span class="n">get_secret_value</span><span class="p">(),</span>
+<a id="__codelineno-0-184" name="__codelineno-0-184"></a>        <span class="p">}</span>
+<a id="__codelineno-0-185" name="__codelineno-0-185"></a>    <span class="p">)</span>
+<a id="__codelineno-0-186" name="__codelineno-0-186"></a>    <span class="k">return</span> <span class="n">EarthRangerIO</span><span class="p">(</span>
+<a id="__codelineno-0-187" name="__codelineno-0-187"></a>        <span class="n">server</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="p">,</span>
+<a id="__codelineno-0-188" name="__codelineno-0-188"></a>        <span class="n">tcp_limit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tcp_limit</span><span class="p">,</span>
+<a id="__codelineno-0-189" name="__codelineno-0-189"></a>        <span class="n">sub_page_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sub_page_size</span><span class="p">,</span>
+<a id="__codelineno-0-190" name="__codelineno-0-190"></a>        <span class="o">**</span><span class="n">auth_kws</span><span class="p">,</span>
+<a id="__codelineno-0-191" name="__codelineno-0-191"></a>    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.EarthRangerConnection.token_or_password" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">token_or_password</span><span class="p">(</span><span class="n">v</span><span class="p">:</span> <span class="n">SecretStr</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">ValidationInfo</span><span class="p">)</span></code>
+
+<a href="#ecoscope.platform.connections.EarthRangerConnection.token_or_password" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-167">167</a></span>
+<span class="normal"><a href="#__codelineno-0-168">168</a></span>
+<span class="normal"><a href="#__codelineno-0-169">169</a></span>
+<span class="normal"><a href="#__codelineno-0-170">170</a></span>
+<span class="normal"><a href="#__codelineno-0-171">171</a></span>
+<span class="normal"><a href="#__codelineno-0-172">172</a></span>
+<span class="normal"><a href="#__codelineno-0-173">173</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-167" name="__codelineno-0-167"></a><span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-168" name="__codelineno-0-168"></a><span class="k">def</span><span class="w"> </span><span class="nf">token_or_password</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="n">SecretStr</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">ValidationInfo</span><span class="p">):</span>
+<a id="__codelineno-0-169" name="__codelineno-0-169"></a>    <span class="k">if</span> <span class="n">v</span> <span class="ow">and</span> <span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">]):</span>
+<a id="__codelineno-0-170" name="__codelineno-0-170"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only a token, or an EarthRanger username and password can be provided, not both&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-171" name="__codelineno-0-171"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">]):</span>
+<a id="__codelineno-0-172" name="__codelineno-0-172"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;If token is empty, EarthRanger username and password must be provided&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-173" name="__codelineno-0-173"></a>    <span class="k">return</span> <span class="n">v</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="ecoscope.platform.connections.SmartClientProtocol" class="doc doc-heading">
+            <code>SmartClientProtocol</code>
+
+
+<a href="#ecoscope.platform.connections.SmartClientProtocol" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+<h5 id="ecoscope.platform.connections.SmartClientProtocol-functions">Functions<a href="#ecoscope.platform.connections.SmartClientProtocol-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.SmartClientProtocol.get_events" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_events</span><span class="p">(</span><span class="n">ca_uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language_uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span></code>
+
+<a href="#ecoscope.platform.connections.SmartClientProtocol.get_events" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-207">207</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-207" name="__codelineno-0-207"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_events</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ca_uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language_uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AnyGeoDataFrame</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.SmartClientProtocol.get_patrol_observations" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_patrol_observations</span><span class="p">(</span><span class="n">ca_uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">language_uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">patrol_mandate</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span> <span class="n">patrol_transport</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span> <span class="n">station_uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span></code>
+
+<a href="#ecoscope.platform.connections.SmartClientProtocol.get_patrol_observations" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-196">196</a></span>
+<span class="normal"><a href="#__codelineno-0-197">197</a></span>
+<span class="normal"><a href="#__codelineno-0-198">198</a></span>
+<span class="normal"><a href="#__codelineno-0-199">199</a></span>
+<span class="normal"><a href="#__codelineno-0-200">200</a></span>
+<span class="normal"><a href="#__codelineno-0-201">201</a></span>
+<span class="normal"><a href="#__codelineno-0-202">202</a></span>
+<span class="normal"><a href="#__codelineno-0-203">203</a></span>
+<span class="normal"><a href="#__codelineno-0-204">204</a></span>
+<span class="normal"><a href="#__codelineno-0-205">205</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-196" name="__codelineno-0-196"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_patrol_observations</span><span class="p">(</span>
+<a id="__codelineno-0-197" name="__codelineno-0-197"></a>    <span class="bp">self</span><span class="p">,</span>
+<a id="__codelineno-0-198" name="__codelineno-0-198"></a>    <span class="n">ca_uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-199" name="__codelineno-0-199"></a>    <span class="n">language_uuid</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-200" name="__codelineno-0-200"></a>    <span class="n">start</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-201" name="__codelineno-0-201"></a>    <span class="n">end</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-202" name="__codelineno-0-202"></a>    <span class="n">patrol_mandate</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
+<a id="__codelineno-0-203" name="__codelineno-0-203"></a>    <span class="n">patrol_transport</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
+<a id="__codelineno-0-204" name="__codelineno-0-204"></a>    <span class="n">station_uuid</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="o">...</span><span class="p">,</span>
+<a id="__codelineno-0-205" name="__codelineno-0-205"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span> <span class="o">...</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="ecoscope.platform.connections.SmartConnection" class="doc doc-heading">
+            <code>SmartConnection</code>
+
+
+<a href="#ecoscope.platform.connections.SmartConnection" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="DataConnection (ecoscope.platform.connections.DataConnection)" href="#ecoscope.platform.connections.DataConnection">DataConnection</a>[<a class="autorefs autorefs-internal" title="SmartClientProtocol (ecoscope.platform.connections.SmartClientProtocol)" href="#ecoscope.platform.connections.SmartClientProtocol">SmartClientProtocol</a>]</code></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+<h5 id="ecoscope.platform.connections.SmartConnection-attributes">Attributes<a href="#ecoscope.platform.connections.SmartConnection-attributes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.SmartConnection.password" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">password</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">SecretStr</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;Smart password&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">SecretStr</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.SmartConnection.password" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.SmartConnection.server" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">server</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;Smart API URL&#39;</span><span class="p">)]</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.SmartConnection.server" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.SmartConnection.token" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">token</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">SecretStr</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;Smart access token&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="n">SecretStr</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.SmartConnection.token" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="ecoscope.platform.connections.SmartConnection.username" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">username</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s1">&#39;Smart username&#39;</span><span class="p">)]</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#ecoscope.platform.connections.SmartConnection.username" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+<h5 id="ecoscope.platform.connections.SmartConnection-functions">Functions<a href="#ecoscope.platform.connections.SmartConnection-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.SmartConnection.get_client" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">get_client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">SmartClientProtocol</span></code>
+
+<a href="#ecoscope.platform.connections.SmartConnection.get_client" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-226">226</a></span>
+<span class="normal"><a href="#__codelineno-0-227">227</a></span>
+<span class="normal"><a href="#__codelineno-0-228">228</a></span>
+<span class="normal"><a href="#__codelineno-0-229">229</a></span>
+<span class="normal"><a href="#__codelineno-0-230">230</a></span>
+<span class="normal"><a href="#__codelineno-0-231">231</a></span>
+<span class="normal"><a href="#__codelineno-0-232">232</a></span>
+<span class="normal"><a href="#__codelineno-0-233">233</a></span>
+<span class="normal"><a href="#__codelineno-0-234">234</a></span>
+<span class="normal"><a href="#__codelineno-0-235">235</a></span>
+<span class="normal"><a href="#__codelineno-0-236">236</a></span>
+<span class="normal"><a href="#__codelineno-0-237">237</a></span>
+<span class="normal"><a href="#__codelineno-0-238">238</a></span>
+<span class="normal"><a href="#__codelineno-0-239">239</a></span>
+<span class="normal"><a href="#__codelineno-0-240">240</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-226" name="__codelineno-0-226"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_client</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SmartClientProtocol</span><span class="p">:</span>
+<a id="__codelineno-0-227" name="__codelineno-0-227"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">ecoscope.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">SmartIO</span>
+<a id="__codelineno-0-228" name="__codelineno-0-228"></a>
+<a id="__codelineno-0-229" name="__codelineno-0-229"></a>    <span class="n">auth_kws</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-0-230" name="__codelineno-0-230"></a>        <span class="p">{</span><span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="o">.</span><span class="n">get_secret_value</span><span class="p">()}</span>
+<a id="__codelineno-0-231" name="__codelineno-0-231"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span>
+<a id="__codelineno-0-232" name="__codelineno-0-232"></a>        <span class="k">else</span> <span class="p">{</span>
+<a id="__codelineno-0-233" name="__codelineno-0-233"></a>            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
+<a id="__codelineno-0-234" name="__codelineno-0-234"></a>            <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">password</span><span class="o">.</span><span class="n">get_secret_value</span><span class="p">(),</span>
+<a id="__codelineno-0-235" name="__codelineno-0-235"></a>        <span class="p">}</span>
+<a id="__codelineno-0-236" name="__codelineno-0-236"></a>    <span class="p">)</span>
+<a id="__codelineno-0-237" name="__codelineno-0-237"></a>    <span class="k">return</span> <span class="n">SmartIO</span><span class="p">(</span>
+<a id="__codelineno-0-238" name="__codelineno-0-238"></a>        <span class="n">urlBase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="p">,</span>
+<a id="__codelineno-0-239" name="__codelineno-0-239"></a>        <span class="o">**</span><span class="n">auth_kws</span><span class="p">,</span>
+<a id="__codelineno-0-240" name="__codelineno-0-240"></a>    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="ecoscope.platform.connections.SmartConnection.token_or_password" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">token_or_password</span><span class="p">(</span><span class="n">v</span><span class="p">:</span> <span class="n">SecretStr</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">ValidationInfo</span><span class="p">)</span></code>
+
+<a href="#ecoscope.platform.connections.SmartConnection.token_or_password" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-218">218</a></span>
+<span class="normal"><a href="#__codelineno-0-219">219</a></span>
+<span class="normal"><a href="#__codelineno-0-220">220</a></span>
+<span class="normal"><a href="#__codelineno-0-221">221</a></span>
+<span class="normal"><a href="#__codelineno-0-222">222</a></span>
+<span class="normal"><a href="#__codelineno-0-223">223</a></span>
+<span class="normal"><a href="#__codelineno-0-224">224</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-218" name="__codelineno-0-218"></a><span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-219" name="__codelineno-0-219"></a><span class="k">def</span><span class="w"> </span><span class="nf">token_or_password</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="n">SecretStr</span><span class="p">,</span> <span class="n">info</span><span class="p">:</span> <span class="n">ValidationInfo</span><span class="p">):</span>
+<a id="__codelineno-0-220" name="__codelineno-0-220"></a>    <span class="k">if</span> <span class="n">v</span> <span class="ow">and</span> <span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">]):</span>
+<a id="__codelineno-0-221" name="__codelineno-0-221"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Only a token, or an EarthRanger username and password can be provided, not both&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-222" name="__codelineno-0-222"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">info</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">]):</span>
+<a id="__codelineno-0-223" name="__codelineno-0-223"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;If token is empty, SMART username and password must be provided&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-224" name="__codelineno-0-224"></a>    <span class="k">return</span> <span class="n">v</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+<h3 id="ecoscope.platform.connections-functions">Functions<a href="#ecoscope.platform.connections-functions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="ecoscope.platform.connections.connection_from_client" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">connection_from_client</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataConnection</span></code>
+
+<a href="#ecoscope.platform.connections.connection_from_client" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-61">61</a></span>
+<span class="normal"><a href="#__codelineno-0-62">62</a></span>
+<span class="normal"><a href="#__codelineno-0-63">63</a></span>
+<span class="normal"><a href="#__codelineno-0-64">64</a></span>
+<span class="normal"><a href="#__codelineno-0-65">65</a></span>
+<span class="normal"><a href="#__codelineno-0-66">66</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-61" name="__codelineno-0-61"></a><span class="k">def</span><span class="w"> </span><span class="nf">connection_from_client</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataConnection</span><span class="p">:</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="k">assert</span> <span class="n">is_client</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="n">bv</span> <span class="o">=</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">get_args</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">BeforeValidator</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64"></a>    <span class="n">conn_type</span> <span class="o">=</span> <span class="n">bv</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__self__</span>  <span class="c1"># type: ignore[union-attr]</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65"></a>    <span class="k">assert</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">conn_type</span><span class="p">,</span> <span class="n">DataConnection</span><span class="p">)</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66"></a>    <span class="k">return</span> <span class="n">conn_type</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="ecoscope.platform.connections.is_client" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">is_client</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span></code>
+
+<a href="#ecoscope.platform.connections.is_client" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>ecoscope/platform/connections.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-52">52</a></span>
+<span class="normal"><a href="#__codelineno-0-53">53</a></span>
+<span class="normal"><a href="#__codelineno-0-54">54</a></span>
+<span class="normal"><a href="#__codelineno-0-55">55</a></span>
+<span class="normal"><a href="#__codelineno-0-56">56</a></span>
+<span class="normal"><a href="#__codelineno-0-57">57</a></span>
+<span class="normal"><a href="#__codelineno-0-58">58</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-52" name="__codelineno-0-52"></a><span class="k">def</span><span class="w"> </span><span class="nf">is_client</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;__origin__&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;__args__&quot;</span><span class="p">):</span>
+<a id="__codelineno-0-54" name="__codelineno-0-54"></a>        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">BeforeValidator</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">get_args</span><span class="p">(</span><span class="n">obj</span><span class="p">)):</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55"></a>            <span class="n">bv</span> <span class="o">=</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">get_args</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="n">BeforeValidator</span><span class="p">)][</span><span class="mi">0</span><span class="p">]</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56"></a>            <span class="k">if</span> <span class="n">ismethod</span><span class="p">(</span><span class="n">bv</span><span class="o">.</span><span class="n">func</span><span class="p">)</span> <span class="ow">and</span> <span class="n">bv</span><span class="o">.</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;client_from_named_connection&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57"></a>                <span class="k">return</span> <span class="kc">True</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58"></a>    <span class="k">return</span> <span class="kc">False</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "content.code.copy", "navigation.sections"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

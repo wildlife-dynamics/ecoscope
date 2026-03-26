@@ -67,6 +67,9 @@ extra_css:
 
 nav:
   - Home: index.md
+  - Concepts: concepts.md
+  - Getting Started: getting-started.md
+  - How-To Guides: how-to-guides.md
   - Reference:
     - annotations: reference/annotations.md
     - connections: reference/connections.md
@@ -75,20 +78,23 @@ nav:
     - mock_loaders: reference/mock_loaders.md
     - schemas: reference/schemas.md
     - serde: reference/serde.md
-  - Tasks:
-    - Data Loading:
-      - io: reference/tasks/io.md
-    - Processing:
-      - filter: reference/tasks/filter.md
-      - preprocessing: reference/tasks/preprocessing.md
-      - transformation: reference/tasks/transformation.md
-      - groupby: reference/tasks/groupby.md
-    - Analysis:
-      - analysis: reference/tasks/analysis.md
-    - Visualization:
-      - results: reference/tasks/results.md
-    - Workflow Utilities:
-      - config: reference/tasks/config.md
-      - skip: reference/tasks/skip.md
-      - warning: reference/tasks/warning.md
-      - test: reference/tasks/test.md
+    - Tasks:
+      - Data Loading:
+        - io: reference/tasks/io.md
+      - Processing:
+        - filter: reference/tasks/filter.md
+        - preprocessing: reference/tasks/preprocessing.md
+        - transformation: reference/tasks/transformation.md
+        - groupby: reference/tasks/groupby.md
+      - Analysis:
+        - analysis: reference/tasks/analysis.md
+      - Visualization:
+        - results: reference/tasks/results.md
+      - Workflow Utilities:
+        - config: reference/tasks/config.md
+        - skip: reference/tasks/skip.md
+        - warning: reference/tasks/warning.md
+        - test: reference/tasks/test.md
+  - Architecture: architecture.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
