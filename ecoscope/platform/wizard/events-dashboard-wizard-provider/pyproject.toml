@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecoscope-events-dashboard-wizard-provider"
+version = "0.1.0"
+description = "Wizard provider for scaffolding Ecoscope events dashboard workflows"
+requires-python = ">=3.12"
+dependencies = ["wt-compiler"]
+
+[project.entry-points."wt_compiler.wizard_providers"]
+ecoscope-events-dashboard = "ecoscope_events_dashboard_wizard_provider:EcoscopeEventsDashboardWizardProvider"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ecoscope_events_dashboard_wizard_provider = ["templates/*"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "src/ecoscope_events_dashboard_wizard_provider"]
+python_files = ["test_*.py"]
+addopts = "--doctest-modules --doctest-continue-on-failure"
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+
+[tool.pixi.package]
+name = "ecoscope-events-dashboard-wizard-provider"
+version = "0.1.0"
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-python", version = "*", channels = ["conda-forge", "https://prefix.dev/pixi-build-backends"] }
+
+[tool.pixi.package.build.config]
+noarch = true
+
+[tool.pixi.package.host-dependencies]
+python = ">=3.12,<3.16"
+setuptools = ">=64"
+pip = "*"
+
+[tool.pixi.package.run-dependencies]
+python = ">=3.12,<3.16"
+wt-compiler = ">=0.1.0"
