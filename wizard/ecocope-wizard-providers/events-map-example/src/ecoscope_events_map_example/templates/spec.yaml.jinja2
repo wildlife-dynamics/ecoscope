@@ -128,7 +128,7 @@ workflow:
         - never
     partial:
       title: {{ events_map_title }}
-      view: ["All", "=", "True"]
+      view: null
       data: {{ wf("events_ecomap_html_url") }}
 
   - name: Create Dashboard with Map Widgets
@@ -138,6 +138,5 @@ workflow:
       details: {{ wf("workflow_details") }}
       widgets:
         - {{ wf("events_map_widget") }}
-      groupers: 
-        - index_name: "All"
+      groupers: null
       time_range: {{ wf("time_range") }}
