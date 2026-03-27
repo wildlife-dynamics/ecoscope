@@ -134,7 +134,8 @@ workflow:
     id: events_map_widget_merge
     task: merge_widget_views
     partial:
-      widgets: {{ wf("events_map_widget") }}
+      widgets: 
+        - {{ wf("events_map_widget") }}
 
   - name: Create Dashboard with Map Widgets
     id: events_dashboard
