@@ -2,8 +2,7 @@ name: Wizard Platform Tests
 
 on:
   pull_request:
-    paths:
-      - "ecoscope/platform/**"
+    branches: ["**"]
 
 jobs:
   wizard-platform:
