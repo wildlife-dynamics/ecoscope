@@ -97,21 +97,32 @@ drwxr-xr-x 2 user user   4096 Mar 27 15:00 tests
 
 ## Step 3 - Load the template into Ecoscope Desktop
 
-...
+![Ecoscope-Desktop Templates Screen](assets/getting-started/templates.png)
+![Ecoscope-Desktop Local Folder Import](assets/getting-started/local-import.png)
 
 ## Step 4 - Create and run a workflow using the template
 
-### Setup a Data Source
+### Setup an EarthRanger Data Source
+![Ecoscope-Desktop Data Sources Screen](assets/getting-started/data-source.png)
 
-...
+<div style="display: flex; gap: 1rem;" markdown="1">
+
+  ![Ecoscope-Desktop Add Data Source](assets/getting-started/er.png) 
+
+  ![Ecoscope-Desktop Add Data Source](assets/getting-started/er-panel.png)
+
+</div>
 
 ### Configure the workflow
-
-...
+![Ecoscope-Desktop Workflow Config Screen](assets/getting-started/imported.png)
+![Ecoscope-Desktop Workflow Config Screen](assets/getting-started/config.png)
 
 ### Run the workflow
+![Ecoscope-Desktop Workflow Run Button](assets/getting-started/configured.png)
 
-...
+### View the Results
+![Ecoscope-Desktop Workflow Dashboard](assets/getting-started/dashboard.png)
+
 
 ## Step 4 - Change a parameter in `spec.yaml`, recompile, and re-run
 
