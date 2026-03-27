@@ -1,6 +1,8 @@
 # Getting Started
 
-The following walkthrough will help you get up and running with 
+The following walkthrough will help you get up and running with your building and running your
+first workflow template for the Ecoscope Desktop app. By the end of this walkthrough, you will
+have a solid foundation in the basics of iterative workflow template development.
 
 ---
 
