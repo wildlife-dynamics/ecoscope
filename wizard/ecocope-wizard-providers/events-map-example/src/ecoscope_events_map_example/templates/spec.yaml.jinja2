@@ -128,11 +128,8 @@ workflow:
         - never
     partial:
       title: {{ events_map_title }}
-    map:
-      argnames:
-        - view
-        - data
-      argvalues: {{ wf("events_ecomap_html_url") }}
+      view: null
+      data: {{ wf("events_ecomap_html_url") }}
   - name: Merge Events Map Widget Views
     id: events_map_widget_merge
     task: merge_widget_views
@@ -146,6 +143,5 @@ workflow:
       details: {{ wf("workflow_details") }}
       widgets:
         - {{ wf("events_map_widget_merge") }}
-      groupers: 
-        index_name: "All"
+      groupers: null
       time_range: {{ wf("time_range") }}
