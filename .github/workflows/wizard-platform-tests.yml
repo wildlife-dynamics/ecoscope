@@ -23,7 +23,10 @@ jobs:
           run-install: false
 
       - name: Install wt-compiler globally
-        run: pixi global install wt-compiler
+        run: |
+          pixi global install wt-compiler \
+            --channel https://repo.prefix.dev/ecoscope-workflows \
+            --channel conda-forge
 
       - name: Add wizard providers
         run: pixi global add --path "./wizard/ecoscope-wizard-providers"
