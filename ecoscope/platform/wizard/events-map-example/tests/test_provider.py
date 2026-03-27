@@ -49,7 +49,6 @@ def make_provider(title: str = MAP_TITLE_DEFAULT) -> EcoscopeEventsMapExamplePro
         "Dashboard description",  # workflow_description
         "Test Author",  # author_name
         "MIT",  # license_type
-        None,  # terminate requirements loop
         title,  # events_map_title
     ]
     drive_wizard(provider, answers)
@@ -120,25 +119,34 @@ class TestQuestionStructure:
         questions = p.get_questions()
         assert questions[-1]["dest"] == "events_map_title"
 
-    def test_one_extra_question_appended(self) -> None:
+    def test_question_count(self) -> None:
         from wt_compiler.wizard.default import DefaultWizardProvider
 
+        # default minus requirements, plus events_map_title
         default_count = len(DefaultWizardProvider().get_questions())
         provider_count = len(EcoscopeEventsMapExampleProvider().get_questions())
-        assert provider_count == default_count + 1
+        assert provider_count == default_count  # -1 requirements, +1 title
+
+    def test_requirements_question_absent(self) -> None:
+        p = EcoscopeEventsMapExampleProvider()
+        dests = [q["dest"] for q in p.get_questions()]
+        assert "requirements" not in dests
 
     def test_title_has_correct_default(self) -> None:
         p = EcoscopeEventsMapExampleProvider()
         questions = p.get_questions()
         assert questions[-1]["argparse"]["default"] == MAP_TITLE_DEFAULT
 
-    def test_inherits_default_questions(self) -> None:
+    def test_inherits_default_questions_except_requirements(self) -> None:
         from wt_compiler.wizard.default import DefaultWizardProvider
 
         default_dests = [q["dest"] for q in DefaultWizardProvider().get_questions()]
         provider_dests = [q["dest"] for q in EcoscopeEventsMapExampleProvider().get_questions()]
         for dest in default_dests:
-            assert dest in provider_dests
+            if dest == "requirements":
+                assert dest not in provider_dests
+            else:
+                assert dest in provider_dests
 
     def test_get_questions_returns_independent_copies(self) -> None:
         """Each call to get_questions() returns a fresh deep copy."""

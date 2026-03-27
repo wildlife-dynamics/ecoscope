@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+from pathlib import Path
 
 from wt_compiler.wizard.abstract import (
     ArgparseKwargs,
@@ -103,13 +104,23 @@ class EcoscopeEventsMapExampleProvider(DefaultWizardProvider):
     """
 
     def get_questions(self) -> list[WizardQuestion]:
-        """Return default questions followed by the events map title question.
+        """Return default questions (minus requirements) plus the map title question.
+
+        The requirements loop is omitted; requirements are fixed in the template.
 
         Returns:
-            All questions from ``DefaultWizardProvider`` plus the events map
+            Default questions without ``requirements``, plus the events map
             title question.
         """
-        return [
-            *super().get_questions(),
-            copy.deepcopy(_Q_EVENTS_MAP_TITLE),
+        return [q for q in super().get_questions() if q["dest"] != "requirements"] + [
+            copy.deepcopy(_Q_EVENTS_MAP_TITLE)
         ]
+
+    def dump(self, workdir: Path) -> None:
+        """Render templates, injecting an empty requirements list for the template.
+
+        Args:
+            workdir: Directory to write rendered files into.
+        """
+        self._answers.setdefault("requirements", [])
+        super().dump(workdir)
