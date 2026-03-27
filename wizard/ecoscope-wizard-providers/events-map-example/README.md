@@ -1,36 +1,41 @@
-# ecoscope-events-dashboard-wizard-provider
+# ecoscope-events-map-example
 
-Wizard provider for scaffolding [Ecoscope](https://github.com/wildlife-dynamics/ecoscope) events dashboard workflow projects via [wt-compiler](../wt-compiler/).
+An example wizard provider that scaffolds an [Ecoscope](https://github.com/wildlife-dynamics/ecoscope) events map workflow project via [wt-compiler](../wt-compiler/).
 
 ## Overview
 
-This package extends `DefaultWizardProvider` with an interactive widget configuration loop.  It generates:
+This package registers an `EcoscopeEventsMapExampleProvider` under the `wt_compiler.wizard_providers` entry point group. It extends `DefaultWizardProvider` with one additional question — the events map display title — and omits the requirements loop (the requirement on `ecoscope-platform` is fixed in the template).
 
-- **`spec.yaml`** — complete events dashboard workflow spec with conditional task chains for each enabled widget type
-- **`layout.json`** — auto-generated 2-column dashboard grid layout based on the selected widgets and their order
+### What it generates
 
-### Available widget types
+| File | Description |
+|------|-------------|
+| `spec.yaml` | Complete workflow spec: fetches events from EarthRanger, applies a colormap by event type, renders an ecomap, and assembles a single-widget dashboard |
+| `layout.json` | Single full-width map widget layout |
 
-| Widget | Description |
-|--------|-------------|
-| `bar_chart` | Events over time, grouped by type |
-| `events_map` | Point map of event locations |
-| `pie_chart` | Event type distribution |
-| `event_count_map` | Grid heatmap of event density |
-| `events_table` | Filterable/sortable event table |
+### Questions asked
 
-Widget insertion order determines `widget_id` assignment in `layout.json` and the `gather_dashboard.widgets` list order.
+| Field | Description | Default |
+|-------|-------------|---------|
+| `workflow_id` | Python identifier for the workflow | — |
+| `workflow_name` | Human-readable workflow name | — |
+| `workflow_description` | Optional description | `""` |
+| `author_name` | Author name | — |
+| `license_type` | License (`BSD-3-Clause`, `MIT`, `Apache-2.0`) | `BSD-3-Clause` |
+| `events_map_title` | Display title for the events map widget (max 50 chars) | `"Events Map"` |
+
+The `requirements` question is skipped — the template hardcodes a dependency on `ecoscope-platform>=2.11.3,<3` from the `ecoscope-workflows` prefix.dev channel.
 
 ## Installation
 
 ```bash
-pip install ecoscope-events-dashboard-wizard-provider
+pip install ecoscope-wizard-providers
 ```
 
-Or with pixi (from the monorepo):
+Or with pixi (from the `wizard/ecoscope-wizard-providers` directory):
 
 ```bash
-pixi add ecoscope-events-dashboard-wizard-provider
+pixi add ecoscope-wizard-providers
 ```
 
 ## Usage
@@ -38,32 +43,30 @@ pixi add ecoscope-events-dashboard-wizard-provider
 ### Interactive wizard
 
 ```bash
-wt-compiler scaffold run ecoscope-events-dashboard --outdir my-dashboard/
+wt-compiler scaffold run ecoscope-events-map-example --outdir my-events-map/
 ```
 
-The wizard will prompt for standard workflow fields (ID, name, description, author, license, requirements) followed by a widget configuration loop where you select widget types and display titles.
+The wizard prompts for workflow ID, name, description, author, license, and the events map title.
 
 ### Batch / non-interactive mode
 
 ```bash
-wt-compiler scaffold run ecoscope-events-dashboard \
-  --workflow-id my_events_dashboard \
-  --workflow-name "My Events Dashboard" \
+wt-compiler scaffold run ecoscope-events-map-example \
+  --workflow-id my_events_map \
+  --workflow-name "My Events Map" \
   --workflow-description "Events overview" \
   --author-name "Wildlife Dynamics" \
   --license-type MIT \
-  --widgets '{"widget": "events_map", "title": "Events Map"}' \
-  --widgets '{"widget": "bar_chart", "title": "Events Over Time"}' \
-  --outdir my-dashboard/
+  --events-map-title "Events Map" \
+  --outdir my-events-map/
 ```
-
-Each `--widgets` flag accepts a JSON object with `widget` (one of the types above) and `title` (max 50 characters).
 
 ## Development
 
+From `wizard/ecoscope-wizard-providers/`:
+
 ```bash
-cd ecoscope-events-dashboard-wizard-provider
 uv run pytest
-uv run mypy src/ecoscope_events_dashboard_wizard_provider
-uv run ruff check src/ecoscope_events_dashboard_wizard_provider
+uv run mypy events-map-example/src/ecoscope_events_map_example
+uv run ruff check events-map-example/src/ecoscope_events_map_example
 ```
