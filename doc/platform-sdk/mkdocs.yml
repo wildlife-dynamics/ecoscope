@@ -69,32 +69,35 @@ nav:
   - Home: index.md
   - Concepts: concepts.md
   - Getting Started: getting-started.md
-  - How-To Guides: how-to-guides.md
+  - Understanding spec.yaml: understanding-spec.md
+  - Tutorials:
+    - tutorials.md
+    - Your First Custom Task: tutorials/first-custom-task.md
+    - Custom Task Patterns: tutorials/custom-task-patterns.md
+    - Data Sources: tutorials/data-sources.md
+    - Widgets: tutorials/widgets.md
+    - Groupers: tutorials/groupers.md
+    - Form Customization: tutorials/form-customization.md
+  - Built-in Tasks: built-in-tasks.md
+  - Examples: examples.md
+  - Troubleshooting: troubleshooting.md
   - Reference:
-    - annotations: reference/annotations.md
+    - Tasks:
+      - io: reference/tasks/io.md
+      - filter: reference/tasks/filter.md
+      - preprocessing: reference/tasks/preprocessing.md
+      - transformation: reference/tasks/transformation.md
+      - groupby: reference/tasks/groupby.md
+      - analysis: reference/tasks/analysis.md
+      - results: reference/tasks/results.md
+      - config: reference/tasks/config.md
+      - skip: reference/tasks/skip.md
+      - warning: reference/tasks/warning.md
+      - test: reference/tasks/test.md
+    - schemas: reference/schemas.md
     - connections: reference/connections.md
     - indexes: reference/indexes.md
-    - jsonschema: reference/jsonschema.md
-    - mock_loaders: reference/mock_loaders.md
-    - schemas: reference/schemas.md
-    - serde: reference/serde.md
-    - Tasks:
-      - Data Loading:
-        - io: reference/tasks/io.md
-      - Processing:
-        - filter: reference/tasks/filter.md
-        - preprocessing: reference/tasks/preprocessing.md
-        - transformation: reference/tasks/transformation.md
-        - groupby: reference/tasks/groupby.md
-      - Analysis:
-        - analysis: reference/tasks/analysis.md
-      - Visualization:
-        - results: reference/tasks/results.md
-      - Workflow Utilities:
-        - config: reference/tasks/config.md
-        - skip: reference/tasks/skip.md
-        - warning: reference/tasks/warning.md
-        - test: reference/tasks/test.md
-  - Architecture: architecture.md
-  - Contributing: contributing.md
-  - Changelog: changelog.md
+    - annotations: reference/annotations.md
+    - Advanced:
+      - jsonschema: reference/jsonschema.md
+      - mock_loaders: reference/mock_loaders.md

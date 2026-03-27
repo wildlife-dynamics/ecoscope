@@ -1,6 +1,6 @@
 # Getting Started
 
-The following walkthrough will help you get up and running with your building and running your
+The following walkthrough will help you get up and running with building and running your
 first workflow template for the Ecoscope Desktop app. By the end of this walkthrough, you will
 have a solid foundation in the basics of iterative workflow template development.
 
@@ -37,13 +37,13 @@ if you do not have both already.
     $ pixi global add --environment wt-compiler ecoscope-wizard-providers
     ```
 
-- Finally, [download and install the Ecoscope Desktop App](https://app.ecoscope.io/download) if you do not have it already. 
+- Finally, [download and install the Ecoscope Desktop App](https://app.ecoscope.io/download) if you do not have it already.
 
 ---
 
-## Step 1 - Scaffold a new workflow
+## Step 1 — Scaffold a new workflow
 
-In a clean directory on your machine, run: 
+In a clean directory on your machine, run:
 
 ```console
 $ wt-compiler scaffold init
@@ -68,7 +68,7 @@ drwxr-xr-x 3 user user 4096 Mar 27 15:00 .github
 -rw-r--r-- 1 user user  597 Mar 27 15:00 test-cases.yaml
 ```
 
-## Step 2 - Compile the scaffold into a workflow template
+## Step 2 — Compile the scaffold into a workflow template
 
 From the new directory, run:
 
@@ -95,45 +95,92 @@ drwxr-xr-x 2 user user   4096 Mar 27 15:00 tests
 -rw-r--r-- 1 user user     27 Mar 27 15:00 VERSION.yaml
 ```
 
-## Step 3 - Load the template into Ecoscope Desktop
+## Step 3 — Load the template into Ecoscope Desktop
+
+Open Ecoscope Desktop and navigate to the **Templates** screen. You will see a list of any templates you have already imported, plus options to add new ones.
 
 ![Ecoscope-Desktop Templates Screen](assets/getting-started/templates.png)
+
+Click **Import Local Folder** and select the compiled workflow directory (e.g. `ecoscope-workflows-events-example-workflow`). Desktop will validate the template and add it to your list.
+
 ![Ecoscope-Desktop Local Folder Import](assets/getting-started/local-import.png)
 
-## Step 4 - Create and run a workflow using the template
+## Step 4 — Create and run a workflow
 
-### Setup an EarthRanger Data Source
+### Set up an EarthRanger data source
+
+Before running the workflow, you need to configure a data source. Navigate to the **Data Sources** screen.
+
 ![Ecoscope-Desktop Data Sources Screen](assets/getting-started/data-source.png)
+
+Click **Add Data Source** and select **EarthRanger**. Fill in the connection details for your EarthRanger site — you will need the site URL and credentials.
 
 <div style="display: flex; gap: 1rem;" markdown="1">
 
-  ![Ecoscope-Desktop Add Data Source](assets/getting-started/er.png) 
+  ![Ecoscope-Desktop Add Data Source](assets/getting-started/er.png)
 
   ![Ecoscope-Desktop Add Data Source](assets/getting-started/er-panel.png)
 
 </div>
 
 ### Configure the workflow
-![Ecoscope-Desktop Workflow Config Screen](assets/getting-started/imported.png)
+
+Return to the **Templates** screen, select your imported template, and click **New Workflow**. Desktop will present the configuration form — this form is generated from the parameters that are *not* bound under `partial` in your `spec.yaml`.
+
+![Ecoscope-Desktop Workflow Imported](assets/getting-started/imported.png)
+
+Select your EarthRanger data source, set a time range, and configure any other parameters that appear. The form fields, their types, and default values all come from the task function signatures in the Platform SDK.
+
 ![Ecoscope-Desktop Workflow Config Screen](assets/getting-started/config.png)
 
 ### Run the workflow
+
+Once you are satisfied with the configuration, click **Run**. Desktop will execute each task in the DAG in order, streaming progress as it goes.
+
 ![Ecoscope-Desktop Workflow Run Button](assets/getting-started/configured.png)
 
-### View the Results
+### View the results
+
+When the workflow completes, Desktop displays the dashboard. In this example you will see a single map widget showing event locations color-coded by event type.
+
 ![Ecoscope-Desktop Workflow Dashboard](assets/getting-started/dashboard.png)
 
 
-## Step 4 - Change a parameter in `spec.yaml`, recompile, and re-run
+## Step 5 — Change a parameter, recompile, and re-run
 
-Here you will get your first taste of the iterative workflow development process.
+Now you will get your first taste of the iterative workflow development process.
 
-Let's change a simple parameter in the `spec.yaml` for this toy example, then we
-will recompile the workflow, and see the changed result by re-running the updated
-workflow in the Ecoscope Desktop app.
+Open `spec.yaml` in your editor and find the `events_colormap` task:
 
-## Next step - Adding your own tasks
+```yaml
+- name: Events Colormap
+  id: events_colormap
+  task: apply_color_map
+  partial:
+    df: ${{ workflow.get_events_data.return }}
+    input_column_name: event_type
+    colormap: tab20b                    # ← change this
+    output_column_name: event_type_colormap
+```
 
-This intro guide has walked you through the basic iterative flow of workflow development
-for Ecoscope Desktop. The next step, will be adding your own custom logic (or, "tasks")
-to customize the behavior of the workflow.
+Change the `colormap` value from `tab20b` to `Set3`:
+
+```yaml
+    colormap: Set3
+```
+
+Now recompile with the `--install` flag so the compiled package is updated in place:
+
+```console
+$ wt-compiler compile --spec=spec.yaml --pkg-name-prefix=ecoscope-workflows --results-env-var=ECOSCOPE_WORKFLOWS_RESULTS --install
+```
+
+Back in Desktop, re-run the workflow. You will see the same map, but now the event markers use the `Set3` color palette instead of `tab20b`. This is the development loop in action: **edit → compile → run → observe → iterate**.
+
+---
+
+## Next steps
+
+- **[Understanding spec.yaml](./understanding-spec.md)** — Walk through every line of the spec you just ran, and understand `partial`, `${{ }}` expressions, and `skipif`.
+- **[Tutorials](./tutorials.md)** — Learn to write custom tasks, build widgets, configure groupers, and more.
+- **[Examples](./examples.md)** — Study production-grade workflow repositories.

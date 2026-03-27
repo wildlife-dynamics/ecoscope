@@ -1,3 +1,0 @@
-# serde
-
-::: ecoscope.platform.serde
