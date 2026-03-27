@@ -92,7 +92,7 @@ jobs:
           SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.0"
         run: |
           python -m ensurepip --upgrade
-          pip install "./wizard/ecoscope-wizard-providers[dev]"
+          pip install -e "./wizard/ecoscope-wizard-providers[dev]"
       - name: Test wizard providers
         working-directory: wizard/ecoscope-wizard-providers
         run: pytest -v --color=yes
