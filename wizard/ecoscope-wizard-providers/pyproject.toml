@@ -59,3 +59,7 @@ pip = "*"
 python = ">=3.12,<3.16"
 wt-compiler = ">=0.1.0"
 
+[tool.pixi.project]
+channels = ["conda-forge", "https://prefix.dev/pixi-build-backends"]
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+preview = ["pixi-build"]
