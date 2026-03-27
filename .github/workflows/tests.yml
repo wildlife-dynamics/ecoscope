@@ -74,3 +74,23 @@ jobs:
 
       - name: Codecov
         uses: codecov/codecov-action@v5
+
+  Wizard:
+    name: ${{ inputs.os }}, wizard
+    runs-on: ${{ inputs.os }}
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+      - name: Install wizard providers
+        run: |
+          python -m ensurepip --upgrade
+          pip install "./wizard/ecocope-wizard-providers[dev]"
+      - name: Test wizard providers
+        working-directory: wizard/ecocope-wizard-providers
+        run: pytest -v --color=yes
