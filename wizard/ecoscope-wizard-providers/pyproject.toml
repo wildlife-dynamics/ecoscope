@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=64", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "ecoscope-wizard-providers"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Ecoscope wizard providers for scaffolding wt workflows"
 requires-python = ">=3.12"
 dependencies = [
@@ -36,9 +36,12 @@ addopts = "--doctest-modules --doctest-continue-on-failure"
 strict = true
 ignore_missing_imports = true
 
+[tool.setuptools_scm]
+tag_regex = "^wizard/v(?P<version>[0-9]+\\.[0-9]+\\.[0-9]+)$"
+
 [tool.pixi.package]
 name = "ecoscope-wizard-providers"
-version = "0.1.0"
+version = "0.0.0"
 
 [tool.pixi.package.build]
 backend = { name = "pixi-build-python", version = "*", channels = ["conda-forge", "https://prefix.dev/pixi-build-backends"] }
@@ -49,6 +52,7 @@ noarch = true
 [tool.pixi.package.host-dependencies]
 python = ">=3.12,<3.16"
 setuptools = ">=64"
+setuptools-scm = ">=6.2"
 pip = "*"
 
 [tool.pixi.package.run-dependencies]
