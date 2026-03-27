@@ -3,22 +3,22 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ecoscope-events-dashboard-wizard-provider"
+name = "ecoscope-events-map-example"
 version = "0.1.0"
-description = "Wizard provider for scaffolding Ecoscope events dashboard workflows"
+description = "Wizard provider for scaffolding Ecoscope events map workflows"
 requires-python = ">=3.12"
 dependencies = [
     "wt-compiler",
 ]
 
 [project.entry-points."wt_compiler.wizard_providers"]
-ecoscope-events-dashboard = "ecoscope_events_dashboard_wizard_provider:EcoscopeEventsDashboardWizardProvider"
+ecoscope-events-map-example = "ecoscope_events_map_example:EcoscopeEventsMapExampleProvider"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-ecoscope_events_dashboard_wizard_provider = ["templates/*"]
+ecoscope_events_map_example = ["templates/*"]
 
 [project.optional-dependencies]
 dev = [
@@ -28,7 +28,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "src/ecoscope_events_dashboard_wizard_provider"]
+testpaths = ["tests", "src/ecoscope_events_map_example"]
 python_files = ["test_*.py"]
 addopts = "--doctest-modules --doctest-continue-on-failure"
 
@@ -37,7 +37,7 @@ strict = true
 ignore_missing_imports = true
 
 [tool.pixi.package]
-name = "ecoscope-events-dashboard-wizard-provider"
+name = "ecoscope-events-map-example"
 version = "0.1.0"
 
 [tool.pixi.package.build]
