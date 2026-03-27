@@ -79,13 +79,13 @@ $ wt-compiler compile --spec=spec.yaml --pkg-name-prefix=ecoscope-workflows --re
 You will now see a new folder in the template directory containing the compiled workflow:
 
 ```console
-~/events_map_example$ ls -la ecoscope-workflows-events-map-example
+~/events_map_example$ ls -la ecoscope-workflows-events-example-workflow
 total 1012
 drwxr-xr-x 5 user user   4096 Mar 27 15:00 .
 drwxr-xr-x 4 user user   4096 Mar 27 15:00 ..
 -rw-r--r-- 1 user user    908 Mar 27 15:00 Dockerfile
 -rw-r--r-- 1 user user    101 Mar 27 15:00 .dockerignore
-drwxr-xr-x 3 user user   4096 Mar 27 15:00 ecoscope_workflows_events_map_example
+drwxr-xr-x 3 user user   4096 Mar 27 15:00 ecoscope_workflows_events_example_workflow
 -rw-r--r-- 1 user user 139006 Mar 27 15:00 graph.png
 drwxr-xr-x 3 user user   4096 Mar 27 15:00 .pixi
 -rw-r--r-- 1 user user 854027 Mar 27 15:00 pixi.lock
