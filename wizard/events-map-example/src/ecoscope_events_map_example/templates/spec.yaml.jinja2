@@ -61,7 +61,6 @@ workflow:
         - time
         - event_type
         - event_category
-        - reported_by
         - serial_number
         - geometry
       raise_on_empty: false
@@ -74,19 +73,13 @@ workflow:
     id: events_colormap
     task: apply_color_map
     partial:
-      df: {{ wf("events_add_spatial_index") }}
+      df: {{ wf("get_events_data") }}
       input_column_name: event_type
       colormap: tab20b
       output_column_name: event_type_colormap
 
-  - name: Set Events Map Title
-    id: set_events_map_title
-    task: set_string_var
-    partial:
-      var: {{ events_map_title }}
-
   - name: Create map layer from grouped Events
-    id: grouped_events_map_layer
+    id: events_map_layer
     task: create_point_layer
     skipif:
       conditions:
@@ -98,17 +91,13 @@ workflow:
         fill_color_column: event_type_colormap
         get_radius: 5
       legend:
-        label_column: Event Type
+        label_column: event_type_display
         color_column: event_type_colormap
-      tooltip_columns:
-        - Event Serial
-        - Event Time
-        - Event Type
-        - Reported By
-      geodataframe: {{ wf("rename_display_columns") }}
+      tooltip_columns: null
+      geodataframe: {{ wf("events_colormap") }}
 
   - name: Draw Ecomap from grouped Events
-    id: grouped_events_ecomap
+    id: events_ecomap
     task: draw_ecomap
     partial:
       title: null
@@ -122,35 +111,33 @@ workflow:
         placement: bottom-right
       static: false
       max_zoom: 20
-      widget_id: {{ wf("set_events_map_title") }}
+      widget_id: {{ events_map_title }}
       geo_layers: {{ wf("events_map_layer") }}
   - name: Persist grouped Events Ecomap as Text
-    id: grouped_events_ecomap_html_url
+    id: events_ecomap_html_url
     task: persist_text
     partial:
       root_path: {{ env("ECOSCOPE_WORKFLOWS_RESULTS") }}
       filename_suffix: v2
-    mapvalues:
-      argnames: text
-      argvalues: {{ wf("grouped_events_ecomap") }}
+      text: {{ wf("events_ecomap") }}
   - name: Create grouped Events Map Widget
-    id: grouped_events_map_widget
+    id: events_map_widget
     task: create_map_widget_single_view
     skipif:
       conditions:
         - never
     partial:
-      title: {{ wf("set_events_map_title") }}
+      title: {{ events_map_title }}
     map:
       argnames:
         - view
         - data
-      argvalues: {{ wf("grouped_events_ecomap_html_url") }}
+      argvalues: {{ wf("events_ecomap_html_url") }}
   - name: Merge Events Map Widget Views
-    id: grouped_events_map_widget_merge
+    id: events_map_widget_merge
     task: merge_widget_views
     partial:
-      widgets: {{ wf("grouped_events_map_widget") }}
+      widgets: {{ wf("events_map_widget") }}
 
   - name: Create Dashboard with Map Widgets
     id: events_dashboard
@@ -158,7 +145,7 @@ workflow:
     partial:
       details: {{ wf("workflow_details") }}
       widgets:
-        - {{ wf("grouped_events_map_widget_merge") }}
+        - {{ wf("events_map_widget_merge") }}
       groupers: 
         index_name: "All"
       time_range: {{ wf("time_range") }}
