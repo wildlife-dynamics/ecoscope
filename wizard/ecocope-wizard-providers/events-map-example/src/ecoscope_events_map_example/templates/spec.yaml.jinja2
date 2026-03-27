@@ -46,11 +46,25 @@ workflow:
       include_related_events: false
       include_display_values: true
 
+  - name: Extract Timezone Selection
+    id: get_timezone
+    task: get_timezone_from_time_range
+    partial:
+      time_range: {{ wf("time_range") }}
+  - name: Convert to timezone
+    id: convert_to_user_timezone
+    task: convert_values_to_timezone
+    partial:
+      df: {{ wf("get_events_data") }}
+      timezone: {{ wf("get_timezone") }}
+      columns:
+        - time
+
   - name: Events Colormap
     id: events_colormap
     task: apply_color_map
     partial:
-      df: {{ wf("get_events_data") }}
+      df: {{ wf("convert_to_user_timezone") }}
       input_column_name: event_type
       colormap: tab20b
       output_column_name: event_type_colormap
