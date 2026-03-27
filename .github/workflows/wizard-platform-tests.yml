@@ -1,0 +1,46 @@
+name: Wizard Platform Tests
+
+on:
+  pull_request:
+    paths:
+      - "ecoscope/platform/**"
+
+jobs:
+  wizard-platform:
+    name: scaffold + compile (platform)
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install wizard providers
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.0"
+        run: |
+          python -m ensurepip --upgrade
+          pip install -e "./wizard/ecoscope-wizard-providers"
+
+      - name: Install ecoscope platform (in-flight)
+        run: pip install ".[platform]"
+
+      - name: Scaffold events-map workflow
+        run: |
+          wt-compiler scaffold init \
+            --no-interactive \
+            --provider ecoscope-events-map-example \
+            --workflow-id ci_events_map \
+            --workflow-name "CI Events Map" \
+            --author-name "CI" \
+            --output-dir /tmp/wizard-ci
+
+      - name: Compile scaffolded workflow
+        run: |
+          wt-compiler compile \
+            --spec /tmp/wizard-ci/ci_events_map/spec.yaml
