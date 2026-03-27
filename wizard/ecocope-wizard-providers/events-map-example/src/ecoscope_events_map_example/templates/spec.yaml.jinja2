@@ -7,29 +7,6 @@ requirements:
   - name: "ecoscope-platform"
     version: ">=2.11.3,<3"
     channel: "https://repo.prefix.dev/ecoscope-workflows/"
-{% for req in requirements %}
-  - name: "{{ req.name }}"
-{% if req.req_type == 'conda' %}
-    version: "{{ req.version }}"
-    channel: "{{ req.channel }}"
-{% elif req.req_type == 'local path' %}
-    path: "{{ req.path }}"
-{% if req.editable == 'true' %}
-    editable: true
-{% endif %}
-{% elif req.req_type == 'url' %}
-    url: "{{ req.url }}"
-{% elif req.req_type == 'git' %}
-    git: "{{ req.git }}"
-{% if req.git_ref_type == 'rev' %}
-    rev: "{{ req.git_ref_value }}"
-{% elif req.git_ref_type == 'branch' %}
-    branch: "{{ req.git_ref_value }}"
-{% elif req.git_ref_type == 'tag' %}
-    tag: "{{ req.git_ref_value }}"
-{% endif %}
-{% endif %}
-{% endfor %}
 
 task-instance-defaults:
   skipif:
