@@ -90,7 +90,7 @@ jobs:
       - name: Install wizard providers
         run: |
           python -m ensurepip --upgrade
-          pip install "./wizard/ecocope-wizard-providers[dev]"
+          pip install "./wizard/ecoscope-wizard-providers[dev]"
       - name: Test wizard providers
-        working-directory: wizard/ecocope-wizard-providers
+        working-directory: wizard/ecoscope-wizard-providers
         run: pytest -v --color=yes
