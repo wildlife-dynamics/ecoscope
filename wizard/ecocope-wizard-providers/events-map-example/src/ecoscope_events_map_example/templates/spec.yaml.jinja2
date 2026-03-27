@@ -128,14 +128,8 @@ workflow:
         - never
     partial:
       title: {{ events_map_title }}
-      view: null
+      view: ["All", "=", "True"]
       data: {{ wf("events_ecomap_html_url") }}
-  - name: Merge Events Map Widget Views
-    id: events_map_widget_merge
-    task: merge_widget_views
-    partial:
-      widgets: 
-        - {{ wf("events_map_widget") }}
 
   - name: Create Dashboard with Map Widgets
     id: events_dashboard
@@ -143,6 +137,7 @@ workflow:
     partial:
       details: {{ wf("workflow_details") }}
       widgets:
-        - {{ wf("events_map_widget_merge") }}
-      groupers: null
+        - {{ wf("events_map_widget") }}
+      groupers: 
+        - index_name: "All"
       time_range: {{ wf("time_range") }}
