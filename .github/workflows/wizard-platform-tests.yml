@@ -2,7 +2,8 @@ name: Wizard Platform Tests
 
 on:
   pull_request:
-    branches: ["**"]
+    paths:
+      - "ecoscope/platform/**"
 
 jobs:
   wizard-platform:
@@ -15,19 +16,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+
+      - name: Set up pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
         with:
-          python-version: "3.12"
+          pixi-version: v0.63.0
+          run-install: false
 
-      - name: Install wizard providers
-        env:
-          SETUPTOOLS_SCM_PRETEND_VERSION: "0.0.0"
-        run: |
-          python -m ensurepip --upgrade
-          pip install -e "./wizard/ecoscope-wizard-providers"
+      - name: Install wt-compiler globally
+        run: pixi global install wt-compiler
 
-      - name: Install ecoscope platform (in-flight)
-        run: pip install ".[platform]"
+      - name: Add wizard providers
+        run: pixi global add --path "./wizard/ecoscope-wizard-providers"
 
       - name: Scaffold events-map workflow
         run: |
@@ -38,6 +38,22 @@ jobs:
             --workflow-name "CI Events Map" \
             --author-name "CI" \
             --output-dir /tmp/wizard-ci
+
+      - name: Patch spec to use in-flight platform code
+        run: |
+          python3 - <<'EOF'
+          import yaml
+          from pathlib import Path
+
+          spec_path = Path("/tmp/wizard-ci/ci_events_map/spec.yaml")
+          data = yaml.safe_load(spec_path.read_text())
+          data["requirements"].append({
+              "name": "ecoscope",
+              "path": "${{ github.workspace }}",
+              "editable": True,
+          })
+          spec_path.write_text(yaml.dump(data, default_flow_style=False))
+          EOF
 
       - name: Compile scaffolded workflow
         run: |
