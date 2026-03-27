@@ -1,0 +1,143 @@
+{#- Macros to emit wt-compiler ${{ }} references without Jinja2 evaluating them -#}
+{%- macro wf(task_id) -%}${{ '{{' }} workflow.{{ task_id }}.return {{ '}}' }}{%- endmacro -%}
+{%- macro env(var_name) -%}${{ '{{' }} env.{{ var_name }} {{ '}}' }}{%- endmacro -%}
+id: {{ workflow_id }}
+
+requirements:
+  - name: "ecoscope-platform"
+    version: ">=2.11.3,<3"
+    channel: "https://repo.prefix.dev/ecoscope-workflows/"
+{% for req in requirements %}
+  - name: "{{ req.name }}"
+{% if req.req_type == 'conda' %}
+    version: "{{ req.version }}"
+    channel: "{{ req.channel }}"
+{% elif req.req_type == 'local path' %}
+    path: "{{ req.path }}"
+{% if req.editable == 'true' %}
+    editable: true
+{% endif %}
+{% elif req.req_type == 'url' %}
+    url: "{{ req.url }}"
+{% elif req.req_type == 'git' %}
+    git: "{{ req.git }}"
+{% if req.git_ref_type == 'rev' %}
+    rev: "{{ req.git_ref_value }}"
+{% elif req.git_ref_type == 'branch' %}
+    branch: "{{ req.git_ref_value }}"
+{% elif req.git_ref_type == 'tag' %}
+    tag: "{{ req.git_ref_value }}"
+{% endif %}
+{% endif %}
+{% endfor %}
+
+task-instance-defaults:
+  skipif:
+    conditions:
+      - any_is_empty_df
+      - any_dependency_skipped
+
+workflow:
+  - name: Workflow Details
+    id: workflow_details
+    task: set_workflow_details
+  - name: Data Source
+    id: er_client_name
+    task: set_er_connection
+  - name: Time Range
+    id: time_range
+    task: set_time_range
+    partial:
+      time_format: '%d %b %Y %H:%M:%S'
+
+  - name: Event Types
+    id: get_events_data
+    task: get_events
+    partial:
+      client: {{ wf("er_client_name") }}
+      time_range: {{ wf("time_range") }}
+      event_columns:
+        - id
+        - time
+        - event_type
+        - event_category
+        - serial_number
+        - geometry
+      raise_on_empty: false
+      include_details: false
+      include_updates: false
+      include_related_events: false
+      include_display_values: true
+
+  - name: Events Colormap
+    id: events_colormap
+    task: apply_color_map
+    partial:
+      df: {{ wf("get_events_data") }}
+      input_column_name: event_type
+      colormap: tab20b
+      output_column_name: event_type_colormap
+
+  - name: Create map layer from grouped Events
+    id: events_map_layer
+    task: create_point_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+        - all_geometry_are_none
+    partial:
+      layer_style:
+        fill_color_column: event_type_colormap
+        get_radius: 5
+      legend:
+        label_column: event_type_display
+        color_column: event_type_colormap
+      tooltip_columns: null
+      geodataframe: {{ wf("events_colormap") }}
+
+  - name: Draw Ecomap from grouped Events
+    id: events_ecomap
+    task: draw_ecomap
+    partial:
+      title: null
+      tile_layers: 
+        - layer_name: "TERRAIN"
+      north_arrow_style:
+        placement: top-left
+      legend_style:
+        title: Event Type
+        format_title: false
+        placement: bottom-right
+      static: false
+      max_zoom: 20
+      widget_id: {{ events_map_title }}
+      geo_layers: {{ wf("events_map_layer") }}
+  - name: Persist grouped Events Ecomap as Text
+    id: events_ecomap_html_url
+    task: persist_text
+    partial:
+      root_path: {{ env("ECOSCOPE_WORKFLOWS_RESULTS") }}
+      filename_suffix: v2
+      text: {{ wf("events_ecomap") }}
+  - name: Create grouped Events Map Widget
+    id: events_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: {{ events_map_title }}
+      view: ["All", "=", "True"]
+      data: {{ wf("events_ecomap_html_url") }}
+
+  - name: Create Dashboard with Map Widgets
+    id: events_dashboard
+    task: gather_dashboard
+    partial:
+      details: {{ wf("workflow_details") }}
+      widgets:
+        - {{ wf("events_map_widget") }}
+      groupers: 
+        - index_name: "All"
+      time_range: {{ wf("time_range") }}
