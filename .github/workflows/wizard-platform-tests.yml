@@ -29,7 +29,10 @@ jobs:
             --channel conda-forge
 
       - name: Add wizard providers
-        run: pixi global add --path "./wizard/ecoscope-wizard-providers"
+        run: | 
+          pixi global add \
+          --environment wt-compiler \
+          --path "./wizard/ecoscope-wizard-providers"
 
       - name: Scaffold events-map workflow
         run: |
