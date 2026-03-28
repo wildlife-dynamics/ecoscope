@@ -1164,9 +1164,19 @@ def test_make_warehouse_client_from_env_enabled():
 
 
 def test_make_warehouse_client_from_env_missing_url():
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient
+
     env = {"USE_EARTHRANGER_WAREHOUSE_API": "true"}
     with patch.dict(os.environ, env, clear=True):
         result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
+    assert isinstance(result, ERWarehouseClient)
+    assert result.warehouse_base_url is None
+
+
+def test_make_warehouse_client_from_env_no_token():
+    env = {"USE_EARTHRANGER_WAREHOUSE_API": "true"}
+    with patch.dict(os.environ, env, clear=True):
+        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=None)
     assert result is None
 
 

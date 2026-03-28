@@ -31,14 +31,11 @@ def _make_warehouse_client_from_env(er_site_url: str, er_api_token: SecretStr | 
     Returns None when the warehouse is not enabled, causing callers to
     fall back to the legacy EarthRanger API client.
     """
-    if (
-        os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
-        and (warehouse_api_base_url := os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL"))
-        and er_api_token is not None
-    ):
+    if os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true" and er_api_token is not None:
         from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
 
-        logger.debug("Using ERWarehouseClient with base_url=%s", warehouse_api_base_url)
+        warehouse_api_base_url = os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL")
+        logger.debug("Using ERWarehouseClient (warehouse_base_url=%s)", warehouse_api_base_url)
         return ERWarehouseClient(
             server=er_site_url,
             token=er_api_token,
