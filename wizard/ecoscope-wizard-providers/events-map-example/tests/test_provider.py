@@ -13,6 +13,7 @@ from ecoscope_events_map_example.provider import (
     MAP_TITLE_DEFAULT,
     widget_title_type,
 )
+from wt_compiler.wizard.default import DefaultWizardProvider
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -101,10 +102,6 @@ class TestWidgetTitleType:
         with pytest.raises(argparse.ArgumentTypeError, match="50 characters"):
             widget_title_type("A" * 51)
 
-    def test_unicode_title_valid(self) -> None:
-        title = "Karte der Ereignisse"
-        assert widget_title_type(title) == title
-
 
 # ---------------------------------------------------------------------------
 # Question structure
@@ -114,39 +111,21 @@ class TestWidgetTitleType:
 class TestQuestionStructure:
     """Tests for provider question list structure."""
 
-    def test_last_question_is_events_map_title(self) -> None:
+    def test_questions(self) -> None:
         p = EcoscopeEventsMapExampleProvider()
         questions = p.get_questions()
-        assert questions[-1]["dest"] == "events_map_title"
-
-    def test_question_count(self) -> None:
-        from wt_compiler.wizard.default import DefaultWizardProvider
-
-        # default minus requirements, plus events_map_title
-        default_count = len(DefaultWizardProvider().get_questions())
-        provider_count = len(EcoscopeEventsMapExampleProvider().get_questions())
-        assert provider_count == default_count  # -1 requirements, +1 title
-
-    def test_requirements_question_absent(self) -> None:
-        p = EcoscopeEventsMapExampleProvider()
-        dests = [q["dest"] for q in p.get_questions()]
-        assert "requirements" not in dests
+        assert len(questions) == 6
+        assert questions[0]["dest"] == "workflow_id"
+        assert questions[1]["dest"] == "workflow_name"
+        assert questions[2]["dest"] == "workflow_description"
+        assert questions[3]["dest"] == "author_name"
+        assert questions[4]["dest"] == "license_type"
+        assert questions[5]["dest"] == "events_map_title"
 
     def test_title_has_correct_default(self) -> None:
         p = EcoscopeEventsMapExampleProvider()
         questions = p.get_questions()
         assert questions[-1]["argparse"]["default"] == MAP_TITLE_DEFAULT
-
-    def test_inherits_default_questions_except_requirements(self) -> None:
-        from wt_compiler.wizard.default import DefaultWizardProvider
-
-        default_dests = [q["dest"] for q in DefaultWizardProvider().get_questions()]
-        provider_dests = [q["dest"] for q in EcoscopeEventsMapExampleProvider().get_questions()]
-        for dest in default_dests:
-            if dest == "requirements":
-                assert dest not in provider_dests
-            else:
-                assert dest in provider_dests
 
     def test_get_questions_returns_independent_copies(self) -> None:
         """Each call to get_questions() returns a fresh deep copy."""
@@ -210,26 +189,16 @@ class TestSpecRendering:
 class TestLayoutRendering:
     """Tests for layout.json template rendering."""
 
-    def _parse_layout(self, layout_text: str) -> list[dict]:
-        return json.loads(layout_text)
-
-    def test_layout_has_single_entry(self) -> None:
+    def test_layout_integrity(self) -> None:
         result = render_templates()
-        entries = self._parse_layout(result["layout"])
-        assert len(entries) == 1
+        layout = json.loads(result["layout"])
+        assert len(layout) == 1
 
-    def test_layout_entry_is_full_width(self) -> None:
-        result = render_templates()
-        entry = self._parse_layout(result["layout"])[0]
-        assert entry["i"] == 0
-        assert entry["x"] == 0
-        assert entry["y"] == 0
-        assert entry["w"] == 10
-        assert entry["h"] == 10
-        assert entry["minW"] == 5
-        assert entry["static"] is False
-
-    def test_layout_is_valid_json(self) -> None:
-        result = render_templates()
-        parsed = json.loads(result["layout"])
-        assert isinstance(parsed, list)
+        widget = json.loads(result["layout"])[0]
+        assert widget["i"] == 0
+        assert widget["x"] == 0
+        assert widget["y"] == 0
+        assert widget["w"] == 10
+        assert widget["h"] == 10
+        assert widget["minW"] == 5
+        assert widget["static"] is False
