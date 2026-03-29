@@ -194,7 +194,7 @@ class TestLayoutRendering:
         layout = json.loads(result["layout"])
         assert len(layout) == 1
 
-        widget = json.loads(result["layout"])[0]
+        widget = layout[0]
         assert widget["i"] == 0
         assert widget["x"] == 0
         assert widget["y"] == 0
