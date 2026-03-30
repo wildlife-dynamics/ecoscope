@@ -125,7 +125,7 @@ def apply_classification(
 
 
 def apply_color_map(
-    dataframe: pd.DataFrame, input_column_name: str, cmap: str | list[str], output_column_name: str | None = None
+    dataframe: pd.DataFrame, input_column_name: str, cmap: str | list[str] | dict, output_column_name: str | None = None
 ) -> pd.DataFrame:
     """
     Creates a new column on the provided dataframe with the given cmap applied over the specified input column
@@ -133,7 +133,10 @@ def apply_color_map(
     Args:
     dataframe (pd.DatFrame): The data.
     input_column_name (str): The dataframe column who's values will be inform the cmap values.
-    cmap (str, list): Either a named mpl.colormap or a list of string hex values.
+    cmap (str, list, dict): Either a named mpl.colormap, a list of string hex values, or a dict mapping
+        values to hex color strings. When a dict is provided, each key is a data value and each value is
+        a hex color string (e.g. {"stop": "#FF0000", "go": "#00FF00"}). Data values not present in the
+        dict are assigned NAN_COLOR.
     output_column_name(str): The dataframe column that will contain the classification.
         Defaults to "<input_column_name>_colormap"
 
@@ -175,14 +178,19 @@ def apply_color_map(
 
         color_list = [tuple(round(chan * 255) for chan in c) for c in cmap_colors]
         cmap_series = pd.Series(color_list, index=unique_non_na)
+    elif isinstance(cmap, dict):
+        cmap_series = pd.Series({k: hex_to_rgba(v) for k, v in cmap.items()})
     else:
-        raise TypeError("cmap must be a matplotlib colormap name (str) or a list of hex colors")
+        raise TypeError(
+            "cmap must be a matplotlib colormap name (str), "
+            "a list of hex colors, or a dict mapping values to hex colors"
+        )
 
     if not output_column_name:
         output_column_name = f"{input_column_name}_colormap"
 
     # Map row-by-row so NaN/None get NAN_COLOR and others look up in cmap_series.
-    dataframe[output_column_name] = s.apply(lambda v: NAN_COLOR if pd.isna(v) else cmap_series[v])
+    dataframe[output_column_name] = s.apply(lambda v: NAN_COLOR if pd.isna(v) else cmap_series.get(v, NAN_COLOR))
     return dataframe
 
 
