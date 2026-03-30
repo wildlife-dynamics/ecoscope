@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Ecoscope wizard providers for scaffolding wt workflows"
 requires-python = ">=3.12"
 dependencies = [
-    "wt-compiler",
+    "wt-compiler>=0.4.0",
 ]
 
 [project.entry-points."wt_compiler.wizard_providers"]
@@ -58,7 +58,7 @@ pip = "*"
 
 [tool.pixi.package.run-dependencies]
 python = ">=3.12,<3.16"
-wt-compiler = ">=0.1.0"
+wt-compiler = ">=0.4.0"
 
 [tool.pixi.project]
 channels = ["conda-forge", "https://prefix.dev/pixi-build-backends"]
