@@ -1,9 +1,0 @@
-==========================
-05. Environmental Analyses
-==========================
-
-.. toctree::
-   :maxdepth: 1
-   :glob:
-
-   05. Environmental Analyses/*

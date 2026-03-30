@@ -4,7 +4,7 @@
    :align: center
    :target: https://ecoscope.io
 
-|PyPI| |Tests| |Codecov| |Docs| |Notebooks|
+|PyPI| |Tests| |Codecov| |Docs|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/ecoscope.svg
    :target: https://pypi.python.org/pypi/ecoscope
@@ -18,8 +18,6 @@
 .. |Docs| image:: https://readthedocs.org/projects/ecoscope/badge/?version=latest
    :target: https://ecoscope.io/en/latest/index.html
 
-.. |Notebooks| image:: https://img.shields.io/badge/Jupyter-Lab-F37626.svg?style=flat&logo=Jupyter
-   :target: https://ecoscope.io/en/latest/notebooks.html
 
 ========
 Ecoscope
