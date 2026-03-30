@@ -189,8 +189,8 @@ def apply_color_map(
     if not output_column_name:
         output_column_name = f"{input_column_name}_colormap"
 
-    # Map row-by-row so NaN/None get NAN_COLOR and others look up in cmap_series.
-    dataframe[output_column_name] = s.apply(lambda v: NAN_COLOR if pd.isna(v) else cmap_series.get(v, NAN_COLOR))
+    mapped = s.map(cmap_series)
+    dataframe[output_column_name] = [NAN_COLOR if pd.isna(v) else v for v in mapped]
     return dataframe
 
 
