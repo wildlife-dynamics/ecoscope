@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecoscope-wizard-providers"
+dynamic = ["version"]
+description = "Ecoscope wizard providers for scaffolding wt workflows"
+requires-python = ">=3.12"
+dependencies = [
+    "wt-compiler",
+]
+
+[project.entry-points."wt_compiler.wizard_providers"]
+ecoscope-events-map-example = "ecoscope_events_map_example:EcoscopeEventsMapExampleProvider"
+
+[tool.setuptools.packages.find]
+where = ["events-map-example/src"]
+
+[tool.setuptools.package-data]
+ecoscope_events_map_example = ["templates/*"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["events-map-example/tests", "events-map-example/src/ecoscope_events_map_example"]
+python_files = ["test_*.py"]
+addopts = "--doctest-modules --doctest-continue-on-failure"
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+
+[tool.setuptools_scm]
+tag_regex = "^wizard/v(?P<version>[0-9]+\\.[0-9]+\\.[0-9]+)$"
+fallback_version = "0.0.0"
+
+[tool.pixi.package]
+name = "ecoscope-wizard-providers"
+version = "0.0.0"
+
+[tool.pixi.package.build]
+backend = { name = "pixi-build-python", version = "*", channels = ["conda-forge", "https://prefix.dev/pixi-build-backends"] }
+
+[tool.pixi.package.build.config]
+noarch = true
+
+[tool.pixi.package.host-dependencies]
+python = ">=3.12,<3.16"
+setuptools = ">=64"
+setuptools-scm = ">=6.2"
+pip = "*"
+
+[tool.pixi.package.run-dependencies]
+python = ">=3.12,<3.16"
+wt-compiler = ">=0.1.0"
+
+[tool.pixi.project]
+channels = ["conda-forge", "https://prefix.dev/pixi-build-backends"]
+platforms = ["osx-arm64", "osx-64", "linux-64"]
+preview = ["pixi-build"]
