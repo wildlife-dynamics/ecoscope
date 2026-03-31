@@ -24,7 +24,6 @@ theme:
     - announce.dismiss
     - content.code.copy
     - navigation.sections
-    - navigation.expand
 
 plugins:
   - search
@@ -71,6 +70,9 @@ nav:
   - Concepts: concepts.md
   - Getting Started: getting-started.md
   - Understanding spec.yaml: understanding-spec.md
+  - Built-in Tasks: built-in-tasks.md
+  - Examples: examples.md
+  - Troubleshooting: troubleshooting.md
   - Tutorials:
     - Tutorials Overview: tutorials.md
     - Your First Custom Task: tutorials/first-custom-task.md
@@ -78,9 +80,6 @@ nav:
     - Widgets: tutorials/widgets.md
     - Groupers: tutorials/groupers.md
     - Form Customization: tutorials/form-customization.md
-  - Built-in Tasks: built-in-tasks.md
-  - Examples: examples.md
-  - Troubleshooting: troubleshooting.md
   - Reference:
     - Tasks:
       - io: reference/tasks/io.md
