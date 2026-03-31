@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
+from ecoscope.analysis.classifier import ColorValue, HexColor
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 
 logger = logging.getLogger(__name__)
@@ -154,7 +155,7 @@ def apply_color_map(
     ],
     input_column_name: Annotated[str, Field(description="The name of the column with categorical values.")],
     colormap: Annotated[
-        str | SkipJsonSchema[list[str]],
+        str | SkipJsonSchema[dict[ColorValue, HexColor]] | SkipJsonSchema[list[HexColor]],
         Field(description="A named matplotlib colormap."),
     ] = "viridis",
     output_column_name: Annotated[
