@@ -1,7 +1,0 @@
-pip-tools
-pytest
-papermill
-.[analysis,mapping,plotting]
-ipykernel
-pytest-xdist
-folium

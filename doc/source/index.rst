@@ -7,4 +7,3 @@
 
    Home <self>
    ecoscope_gui
-   notebooks
