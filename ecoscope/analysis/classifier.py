@@ -142,7 +142,7 @@ def apply_color_map(
     cmap (str, list, dict): Either a named mpl.colormap, a list of string hex values, or a dict mapping
         values to hex color strings. When a dict is provided, each key is a data value and each value is
         a hex color string (e.g. {"stop": "#FF0000", "go": "#00FF00"}). Data values not present in the
-        dict are assigned NAN_COLOR.
+        dict are given set as fully transparent.
     output_column_name(str): The dataframe column that will contain the classification.
         Defaults to "<input_column_name>_colormap"
 
