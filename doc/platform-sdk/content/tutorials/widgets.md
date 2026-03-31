@@ -4,20 +4,20 @@ Widgets are the visual building blocks of a workflow dashboard. This tutorial sh
 
 Cross-references: [results tasks reference](../reference/tasks/results.md)
 
+!!! note
+    There is a degree of boilerplate in the widget pipeline (persist → create → merge). We aim to reduce this in a future release.
+
 ---
 
 ## The widget pattern
 
 Every widget follows the same pipeline:
 
-```
-compute data  →  render to HTML  →  persist HTML  →  create widget  →  merge views
-```
-
-1. A task computes the data (e.g., `draw_ecomap` renders a map).
-2. `persist_text` saves the HTML string to a file and returns a URL.
+1. A task computes the data (e.g., [`draw_ecomap`][ecoscope.platform.tasks.results.draw_ecomap] renders a map).
+2. [`persist_text`][ecoscope.platform.tasks.io.persist_text] saves the HTML string to a file and returns a URL.
 3. A `create_*_widget_single_view` task wraps the URL into a widget object.
-4. `merge_widget_views` combines grouped views (for ungrouped workflows, it simply passes through).
+
+For **grouped** workflows (where data is split by category, time period, etc.), an additional step merges the per-group views. Groupers are covered in the [Groupers tutorial](./groupers.md).
 
 Widget creation tasks have a `view` parameter. For ungrouped workflows, use `view: null` or `view: ["All", "=", "True"]`. Groupers are covered in the [Groupers tutorial](./groupers.md).
 
@@ -60,7 +60,7 @@ A map widget displays an interactive EcoMap with one or more layers.
     data: ${{ workflow.ecomap_html.return }}
 ```
 
-**Layer types**: `create_point_layer`, `create_polyline_layer`, `create_polygon_layer`, `create_text_layer`. You can pass multiple layers to `draw_ecomap` as a list.
+**Layer types**: [`create_point_layer`][ecoscope.platform.tasks.results.create_point_layer], [`create_polyline_layer`][ecoscope.platform.tasks.results.create_polyline_layer], [`create_polygon_layer`][ecoscope.platform.tasks.results.create_polygon_layer], [`create_text_layer`][ecoscope.platform.tasks.results.create_text_layer]. You can pass multiple layers to [`draw_ecomap`][ecoscope.platform.tasks.results.draw_ecomap] as a list.
 
 ---
 
@@ -70,12 +70,12 @@ Plot widgets display Plotly charts. Available chart tasks:
 
 | Task | Chart type |
 |------|-----------|
-| `draw_time_series_bar_chart` | Stacked time-series bars |
-| `draw_bar_chart` | Grouped bar chart |
-| `draw_pie_chart` | Pie chart |
-| `draw_line_chart` | Line chart |
-| `draw_ecoplot` | Multi-trace EcoPlot |
-| `draw_historic_timeseries` | Current vs. historic band |
+| [`draw_time_series_bar_chart`][ecoscope.platform.tasks.results.draw_time_series_bar_chart] | Stacked time-series bars |
+| [`draw_bar_chart`][ecoscope.platform.tasks.results.draw_bar_chart] | Grouped bar chart |
+| [`draw_pie_chart`][ecoscope.platform.tasks.results.draw_pie_chart] | Pie chart |
+| [`draw_line_chart`][ecoscope.platform.tasks.results.draw_line_chart] | Line chart |
+| [`draw_ecoplot`][ecoscope.platform.tasks.results.draw_ecoplot] | Multi-trace EcoPlot |
+| [`draw_historic_timeseries`][ecoscope.platform.tasks.results.draw_historic_timeseries] | Current vs. historic band |
 
 ```yaml
 - id: pie_chart
@@ -178,7 +178,7 @@ Text widgets display a string. Like single-value widgets, no render/persist step
 
 ## Dashboard assembly
 
-`gather_dashboard` collects all widgets into the final dashboard:
+[`gather_dashboard`][ecoscope.platform.tasks.results.gather_dashboard] collects all widgets into the final dashboard:
 
 ```yaml
 - id: dashboard

@@ -4,18 +4,16 @@ These tutorials build on [Getting Started](./getting-started.md) and [Understand
 
 ---
 
-1. **[Your First Custom Task](./tutorials/first-custom-task.md)** — Write a Python function, register it with `@register()`, add it to your spec, and run it in Desktop.
+1. **[Your First Custom Task](./tutorials/first-custom-task.md)** — Write a Python function, register it with `@register()`, add it to your spec, and run it in Ecoscope Desktop.
 
-2. **[Custom Task Patterns](./tutorials/custom-task-patterns.md)** — Use Platform SDK types (`AnyGeoDataFrame`, `AdvancedField`, connection protocols, Pandera schemas) for richer Desktop integration, and test with `test-cases.yaml`.
+2. **[Data Sources](./tutorials/data-sources.md)** — Connect to EarthRanger, SMART, and Earth Engine, and understand the connection/environment-variable pattern.
 
-3. **[Data Sources](./tutorials/data-sources.md)** — Connect to EarthRanger, SMART, and Earth Engine, and understand the connection/environment-variable pattern.
+3. **[Widgets](./tutorials/widgets.md)** — Build map, plot, table, single-value, and text widgets, assemble them into a dashboard, and control layout with `layout.json`.
 
-4. **[Widgets](./tutorials/widgets.md)** — Build map, plot, table, single-value, and text widgets, assemble them into a dashboard, and control layout with `layout.json`.
+4. **[Groupers](./tutorials/groupers.md)** — Slice data into views with `AllGrouper`, `ValueGrouper`, `TemporalGrouper`, and `SpatialGrouper`, and understand `map` vs `mapvalues` operators.
 
-5. **[Groupers](./tutorials/groupers.md)** — Slice data into views with `AllGrouper`, `ValueGrouper`, `TemporalGrouper`, and `SpatialGrouper`, and understand `map` vs `mapvalues`.
-
-6. **[Form Customization](./tutorials/form-customization.md)** — Control which parameters appear in the Desktop form, hide fields behind "Advanced", and override JSON Schema with `rjsf-overrides`.
+5. **[Form Customization](./tutorials/form-customization.md)** — Control which parameters appear in the Ecoscope Desktop / Ecoscope Web configuration form, hide fields behind "Advanced", and override JSON Schema with `rjsf-overrides`.
 
 ---
 
-The tutorials use minimal spec.yaml snippets that extend the events-map-example from Getting Started. For full production workflows, see [Examples](./examples.md).
+The tutorials use minimal spec.yaml snippets that extend the intro example from [Getting Started](./getting-started.md). For full production workflows, see [Examples](./examples.md).

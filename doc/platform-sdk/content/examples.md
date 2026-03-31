@@ -21,18 +21,20 @@ Every workflow repository follows the same structure:
 
 - **`spec.yaml`** — The workflow definition. Start here to understand the DAG, task wiring, and `partial` bindings.
 - **`layout.json`** — Dashboard grid layout. See how widgets are positioned and sized.
-- **`test-cases.yaml`** — Mock inputs for offline testing. Shows which parameters are required and what mock data looks like.
-- **`__results_snapshots__/`** — Expected output from test runs. Useful for understanding what each task produces.
+- **`test-cases.yaml`** — Test/fixture inputs for offline testing. Shows which parameters are required and what the test data format looks like.
+- **`__results_snapshots__/`** — Snapshotted outputs from test runs that prevent visual regression. Useful for understanding what each task produces.
 
 ---
 
 ## Suggested learning path
 
-1. **Start with [events](https://github.com/ecoscope-platform-workflows-releases/events)** — The simplest multi-widget workflow. It extends the events-map-example from Getting Started with groupers, a bar chart, and a pie chart.
+1. **Start with [events](https://github.com/ecoscope-platform-workflows-releases/events)** — The simplest multi-widget workflow. It extends the intro example from [Getting Started](./getting-started.md) with [groupers](./tutorials/groupers.md), a bar chart, and a pie chart.
 
 2. **Then [event-details](https://github.com/ecoscope-platform-workflows-releases/event-details)** — Introduces conditional skip logic, summary tables, and single-value widgets. Shows how to handle workflows where some tasks may not produce output.
 
 3. **Then [subject-tracking](https://github.com/ecoscope-platform-workflows-releases/subject-tracking) or [patrols](https://github.com/ecoscope-platform-workflows-releases/patrols)** — These are the most complex workflows, with multiple data streams, preprocessing pipelines (relocations to trajectories), time density analysis, and advanced form customization.
+
+These workflows are EarthRanger-specific and will not work with other data sources without modification.
 
 ---
 
@@ -43,6 +45,6 @@ To use a production workflow as a starting point for your own:
 1. Clone the repository.
 2. Study `spec.yaml` to understand the pipeline.
 3. Copy and modify — add your custom tasks, change the data source, or swap out widgets.
-4. Compile and test locally with `test-cases.yaml` before deploying to Desktop.
+4. Compile and test locally, or import directly into Ecoscope Desktop for interactive testing.
 
 For writing custom tasks, see [Your First Custom Task](./tutorials/first-custom-task.md).

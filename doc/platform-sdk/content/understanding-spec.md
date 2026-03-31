@@ -1,6 +1,6 @@
 # Understanding spec.yaml
 
-In [Getting Started](./getting-started.md) you scaffolded and ran a workflow. Now let's understand what you built. This page walks through the events-map-example `spec.yaml` line by line, introducing each wt concept as it appears.
+In [Getting Started](./getting-started.md) you scaffolded and ran a workflow. Now let's understand what you built. This page walks through the events-map-example `spec.yaml` line by line, introducing each [Workflow Toolkit (wt)](https://wt.readthedocs.io/) concept as it appears.
 
 ---
 
@@ -23,7 +23,7 @@ requirements:
     channel: "https://repo.prefix.dev/ecoscope-workflows/"
 ```
 
-The `requirements` block lists conda packages the compiled workflow needs at runtime. The `ecoscope-platform` package provides all the built-in tasks. When you write custom tasks in a separate package, you add it here too — see [Your First Custom Task](./tutorials/first-custom-task.md).
+The `requirements` block lists conda and/or pypi packages the compiled workflow needs at runtime. The `ecoscope-platform` package provides all the built-in tasks. When you write custom tasks in a separate package, you add it here too — see [Your First Custom Task](./tutorials/first-custom-task.md).
 
 ---
 
@@ -39,7 +39,9 @@ The `workflow` list is the heart of the spec. Each entry is a **task instance** 
   task: set_workflow_details
 ```
 
-Sets the workflow name and description shown in Desktop. Because there is no `partial` block, the `name` and `description` parameters become user-configurable form fields.
+This calls [`set_workflow_details`][ecoscope.platform.tasks.config.set_workflow_details].
+
+Sets the workflow name and description shown in the configuration form in Ecoscope Desktop / Ecoscope Web. Because there is no `partial` block, the [`name` and `description` parameters][ecoscope.platform.tasks.config.set_workflow_details] become user-configurable form fields.
 
 ### `er_client_name` — Data source connection
 
@@ -49,7 +51,9 @@ Sets the workflow name and description shown in Desktop. Because there is no `pa
   task: set_er_connection
 ```
 
-Prompts the user to select an EarthRanger connection. Desktop renders a data-source picker for this because the task's return type is a connection protocol type. See [Data Sources](./tutorials/data-sources.md).
+This calls [`set_er_connection`][ecoscope.platform.tasks.io.set_er_connection].
+
+Prompts the user to select an EarthRanger connection. Ecoscope Desktop / Ecoscope Web renders a data-source picker for this because the task's return type is a connection protocol type. See [Data Sources](./tutorials/data-sources.md).
 
 ### `time_range` — Introducing `partial`
 
@@ -61,9 +65,11 @@ Prompts the user to select an EarthRanger connection. Desktop renders a data-sou
     time_format: '%d %b %Y %H:%M:%S'
 ```
 
-This is your first encounter with **`partial`**. The `partial` block binds arguments at compile time — they are baked into the workflow and *not* shown in the Desktop form. Here, `time_format` is fixed to a specific format string, but the actual start/end times remain configurable because they are *not* listed under `partial`.
+This calls [`set_time_range`][ecoscope.platform.tasks.filter.set_time_range].
 
-**Rule of thumb**: anything under `partial` is fixed; anything omitted becomes a form field.
+This is your first encounter with **[`partial`](https://wt.readthedocs.io/en/latest/reference/spec-yaml/#partial)**. The `partial` block binds arguments at compile time — they are baked into the workflow and *not* shown in the Ecoscope Desktop / Ecoscope Web configuration form. Here, `time_format` is fixed, but the actual start/end times remain configurable because they are *not* listed under `partial`. You can see [the full signature of `set_time_range`][ecoscope.platform.tasks.filter.set_time_range] in the Reference to understand all the arguments available.
+
+**Rule of thumb**: anything under `partial` is fixed; any argument in the function's signature not listed becomes a form field.
 
 ### `get_events_data` — Wiring tasks together
 
@@ -88,6 +94,8 @@ This is your first encounter with **`partial`**. The `partial` block binds argum
     include_display_values: true
 ```
 
+This calls [`get_events`][ecoscope.platform.tasks.io.get_events].
+
 The **`${{ workflow.<id>.return }}`** expression is how you wire one task's output into another task's input. Here, `client` receives the return value of `er_client_name`, and `time_range` receives the return value of `time_range`. These expressions form the edges of the DAG.
 
 The remaining parameters (`event_columns`, `raise_on_empty`, etc.) are all fixed via `partial`, so users cannot change them in the form.
@@ -105,7 +113,9 @@ The remaining parameters (`event_columns`, `raise_on_empty`, etc.) are all fixed
     output_column_name: event_type_colormap
 ```
 
-Applies a matplotlib colormap to the `event_type` column. This is the parameter you changed in [Step 5](./getting-started.md#step-5--change-a-parameter-recompile-and-re-run) of Getting Started.
+This calls [`apply_color_map`][ecoscope.platform.tasks.transformation.apply_color_map].
+
+Applies a matplotlib colormap to the `event_type` column. This is the parameter you changed in [Step 5](./getting-started.md#step-5-change-a-parameter-recompile-and-re-run) of Getting Started.
 
 ### `events_map_layer` — First encounter with `skipif`
 
@@ -129,7 +139,11 @@ Applies a matplotlib colormap to the `event_type` column. This is the parameter 
     geodataframe: ${{ workflow.events_colormap.return }}
 ```
 
+This calls [`create_point_layer`][ecoscope.platform.tasks.results.create_point_layer].
+
 This task has an explicit **`skipif`** block. The `skipif` system lets you conditionally skip a task at runtime. Each condition is the name of a registered skip function (see [skip tasks reference](./reference/tasks/skip.md)). If *any* condition returns `True`, the task is skipped and produces a `SkipSentinel` instead of a normal return value.
+
+This task has its own `skipif` block, which introduces us to the skip system. The `task-instance-defaults` section at the bottom of the spec sets default skip conditions for all tasks (we will explain this shortly). When a task provides its own `skipif`, it overrides those defaults entirely.
 
 Here, `all_geometry_are_none` is added because point layers make no sense if the data has no geometry. The other two conditions (`any_is_empty_df`, `any_dependency_skipped`) are the same as the defaults — they are repeated here because this task specifies its own `skipif` block, which overrides the defaults entirely.
 
@@ -155,6 +169,8 @@ Here, `all_geometry_are_none` is added because point layers make no sense if the
     geo_layers: ${{ workflow.events_map_layer.return }}
 ```
 
+This calls [`draw_ecomap`][ecoscope.platform.tasks.results.draw_ecomap].
+
 Renders an interactive map as an HTML string. Notice that `widget_id` must match the widget title defined downstream — this links the map to the correct dashboard widget.
 
 ### `events_ecomap_html_url` — Introducing `${{ env.VAR }}`
@@ -169,7 +185,9 @@ Renders an interactive map as an HTML string. Notice that `widget_id` must match
     text: ${{ workflow.events_ecomap.return }}
 ```
 
-The **`${{ env.VAR }}`** syntax reads an environment variable at runtime. `ECOSCOPE_WORKFLOWS_RESULTS` points to the directory (local or cloud) where output files are stored. This is set by Desktop when it runs the workflow.
+This calls [`persist_text`][ecoscope.platform.tasks.io.persist_text].
+
+The **`${{ env.VAR }}`** syntax reads an environment variable at runtime. `ECOSCOPE_WORKFLOWS_RESULTS` points to the directory where output files are stored. Ecoscope Desktop and Ecoscope Web both set this variable automatically when running the workflow. While `${{ env.VAR }}` can theoretically resolve any environment variable, in practice, `ECOSCOPE_WORKFLOWS_RESULTS` is currently the only one intended for direct reference in `spec.yaml`.
 
 ### `events_map_widget` — `skipif: never`
 
@@ -186,9 +204,13 @@ The **`${{ env.VAR }}`** syntax reads an environment variable at runtime. `ECOSC
     data: ${{ workflow.events_ecomap_html_url.return }}
 ```
 
+This calls [`create_map_widget_single_view`][ecoscope.platform.tasks.results.create_map_widget_single_view].
+
 This task overrides the defaults with **`never`** — a special skip condition that always returns `False`. This means the widget creation task will *always* run, even if its upstream dependency was skipped. Why? Because widget tasks need to produce a result (possibly empty) so the dashboard can render correctly.
 
-The `view` parameter is a composite filter that identifies which grouper view this widget belongs to. In this ungrouped example, there is only one view: `["All", "=", "True"]`.
+Don't worry if the skip system feels complex at first — in practice, you will rarely need to modify skip conditions. The defaults handle the common case, and widget tasks just need `skipif: never`.
+
+The `view` parameter is a composite filter that identifies which grouper view this widget belongs to. In this ungrouped example, there is only one view: `["All", "=", "True"]`. This special value conveys that all of the data is displayed in a single group. For workflows that slice data into multiple views (by month, by species, etc.), see the [Groupers tutorial](./tutorials/groupers.md).
 
 ### `events_dashboard` — Dashboard assembly
 
@@ -205,7 +227,9 @@ The `view` parameter is a composite filter that identifies which grouper view th
     time_range: ${{ workflow.time_range.return }}
 ```
 
-`gather_dashboard` collects all widgets, grouper definitions, and the time range into a `Dashboard` object. Desktop reads this to render the final dashboard. The `widgets` list order determines the `widget_id` used in `layout.json` (0-indexed).
+This calls [`gather_dashboard`][ecoscope.platform.tasks.results.gather_dashboard].
+
+`gather_dashboard` collects all widgets, grouper definitions, and the time range into a `Dashboard` object. The terminal node of the workflow is serialized to JSON by the execution engine and sent back to Ecoscope Desktop / Ecoscope Web for visualization. The `widgets` list order determines the `widget_id` used in `layout.json` (0-indexed).
 
 ---
 
@@ -227,6 +251,10 @@ The two default conditions are:
 - **`any_dependency_skipped`** — Skip if any upstream task was skipped (returned a `SkipSentinel`).
 
 Individual tasks can override this entirely. For example, `events_map_widget` overrides with `never` to ensure it always runs.
+
+Skip conditions are themselves registered functions — they follow the same `@register()` pattern as tasks. See the [wt skipif reference](https://wt.readthedocs.io/en/latest/reference/spec-yaml/#skipif) for the full syntax.
+
+Why defaults? Many tasks are not designed to handle empty inputs gracefully. Rather than raising errors when no data is available (for example, when the user's time range contains no events), the default skip conditions allow the workflow to gracefully skip those tasks and produce a dashboard with empty widgets instead of crashing.
 
 ---
 
@@ -252,7 +280,7 @@ Now that you understand the spec, try a small modification before moving on:
 1. Change the `tile_layers` in `draw_ecomap` from `TERRAIN` to `SATELLITE` or `OPENSTREETMAP`.
 2. Or change the `colormap` in `apply_color_map` to a different [matplotlib palette](https://matplotlib.org/stable/gallery/color/colormap_reference.html).
 
-Recompile and see your change in Desktop. Each small edit reinforces the development loop.
+Recompile and see your change in Ecoscope Desktop. Each small edit reinforces the development loop.
 
 ---
 

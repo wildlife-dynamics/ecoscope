@@ -2,7 +2,7 @@
 
 Welcome to the Ecoscope Platform SDK documentation.
 
-The Platform SDK provides tools for building and running analytical workflows on the Ecoscope platform. It ships typed tasks, schemas, connections, groupers, and widgets that plug into the [Workflow Toolkit (wt)](https://wt.readthedocs.io/) framework and run inside Ecoscope Desktop.
+The Platform SDK provides tools for building and running analytical workflows on the Ecoscope platform. It ships typed tasks, schemas, connections, groupers, and widgets that plug into the [Workflow Toolkit (wt)](https://wt.readthedocs.io/) framework and run inside both Ecoscope Desktop and Ecoscope Web.
 
 ## Explore the docs
 

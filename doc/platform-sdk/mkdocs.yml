@@ -24,6 +24,7 @@ theme:
     - announce.dismiss
     - content.code.copy
     - navigation.sections
+    - navigation.expand
 
 plugins:
   - search
@@ -71,9 +72,8 @@ nav:
   - Getting Started: getting-started.md
   - Understanding spec.yaml: understanding-spec.md
   - Tutorials:
-    - tutorials.md
+    - Tutorials Overview: tutorials.md
     - Your First Custom Task: tutorials/first-custom-task.md
-    - Custom Task Patterns: tutorials/custom-task-patterns.md
     - Data Sources: tutorials/data-sources.md
     - Widgets: tutorials/widgets.md
     - Groupers: tutorials/groupers.md

@@ -1,16 +1,20 @@
 # Getting Started
 
 The following walkthrough will help you get up and running with building and running your
-first workflow template for the Ecoscope Desktop app. By the end of this walkthrough, you will
+first workflow template. By the end of this walkthrough, you will
 have a solid foundation in the basics of iterative workflow template development.
+
+!!! note
+    Workflows developed in this way work across both Ecoscope Desktop and Ecoscope Web.
+    However, custom workflows on Ecoscope Web are not yet supported for general contribution.
+    The development process described here is uniform regardless of the target platform.
 
 ---
 
 ## Prerequisites
 
 - First, [install `pixi`](https://pixi.prefix.dev/latest/installation/)
-and [`uv`](https://docs.astral.sh/uv/getting-started/installation/#installing-uv)
-if you do not have both already.
+if you do not have it already.
 
 - Then, install `wt-compiler`:
 
@@ -34,7 +38,11 @@ if you do not have both already.
 - Third, install the Ecoscope Wizard Providers plugin for `wt-compiler`:
 
     ```console
-    $ pixi global add --environment wt-compiler ecoscope-wizard-providers
+    $ pixi global add \
+        --environment wt-compiler \
+        --git https://github.com/wildlife-dynamics/ecoscope.git \
+        --tag wizard/v0.1.0 \
+        --subdir wizard/ecoscope-wizard-providers
     ```
 
 - Finally, [download and install the Ecoscope Desktop App](https://app.ecoscope.io/download) if you do not have it already.
@@ -49,50 +57,54 @@ In a clean directory on your machine, run:
 $ wt-compiler scaffold init
 ```
 
-From the selection of Ecoscope wizard providers presented to you interactively, choose `events-map-example`.
-Then, follow the remainder of the prompts until the wizard exits, and you will now see that the scaffold of
-your workflow has been created:
+![wt-compiler scaffold init CLI flow](assets/getting-started/scaffold-init.gif)
 
-```
-~/events_map_example$ ls -la
-total 40
-drwxr-xr-x 3 user user 4096 Mar 27 15:00 .
-drwxr-xr-x 3 user user 4096 Mar 27 15:00 ..
--rw-r--r-- 1 user user   40 Mar 27 15:00 .gitattributes
-drwxr-xr-x 3 user user 4096 Mar 27 15:00 .github
--rw-r--r-- 1 user user  134 Mar 27 15:00 .gitignore
--rw-r--r-- 1 user user  109 Mar 27 15:00 layout.json
--rw-r--r-- 1 user user 1490 Mar 27 15:00 LICENSE
--rw-r--r-- 1 user user   71 Mar 27 15:00 README.md
--rw-r--r-- 1 user user 3286 Mar 27 15:00 spec.yaml
--rw-r--r-- 1 user user  597 Mar 27 15:00 test-cases.yaml
+From the selection of Ecoscope wizard providers presented to you interactively, choose `ecoscope-events-map-example (ecoscope-wizard-providers)`.
+Your workflow will be created under the file path you specified as the workflow id in the interactive wizard. So if you used the id `my_first_workflow`, then you would see:
+
+```console
+$ ls -a1 my_first_workflow
+.
+..
+.gitattributes
+.github
+.gitignore
+layout.json
+LICENSE
+README.md
+spec.yaml
+test-cases.yaml
 ```
 
 ## Step 2 — Compile the scaffold into a workflow template
 
-From the new directory, run:
+From the new directory, compile:
 
 ```console
-$ wt-compiler compile --spec=spec.yaml --pkg-name-prefix=ecoscope-workflows --results-env-var=ECOSCOPE_WORKFLOWS_RESULTS --install
+$ cd my_first_workflow
+$ wt-compiler compile \
+    --spec=spec.yaml \
+    --pkg-name-prefix=ecoscope-workflows \
+    --results-env-var=ECOSCOPE_WORKFLOWS_RESULTS \
+    --install
 ```
 
 You will now see a new folder in the template directory containing the compiled workflow:
 
 ```console
-~/events_map_example$ ls -la ecoscope-workflows-events-example-workflow
-total 1012
-drwxr-xr-x 5 user user   4096 Mar 27 15:00 .
-drwxr-xr-x 4 user user   4096 Mar 27 15:00 ..
--rw-r--r-- 1 user user    908 Mar 27 15:00 Dockerfile
--rw-r--r-- 1 user user    101 Mar 27 15:00 .dockerignore
-drwxr-xr-x 3 user user   4096 Mar 27 15:00 ecoscope_workflows_events_example_workflow
--rw-r--r-- 1 user user 139006 Mar 27 15:00 graph.png
-drwxr-xr-x 3 user user   4096 Mar 27 15:00 .pixi
--rw-r--r-- 1 user user 854027 Mar 27 15:00 pixi.lock
--rw-r--r-- 1 user user   3658 Mar 27 15:00 pixi.toml
--rw-r--r-- 1 user user    657 Mar 27 15:00 README.md
-drwxr-xr-x 2 user user   4096 Mar 27 15:00 tests
--rw-r--r-- 1 user user     27 Mar 27 15:00 VERSION.yaml
+$ ls -a1 ecoscope-workflows-my-first-workflow-workflow
+.
+..
+Dockerfile
+.dockerignore
+ecoscope_workflows_my_first_workflow_workflow
+graph.png
+.pixi
+pixi.lock
+pixi.toml
+README.md
+tests
+VERSION.yaml
 ```
 
 ## Step 3 — Load the template into Ecoscope Desktop
@@ -101,11 +113,11 @@ Open Ecoscope Desktop and navigate to the **Templates** screen. You will see a l
 
 ![Ecoscope-Desktop Templates Screen](assets/getting-started/templates.png)
 
-Click **Import Local Folder** and select the compiled workflow directory (e.g. `ecoscope-workflows-events-example-workflow`). Desktop will validate the template and add it to your list.
+Click **Import Local Folder** and select the `my_first_workflow` folder (the root, not the compiled subdirectory). The template will be validated and added to the templates available to select in the Workflow Templates page.
 
 ![Ecoscope-Desktop Local Folder Import](assets/getting-started/local-import.png)
 
-## Step 4 — Create and run a workflow
+## Step 4 — Configure and run a workflow
 
 ### Set up an EarthRanger data source
 
@@ -113,7 +125,7 @@ Before running the workflow, you need to configure a data source. Navigate to th
 
 ![Ecoscope-Desktop Data Sources Screen](assets/getting-started/data-source.png)
 
-Click **Add Data Source** and select **EarthRanger**. Fill in the connection details for your EarthRanger site — you will need the site URL and credentials.
+Click **Add Data Source** and select **EarthRanger**. Fill in the connection details for your EarthRanger site — you will need the site URL and your username and password for that site.
 
 <div style="display: flex; gap: 1rem;" markdown="1">
 
@@ -125,23 +137,23 @@ Click **Add Data Source** and select **EarthRanger**. Fill in the connection det
 
 ### Configure the workflow
 
-Return to the **Templates** screen, select your imported template, and click **New Workflow**. Desktop will present the configuration form — this form is generated from the parameters that are *not* bound under `partial` in your `spec.yaml`.
+Return to the **Templates** screen, select your imported template, and click **New Workflow**. Ecoscope Desktop will present the configuration form — this form is generated from the parameters that are *not* bound under `partial` in your `spec.yaml`.
 
 ![Ecoscope-Desktop Workflow Imported](assets/getting-started/imported.png)
 
-Select your EarthRanger data source, set a time range, and configure any other parameters that appear. The form fields, their types, and default values all come from the task function signatures in the Platform SDK.
+Select your EarthRanger data source, set a time range, and configure any other parameters that appear. The form fields, their types, and default values are all generated from the type annotations of the registered Python functions used to compose the workflow.
 
 ![Ecoscope-Desktop Workflow Config Screen](assets/getting-started/config.png)
 
 ### Run the workflow
 
-Once you are satisfied with the configuration, click **Run**. Desktop will execute each task in the DAG in order, streaming progress as it goes.
+Once you are satisfied with the configuration, click **Submit**. You will be brought back to the My Workflows table, from where you can click **Run**. The workflow will then execute. Note that there is no streaming of progress — you will see a running spinner until the workflow completes.
 
 ![Ecoscope-Desktop Workflow Run Button](assets/getting-started/configured.png)
 
 ### View the results
 
-When the workflow completes, Desktop displays the dashboard. In this example you will see a single map widget showing event locations color-coded by event type.
+When the workflow completes, the status will be shown as **Success**, at which point you may click on the table row for that workflow to see the results dashboard. In this example you will see a single map widget showing event locations color-coded by event type.
 
 ![Ecoscope-Desktop Workflow Dashboard](assets/getting-started/dashboard.png)
 
@@ -175,7 +187,10 @@ Now recompile with the `--install` flag so the compiled package is updated in pl
 $ wt-compiler compile --spec=spec.yaml --pkg-name-prefix=ecoscope-workflows --results-env-var=ECOSCOPE_WORKFLOWS_RESULTS --install
 ```
 
-Back in Desktop, re-run the workflow. You will see the same map, but now the event markers use the `Set3` color palette instead of `tab20b`. This is the development loop in action: **edit → compile → run → observe → iterate**.
+Back on the Workflow Templates page in the app, via the kebab menu on the top right of the card for your workflow template, click **Delete**. Then re-import your workflow via the **Add Workflow Template** flow covered above, to pull in the updated workflow. Now, you may re-configure and re-run this workflow to see the changed result: the event markers now use the `Set3` color palette instead of `tab20b` as they did initially. This is the development loop in action: **edit → compile → run → observe → iterate**.
+
+!!! note
+    The Delete (vs. update-in-place) flow is a bit cumbersome. We plan to explore ways to smooth this out in a future release.
 
 ---
 
