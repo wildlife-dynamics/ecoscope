@@ -168,3 +168,6 @@ parquet = "ecoscope.platform.mock_loaders:load_parquet"
 [tool.setuptools_scm]
 write_to = "ecoscope/_version.py"
 write_to_template = "__version__ = '{version}'"
+
+[tool.setuptools_scm.scm.git]
+describe_command = "git describe --tags --long --match v[0-9]*"

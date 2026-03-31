@@ -229,6 +229,31 @@ def test_apply_colormap_numeric_nan_only(colormap):
     assert df.loc["B"]["colormap"] == (0, 0, 0, 0)
 
 
+def test_apply_colormap_dict(sample_df):
+    apply_classification(sample_df, input_column_name="value", scheme="equal_interval", k=2)
+    cmap = {3.0: "#FF0000", 5.0: "#00FF00"}
+    apply_color_map(sample_df, "value_classified", cmap, output_column_name="colormap")
+
+    assert sample_df.loc["A"]["colormap"] == (255, 0, 0, 255)
+    assert sample_df.loc["D"]["colormap"] == (0, 255, 0, 255)
+
+
+def test_apply_colormap_dict_missing_key_gets_nan_color(sample_df):
+    apply_classification(sample_df, input_column_name="value", scheme="equal_interval", k=2)
+    cmap = {3.0: "#FF0000"}
+    apply_color_map(sample_df, "value_classified", cmap, output_column_name="colormap")
+
+    assert sample_df.loc["A"]["colormap"] == (255, 0, 0, 255)
+    # Missing values should be treated as NAN ie; transparent
+    assert sample_df.loc["D"]["colormap"] == (0, 0, 0, 0)
+
+
+def test_apply_colormap_dict_value_ordering_independent():
+    df = pd.DataFrame({"status": ["ok", "ok", "ok"]})
+    apply_color_map(df, "status", cmap={"stop": "#FF0000", "ok": "#00FF00"})
+    assert all(v == (0, 255, 0, 255) for v in df["status_colormap"])
+
+
 @pytest.mark.parametrize(
     "percentile_levels,expected_values",
     [
