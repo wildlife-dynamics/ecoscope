@@ -41,6 +41,31 @@ def test_color_map():
         )
 
 
+def test_color_map_from_dict():
+    df = pd.DataFrame({"column_name": ["A", "B", "A", "C", "B", "C"]})
+
+    cmap_in = {
+        "A": "#FF0000",
+        "B": "#00FF00",
+        "C": "#0000FF",
+    }
+
+    result = apply_color_map(df, "column_name", cmap_in)
+
+    assert "column_name_colormap" in result.columns
+
+    expected_mapping = {
+        "A": (255, 0, 0, 255),
+        "B": (0, 255, 0, 255),
+        "C": (0, 0, 255, 255),
+    }
+    for _, row in result.iterrows():
+        np.testing.assert_array_equal(
+            row["column_name_colormap"],
+            expected_mapping[row["column_name"]],
+        )
+
+
 @pytest.mark.parametrize(
     "classification_args, label_args",
     [
