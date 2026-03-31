@@ -1,4 +1,7 @@
-from typing import Literal
+from typing import Literal, TypeAlias
+
+ColorValue: TypeAlias = str | float
+HexColor: TypeAlias = str
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import matplotlib as mpl
@@ -125,7 +128,10 @@ def apply_classification(
 
 
 def apply_color_map(
-    dataframe: pd.DataFrame, input_column_name: str, cmap: str | list[str] | dict, output_column_name: str | None = None
+    dataframe: pd.DataFrame,
+    input_column_name: str,
+    cmap: str | list[HexColor] | dict[ColorValue, HexColor],
+    output_column_name: str | None = None,
 ) -> pd.DataFrame:
     """
     Creates a new column on the provided dataframe with the given cmap applied over the specified input column
