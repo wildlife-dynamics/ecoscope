@@ -1,0 +1,3 @@
+# jsonschema
+
+::: ecoscope.platform.jsonschema
