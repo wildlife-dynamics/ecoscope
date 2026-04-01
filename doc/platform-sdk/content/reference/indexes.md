@@ -1,0 +1,3 @@
+# indexes
+
+::: ecoscope.platform.indexes

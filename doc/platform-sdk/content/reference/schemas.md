@@ -1,0 +1,3 @@
+# schemas
+
+::: ecoscope.platform.schemas
