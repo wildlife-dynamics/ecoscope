@@ -98,7 +98,7 @@ def client():
 )
 def test_calculate_ndvi_range_mode_a(client, grouping_unit, ndvi_method):
     """Mode A: time_range + image_size (default)."""
-    example_input_df_path = files("ecoscope_workflows_ext_ecoscope.tasks.io") / "download-roi.example-return.parquet"
+    example_input_df_path = files("ecoscope.platform.tasks.io") / "download-roi.example-return.parquet"
     roi = gpd.read_parquet(example_input_df_path).loc[["Mara / Serengeti"]].reset_index(drop=True)
     result = calculate_ndvi_range(
         client=client,
@@ -127,7 +127,7 @@ def test_calculate_ndvi_range_mode_a(client, grouping_unit, ndvi_method):
 )
 def test_calculate_ndvi_range_mode_b(client, grouping_unit, ndvi_method):
     """Mode B: baseline_time_range with three dates."""
-    example_input_df_path = files("ecoscope_workflows_ext_ecoscope.tasks.io") / "download-roi.example-return.parquet"
+    example_input_df_path = files("ecoscope.platform.tasks.io") / "download-roi.example-return.parquet"
     roi = gpd.read_parquet(example_input_df_path).loc[["Mara / Serengeti"]].reset_index(drop=True)
     result = calculate_ndvi_range(
         client=client,
@@ -155,7 +155,7 @@ def test_calculate_ndvi_range_mode_b(client, grouping_unit, ndvi_method):
 
 
 def test_determine_season_windows(client):
-    example_input_df_path = files("ecoscope_workflows_ext_ecoscope.tasks.io") / "download-roi.example-return.parquet"
+    example_input_df_path = files("ecoscope.platform.tasks.io") / "download-roi.example-return.parquet"
     roi = gpd.read_parquet(example_input_df_path).loc[["Mara / Serengeti"]].reset_index(drop=True)
     result = determine_season_windows(
         client=client,

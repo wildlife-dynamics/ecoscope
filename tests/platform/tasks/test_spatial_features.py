@@ -300,7 +300,7 @@ def test_earthranger_requires_data_source():
 
 
 @patch("ecoscope.platform.connections.EarthRangerConnection.client_from_named_connection")
-@patch("ecoscope.platform.tasks.io._earthranger.get_spatial_features_group")
+@patch("ecoscope.platform.tasks.io._spatial_features.get_spatial_features_group")
 def test_loads_from_earthranger(mock_get_sfg, mock_get_client):
     """Test loading spatial features from EarthRanger via the old task."""
     fixture = gpd.read_parquet(FIXTURE_DIR / "get-spatial-features-group.example-return.parquet")
@@ -324,7 +324,7 @@ def test_loads_from_earthranger(mock_get_sfg, mock_get_client):
 
 
 @patch("ecoscope.platform.connections.EarthRangerConnection.client_from_named_connection")
-@patch("ecoscope.platform.tasks.io._earthranger.get_spatial_features_group")
+@patch("ecoscope.platform.tasks.io._spatial_features.get_spatial_features_group")
 def test_filters_non_polygons_from_earthranger(mock_get_sfg, mock_get_client):
     """Test that non-polygon geometries from EarthRanger are silently dropped."""
     mock_get_sfg.return_value = gpd.GeoDataFrame(
@@ -357,7 +357,7 @@ def test_filters_non_polygons_from_earthranger(mock_get_sfg, mock_get_client):
 
 
 @patch("ecoscope.platform.connections.EarthRangerConnection.client_from_named_connection")
-@patch("ecoscope.platform.tasks.io._earthranger.get_spatial_features_group")
+@patch("ecoscope.platform.tasks.io._spatial_features.get_spatial_features_group")
 def test_rejects_duplicate_names_from_earthranger(mock_get_sfg, mock_get_client):
     """Test that duplicate names from EarthRanger raise ValueError."""
     mock_get_sfg.return_value = gpd.GeoDataFrame(
