@@ -46,6 +46,21 @@ class TimeRange(BaseModel):
         return self
 
 
+class BaselineTimeRange(BaseModel):
+    """Time range with explicit historical baseline and current period.
+
+    The historical period runs from historical_start to current_start,
+    and the current period runs from current_start to current_end.
+    """
+
+    historical_start: Annotated[datetime, Field(description="Start of historical baseline period")]
+    current_start: Annotated[
+        datetime,
+        Field(description="End of historical period / start of current period"),
+    ]
+    current_end: Annotated[datetime, Field(description="End of current analysis period")]
+
+
 @register(description="Choose the period of time to analyze.")
 def set_time_range(
     since: Annotated[datetime, Field(description="The start time")],

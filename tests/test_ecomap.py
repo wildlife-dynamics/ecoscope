@@ -410,3 +410,45 @@ def test_clean_gdf_with_multi_index(point_gdf):
     assert "source_id" in clean_gdf.columns
     assert clean_gdf["time_bin"].to_list() == expected_time_bins
     assert clean_gdf["source_id"].to_list() == expected_sources
+
+
+def test_legend_shows_all_labels_with_shared_colors(trajectories):
+    """
+    Test that the legend shows all unique labels even when multiple labels
+    share the same color. The legend should deduplicate by label (not by
+    color), so each unique subject name gets its own entry.
+    """
+    traj = trajectories.head(30).copy()
+
+    # Assign 3 subjects where two share the same color
+    subjects = ["Subject A", "Subject B", "Subject C"] * 10
+    traj["subject_name"] = subjects[: len(traj)]
+
+    color_map = {
+        "Subject A": (255, 255, 0, 255),  # yellow
+        "Subject B": (255, 255, 0, 255),  # yellow (same as A)
+        "Subject C": (0, 255, 0, 255),  # green
+    }
+    traj["subject_color"] = traj["subject_name"].map(color_map)
+
+    geo_layer = create_polyline_layer(
+        geodataframe=traj,
+        layer_style=PolylineLayerStyle(get_width=5, color_column="subject_color"),
+        legend=LegendDefinition(
+            label_column="subject_name",
+            color_column="subject_color",
+        ),
+    )
+
+    map_html = draw_ecomap(
+        geo_layers=[geo_layer],
+        tile_layers=[TileLayer(layer_name="OpenStreetMap")],
+    )
+
+    assert isinstance(map_html, str)
+
+    # All three subject names must appear in the legend,
+    # even though Subject A and Subject B share the same color
+    assert "Subject A" in map_html, "Legend missing 'Subject A'"
+    assert "Subject B" in map_html, "Legend missing 'Subject B'"
+    assert "Subject C" in map_html, "Legend missing 'Subject C'"
