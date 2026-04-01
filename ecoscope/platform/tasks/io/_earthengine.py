@@ -165,10 +165,10 @@ def calculate_ndvi_range(
         assert len(ee_data.columns) == 3, f"Expected 3 columns, got {len(ee_data.columns)}"
         ee_data.columns = ["name", "img_date", "NDVI"]
     else:  # calculated
-        assert len(ee_data.columns) == 4, f"Expected 4 columns, got {len(ee_data.columns)}"
-        ee_data.columns = ["name", "img_date", "NIR", "Red"]
-        ee_data["NDVI"] = (ee_data["NIR"] - ee_data["Red"]) / (ee_data["NIR"] + ee_data["Red"])
-        ee_data = ee_data[["name", "img_date", "NDVI"]]
+        ee_data["NDVI"] = (ee_data[_NIR_BAND] - ee_data[_RED_BAND]) / (ee_data[_NIR_BAND] + ee_data[_RED_BAND])
+        idx_col = ee_data.columns[0]
+        ee_data = ee_data[[idx_col, "img_date", "NDVI"]]
+        ee_data.columns = ["name", "img_date", "NDVI"]
 
     cur_data = ee_data[(ee_data.img_date >= current_since) & (ee_data.img_date <= current_until)]
     historical_data = ee_data[(ee_data.img_date >= historical_since) & (ee_data.img_date < historical_until)]
