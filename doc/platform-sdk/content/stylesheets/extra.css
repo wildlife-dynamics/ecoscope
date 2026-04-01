@@ -21,3 +21,32 @@
   --md-default-bg-color: #0e2a2c;
   --md-default-bg-color--light: #163a3c;
 }
+
+/* Remove the outer mkdocstrings container "card" */
+.md-typeset .doc.doc-object.doc-module {
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* Remove any nested wrapper padding */
+.md-typeset .doc.doc-contents {
+  padding: 0;
+  margin: 0;
+}
+
+/* Function-level cards */
+.md-typeset .doc.doc-object.doc-function {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.5rem;
+  background-color: rgba(255, 255, 255, 0.02); /* subtle contrast */
+}
+
+/* Make signature blend into card */
+.md-typeset .mkdocstrings-source {
+  background-color: transparent;
+}

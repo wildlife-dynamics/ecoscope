@@ -38,6 +38,9 @@ plugins:
             members_order: alphabetical
             show_if_no_docstring: true
             show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+            unwrap_annotated: false
             show_labels: true
             group_by_category: true
             show_category_heading: true
