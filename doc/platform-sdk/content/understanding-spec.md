@@ -145,7 +145,9 @@ This task has an explicit **`skipif`** block. The `skipif` system lets you condi
 
 This task has its own `skipif` block, which introduces us to the skip system. The `task-instance-defaults` section at the bottom of the spec sets default skip conditions for all tasks (we will explain this shortly). When a task provides its own `skipif`, it overrides those defaults entirely.
 
-Here, `all_geometry_are_none` is added because point layers make no sense if the data has no geometry. The other two conditions (`any_is_empty_df`, `any_dependency_skipped`) are the same as the defaults — they are repeated here because this task specifies its own `skipif` block, which overrides the defaults entirely.
+Here, [`all_geometry_are_none`][ecoscope.platform.tasks.skip.all_geometry_are_none] is added because point layers make no sense if the data has no geometry. The other two conditions
+([`any_is_empty_df`][ecoscope.platform.tasks.skip.any_is_empty_df],
+[`any_dependency_skipped`][ecoscope.platform.tasks.skip.any_dependency_skipped]) are the same as the defaults — they are repeated here because this task specifies its own `skipif` block, which overrides the defaults entirely.
 
 ### `events_ecomap` — Visualization
 
