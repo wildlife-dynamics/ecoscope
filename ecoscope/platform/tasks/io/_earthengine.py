@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Annotated, Any, Literal, Optional, cast
+from typing import Annotated, Literal, Optional, cast
 
 from pydantic import Field
 from wt_registry import register
@@ -255,4 +255,4 @@ def determine_season_windows(
     cuts = val_cuts(ndvi_vals, 2)
 
     # Determine the seasonal time windows
-    return seasonal_windows(ndvi_vals, cuts, season_labels=["dry", "wet"])
+    return cast(AnyDataFrame, seasonal_windows(ndvi_vals, cuts, season_labels=["dry", "wet"]))
