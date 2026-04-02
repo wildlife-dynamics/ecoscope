@@ -636,7 +636,7 @@ def draw_ecomap(
 
         if layer_def.legend:
             if layer_def.legend.label_column and layer_def.legend.color_column:
-                lookup = layer_def.geodataframe.drop_duplicates(subset=layer_def.legend.color_column)
+                lookup = layer_def.geodataframe.drop_duplicates(subset=layer_def.legend.label_column)
                 if layer_def.legend.sort:
                     lookup = lookup.sort_values(
                         layer_def.legend.label_column,
@@ -646,9 +646,8 @@ def draw_ecomap(
                         key=lambda col: pd.to_numeric(col, errors="ignore"),  # type: ignore[call-overload]
                     )
                 for _, row in lookup.iterrows():
-                    if row[layer_def.legend.color_column] not in legend_colors:
-                        legend_labels.append(row[layer_def.legend.label_column])
-                        legend_colors.append(row[layer_def.legend.color_column])
+                    legend_labels.append(row[layer_def.legend.label_column])
+                    legend_colors.append(row[layer_def.legend.color_column])
             elif layer_def.legend.labels and layer_def.legend.colors:
                 legend_labels.extend(layer_def.legend.labels)
                 legend_colors.extend(layer_def.legend.colors)
