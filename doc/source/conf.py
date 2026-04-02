@@ -57,7 +57,7 @@ master_doc = "index"
 
 autoapi_type = "python"
 autoapi_dirs = ["../../ecoscope"]
-autoapi_ignore = ["*/contrib/*"]
+autoapi_ignore = ["*/contrib/*", "*/platform/*"]
 
 autodoc_typehints = "description"
 

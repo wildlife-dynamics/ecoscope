@@ -50,7 +50,7 @@ def persist_text(
     return _persist_text(text, root_path, filename)
 
 
-FileType = Literal["csv", "gpkg", "geoparquet"]
+FileType = Literal["csv", "gpkg", "geoparquet", "parquet"]
 
 
 @register()
@@ -98,6 +98,14 @@ def persist_df(
         buffer = io.BytesIO()
         gdf = gpd.GeoDataFrame(df)
         gdf.to_parquet(buffer, index=False)
+        return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
+    elif filetype == "parquet":
+        buffer = io.BytesIO()
+        has_geom = any(isinstance(df[col].dtype, gpd.array.GeometryDtype) for col in df.columns)
+        if has_geom:
+            gpd.GeoDataFrame(df).to_parquet(buffer, index=False)
+        else:
+            df.to_parquet(buffer, index=False)
         return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
     else:
         raise ValueError(f"Unsupported file type: {filetype}")
