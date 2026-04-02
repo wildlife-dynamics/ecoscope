@@ -81,3 +81,23 @@ def test_persist_df_gpkg(tmp_path):
 
     gdf_read = gpd.read_file(dst)
     pd.testing.assert_frame_equal(gdf_read, gpd.GeoDataFrame(df))
+
+
+def test_persist_df_parquet(tmp_path):
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    root_path = str(tmp_path / "test")
+    dst = persist_df(df, root_path, "data", "parquet")
+    assert dst.endswith(".parquet")
+    df_read = pd.read_parquet(dst)
+    pd.testing.assert_frame_equal(df_read, df)
+
+
+def test_persist_df_parquet_with_geometry(tmp_path):
+    gdf = gpd.GeoDataFrame(
+        {"A": [1, 2, 3], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
+    )
+    root_path = str(tmp_path / "test")
+    dst = persist_df(gdf, root_path, "geo", "parquet")
+    assert dst.endswith(".parquet")
+    gdf_read = gpd.read_parquet(dst)
+    pd.testing.assert_frame_equal(gdf_read, gdf)

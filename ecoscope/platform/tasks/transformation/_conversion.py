@@ -52,7 +52,7 @@ def convert_values_to_timezone(
         timezone = timezone.utc_offset
     for col in columns:
         if col in df and isinstance(df[col].dtype, pd.DatetimeTZDtype):
-            df[col] = df[col].dt.tz_convert(timezone)
+            df[col] = df[col].dt.tz_convert(timezone).dt.as_unit("ns")
 
     return cast(AnyDataFrame, df)
 

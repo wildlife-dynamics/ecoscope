@@ -127,8 +127,9 @@ def test_extract_value_from_json_column():
         output_type=FieldType.STRING,
         output_column_name="extracted_value",
     )
-    expected_values = ["value2", "value4", None]
-    assert result_df["extracted_value"].tolist() == expected_values
+    result = result_df["extracted_value"].tolist()
+    assert result[:2] == ["value2", "value4"]
+    assert pd.isna(result[2])
 
     # Test case 3: Series
     result_df = extract_value_from_json_column(
