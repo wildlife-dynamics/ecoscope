@@ -76,7 +76,7 @@ docs = [
   "mkdocstrings[python]>=0.24.0",
   "myst-parser",
   "nbsphinx",
-  "pydata-sphinx-theme",
+  "pydata-sphinx-theme<0.17.0",
   "sphinx",
   "sphinx-autoapi",
 ]
