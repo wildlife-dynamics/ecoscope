@@ -36,6 +36,12 @@ def convert_values_to_timezone(
     df: AnyDataFrame,
     timezone: Annotated[str | datetime.tzinfo | TimezoneInfo, Field()],
     columns: Annotated[list[str], Field(description="The columns to convert.")],
+    auto_detect: Annotated[
+        bool,
+        Field(
+            description="Auto-detect all timezone-aware datetime columns to convert, ignoring the columns list.",
+        ),
+    ] = False,
 ) -> AnyDataFrame:
     """
     Converts the listed columns in the df to the timezone provided
@@ -44,12 +50,16 @@ def convert_values_to_timezone(
         df (AnyDataFrame): The input DataFrame.
         timezone (str | datetime.tzinfo | TimezoneInfo): The timezone to convert to
         columns (list[str]): List of columns to cast to string.
+        auto_detect (bool): If True, auto-detect all timezone-aware datetime columns,
+            ignoring the columns list.
 
     Returns:
         AnyDataFrame: The modified DataFrame.
     """
     if isinstance(timezone, TimezoneInfo):
         timezone = timezone.utc_offset
+    if auto_detect:
+        columns = [col for col in df.columns if isinstance(df[col].dtype, pd.DatetimeTZDtype)]
     for col in columns:
         if col in df and isinstance(df[col].dtype, pd.DatetimeTZDtype):
             df[col] = df[col].dt.tz_convert(timezone).dt.as_unit("ns")

@@ -79,6 +79,38 @@ def test_convert_values_to_timezone(timezone, expected_dtype):
     assert actual_df.time.dtype == f"datetime64[ns, {expected_dtype}]"
 
 
+def test_convert_values_to_timezone_auto_detect():
+    input_df = pd.DataFrame(
+        data={
+            "time": [
+                pd.to_datetime("2023-06-01 15:33:00", utc=True),
+                pd.to_datetime("2023-06-01 15:34:00", utc=True),
+            ],
+            "created_at": [
+                pd.to_datetime("2023-06-01 10:00:00", utc=True),
+                pd.to_datetime("2023-06-01 11:00:00", utc=True),
+            ],
+            "name": ["event_a", "event_b"],
+        },
+        index=["A", "B"],
+    )
+
+    actual_df = convert_values_to_timezone(
+        df=input_df,
+        timezone="Africa/Nairobi",
+        columns=[],
+        auto_detect=True,
+    )
+
+    # Both datetime columns should be converted, non-datetime column unchanged
+    assert actual_df.time.dtype == "datetime64[ns, Africa/Nairobi]"
+    assert actual_df.created_at.dtype == "datetime64[ns, Africa/Nairobi]"
+    assert actual_df["name"].tolist() == ["event_a", "event_b"]
+    # Verify values shifted by +3 hours
+    assert actual_df.time.iloc[0].hour == 18
+    assert actual_df.created_at.iloc[0].hour == 13
+
+
 def test_convert_column_values_to_numeric():
     df = pd.DataFrame(
         data={
