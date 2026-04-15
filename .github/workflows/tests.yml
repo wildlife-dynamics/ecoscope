@@ -77,10 +77,9 @@ jobs:
         shell: bash
         run: |
           case "${{ inputs.io }}" in
-            "io")                            suite="io" ;;
-            "smart_io")                      suite="smart-io" ;;
-            "io or not io and not smart_io") suite="daily" ;;
-            *)                               suite="core" ;;
+            "io")       suite="io" ;;
+            "smart_io") suite="smart-io" ;;
+            *)          suite="core" ;;
           esac
           scope=$([[ "${{ matrix.to_test }}" == "ecoscope.platform" ]] && echo "platform" || echo "non-platform")
           echo "flag=${suite}-${scope}" >> $GITHUB_OUTPUT

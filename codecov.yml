@@ -3,7 +3,7 @@ coverage:
     project:
       default:
         # Require core reports before evaluating project coverage;
-        # io/smart-io/daily are conditional on secrets being available
+        # io/smart-io are not explicitly required but included if run
         flags:
           - core-non-platform
           - core-platform
