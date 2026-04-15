@@ -31,4 +31,11 @@ jobs:
           pip install -e "./wizard/ecoscope-wizard-providers[dev]"
       - name: Test wizard providers
         working-directory: wizard/ecoscope-wizard-providers
-        run: pytest -v --color=yes
+        run: pytest -v --color=yes --cov=ecoscope_events_map_example --cov-report=xml
+
+      - name: Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: wizard
+          working-directory: wizard/ecoscope-wizard-providers
