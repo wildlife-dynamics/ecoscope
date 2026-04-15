@@ -76,3 +76,4 @@ jobs:
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          flags: ${{ matrix.to_test == 'ecoscope.platform' && 'platform' || 'non-platform' }}
