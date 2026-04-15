@@ -16,3 +16,4 @@ jobs:
     with:
       io: "not io and not smart_io"
       os: "ubuntu-latest"
+    secrets: inherit

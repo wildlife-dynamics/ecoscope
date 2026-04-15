@@ -11,3 +11,6 @@ coverage:
 flag_management:
   default_rules:
     carryforward: true
+
+comment:
+  show_carryforward_flags: false
