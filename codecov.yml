@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        # Require core reports before evaluating project coverage;
+        # io/smart-io are not explicitly required but included if run
+        flags:
+          - core
+          - platform
+
+flag_management:
+  default_rules:
+    carryforward: true
+
+comment:
+  show_carryforward_flags: false

@@ -72,7 +72,20 @@ jobs:
           pytest tests/platform \
           -v -r s -m "${{ inputs.io }}" --color=yes --cov=ecoscope --cov-append --cov-report=xml
 
+      - name: Set coverage flag
+        id: coverage-flag
+        shell: bash
+        run: |
+          is_platform=$([[ "${{ matrix.to_test }}" == "ecoscope.platform" ]] && echo "true" || echo "false")
+          case "${{ inputs.io }}" in
+            "io")       flag=$([[ "$is_platform" == "true" ]] && echo "io-platform"       || echo "io") ;;
+            "smart_io") flag=$([[ "$is_platform" == "true" ]] && echo "smart-io-platform" || echo "smart-io") ;;
+            *)          flag=$([[ "$is_platform" == "true" ]] && echo "platform"           || echo "core") ;;
+          esac
+          echo "flag=${flag}" >> $GITHUB_OUTPUT
+
       - name: Codecov
         uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          flags: ${{ steps.coverage-flag.outputs.flag }}
