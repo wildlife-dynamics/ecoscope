@@ -1,0 +1,17 @@
+coverage:
+  status:
+    project:
+      default:
+        # Require both flag reports before evaluating project coverage
+        flags:
+          - non-platform
+          - platform
+
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: non-platform
+      carryforward: true
+    - name: platform
+      carryforward: true
