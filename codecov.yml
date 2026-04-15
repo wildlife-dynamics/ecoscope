@@ -5,8 +5,8 @@ coverage:
         # Require core reports before evaluating project coverage;
         # io/smart-io are not explicitly required but included if run
         flags:
-          - core-non-platform
-          - core-platform
+          - core
+          - platform
 
 flag_management:
   default_rules:

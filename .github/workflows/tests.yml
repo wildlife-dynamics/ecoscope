@@ -76,13 +76,13 @@ jobs:
         id: coverage-flag
         shell: bash
         run: |
+          is_platform=$([[ "${{ matrix.to_test }}" == "ecoscope.platform" ]] && echo "true" || echo "false")
           case "${{ inputs.io }}" in
-            "io")       suite="io" ;;
-            "smart_io") suite="smart-io" ;;
-            *)          suite="core" ;;
+            "io")       flag=$([[ "$is_platform" == "true" ]] && echo "io-platform"       || echo "io") ;;
+            "smart_io") flag=$([[ "$is_platform" == "true" ]] && echo "smart-io-platform" || echo "smart-io") ;;
+            *)          flag=$([[ "$is_platform" == "true" ]] && echo "platform"           || echo "core") ;;
           esac
-          scope=$([[ "${{ matrix.to_test }}" == "ecoscope.platform" ]] && echo "platform" || echo "non-platform")
-          echo "flag=${suite}-${scope}" >> $GITHUB_OUTPUT
+          echo "flag=${flag}" >> $GITHUB_OUTPUT
 
       - name: Codecov
         uses: codecov/codecov-action@v6
