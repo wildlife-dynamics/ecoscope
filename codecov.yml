@@ -2,16 +2,12 @@ coverage:
   status:
     project:
       default:
-        # Require both flag reports before evaluating project coverage
+        # Require core reports before evaluating project coverage;
+        # io/smart-io/daily are conditional on secrets being available
         flags:
-          - non-platform
-          - platform
+          - core-non-platform
+          - core-platform
 
 flag_management:
   default_rules:
     carryforward: true
-  individual_flags:
-    - name: non-platform
-      carryforward: true
-    - name: platform
-      carryforward: true
