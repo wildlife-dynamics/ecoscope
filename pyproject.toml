@@ -70,6 +70,7 @@ platform = [
     "fastapi",  # required at import time by ecoscope-earthranger-io-core but not in its core dependencies
     "pyarrow>=20",
     "geoarrow-pyarrow>=0.2.0,<0.3",
+    "pydeck==0.9.1a2",
 ]
 docs = [
   "mkdocs-material>=9.0",
