@@ -53,7 +53,7 @@ class HexagonLayerStyle(LayerStyleBase):
     get_position: Annotated[str, AdvancedField(default="geometry.coordinates")] = "geometry.coordinates"
     radius: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1000)] = 1000
     color_aggregation: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    get_color_weight: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1)] = None
+    get_color_weight: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
     extruded: Annotated[bool, AdvancedField(default=False)] = False
     wireframe: Annotated[bool, AdvancedField(default=True)] = True
     elevation_scale: Annotated[float, AdvancedField(default=1)] = 1
@@ -413,9 +413,9 @@ class TiledBitmapLayerDefinition(BaseModel):
             "url": self.url,
             "opacity": self.opacity,
         }
-        if self.max_zoom:
+        if self.max_zoom is not None:
             default["max_zoom"] = self.max_zoom
-        if self.min_zoom:
+        if self.min_zoom is not None:
             default["min_zoom"] = self.min_zoom
         return default
 
@@ -525,7 +525,6 @@ def view_state_from_geodataframes_pydeck(
     geodataframes: list[AnyGeoDataFrame],
     max_zoom: float = 20,
 ) -> Annotated[ViewState, Field()]:
-    import pandas as pd
     import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
 
     if not geodataframes:
@@ -545,10 +544,10 @@ def view_state_from_geodataframes_pydeck(
         [bounds[2], bounds[3]],  # Southeast corner
     ]
     computed_zoom = pdk.data_utils.viewport_helpers.bbox_to_zoom_level(bbox)
-    centerLon = (bounds[0] + bounds[2]) / 2
-    centerLat = (bounds[1] + bounds[3]) / 2
+    center_lon = (bounds[0] + bounds[2]) / 2
+    center_lat = (bounds[1] + bounds[3]) / 2
 
-    return ViewState(longitude=centerLon, latitude=centerLat, zoom=min(max_zoom, computed_zoom))
+    return ViewState(longitude=center_lon, latitude=center_lat, zoom=min(max_zoom, computed_zoom))
 
 
 @register()

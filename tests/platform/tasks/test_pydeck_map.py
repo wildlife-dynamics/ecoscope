@@ -32,6 +32,7 @@ from ecoscope.platform.tasks.results._pydeck_map import (
     create_text_layer_pydeck,
     create_tiled_bitmap_layer_pydeck,
     draw_map_pydeck,
+    merge_tile_layers_pydeck,
     rewrite_file_urls_for_screenshots_pydeck,
     set_base_maps_pydeck,
     view_state_from_geodataframes_pydeck,
@@ -65,7 +66,7 @@ def test_path_layer():
     gdf = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_path.geojson"))
     layer_def = create_path_layer_pydeck(
         geodataframe=gdf,
-        layer_style=PathLayerStyle(get_line_width=3, get_color=[255, 0, 0]),
+        layer_style=PathLayerStyle(get_width=3, get_color=[255, 0, 0]),
     )
 
     map_html = draw_map_pydeck(
@@ -79,7 +80,7 @@ def test_scatterplot_layer(
 ):
     layer_def = create_scatterplot_layer_pydeck(
         geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_point_radius=500, get_fill_color="color"),
+        layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
     )
 
     map_html = draw_map_pydeck(
@@ -88,7 +89,7 @@ def test_scatterplot_layer(
     assert isinstance(map_html, str)
 
 
-def test_hexagon_layer(gdf_with_points, tmp_path):
+def test_hexagon_layer(gdf_with_points):
     layer_def = create_hexagon_layer_pydeck(
         geodataframe=gdf_with_points,
         layer_style=HexagonLayerStyle(
@@ -174,7 +175,7 @@ def test_combined_with_extrusion(extruded):
     lines = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_path.geojson"))
     path_layer_def = create_path_layer_pydeck(
         geodataframe=lines,
-        layer_style=PathLayerStyle(get_line_width=3, get_color=[255, 0, 0]),
+        layer_style=PathLayerStyle(get_width=3, get_color=[255, 0, 0]),
     )
     polys = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_poly.geojson"))
     poly_layer_def = create_polygon_layer_pydeck(
@@ -240,7 +241,7 @@ def test_pydeck_literals():
         ("category", "color", "descending", "_suffix!!!"),
     ],
 )
-def test_build_legend_from_datarame(
+def test_build_legend_from_dataframe(
     label_column: str,
     color_column: str,
     sort: Literal["ascending", "descending"] | None,
@@ -278,10 +279,10 @@ def test_build_legend_from_datarame(
         assert actual_legend == expected_legend
 
 
-def test_build_legend_from_multiple_datarame(gdf_with_points):
+def test_build_legend_from_multiple_dataframe(gdf_with_points):
     point_layer_def = create_scatterplot_layer_pydeck(
         geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_point_radius=500, get_fill_color="color"),
+        layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
         legend=LegendFromDataframe(
             label_column="category",
             color_column="color",
@@ -295,7 +296,7 @@ def test_build_legend_from_multiple_datarame(gdf_with_points):
     lines["color"] = lines["category"].apply(lambda x: (100, 100, 100, 255) if x == "first" else (20, 255, 600, 255))
     path_layer_def = create_path_layer_pydeck(
         geodataframe=lines,
-        layer_style=PathLayerStyle(get_line_width=3, get_color="color"),
+        layer_style=PathLayerStyle(get_width=3, get_color="color"),
         legend=LegendFromDataframe(
             label_column="category",
             color_column="color",
@@ -311,7 +312,7 @@ def test_build_legend_from_multiple_datarame(gdf_with_points):
 def test_layer_with_legend_from_dataframe(gdf_with_points):
     layer_def = create_scatterplot_layer_pydeck(
         geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_point_radius=500, get_fill_color="color"),
+        layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
         legend=LegendFromDataframe(
             label_column="category",
             color_column="color",
@@ -329,7 +330,7 @@ def test_layer_with_legend_from_dataframe(gdf_with_points):
 def test_custom_legend(gdf_with_points):
     layer_def = create_scatterplot_layer_pydeck(
         geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_point_radius=500, get_fill_color="color"),
+        layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
         legend=LegendSegment(
             title="An Legend",
             values=[
@@ -346,7 +347,7 @@ def test_custom_legend(gdf_with_points):
 def test_legends_are_combined_across_layers(gdf_with_points):
     scatter_layer = create_scatterplot_layer_pydeck(
         geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_point_radius=500, get_fill_color="color"),
+        layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
         legend=LegendSegment(
             title="Scatter Legend",
             values=[LegendValue(label="Points", color="#00FF00")],
@@ -891,3 +892,93 @@ def test_draw_map_url_layer_with_legend_segment():
 
     assert isinstance(map_html, str)
     assert "My Legend" in map_html
+
+
+# Tests for merge_tile_layers_pydeck
+
+
+def test_merge_tile_layers_both_none():
+    result = merge_tile_layers_pydeck(base_layers=None, overlay=None)
+    assert result == []
+
+
+def test_merge_tile_layers_base_only():
+    base = TiledBitmapLayerDefinition(url="https://base.example.com/{z}/{x}/{y}.png")
+    result = merge_tile_layers_pydeck(base_layers=[base], overlay=None)
+    assert result == [base]
+
+
+def test_merge_tile_layers_overlay_only():
+    overlay = BitmapLayerDefinition(
+        image="https://overlay.example.com/image.png",
+        bounds=[-1, -1, 1, 1],
+    )
+    result = merge_tile_layers_pydeck(base_layers=None, overlay=overlay)
+    assert result == [overlay]
+
+
+def test_merge_tile_layers_both():
+    base1 = TiledBitmapLayerDefinition(url="https://base1.example.com/{z}/{x}/{y}.png")
+    base2 = TiledBitmapLayerDefinition(url="https://base2.example.com/{z}/{x}/{y}.png")
+    overlay = BitmapLayerDefinition(
+        image="https://overlay.example.com/image.png",
+        bounds=[-1, -1, 1, 1],
+    )
+    result = merge_tile_layers_pydeck(base_layers=[base1, base2], overlay=overlay)
+    assert result == [base1, base2, overlay]
+
+
+def test_merge_tile_layers_order():
+    """Base layers come before overlay in the merged list."""
+    base = TiledBitmapLayerDefinition(url="https://base.example.com/{z}/{x}/{y}.png")
+    overlay = BitmapLayerDefinition(
+        image="https://overlay.example.com/image.png",
+        bounds=[-1, -1, 1, 1],
+    )
+    result = merge_tile_layers_pydeck(base_layers=[base], overlay=overlay)
+    assert isinstance(result[0], TiledBitmapLayerDefinition)
+    assert isinstance(result[1], BitmapLayerDefinition)
+
+
+# Tests for rewrite_file_urls_for_screenshots_pydeck
+
+
+def test_rewrite_file_urls_replaces_url():
+    file_url = "file:///some/long/path/data.geojson"
+    html = f'<script>url = "{file_url}"</script>'
+    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[file_url])
+    assert file_url not in result
+    assert "http://127.0.0.1:8099/data.geojson" in result
+
+
+def test_rewrite_file_urls_preserves_basename_only():
+    file_url = "file:///very/deep/nested/directory/mydata.json"
+    html = f'"{file_url}"'
+    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[file_url])
+    assert "mydata.json" in result
+    assert "nested/directory" not in result
+
+
+def test_rewrite_file_urls_multiple():
+    url1 = "file:///path/a.geojson"
+    url2 = "file:///path/b.geojson"
+    html = f'"{url1}" and "{url2}"'
+    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[url1, url2])
+    assert url1 not in result
+    assert url2 not in result
+    assert "a.geojson" in result
+    assert "b.geojson" in result
+
+
+def test_rewrite_file_urls_custom_port(monkeypatch):
+    monkeypatch.setenv("ECOSCOPE_SCREENSHOT_FILE_SERVER_PORT", "9000")
+    file_url = "file:///path/data.geojson"
+    html = f'"{file_url}"'
+    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[file_url])
+    assert "http://127.0.0.1:9000/data.geojson" in result
+
+
+def test_rewrite_file_urls_empty_list():
+    html = "<html>no urls</html>"
+    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[])
+    assert result == html
