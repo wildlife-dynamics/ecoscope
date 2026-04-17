@@ -1037,10 +1037,7 @@ def draw_map_pydeck(
         map_style=pdk.map_styles.LIGHT_NO_LABELS,
     )
 
-    # TODO remove the semver replace here once upstream pydeck changes are released
-    # We're replacing the version of the embedded CDN packages in the generated HTML
-    # to one that has support for custom widgets
-    html = m.to_html(as_string=True).replace("@9.1.7", "@9.2.1", 2)
+    html = m.to_html(as_string=True)
     return html
 
 
