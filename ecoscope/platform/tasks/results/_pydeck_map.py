@@ -14,8 +14,8 @@ from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 
 PYDECK_CUSTOM_LIBRARIES = [
     {
-        "libraryName": "ecoscopeDeckWidgets",
-        "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deck-widgets@0.0.6/dist/bundle.js",
+        "libraryName": "EcoscopeDeckglExtensions",
+        "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.0.7/dist/bundle.js",
     }
 ]
 
