@@ -73,6 +73,50 @@ The compiler cannot convert a parameter's type to JSON Schema. This happens with
 
 ---
 
+## Developing against a local ecoscope checkout
+
+When developing or debugging ecoscope itself, you can point your workflow at a local checkout instead of the published `ecoscope-platform` conda package. The conda package name is `ecoscope-platform`, but the PyPI/local package name is `ecoscope` with extras:
+
+```yaml
+requirements:
+  - name: python
+    version: "3.12.*"
+  - name: rasterio
+    version: "1.5.0"
+    channel: conda-forge
+  - name: ecoscope
+    path: /Users/me/ecoscope
+    editable: true
+    extras: ["platform", "mapping", "analysis"]
+```
+
+**Key points:**
+
+- **`python` pin** — without this, the ephemeral discovery environment may
+  resolve Python 3.14+, where transitive deps like `pydantic-core` lack
+  pre-built wheels.
+- **`rasterio` conda dep** — ensures GDAL native libraries are available for
+  the editable ecoscope install.
+- **`extras`** — all three are required for task discovery to succeed:
+    - `platform`: pandera, pydantic, wt-registry, wt-task
+    - `mapping`: lonboard, matplotlib (results/map tasks)
+    - `analysis`: statsmodels (analysis tasks)
+- **Post-compile numpy patch** — ecoscope currently pins `numpy>=2,<2.1`,
+  which conflicts with what conda resolves on some platforms. After compiling,
+  manually edit the generated `pixi.toml` to pin `numpy>=2,<2.1` to match.
+  This constraint will be relaxed in a future ecoscope release.
+- **Post-compile pydantic patch** — ecoscope requires `pydantic<2.9.0` (newer
+  versions break discriminated unions in `apply_classification`), but the
+  compiler emits `pydantic>=2.0.0,<3.0.0` as a conda dependency. After
+  compiling, manually edit the generated `pixi.toml` to pin
+  `pydantic>=2.0.0,<2.9.0`.
+- **Separate environment limitation** — `wt-compiler` requires `pydantic>=2.9` while
+  `ecoscope[platform]` requires `pydantic<2.9.0`. They cannot coexist in the
+  same pixi environment. The compiler does not import ecoscope at runtime — it
+  installs it in an ephemeral subprocess environment for task discovery.
+
+---
+
 ## Getting help
 
 If you are stuck:
