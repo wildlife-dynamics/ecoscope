@@ -111,6 +111,22 @@ def test_convert_values_to_timezone_auto_detect():
     assert actual_df.created_at.iloc[0].hour == 13
 
 
+def test_convert_values_to_timezone_auto_detect_with_columns_raises():
+    df = pd.DataFrame(
+        data={
+            "time": [pd.to_datetime("2023-06-01 15:33:00", utc=True)],
+        },
+        index=["A"],
+    )
+    with pytest.raises(ValueError, match="Only one of auto_detect and columns"):
+        convert_values_to_timezone(
+            df=df,
+            timezone="Africa/Nairobi",
+            columns=["time"],
+            auto_detect=True,
+        )
+
+
 def test_convert_column_values_to_numeric():
     df = pd.DataFrame(
         data={

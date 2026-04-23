@@ -40,6 +40,7 @@ def convert_values_to_timezone(
         bool,
         Field(
             description="Auto-detect all timezone-aware datetime columns to convert, ignoring the columns list.",
+            exclude=True,
         ),
     ] = False,
 ) -> AnyDataFrame:
@@ -58,6 +59,8 @@ def convert_values_to_timezone(
     """
     if isinstance(timezone, TimezoneInfo):
         timezone = timezone.utc_offset
+    if auto_detect and columns:
+        raise ValueError("Only one of auto_detect and columns may be passed.")
     if auto_detect:
         columns = [col for col in df.columns if isinstance(df[col].dtype, pd.DatetimeTZDtype)]
     for col in columns:

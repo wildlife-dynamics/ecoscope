@@ -73,6 +73,29 @@ The compiler cannot convert a parameter's type to JSON Schema. This happens with
 
 ---
 
+## "Could not read properties of undefined (reading 'name')"
+
+This error appears in Ecoscope Desktop / Ecoscope Web when submitting the configuration form. It means your workflow is missing one or both of the required task instances: `workflow_details` and `time_range`.
+
+Every ecoscope workflow **must** include both:
+
+```yaml
+workflow:
+  - name: Workflow Details
+    id: workflow_details
+    task: set_workflow_details
+
+  - name: Time Range
+    id: time_range
+    task: set_time_range
+    partial:
+      time_format: '%d %b %Y %H:%M:%S'
+```
+
+**Fix**: Add the missing task(s) to your `spec.yaml`. The `id` values must be exactly `workflow_details` and `time_range` — Ecoscope Desktop and Ecoscope Web look for these specific IDs when processing the configuration form.
+
+---
+
 ## Developing against a local ecoscope checkout
 
 When developing or debugging ecoscope itself, you can point your workflow at a local checkout instead of the published `ecoscope-platform` conda package. The conda package name is `ecoscope-platform`, but the PyPI/local package name is `ecoscope` with extras:
@@ -83,6 +106,9 @@ requirements:
     version: "3.12.*"
   - name: rasterio
     version: "1.5.0"
+    channel: conda-forge
+  - name: numpy
+    version: ">=2,<2.1"
     channel: conda-forge
   - name: ecoscope
     path: /Users/me/ecoscope
@@ -97,23 +123,35 @@ requirements:
   pre-built wheels.
 - **`rasterio` conda dep** — ensures GDAL native libraries are available for
   the editable ecoscope install.
-- **`extras`** — all three are required for task discovery to succeed:
-    - `platform`: pandera, pydantic, wt-registry, wt-task
+- **`extras`** — the extras you need depend on which tasks your workflow uses and the dependencies.
+  The four shown below cover the most common case:
+    - `platform`: pandera, pydantic, wt-registry, wt-task (always required)
     - `mapping`: lonboard, matplotlib (results/map tasks)
     - `analysis`: statsmodels (analysis tasks)
-- **Post-compile numpy patch** — ecoscope currently pins `numpy>=2,<2.1`,
-  which conflicts with what conda resolves on some platforms. After compiling,
-  manually edit the generated `pixi.toml` to pin `numpy>=2,<2.1` to match.
-  This constraint will be relaxed in a future ecoscope release.
+    - `plotting`: plotly, scikit-learn
+
+    Other extras may also be needed depending on your tasks/dependencies.
+- **`numpy` pin** — ecoscope currently pins `numpy>=2,<2.1`, which conflicts
+  with what conda resolves on some platforms. Add a numpy conda requirement to
+  the spec to avoid a post-compile patch:
+
+    ```yaml
+    - name: numpy
+      version: ">=2,<2.1"
+      channel: conda-forge
+    ```
+
 - **Post-compile pydantic patch** — ecoscope requires `pydantic<2.9.0` (newer
   versions break discriminated unions in `apply_classification`), but the
   compiler emits `pydantic>=2.0.0,<3.0.0` as a conda dependency. After
   compiling, manually edit the generated `pixi.toml` to pin
-  `pydantic>=2.0.0,<2.9.0`.
-- **Separate environment limitation** — `wt-compiler` requires `pydantic>=2.9` while
+  `pydantic>=2.0.0,<2.9.0`. This cannot be set via `requirements:` because
+  the compiler overrides pydantic's version constraint.
+- **Separate environments** — `wt-compiler` requires `pydantic>=2.9` while
   `ecoscope[platform]` requires `pydantic<2.9.0`. They cannot coexist in the
-  same pixi environment. The compiler does not import ecoscope at runtime — it
-  installs it in an ephemeral subprocess environment for task discovery.
+  same pixi environment, which is why the compiler installs requirements in an
+  ephemeral subprocess environment for task discovery rather than importing
+  them directly.
 
 ---
 

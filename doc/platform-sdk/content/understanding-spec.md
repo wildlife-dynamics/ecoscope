@@ -43,6 +43,9 @@ This calls [`set_workflow_details`][ecoscope.platform.tasks.config.set_workflow_
 
 Sets the workflow name and description shown in the configuration form in Ecoscope Desktop / Ecoscope Web. Because there is no `partial` block, the [`name` and `description` parameters][ecoscope.platform.tasks.config.set_workflow_details] become user-configurable form fields.
 
+!!! important
+    Every ecoscope workflow **must** include both a `set_workflow_details` task and a `set_time_range` task. Ecoscope Desktop and Ecoscope Web expect these to be present — workflows that omit either one will fail at runtime.
+
 ### `er_client_name` — Data source connection
 
 ```yaml
