@@ -86,7 +86,7 @@ workflow:
     task: set_workflow_details
 ```
 
-**Fix**: Add the missing task(s) to your `spec.yaml`. The `id` values must be exactly `workflow_details` and `time_range` — Ecoscope Desktop and Ecoscope Web look for these specific IDs when processing the configuration form.
+**Fix**: Add the missing task to your `spec.yaml`. The `id` values must be exactly `workflow_details` — Ecoscope Desktop and Ecoscope Web look for this specific ID when processing the configuration form.
 
 ---
 
