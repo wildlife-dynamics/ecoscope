@@ -75,21 +75,15 @@ The compiler cannot convert a parameter's type to JSON Schema. This happens with
 
 ## "Could not read properties of undefined (reading 'name')"
 
-This error appears in Ecoscope Desktop / Ecoscope Web when submitting the configuration form. It means your workflow is missing one or both of the required task instances: `workflow_details` and `time_range`.
+This error appears in Ecoscope Desktop / Ecoscope Web when submitting the configuration form. It means your workflow is missing the required task instance `workflow_details`.
 
-Every ecoscope workflow **must** include both:
+Every ecoscope workflow **must** include:
 
 ```yaml
 workflow:
   - name: Workflow Details
     id: workflow_details
     task: set_workflow_details
-
-  - name: Time Range
-    id: time_range
-    task: set_time_range
-    partial:
-      time_format: '%d %b %Y %H:%M:%S'
 ```
 
 **Fix**: Add the missing task(s) to your `spec.yaml`. The `id` values must be exactly `workflow_details` and `time_range` — Ecoscope Desktop and Ecoscope Web look for these specific IDs when processing the configuration form.
