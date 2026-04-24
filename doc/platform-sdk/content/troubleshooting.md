@@ -147,11 +147,6 @@ requirements:
   compiling, manually edit the generated `pixi.toml` to pin
   `pydantic>=2.0.0,<2.9.0`. This cannot be set via `requirements:` because
   the compiler overrides pydantic's version constraint.
-- **Separate environments** — `wt-compiler` requires `pydantic>=2.9` while
-  `ecoscope[platform]` requires `pydantic<2.9.0`. They cannot coexist in the
-  same pixi environment, which is why the compiler installs requirements in an
-  ephemeral subprocess environment for task discovery rather than importing
-  them directly.
 
 ---
 
