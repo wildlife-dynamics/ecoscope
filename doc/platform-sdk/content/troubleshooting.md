@@ -73,6 +73,77 @@ The compiler cannot convert a parameter's type to JSON Schema. This happens with
 
 ---
 
+## "Could not read properties of undefined (reading 'name')"
+
+This error appears in Ecoscope Desktop / Ecoscope Web when submitting the configuration form. It means your workflow is missing the required task instance `workflow_details`.
+
+Every ecoscope workflow **must** include:
+
+```yaml
+workflow:
+  - name: Workflow Details
+    id: workflow_details
+    task: set_workflow_details
+```
+
+**Fix**: Add the missing task to your `spec.yaml`. The `id` values must be exactly `workflow_details` — Ecoscope Desktop and Ecoscope Web look for this specific ID when processing the configuration form.
+
+---
+
+## Developing against a local ecoscope checkout
+
+When developing or debugging ecoscope itself, you can point your workflow at a local checkout instead of the published `ecoscope-platform` conda package. The conda package name is `ecoscope-platform`, but the PyPI/local package name is `ecoscope` with extras:
+
+```yaml
+requirements:
+  - name: python
+    version: "3.12.*"
+  - name: rasterio
+    version: "1.5.0"
+    channel: conda-forge
+  - name: numpy
+    version: ">=2,<2.1"
+    channel: conda-forge
+  - name: ecoscope
+    path: /Users/me/ecoscope
+    editable: true
+    extras: ["platform", "mapping", "analysis"]
+```
+
+**Key points:**
+
+- **`python` pin** — without this, the ephemeral discovery environment may
+  resolve Python 3.14+, where transitive deps like `pydantic-core` lack
+  pre-built wheels.
+- **`rasterio` conda dep** — ensures GDAL native libraries are available for
+  the editable ecoscope install.
+- **`extras`** — the extras you need depend on which tasks your workflow uses and the dependencies.
+  The four shown below cover the most common case:
+    - `platform`: pandera, pydantic, wt-registry, wt-task (always required)
+    - `mapping`: lonboard, matplotlib (results/map tasks)
+    - `analysis`: statsmodels (analysis tasks)
+    - `plotting`: plotly, scikit-learn
+
+    Other extras may also be needed depending on your tasks/dependencies.
+- **`numpy` pin** — ecoscope currently pins `numpy>=2,<2.1`, which conflicts
+  with what conda resolves on some platforms. Add a numpy conda requirement to
+  the spec to avoid a post-compile patch:
+
+    ```yaml
+    - name: numpy
+      version: ">=2,<2.1"
+      channel: conda-forge
+    ```
+
+- **Post-compile pydantic patch** — ecoscope requires `pydantic<2.9.0` (newer
+  versions break discriminated unions in `apply_classification`), but the
+  compiler emits `pydantic>=2.0.0,<3.0.0` as a conda dependency. After
+  compiling, manually edit the generated `pixi.toml` to pin
+  `pydantic>=2.0.0,<2.9.0`. This cannot be set via `requirements:` because
+  the compiler overrides pydantic's version constraint.
+
+---
+
 ## Getting help
 
 If you are stuck:
