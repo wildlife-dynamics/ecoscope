@@ -66,7 +66,7 @@ platform = [
     "cloudpathlib[gs]",
     "wt-registry>=0.2.0,<0.3.0",
     "wt-task>=0.1.0,<0.2.0",
-    "ecoscope-earthranger-io-core @ git+https://github.com/wildlife-dynamics/ecoscope-earthranger-io-core.git@v0.0.5",
+    "ecoscope-earthranger-io-core @ git+https://github.com/wildlife-dynamics/ecoscope-earthranger-io-core.git@v0.0.10",
     "fastapi",  # required at import time by ecoscope-earthranger-io-core but not in its core dependencies
     "pyarrow>=20",
     "geoarrow-pyarrow>=0.2.0,<0.3",

@@ -78,6 +78,7 @@ outputs:
         - cloudpathlib-gs
         - wt-registry >=0.2.0,<0.3.0
         - wt-task >=0.1.0,<0.2.0
+        - ecoscope-earthranger-io-core ==0.0.10
     tests:
       - python:
           imports:
