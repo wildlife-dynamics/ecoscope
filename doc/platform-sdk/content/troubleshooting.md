@@ -141,6 +141,13 @@ requirements:
   compiling, manually edit the generated `pixi.toml` to pin
   `pydantic>=2.0.0,<2.9.0`. This cannot be set via `requirements:` because
   the compiler overrides pydantic's version constraint.
+- **Do NOT use `pixi run --locked`** — when ecoscope is path-installed, pixi
+  reads its `pyproject.toml` and finds transitive git deps pinned by tag (e.g.
+  `ecoscope-earthranger-io-core@v0.0.7`). pixi resolves the tag to a SHA in the
+  lockfile but compares them symbolically on `--locked` checks, so the lockfile
+  is reported as out-of-date even immediately after a fresh `pixi lock`. Drop
+  `--locked` from any local pixi commands or wrapper scripts when developing
+  against a local ecoscope checkout.
 
 ---
 
