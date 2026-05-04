@@ -27,6 +27,7 @@ def client():
     ).get_client()
 
 
+@pytest.mark.skip(reason="SMART API is currently down")
 def test_smart_get_patrol_observations(client):
     ta = TypeAdapter(PatrolObservationsGDF)
 
@@ -48,6 +49,7 @@ def test_smart_get_patrol_observations(client):
     assert "fixtime" in observations_relocs
 
 
+@pytest.mark.skip(reason="SMART API is currently down")
 def test_smart_get_events(client):
     ta = TypeAdapter(EventGDF)
 

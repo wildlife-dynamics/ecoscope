@@ -25,7 +25,7 @@ dependencies = [
   "earthengine-api>=1.4,<1.7.13",
   "earthranger-client @ git+https://github.com/PADAS/er-client@v1.3.3",
   "geopandas>=1",
-  "numpy>=2,<2.1",
+  "numpy>=2,<2.1",  # TODO: relax upper bound once conda recipe and editable installs are aligned
   "pandas<3",
   "pyproj>=3.3",
   "rasterio>=1.3",
@@ -61,7 +61,7 @@ mapping = [
 plotting = ["plotly", "scikit-learn"]
 platform = [
     "pandera>=0.24.0,<0.29",
-    "pydantic<2.9.0",
+    "pydantic<2.9.0",  # >=2.9 breaks discriminated unions in apply_classification (duplicate 'equal_interval' key)
     "pydantic-settings",
     "cloudpathlib[gs]",
     "wt-registry>=0.2.0,<0.3.0",
