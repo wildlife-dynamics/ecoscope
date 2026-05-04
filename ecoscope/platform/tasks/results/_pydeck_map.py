@@ -333,10 +333,6 @@ TileLayerPresets = {
         "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
         "title": "Terrain",
     },
-    "LANDDX": {
-        "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
-        "title": "LandDx",
-    },
     "USGS HILLSHADE": {
         "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
         "title": "USGS Hillshade",
