@@ -50,7 +50,7 @@ def persist_text(
     return _persist_text(text, root_path, filename)
 
 
-FileType = Literal["csv", "gpkg", "geoparquet", "parquet"]
+FileType = Literal["csv", "gpkg", "geoparquet", "parquet", "geojson", "json"]
 
 
 @register()
@@ -107,5 +107,10 @@ def persist_df(
         else:
             df.to_parquet(buffer, index=False)
         return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
+    elif filetype == "geojson":
+        gdf = gpd.GeoDataFrame(df)
+        return _persist_text(gdf.to_json(), root_path, f"{filename}.{filetype}")
+    elif filetype == "json":
+        return _persist_text(df.to_json(), root_path, f"{filename}.{filetype}")
     else:
         raise ValueError(f"Unsupported file type: {filetype}")
