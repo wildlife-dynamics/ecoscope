@@ -6,7 +6,8 @@ from typing import Annotated, Any, Literal, Tuple, TypeAlias, Union, no_type_che
 logger = logging.getLogger(__name__)
 
 import pandas as pd
-from pydantic import BaseModel, Field, field_validator, model_validator
+import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
+from pydantic import BaseModel, Field, PlainSerializer, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -19,19 +20,19 @@ PYDECK_CUSTOM_LIBRARIES = [
     }
 ]
 
-# Use these annotations to mark strings that Pydeck should interpret literally.
-# We do this to avoid needing to import/depend on Pydeck at compile time
-PydeckAnnotation = "pydeck_string"
-PydeckString = Annotated[str, PydeckAnnotation]
+# Wraps string values in pdk.types.String at dump time so pydeck treats them
+# as literal strings rather than data accessor expressions.
+_pdk_literal_string = PlainSerializer(lambda v: pdk.types.String(v), when_used="unless-none")
+PydeckString = Annotated[str, _pdk_literal_string]
 
-UnitType = Annotated[Literal["meters", "pixels"], PydeckAnnotation]
+UnitType = Annotated[Literal["meters", "pixels"], _pdk_literal_string]
 WidgetPlacement = Annotated[
     Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"],
-    PydeckAnnotation,
+    _pdk_literal_string,
 ]
-AlignmentBaseline = Annotated[Literal["top", "center", "bottom"], PydeckAnnotation]
-TextAnchor = Annotated[Literal["start", "middle", "end"], PydeckAnnotation]
-WordBreak = Annotated[Literal["break-word", "break-all"], PydeckAnnotation]
+AlignmentBaseline = Annotated[Literal["top", "center", "bottom"], _pdk_literal_string]
+TextAnchor = Annotated[Literal["start", "middle", "end"], _pdk_literal_string]
+WordBreak = Annotated[Literal["break-word", "break-all"], _pdk_literal_string]
 ColorAccessor = str | SkipJsonSchema[list[int]] | SkipJsonSchema[list[list[int]]]
 FloatAccessor = str | float | SkipJsonSchema[list[float]]
 LegendLabel: TypeAlias = str
@@ -525,8 +526,6 @@ def view_state_from_geodataframes_pydeck(
     geodataframes: list[AnyGeoDataFrame],
     max_zoom: float = 20,
 ) -> Annotated[ViewState, Field()]:
-    import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
-
     if not geodataframes:
         return ViewState()
 
@@ -572,19 +571,6 @@ def view_state_from_layers_pydeck(
 def _color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     # eg [255,0,120,255] converts to 'rgba(255,0,120,1)'
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3] / 255})"
-
-
-def _model_dump_with_pydeck_literals(model: BaseModel):
-    """
-    Utility function to convert our annotated "PydeckStrings" to pdk.types.Strings at runtime
-    """
-    import pydeck as pdk  # type: ignore[import-untyped]
-
-    model_dump = model.model_dump(exclude_none=True)
-    for field, field_info in model.__class__.model_fields.items():
-        if PydeckAnnotation in field_info.metadata and model_dump.get(field):
-            model_dump[field] = pdk.types.String(model_dump[field])
-    return model_dump
 
 
 @register()
@@ -908,8 +894,6 @@ def draw_map_pydeck(
     Returns:
     str: A static HTML representation of the map.
     """
-    import pydeck as pdk  # type: ignore[import-untyped]
-
     pdk.settings.custom_libraries = PYDECK_CUSTOM_LIBRARIES
 
     DEFAULT_WIDGETS = [
@@ -937,7 +921,7 @@ def draw_map_pydeck(
 
     for tile_layer in tile_layers:
         if isinstance(tile_layer, BitmapLayerDefinition):
-            dump = _model_dump_with_pydeck_literals(tile_layer)
+            dump = tile_layer.model_dump(exclude_none=True)
             dump.pop("legend", None)
             layer = pdk.Layer("BitmapLayer", **dump)
             map_layers.append(layer)
@@ -981,7 +965,7 @@ def draw_map_pydeck(
         layer = pdk.Layer(
             type=layer_def.layer_type,
             data=data,
-            **_model_dump_with_pydeck_literals(layer_def.layer_style),
+            **layer_def.layer_style.model_dump(exclude_none=True),
         )
         map_layers.append(layer)
 

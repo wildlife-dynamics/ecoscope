@@ -22,7 +22,6 @@ from ecoscope.platform.tasks.results._pydeck_map import (
     ScatterplotLayerStyle,
     TextLayerStyle,
     TiledBitmapLayerDefinition,
-    _model_dump_with_pydeck_literals,
     create_geojson_layer_pydeck,
     create_hexagon_layer_pydeck,
     create_icon_layer_pydeck,
@@ -221,9 +220,9 @@ def test_view_state_calc():
 
 
 def test_pydeck_literals():
-    path = _model_dump_with_pydeck_literals(PathLayerStyle())
-    point = _model_dump_with_pydeck_literals(ScatterplotLayerStyle())
-    poly = _model_dump_with_pydeck_literals(PolygonLayerStyle())
+    path = PathLayerStyle().model_dump(exclude_none=True)
+    point = ScatterplotLayerStyle().model_dump(exclude_none=True)
+    poly = PolygonLayerStyle().model_dump(exclude_none=True)
 
     assert isinstance(path["width_units"], pdk.types.String)
     assert isinstance(point["line_width_units"], pdk.types.String)
