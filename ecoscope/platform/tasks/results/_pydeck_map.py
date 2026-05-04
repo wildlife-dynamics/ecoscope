@@ -666,7 +666,6 @@ def create_path_layer_pydeck(
     )
 
 
-# TODO: add _pydeck suffix to avoid task name conflict
 @register()
 def create_polygon_layer_pydeck(
     geodataframe: Annotated[
