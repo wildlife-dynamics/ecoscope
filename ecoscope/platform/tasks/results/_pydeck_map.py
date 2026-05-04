@@ -522,7 +522,7 @@ class LegendStyle(BaseModel):
 
 
 @register()
-def view_state_from_geodataframes_pydeck(
+def view_state_from_geodataframes(
     geodataframes: list[AnyGeoDataFrame],
     max_zoom: float = 20,
 ) -> Annotated[ViewState, Field()]:
@@ -550,7 +550,7 @@ def view_state_from_geodataframes_pydeck(
 
 
 @register()
-def view_state_from_layers_pydeck(
+def view_state_from_layers(
     layers: list[LayerDefinition],
     max_zoom: float = 20,
 ) -> Annotated[ViewState, Field()]:
@@ -562,7 +562,7 @@ def view_state_from_layers_pydeck(
             "Falling back to default view state centred on (0, 0). "
             "Pass an explicit view_state to draw_map to override this."
         )
-    return view_state_from_geodataframes_pydeck(
+    return view_state_from_geodataframes(
         geodataframes=gdfs,
         max_zoom=max_zoom,
     )
@@ -574,7 +574,7 @@ def _color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
 
 
 @register()
-def create_hexagon_layer_pydeck(
+def create_hexagon_layer(
     geodataframe: Annotated[
         AnyGeoDataFrame | SkipJsonSchema[None],
         Field(description="The geodataframe to visualize.", exclude=True),
@@ -619,7 +619,7 @@ def create_hexagon_layer_pydeck(
 
 
 @register()
-def create_path_layer_pydeck(
+def create_path_layer(
     geodataframe: Annotated[
         AnyGeoDataFrame | SkipJsonSchema[None],
         Field(description="The geodataframe to visualize.", exclude=True),
@@ -687,7 +687,7 @@ def create_polygon_layer_pydeck(
 
 
 @register()
-def create_scatterplot_layer_pydeck(
+def create_scatterplot_layer(
     geodataframe: Annotated[
         AnyGeoDataFrame | SkipJsonSchema[None],
         Field(description="The geodataframe to visualize.", exclude=True),
@@ -758,7 +758,7 @@ def create_text_layer_pydeck(
 
 
 @register()
-def create_icon_layer_pydeck(
+def create_icon_layer(
     geodataframe: Annotated[
         AnyGeoDataFrame | SkipJsonSchema[None],
         Field(description="The geodataframe to visualize.", exclude=True),
@@ -786,7 +786,7 @@ def create_icon_layer_pydeck(
 
 
 @register()
-def create_geojson_layer_pydeck(
+def create_geojson_layer(
     geodataframe: Annotated[
         AnyGeoDataFrame | SkipJsonSchema[None],
         Field(description="The geodataframe to visualize.", exclude=True),
@@ -820,7 +820,7 @@ def create_geojson_layer_pydeck(
 
 
 @register()
-def draw_map_pydeck(
+def draw_map(
     geo_layers: Annotated[
         LayerDefinition | list[LayerDefinition] | SkipJsonSchema[None],
         Field(description="A list of map layers to add to the map.", exclude=True),
@@ -1006,7 +1006,7 @@ def draw_map_pydeck(
     m = pdk.Deck(
         layers=map_layers,
         widgets=map_widgets,
-        initial_view_state=view_state or view_state_from_layers_pydeck(layers=geo_layers, max_zoom=max_zoom),
+        initial_view_state=view_state or view_state_from_layers(layers=geo_layers, max_zoom=max_zoom),
         # The only non-default value here is repeat=True
         # which in our case allows tile layers to repeat/wrap at high zoom levels
         views=pdk.View(
@@ -1025,7 +1025,7 @@ def draw_map_pydeck(
 
 
 @register()
-def rewrite_file_urls_for_screenshots_pydeck(
+def rewrite_file_urls_for_screenshots(
     html: Annotated[str, Field(description="HTML string output from draw_map.")],
     file_urls: Annotated[list[str], Field(description="The file url strings to replace in `html`.")],
 ) -> Annotated[str, Field()]:
@@ -1054,7 +1054,7 @@ def rewrite_file_urls_for_screenshots_pydeck(
 
 
 @register()
-def create_tiled_bitmap_layer_pydeck(
+def create_tiled_bitmap_layer(
     url: Annotated[
         str,
         Field(
@@ -1094,7 +1094,7 @@ def create_tiled_bitmap_layer_pydeck(
 
 
 @register()
-def merge_tile_layers_pydeck(
+def merge_tile_layers(
     base_layers: Annotated[
         list[TiledBitmapLayerDefinition] | SkipJsonSchema[None],
         Field(description="Static base tile layers to prepend."),

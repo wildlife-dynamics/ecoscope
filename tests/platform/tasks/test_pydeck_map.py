@@ -22,20 +22,20 @@ from ecoscope.platform.tasks.results._pydeck_map import (
     ScatterplotLayerStyle,
     TextLayerStyle,
     TiledBitmapLayerDefinition,
-    create_geojson_layer_pydeck,
-    create_hexagon_layer_pydeck,
-    create_icon_layer_pydeck,
-    create_path_layer_pydeck,
+    create_geojson_layer,
+    create_hexagon_layer,
+    create_icon_layer,
+    create_path_layer,
     create_polygon_layer_pydeck,
-    create_scatterplot_layer_pydeck,
+    create_scatterplot_layer,
     create_text_layer_pydeck,
-    create_tiled_bitmap_layer_pydeck,
-    draw_map_pydeck,
-    merge_tile_layers_pydeck,
-    rewrite_file_urls_for_screenshots_pydeck,
+    create_tiled_bitmap_layer,
+    draw_map,
+    merge_tile_layers,
+    rewrite_file_urls_for_screenshots,
     set_base_maps_pydeck,
-    view_state_from_geodataframes_pydeck,
-    view_state_from_layers_pydeck,
+    view_state_from_geodataframes,
+    view_state_from_layers,
 )
 
 TEST_DATA_DIR = Path(__file__).parent.parent.parent / "sample_data" / "vector"
@@ -50,12 +50,12 @@ def gdf_with_points():
 
 def test_geojson_layer():
     gdf = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_poly.geojson"))
-    layer_def = create_geojson_layer_pydeck(
+    layer_def = create_geojson_layer(
         geodataframe=gdf,
         layer_style=GeoJSONLayerStyle(get_fill_color=[255, 0, 0]),
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[layer_def],
     )
     assert isinstance(map_html, str)
@@ -63,12 +63,12 @@ def test_geojson_layer():
 
 def test_path_layer():
     gdf = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_path.geojson"))
-    layer_def = create_path_layer_pydeck(
+    layer_def = create_path_layer(
         geodataframe=gdf,
         layer_style=PathLayerStyle(get_width=3, get_color=[255, 0, 0]),
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[layer_def],
     )
     assert isinstance(map_html, str)
@@ -77,19 +77,19 @@ def test_path_layer():
 def test_scatterplot_layer(
     gdf_with_points,
 ):
-    layer_def = create_scatterplot_layer_pydeck(
+    layer_def = create_scatterplot_layer(
         geodataframe=gdf_with_points,
         layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[layer_def],
     )
     assert isinstance(map_html, str)
 
 
 def test_hexagon_layer(gdf_with_points):
-    layer_def = create_hexagon_layer_pydeck(
+    layer_def = create_hexagon_layer(
         geodataframe=gdf_with_points,
         layer_style=HexagonLayerStyle(
             radius=5000,
@@ -99,7 +99,7 @@ def test_hexagon_layer(gdf_with_points):
         ),
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[layer_def],
         tile_layers=[
             TiledBitmapLayerDefinition(
@@ -118,7 +118,7 @@ def test_polygon_layer():
         layer_style=PolygonLayerStyle(get_fill_color=[255, 0, 0]),
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[layer_def],
     )
     assert isinstance(map_html, str)
@@ -140,7 +140,7 @@ def test_draw_map_explodes_multipolygon():
         layer_style=PolygonLayerStyle(get_fill_color=[255, 0, 0]),
     )
 
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    map_html = draw_map(geo_layers=[layer_def])
     assert isinstance(map_html, str)
 
     # Verify the HTML contains Polygon (not MultiPolygon) geometry type
@@ -151,7 +151,7 @@ def test_draw_map_explodes_multipolygon():
 def test_text_layer():
     gdf = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_text.geojson"))
     layer_def = create_text_layer_pydeck(geodataframe=gdf, layer_style=TextLayerStyle(get_text="text"))
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[layer_def],
     )
     assert isinstance(map_html, str)
@@ -160,10 +160,8 @@ def test_text_layer():
 def test_icon_layer():
     gdf = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_icon.geojson"))
     gdf["icon_data"] = gdf["icon_data"].apply(lambda x: x if isinstance(x, dict) else json.loads(x))
-    layer_def = create_icon_layer_pydeck(
-        geodataframe=gdf, layer_style=IconLayerStyle(get_icon="icon_data", get_size=60)
-    )
-    map_html = draw_map_pydeck(
+    layer_def = create_icon_layer(geodataframe=gdf, layer_style=IconLayerStyle(get_icon="icon_data", get_size=60))
+    map_html = draw_map(
         geo_layers=[layer_def],
     )
     assert isinstance(map_html, str)
@@ -172,7 +170,7 @@ def test_icon_layer():
 @pytest.mark.parametrize("extruded", [True, False])
 def test_combined_with_extrusion(extruded):
     lines = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_path.geojson"))
-    path_layer_def = create_path_layer_pydeck(
+    path_layer_def = create_path_layer(
         geodataframe=lines,
         layer_style=PathLayerStyle(get_width=3, get_color=[255, 0, 0]),
     )
@@ -185,7 +183,7 @@ def test_combined_with_extrusion(extruded):
         ),
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[path_layer_def, poly_layer_def],
     )
     assert isinstance(map_html, str)
@@ -208,12 +206,12 @@ def test_view_state_calc():
     )
     gs = gs.set_crs("EPSG:4326")
 
-    vs = view_state_from_geodataframes_pydeck(geodataframes=[gpd.GeoDataFrame(geometry=gs)])
+    vs = view_state_from_geodataframes(geodataframes=[gpd.GeoDataFrame(geometry=gs)])
     assert vs.longitude == (x1 + x2) / 2
     assert vs.latitude == (y1 + y2) / 2
     assert vs.zoom == 6
 
-    vs = view_state_from_geodataframes_pydeck(geodataframes=[gpd.GeoDataFrame(geometry=gs)], max_zoom=2)
+    vs = view_state_from_geodataframes(geodataframes=[gpd.GeoDataFrame(geometry=gs)], max_zoom=2)
     assert vs.longitude == (x1 + x2) / 2
     assert vs.latitude == (y1 + y2) / 2
     assert vs.zoom == 2
@@ -279,7 +277,7 @@ def test_build_legend_from_dataframe(
 
 
 def test_build_legend_from_multiple_dataframe(gdf_with_points):
-    point_layer_def = create_scatterplot_layer_pydeck(
+    point_layer_def = create_scatterplot_layer(
         geodataframe=gdf_with_points,
         layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
         legend=LegendFromDataframe(
@@ -293,7 +291,7 @@ def test_build_legend_from_multiple_dataframe(gdf_with_points):
 
     lines = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_path.geojson"))
     lines["color"] = lines["category"].apply(lambda x: (100, 100, 100, 255) if x == "first" else (20, 255, 600, 255))
-    path_layer_def = create_path_layer_pydeck(
+    path_layer_def = create_path_layer(
         geodataframe=lines,
         layer_style=PathLayerStyle(get_width=3, get_color="color"),
         legend=LegendFromDataframe(
@@ -302,14 +300,14 @@ def test_build_legend_from_multiple_dataframe(gdf_with_points):
             title="Lines",
         ),
     )
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[path_layer_def, point_layer_def],
     )
     assert isinstance(map_html, str)
 
 
 def test_layer_with_legend_from_dataframe(gdf_with_points):
-    layer_def = create_scatterplot_layer_pydeck(
+    layer_def = create_scatterplot_layer(
         geodataframe=gdf_with_points,
         layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
         legend=LegendFromDataframe(
@@ -320,14 +318,14 @@ def test_layer_with_legend_from_dataframe(gdf_with_points):
         ),
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[layer_def],
     )
     assert isinstance(map_html, str)
 
 
 def test_custom_legend(gdf_with_points):
-    layer_def = create_scatterplot_layer_pydeck(
+    layer_def = create_scatterplot_layer(
         geodataframe=gdf_with_points,
         layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
         legend=LegendSegment(
@@ -339,12 +337,12 @@ def test_custom_legend(gdf_with_points):
         ),
     )
 
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    map_html = draw_map(geo_layers=[layer_def])
     assert isinstance(map_html, str)
 
 
 def test_legends_are_combined_across_layers(gdf_with_points):
-    scatter_layer = create_scatterplot_layer_pydeck(
+    scatter_layer = create_scatterplot_layer(
         geodataframe=gdf_with_points,
         layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
         legend=LegendSegment(
@@ -359,7 +357,7 @@ def test_legends_are_combined_across_layers(gdf_with_points):
         legend=LegendSegment(title="Polygon Legend", values=[LegendValue(label="Polys", color="#FF0000")]),
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[scatter_layer, polygon_layer],
     )
     assert "Scatter Legend" in map_html
@@ -367,7 +365,7 @@ def test_legends_are_combined_across_layers(gdf_with_points):
 
 
 def test_map_with_title():
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[],
         title="A title",
     )
@@ -376,7 +374,7 @@ def test_map_with_title():
 
 
 def test_map_with_tiles():
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[],
         tile_layers=[
             TiledBitmapLayerDefinition(
@@ -452,10 +450,10 @@ def test_geojson_layer_numpy_types():
     )
     gdf = gpd.GeoDataFrame(df, crs="EPSG:4326")
 
-    layer_def = create_geojson_layer_pydeck(
+    layer_def = create_geojson_layer(
         geodataframe=gdf,
     )
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    map_html = draw_map(geo_layers=[layer_def])
     assert isinstance(map_html, str)
 
 
@@ -477,9 +475,9 @@ def test_geojson_layer_styling():
         elevation_scale=5,
         get_elevation=100,
     )
-    layer_def = create_geojson_layer_pydeck(geodataframe=gdf, layer_style=style)
+    layer_def = create_geojson_layer(geodataframe=gdf, layer_style=style)
 
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    map_html = draw_map(geo_layers=[layer_def])
 
     assert isinstance(map_html, str)
     # Verify that key properties are present in the generated HTML
@@ -523,8 +521,8 @@ def test_geojson_layer_data_driven_styling():
         filled=True,
     )
 
-    layer_def = create_geojson_layer_pydeck(geodataframe=gdf, layer_style=style)
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    layer_def = create_geojson_layer(geodataframe=gdf, layer_style=style)
+    map_html = draw_map(geo_layers=[layer_def])
 
     # Remove whitespace for robust string matching
     compact_html = "".join(map_html.split())
@@ -560,8 +558,8 @@ def test_geojson_layer_mixed_styling():
         filled=True,
     )
 
-    layer_def = create_geojson_layer_pydeck(geodataframe=gdf, layer_style=style)
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    layer_def = create_geojson_layer(geodataframe=gdf, layer_style=style)
+    map_html = draw_map(geo_layers=[layer_def])
 
     # Remove whitespace
     compact_html = "".join(map_html.split())
@@ -576,7 +574,7 @@ def test_geojson_layer_mixed_styling():
     assert '"filled":true' in compact_html
 
 
-# Tests for TiledBitmapLayerDefinition, BitmapLayerDefinition, and create_tiled_bitmap_layer_pydeck
+# Tests for TiledBitmapLayerDefinition, BitmapLayerDefinition, and create_tiled_bitmap_layer
 
 
 def test_tiled_bitmap_layer_definition_defaults():
@@ -602,8 +600,8 @@ def test_tiled_bitmap_layer_definition_custom_values():
 
 
 def test_create_tiled_bitmap_layer_basic():
-    """Test create_tiled_bitmap_layer_pydeck returns a TiledBitmapLayerDefinition."""
-    result = create_tiled_bitmap_layer_pydeck(
+    """Test create_tiled_bitmap_layer returns a TiledBitmapLayerDefinition."""
+    result = create_tiled_bitmap_layer(
         url="https://earthengine.googleapis.com/v1/tiles/{z}/{x}/{y}",
     )
     assert isinstance(result, TiledBitmapLayerDefinition)
@@ -612,8 +610,8 @@ def test_create_tiled_bitmap_layer_basic():
 
 
 def test_create_tiled_bitmap_layer_with_options():
-    """Test create_tiled_bitmap_layer_pydeck with custom options."""
-    result = create_tiled_bitmap_layer_pydeck(
+    """Test create_tiled_bitmap_layer with custom options."""
+    result = create_tiled_bitmap_layer(
         url="https://example.com/tiles/{z}/{x}/{y}",
         opacity=0.8,
         max_zoom=18,
@@ -625,7 +623,7 @@ def test_create_tiled_bitmap_layer_with_options():
 
 
 def test_draw_map_with_bitmap_overlay():
-    """Test draw_map_pydeck with BitmapLayerDefinition in tile_layers."""
+    """Test draw_map with BitmapLayerDefinition in tile_layers."""
     from shapely.geometry import Point
 
     # Create a simple geo layer
@@ -634,7 +632,7 @@ def test_draw_map_with_bitmap_overlay():
         geometry=[Point(0, 0)],
         crs="EPSG:4326",
     )
-    geo_layer = create_scatterplot_layer_pydeck(geodataframe=gdf)
+    geo_layer = create_scatterplot_layer(geodataframe=gdf)
 
     # Create bitmap overlay tile layer
     overlay = BitmapLayerDefinition(
@@ -643,7 +641,7 @@ def test_draw_map_with_bitmap_overlay():
         opacity=0.9,
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[geo_layer],
         tile_layers=[overlay],
     )
@@ -653,7 +651,7 @@ def test_draw_map_with_bitmap_overlay():
 
 
 def test_draw_map_mixed_tile_layers():
-    """Test draw_map_pydeck with both TiledBitmapLayerDefinition and BitmapLayerDefinition."""
+    """Test draw_map with both TiledBitmapLayerDefinition and BitmapLayerDefinition."""
     from shapely.geometry import Point
 
     gdf = gpd.GeoDataFrame(
@@ -661,7 +659,7 @@ def test_draw_map_mixed_tile_layers():
         geometry=[Point(0, 0)],
         crs="EPSG:4326",
     )
-    geo_layer = create_scatterplot_layer_pydeck(geodataframe=gdf)
+    geo_layer = create_scatterplot_layer(geodataframe=gdf)
 
     base_tile = TiledBitmapLayerDefinition(
         url="https://base.example.com/{z}/{x}/{y}.png",
@@ -671,7 +669,7 @@ def test_draw_map_mixed_tile_layers():
         bounds=[-1, -1, 1, 1],
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[geo_layer],
         tile_layers=[base_tile, overlay],
     )
@@ -682,7 +680,7 @@ def test_draw_map_mixed_tile_layers():
 
 
 def test_draw_map_multiple_bitmap_overlays():
-    """Test draw_map_pydeck with multiple BitmapLayerDefinition overlays."""
+    """Test draw_map with multiple BitmapLayerDefinition overlays."""
     from shapely.geometry import Point
 
     gdf = gpd.GeoDataFrame(
@@ -690,7 +688,7 @@ def test_draw_map_multiple_bitmap_overlays():
         geometry=[Point(0, 0)],
         crs="EPSG:4326",
     )
-    geo_layer = create_scatterplot_layer_pydeck(geodataframe=gdf)
+    geo_layer = create_scatterplot_layer(geodataframe=gdf)
 
     overlays = [
         BitmapLayerDefinition(
@@ -705,7 +703,7 @@ def test_draw_map_multiple_bitmap_overlays():
         ),
     ]
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=[geo_layer],
         tile_layers=overlays,
     )
@@ -716,7 +714,7 @@ def test_draw_map_multiple_bitmap_overlays():
 
 
 def test_draw_map_bitmap_only_no_geo_layers():
-    """Test draw_map_pydeck with only tile layers, no geo_layers."""
+    """Test draw_map with only tile layers, no geo_layers."""
     overlay = BitmapLayerDefinition(
         image="https://raster-only.example.com/image.png",
         bounds=[-1, -1, 1, 1],
@@ -725,7 +723,7 @@ def test_draw_map_bitmap_only_no_geo_layers():
         url="https://base.example.com/{z}/{x}/{y}.png",
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         geo_layers=None,
         tile_layers=[base_tile, overlay],
     )
@@ -736,7 +734,7 @@ def test_draw_map_bitmap_only_no_geo_layers():
 
 
 def test_draw_map_bitmap_overlay_with_legend():
-    """Test draw_map_pydeck renders legend from BitmapLayerDefinition."""
+    """Test draw_map renders legend from BitmapLayerDefinition."""
     legend = LegendSegment(
         values=[
             {"label": "0.10", "color": "#440154"},
@@ -751,7 +749,7 @@ def test_draw_map_bitmap_overlay_with_legend():
         legend=legend,
     )
 
-    map_html = draw_map_pydeck(
+    map_html = draw_map(
         tile_layers=[overlay],
     )
 
@@ -823,9 +821,9 @@ def test_legend_shows_all_labels_with_shared_colors(gdf_with_points):
 
 
 def test_create_geojson_layer_with_url():
-    """create_geojson_layer_pydeck with data_url sets data_url and leaves geodataframe None."""
+    """create_geojson_layer with data_url sets data_url and leaves geodataframe None."""
     url = "https://example.com/data.geojson"
-    layer_def = create_geojson_layer_pydeck(data_url=url)
+    layer_def = create_geojson_layer(data_url=url)
 
     assert isinstance(layer_def, LayerDefinition)
     assert layer_def.data_url == url
@@ -834,32 +832,32 @@ def test_create_geojson_layer_with_url():
 
 
 def test_draw_map_with_url_layer():
-    """draw_map_pydeck with a URL-backed layer embeds the URL in the generated HTML."""
+    """draw_map with a URL-backed layer embeds the URL in the generated HTML."""
     url = "https://example.com/data.geojson"
-    layer_def = create_geojson_layer_pydeck(data_url=url)
+    layer_def = create_geojson_layer(data_url=url)
 
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    map_html = draw_map(geo_layers=[layer_def])
 
     assert isinstance(map_html, str)
     assert url in map_html
 
 
 def test_view_state_from_layers_url_only():
-    """view_state_from_layers_pydeck with a URL-only layer returns a default ViewState without error."""
-    url_layer = create_geojson_layer_pydeck(data_url="https://example.com/data.geojson")
+    """view_state_from_layers with a URL-only layer returns a default ViewState without error."""
+    url_layer = create_geojson_layer(data_url="https://example.com/data.geojson")
 
     # Should not raise even though no geodataframe is present
-    vs = view_state_from_layers_pydeck(layers=[url_layer])
+    vs = view_state_from_layers(layers=[url_layer])
     assert vs.longitude == 0
     assert vs.latitude == 0
 
 
 def test_view_state_from_layers_mixed_url_and_gdf(gdf_with_points):
-    """view_state_from_layers_pydeck with mixed layers computes bounds only from the GDF layer."""
-    url_layer = create_geojson_layer_pydeck(data_url="https://example.com/data.geojson")
-    gdf_layer = create_scatterplot_layer_pydeck(geodataframe=gdf_with_points)
+    """view_state_from_layers with mixed layers computes bounds only from the GDF layer."""
+    url_layer = create_geojson_layer(data_url="https://example.com/data.geojson")
+    gdf_layer = create_scatterplot_layer(geodataframe=gdf_with_points)
 
-    vs = view_state_from_layers_pydeck(layers=[url_layer, gdf_layer])
+    vs = view_state_from_layers(layers=[url_layer, gdf_layer])
     # The view state should be non-default (computed from gdf_layer's data)
     assert vs.zoom > 0
 
@@ -868,10 +866,10 @@ def test_draw_map_url_layer_with_legend_from_dataframe_skipped():
     """LegendFromDataframe is skipped (with a warning) for URL-only layers (no GDF)."""
     url = "https://example.com/data.geojson"
     legend = LegendFromDataframe(label_column="category", color_column="color")
-    layer_def = create_geojson_layer_pydeck(data_url=url, legend=legend)
+    layer_def = create_geojson_layer(data_url=url, legend=legend)
 
     # Should not raise; LegendFromDataframe is skipped since geodataframe is None
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    map_html = draw_map(geo_layers=[layer_def])
 
     assert isinstance(map_html, str)
     # No LegendWidget should be present since the only legend was skipped
@@ -885,25 +883,25 @@ def test_draw_map_url_layer_with_legend_segment():
         title="My Legend",
         values=[LegendValue(label="Feature", color="#FF0000")],
     )
-    layer_def = create_geojson_layer_pydeck(data_url=url, legend=legend)
+    layer_def = create_geojson_layer(data_url=url, legend=legend)
 
-    map_html = draw_map_pydeck(geo_layers=[layer_def])
+    map_html = draw_map(geo_layers=[layer_def])
 
     assert isinstance(map_html, str)
     assert "My Legend" in map_html
 
 
-# Tests for merge_tile_layers_pydeck
+# Tests for merge_tile_layers
 
 
 def test_merge_tile_layers_both_none():
-    result = merge_tile_layers_pydeck(base_layers=None, overlay=None)
+    result = merge_tile_layers(base_layers=None, overlay=None)
     assert result == []
 
 
 def test_merge_tile_layers_base_only():
     base = TiledBitmapLayerDefinition(url="https://base.example.com/{z}/{x}/{y}.png")
-    result = merge_tile_layers_pydeck(base_layers=[base], overlay=None)
+    result = merge_tile_layers(base_layers=[base], overlay=None)
     assert result == [base]
 
 
@@ -912,7 +910,7 @@ def test_merge_tile_layers_overlay_only():
         image="https://overlay.example.com/image.png",
         bounds=[-1, -1, 1, 1],
     )
-    result = merge_tile_layers_pydeck(base_layers=None, overlay=overlay)
+    result = merge_tile_layers(base_layers=None, overlay=overlay)
     assert result == [overlay]
 
 
@@ -923,7 +921,7 @@ def test_merge_tile_layers_both():
         image="https://overlay.example.com/image.png",
         bounds=[-1, -1, 1, 1],
     )
-    result = merge_tile_layers_pydeck(base_layers=[base1, base2], overlay=overlay)
+    result = merge_tile_layers(base_layers=[base1, base2], overlay=overlay)
     assert result == [base1, base2, overlay]
 
 
@@ -934,18 +932,18 @@ def test_merge_tile_layers_order():
         image="https://overlay.example.com/image.png",
         bounds=[-1, -1, 1, 1],
     )
-    result = merge_tile_layers_pydeck(base_layers=[base], overlay=overlay)
+    result = merge_tile_layers(base_layers=[base], overlay=overlay)
     assert isinstance(result[0], TiledBitmapLayerDefinition)
     assert isinstance(result[1], BitmapLayerDefinition)
 
 
-# Tests for rewrite_file_urls_for_screenshots_pydeck
+# Tests for rewrite_file_urls_for_screenshots
 
 
 def test_rewrite_file_urls_replaces_url():
     file_url = "file:///some/long/path/data.geojson"
     html = f'<script>url = "{file_url}"</script>'
-    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[file_url])
+    result = rewrite_file_urls_for_screenshots(html=html, file_urls=[file_url])
     assert file_url not in result
     assert "http://127.0.0.1:8099/data.geojson" in result
 
@@ -953,7 +951,7 @@ def test_rewrite_file_urls_replaces_url():
 def test_rewrite_file_urls_preserves_basename_only():
     file_url = "file:///very/deep/nested/directory/mydata.json"
     html = f'"{file_url}"'
-    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[file_url])
+    result = rewrite_file_urls_for_screenshots(html=html, file_urls=[file_url])
     assert "mydata.json" in result
     assert "nested/directory" not in result
 
@@ -962,7 +960,7 @@ def test_rewrite_file_urls_multiple():
     url1 = "file:///path/a.geojson"
     url2 = "file:///path/b.geojson"
     html = f'"{url1}" and "{url2}"'
-    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[url1, url2])
+    result = rewrite_file_urls_for_screenshots(html=html, file_urls=[url1, url2])
     assert url1 not in result
     assert url2 not in result
     assert "a.geojson" in result
@@ -973,11 +971,11 @@ def test_rewrite_file_urls_custom_port(monkeypatch):
     monkeypatch.setenv("ECOSCOPE_SCREENSHOT_FILE_SERVER_PORT", "9000")
     file_url = "file:///path/data.geojson"
     html = f'"{file_url}"'
-    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[file_url])
+    result = rewrite_file_urls_for_screenshots(html=html, file_urls=[file_url])
     assert "http://127.0.0.1:9000/data.geojson" in result
 
 
 def test_rewrite_file_urls_empty_list():
     html = "<html>no urls</html>"
-    result = rewrite_file_urls_for_screenshots_pydeck(html=html, file_urls=[])
+    result = rewrite_file_urls_for_screenshots(html=html, file_urls=[])
     assert result == html
