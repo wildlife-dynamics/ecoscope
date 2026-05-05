@@ -690,9 +690,25 @@ def create_scatterplot_layer(
     """
     Creates a scatterplot layer definition based on the provided configuration.
     """
+    layer_style = layer_style if layer_style else ScatterplotLayerStyle()
+
+    if isinstance(layer_style.get_radius, str):
+        radius_series = geodataframe[layer_style.get_radius]
+
+        # Lift all values up such that the min == 1
+        if radius_series.min() < 0:
+            radius_series = radius_series + (0 - radius_series.min()) + 1
+
+        # set to 0, and lift everything else by 1 to distinguish NaN's and minimums
+        if radius_series.hasnans:
+            radius_series = radius_series + 1
+            radius_series = radius_series.fillna(1)
+
+        layer_style.get_radius = radius_series.values  # type: ignore[assignment]
+
     return PydeckLayerDefinition(
         layer_type="ScatterplotLayer",
-        layer_style=layer_style or ScatterplotLayerStyle(),
+        layer_style=layer_style,
         legend=legend,
         geodataframe=geodataframe,
         data_url=data_url,

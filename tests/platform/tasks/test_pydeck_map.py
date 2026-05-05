@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Literal
 
 import geopandas as gpd  # type: ignore[import-untyped]
+import numpy as np
 import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
 import pytest
 from pydantic import ValidationError
@@ -87,6 +88,83 @@ def test_scatterplot_layer(
         geo_layers=[layer_def],
     )
     assert isinstance(map_html, str)
+
+
+def test_scatterplot_radius_from_column(gdf_with_points):
+    gdf_with_points["size"] = list(range(3, 3 + len(gdf_with_points)))
+
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_radius="size"),
+    )
+
+    np.testing.assert_array_equal(
+        layer_def.layer_style.get_radius,
+        gdf_with_points["size"].values,
+    )
+
+
+def test_scatterplot_radius_lifts_negatives(gdf_with_points):
+    # min raw value is -4, so post-lift min must be 1 and the gap of 1 between
+    # consecutive values must be preserved.
+    gdf_with_points["size"] = list(range(-4, -4 + len(gdf_with_points)))
+
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_radius="size"),
+    )
+
+    normalized_radius_values = np.asarray(layer_def.layer_style.get_radius)
+    assert normalized_radius_values.min() == 1
+    np.testing.assert_array_equal(normalized_radius_values, np.arange(1, 1 + len(gdf_with_points)))
+
+
+def test_scatterplot_radius_handles_nans(gdf_with_points):
+    # NaN must collapse to 1 while real values are bumped by 1 to offset.
+    sizes = [float(3 + i) for i in range(len(gdf_with_points))]  # [3, 4, 5, 6, ...]
+    sizes[0] = float("nan")
+    sizes[2] = float("nan")
+    gdf_with_points["size"] = sizes
+
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_radius="size"),
+    )
+
+    normalized_radius_values = np.asarray(layer_def.layer_style.get_radius)
+    assert normalized_radius_values[0] == 1  # was NaN
+    assert normalized_radius_values[1] == 5  # was 4
+    assert normalized_radius_values[2] == 1  # was NaN
+    assert normalized_radius_values[3] == 7  # was 6
+    assert not np.isnan(normalized_radius_values).any()
+
+
+def test_scatterplot_radius_handles_negatives_and_nans(gdf_with_points):
+    # Combined: negatives get lifted so min real value is 1, then everything
+    # gets +1 (real values now >= 2) and NaNs are filled with 1.
+    sizes = [float(v) for v in range(-2, -2 + len(gdf_with_points))]
+    sizes[0] = float("nan")
+    gdf_with_points["size"] = sizes
+
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_radius="size"),
+    )
+
+    normalized_radius_values = np.asarray(layer_def.layer_style.get_radius)
+    assert normalized_radius_values[0] == 1  # was NaN
+    assert normalized_radius_values.min() == 1
+    real_min = np.nanmin(normalized_radius_values[1:])
+    assert real_min == 2
+    assert not np.isnan(normalized_radius_values).any()
+
+
+def test_scatterplot_radius_numeric_passthrough(gdf_with_points):
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_radius=500),
+    )
+    assert layer_def.layer_style.get_radius == 500
 
 
 def test_hexagon_layer(gdf_with_points):
