@@ -1070,7 +1070,6 @@ def test_draw_map_combined_single_zoom(gdf_with_points):
         title="Combined Single Zoom",
     )
     assert isinstance(map_html, str)
-    open("INITIAL_VIEW_STATE.html", "w").write(map_html)
     stripped_html = "".join(map_html.split())
     assert '"initialViewState":{"bearing":0,"latitude":-1.4,"longitude":35.155,"pitch":0,"zoom":10.0}' in stripped_html
 

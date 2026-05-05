@@ -1,7 +1,7 @@
 import logging
 import re
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal, Tuple, TypeAlias, Union, no_type_check
+from typing import Annotated, Any, Literal, Tuple, TypeAlias, Union
 
 logger = logging.getLogger(__name__)
 
@@ -476,15 +476,7 @@ def view_state_from_geodataframes(
     if not geodataframes:
         return ViewState()
 
-    # TODO consider this as a core library function
-    # To avoid mypy error
-    @no_type_check
-    def _concat_gdfs(dfs):
-        return pd.concat(dfs)
-
-    combined = _concat_gdfs(geodataframes)
-
-    bounds = combined.total_bounds
+    bounds = pd.concat(geodataframes).total_bounds
     bbox = [
         [bounds[0], bounds[1]],  # Northwest corner
         [bounds[2], bounds[3]],  # Southeast corner
@@ -923,15 +915,13 @@ def draw_map(
     pdk.settings.custom_libraries = PYDECK_CUSTOM_LIBRARIES
 
     DEFAULT_WIDGETS = [
-        # TODO ids can be removed once upstream pydeck changes are released
         pdk.Widget(
             "NorthArrowWidget",
             placement="top-left",
-            id="NorthArrowWidget",
             style={"transform": "scale(0.8)"},
         ),
-        pdk.Widget("ScaleWidget", placement="bottom-left", id="ScaleWidget"),
-        pdk.Widget("SaveImageWidget", placement="top-right", id="SaveImageWidget"),
+        pdk.Widget("ScaleWidget", placement="bottom-left"),
+        pdk.Widget("SaveImageWidget", placement="top-right"),
     ]
 
     if tile_layers is None:
@@ -1018,7 +1008,6 @@ def draw_map(
         map_widgets.append(
             pdk.Widget(
                 "LegendWidget",
-                id="LegendWidget",  # TODO remove this once upstream pydeck changes are released
                 legend_values=legend_values,
                 placement=legend_style.placement,
             )
@@ -1028,7 +1017,6 @@ def draw_map(
         map_widgets.append(
             pdk.Widget(
                 "TitleWidget",
-                id="TitleWidget",  # TODO remove this once upstream pydeck changes are released
                 title=title,
             )
         )
