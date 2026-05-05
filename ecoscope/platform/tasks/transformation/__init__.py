@@ -12,6 +12,7 @@ from ._conversion import (
 from ._exploding import explode
 from ._extract import extract_column_as_type, extract_value_from_json_column
 from ._filter import filter_df
+from ._filter_by_geometry_type import filter_by_geometry_type
 from ._filtering import (
     BoundingBox,
     Coordinate,
@@ -55,6 +56,7 @@ __all__ = [
     "extract_column_as_type",
     "extract_value_from_json_column",
     "filter_df",
+    "filter_by_geometry_type",
     "apply_reloc_coord_filter",
     "drop_nan_values_by_column",
     "drop_null_geometry",
