@@ -12,6 +12,12 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.tasks.results._map_utils import (
+    DEFAULT_TILE_LAYER_PRESETS,
+    make_preset_or_custom_json_schema_extra,
+)
+
+TileLayerPresets = DEFAULT_TILE_LAYER_PRESETS
 
 UnitType = Literal["meters", "pixels", "common"]
 WidgetPlacement = Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"]
@@ -124,34 +130,6 @@ class LayerDefinition:
     zoom: bool = False
 
 
-TileLayerPresets = {
-    "OpenStreetMap": {
-        "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "title": "Open Street Map",
-    },
-    "ROADMAP": {
-        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-        "title": "Roadmap",
-    },
-    "SATELLITE": {
-        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        "title": "Satellite",
-    },
-    "TERRAIN": {
-        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-        "title": "Terrain",
-    },
-    "LANDDX": {
-        "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
-        "title": "LandDx",
-    },
-    "USGS HILLSHADE": {
-        "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
-        "title": "USGS Hillshade",
-    },
-}
-
-
 class TileLayer(BaseModel):
     layer_name: SkipJsonSchema[str] = ""
     url: Annotated[
@@ -218,44 +196,7 @@ class TileLayer(BaseModel):
         return default
 
 
-def _custom_tile_layer_json_schema() -> dict:
-    schema = TileLayer.model_json_schema()
-    schema["properties"]["url"]["title"] = "Custom Layer URL"
-    schema["properties"]["opacity"]["title"] = "Custom Layer Opacity"
-    schema["properties"]["max_zoom"]["title"] = "Custom Layer Max Zoom"
-    schema["properties"]["min_zoom"]["title"] = "Custom Layer Min Zoom"
-    schema["title"] = "Custom Layer (Advanced)"
-    return schema
-
-
-def _preset_tile_layer_json_schema(preset_name: str) -> dict:
-    schema = TileLayer.model_json_schema()
-    url = TileLayerPresets.get(preset_name, {}).get("url")
-    title = TileLayerPresets.get(preset_name, {}).get("title")
-    schema["properties"]["url"] |= {
-        "const": url,
-        "default": url,
-        "enum": [url],
-        "title": "Preset Layer URL",
-    }
-    schema["properties"]["url"].pop("description")
-    schema["properties"]["url"].pop("pattern")
-    schema["properties"].pop("max_zoom")
-    schema["properties"].pop("min_zoom")
-    schema["title"] = title
-    return schema
-
-
-def _preset_or_custom_json_schema_extra(schema: dict) -> None:
-    schema["items"]["title"] = "Base Layer"
-    schema["items"]["anyOf"] = [_preset_tile_layer_json_schema(preset) for preset in TileLayerPresets.keys()]
-    schema["items"]["anyOf"].append(_custom_tile_layer_json_schema())
-    schema["default"] = [
-        TileLayer(layer_name="TERRAIN")._as_json_schema_default(),
-        TileLayer(layer_name="SATELLITE", opacity=0.5)._as_json_schema_default(),
-    ]
-    schema["ecoscope:advanced"] = True
-    schema["items"].pop("$ref")
+_preset_or_custom_json_schema_extra = make_preset_or_custom_json_schema_extra(TileLayer, TileLayerPresets)
 
 
 @register()

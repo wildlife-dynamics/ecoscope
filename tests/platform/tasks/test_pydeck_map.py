@@ -831,6 +831,12 @@ def test_create_geojson_layer_with_url():
     assert layer_def.layer_type == "GeoJsonLayer"
 
 
+def test_layer_definition_rejects_file_url():
+    """LayerDefinition rejects file:// data_urls; only http(s) URLs are allowed."""
+    with pytest.raises(ValueError, match="file://"):
+        create_geojson_layer(data_url="file:///some/long/path/data.geojson")
+
+
 def test_draw_map_with_url_layer():
     """draw_map with a URL-backed layer embeds the URL in the generated HTML."""
     url = "https://example.com/data.geojson"
