@@ -869,6 +869,48 @@ def test_view_state_from_layers_mixed_url_and_gdf(gdf_with_points):
     assert vs.zoom > 0
 
 
+def test_draw_map_combined_single_zoom(gdf_with_points):
+    flagged = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color=[255, 0, 0]),
+        zoom=True,
+    )
+    other = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color=[0, 255, 0]),
+    )
+
+    map_html = draw_map(
+        geo_layers=[flagged, other],
+        title="Combined Single Zoom",
+    )
+    assert isinstance(map_html, str)
+    open("INITIAL_VIEW_STATE.html", "w").write(map_html)
+    stripped_html = "".join(map_html.split())
+    assert '"initialViewState":{"bearing":0,"latitude":-1.4,"longitude":35.155,"pitch":0,"zoom":10.0}' in stripped_html
+
+
+def test_draw_map_combined_view_state(gdf_with_points):
+    flagged = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color=[255, 0, 0]),
+        zoom=True,
+    )
+    other = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color=[0, 255, 0]),
+    )
+
+    map_html = draw_map(
+        geo_layers=[flagged, other],
+        title="Combined View State",
+        view_state=ViewState(),
+    )
+    assert isinstance(map_html, str)
+    stripped_html = "".join(map_html.split())
+    assert '"initialViewState":{"bearing":0,"latitude":0,"longitude":0,"pitch":0,"zoom":0}' in stripped_html
+
+
 def test_draw_map_url_layer_with_legend_from_dataframe_skipped():
     """LegendFromDataframe is skipped (with a warning) for URL-only layers (no GDF)."""
     url = "https://example.com/data.geojson"
@@ -986,40 +1028,3 @@ def test_rewrite_file_urls_empty_list():
     html = "<html>no urls</html>"
     result = rewrite_file_urls_for_screenshots(html=html, file_urls=[])
     assert result == html
-
-
-def test_draw_map_combined_single_zoom(gdf_with_points):
-    flagged = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_fill_color=[255, 0, 0]),
-        zoom=True,
-    )
-    other = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_fill_color=[0, 255, 0]),
-    )
-
-    map_html = draw_map(
-        geo_layers=[flagged, other],
-        title="Combined Single Zoom",
-    )
-    assert isinstance(map_html, str)
-
-
-def test_draw_map_combined_view_state(gdf_with_points):
-    flagged = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_fill_color=[255, 0, 0]),
-        zoom=True,
-    )
-    other = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_fill_color=[0, 255, 0]),
-    )
-
-    map_html = draw_map(
-        geo_layers=[flagged, other],
-        title="Combined View State",
-        view_state=ViewState(),
-    )
-    assert isinstance(map_html, str)
