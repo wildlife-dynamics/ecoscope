@@ -58,7 +58,7 @@ class HexagonLayerStyle(LayerStyleBase):
     """
 
     get_position: Annotated[str, AdvancedField(default="geometry.coordinates")] = "geometry.coordinates"
-    radius: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1000)] = 1000
+    radius: Annotated[float, AdvancedField(default=1000)] = 1000
     color_aggregation: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     get_color_weight: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
     extruded: Annotated[bool, AdvancedField(default=False)] = False
