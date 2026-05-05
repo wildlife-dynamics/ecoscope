@@ -301,6 +301,8 @@ class LegendFromDataframe:
             lookup = lookup.sort_values(
                 self.label_column,
                 ascending=True if self.sort == "ascending" else False,
+                # Coerce numeric strings so e.g. "10" sorts after "2" rather than before.
+                key=lambda col: pd.to_numeric(col, errors="ignore"),  # type: ignore[call-overload]
             )
         return LegendSegment(
             title=self.display_name,
@@ -460,6 +462,10 @@ class LegendStyle(BaseModel):
     """
 
     placement: Annotated[WidgetPlacement, AdvancedField(default="bottom-right")] = "bottom-right"
+    format_title: Annotated[bool, AdvancedField(default=False)] = False
+
+    def display_name(self, title: str) -> str:
+        return title.replace("_", " ").title() if self.format_title else title
 
 
 @register()
@@ -1005,6 +1011,10 @@ def draw_map(
                     )
 
     if legend_values:
+        if legend_style.format_title:
+            legend_values = [
+                LegendSegment(title=legend_style.display_name(lv.title), values=lv.values) for lv in legend_values
+            ]
         map_widgets.append(
             pdk.Widget(
                 "LegendWidget",

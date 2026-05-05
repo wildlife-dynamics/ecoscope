@@ -24,7 +24,7 @@ from ecoscope.platform.tasks.analysis._time_density import (
     calculate_elliptical_time_density,
     calculate_linear_time_density,
 )
-from ecoscope.platform.tasks.results._ecomap import OpacityAnnotation
+from ecoscope.platform.tasks.results._map_utils import OpacityAnnotation
 
 
 @dataclass

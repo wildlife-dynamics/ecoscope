@@ -14,6 +14,7 @@ from wt_registry import register
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.tasks.results._map_utils import (
     DEFAULT_TILE_LAYER_PRESETS,
+    OpacityAnnotation,
     make_preset_or_custom_json_schema_extra,
 )
 
@@ -21,17 +22,6 @@ TileLayerPresets = DEFAULT_TILE_LAYER_PRESETS
 
 UnitType = Literal["meters", "pixels", "common"]
 WidgetPlacement = Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"]
-
-OpacityAnnotation = Annotated[
-    float,
-    AdvancedField(
-        title="Layer Opacity",
-        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
-        default=1,
-        ge=0,
-        le=1,
-    ),
-]
 
 
 class LayerStyleBase(BaseModel):
@@ -197,13 +187,6 @@ class TileLayer(BaseModel):
 
 
 _preset_or_custom_json_schema_extra = make_preset_or_custom_json_schema_extra(TileLayer, TileLayerPresets)
-
-
-@register()
-def set_layer_opacity(
-    opacity: OpacityAnnotation = 1,
-) -> float:
-    return opacity
 
 
 @register()

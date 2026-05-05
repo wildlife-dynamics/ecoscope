@@ -6,7 +6,6 @@ from ._ecomap import (
     create_text_layer,
     draw_ecomap,
     set_base_maps,
-    set_layer_opacity,
 )
 from ._ecoplot import (
     SmoothingConfig,
@@ -17,6 +16,7 @@ from ._ecoplot import (
     draw_pie_chart,
     draw_time_series_bar_chart,
 )
+from ._map_utils import set_layer_opacity
 from ._output_files import OutputFiles, gather_output_files
 from ._pydeck_map import (
     create_geojson_layer,

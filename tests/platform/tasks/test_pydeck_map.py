@@ -16,6 +16,7 @@ from ecoscope.platform.tasks.results._pydeck_map import (
     IconLayerStyle,
     LegendFromDataframe,
     LegendSegment,
+    LegendStyle,
     LegendValue,
     PathLayerStyle,
     PolygonLayerStyle,
@@ -441,6 +442,112 @@ def test_legends_are_combined_across_layers(gdf_with_points):
     )
     assert "Scatter Legend" in map_html
     assert "Polygon Legend" in map_html
+
+
+def test_legend_style_format_title_display_name():
+    style = LegendStyle()
+    formatted = LegendStyle(format_title=True)
+
+    title = "this_is_a_test"
+    assert style.display_name(title) == title
+    assert formatted.display_name(title) == "This Is A Test"
+
+
+def test_legend_style_format_title_applied_in_draw_map(gdf_with_points):
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color="color"),
+        legend=LegendSegment(
+            title="my_layer_legend",
+            values=[LegendValue(label="A", color="#FF0000")],
+        ),
+    )
+
+    raw_html = draw_map(geo_layers=[layer_def])
+    assert "my_layer_legend" in raw_html
+    assert "My Layer Legend" not in raw_html
+
+    formatted_html = draw_map(
+        geo_layers=[layer_def],
+        legend_style=LegendStyle(format_title=True),
+    )
+    assert "My Layer Legend" in formatted_html
+    assert "my_layer_legend" not in formatted_html
+
+
+def test_legend_style_format_title_does_not_mutate_input(gdf_with_points):
+    """format_title must not mutate user-provided LegendSegments."""
+    legend = LegendSegment(
+        title="my_legend",
+        values=[LegendValue(label="A", color="#FF0000")],
+    )
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color="color"),
+        legend=legend,
+    )
+
+    draw_map(
+        geo_layers=[layer_def],
+        legend_style=LegendStyle(format_title=True),
+    )
+    assert legend.title == "my_legend"
+
+
+def test_legend_from_dataframe_sorts_numeric_strings_numerically(gdf_with_points):
+    """Numeric string labels should sort numerically, not alphabetically.
+
+    Alphabetic sort: "10", "2", "5"
+    Numeric sort:    "2", "5", "10"
+    """
+    n = len(gdf_with_points)
+    labels = ["2", "5", "10"]
+    gdf_with_points["pct"] = [labels[i % 3] for i in range(n)]
+    color_map = {"2": (0, 255, 0, 255), "5": (255, 255, 0, 255), "10": (255, 0, 0, 255)}
+    gdf_with_points["pct_color"] = gdf_with_points["pct"].map(color_map)
+
+    legend_def = LegendFromDataframe(
+        label_column="pct",
+        color_column="pct_color",
+        sort="ascending",
+        title="Percentile",
+    )
+
+    segment = legend_def.build_legend_from_dataframe(gdf_with_points)
+    sorted_labels = [v.label for v in segment.values]
+    assert sorted_labels == ["2", "5", "10"]
+
+
+def test_legend_from_dataframe_sort_descending_numeric_strings(gdf_with_points):
+    n = len(gdf_with_points)
+    labels = ["2", "5", "10"]
+    gdf_with_points["pct"] = [labels[i % 3] for i in range(n)]
+    color_map = {"2": (0, 255, 0, 255), "5": (255, 255, 0, 255), "10": (255, 0, 0, 255)}
+    gdf_with_points["pct_color"] = gdf_with_points["pct"].map(color_map)
+
+    legend_def = LegendFromDataframe(
+        label_column="pct",
+        color_column="pct_color",
+        sort="descending",
+        title="Percentile",
+    )
+
+    segment = legend_def.build_legend_from_dataframe(gdf_with_points)
+    sorted_labels = [v.label for v in segment.values]
+    assert sorted_labels == ["10", "5", "2"]
+
+
+def test_legend_from_dataframe_sort_falls_back_to_string_for_non_numeric(gdf_with_points):
+    """Non-numeric labels should still sort lexicographically (pd.to_numeric leaves them alone)."""
+    legend_def = LegendFromDataframe(
+        label_column="category",
+        color_column="color",
+        sort="ascending",
+        title="Cat",
+    )
+    segment = legend_def.build_legend_from_dataframe(gdf_with_points)
+    sorted_labels = [v.label for v in segment.values]
+    assert sorted_labels == ["first", "second"]
 
 
 def test_map_with_title():

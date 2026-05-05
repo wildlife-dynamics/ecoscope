@@ -1,6 +1,28 @@
-from typing import Type
+from typing import Annotated, Type
 
 from pydantic import BaseModel
+from wt_registry import register
+
+from ecoscope.platform.annotations import AdvancedField
+
+OpacityAnnotation = Annotated[
+    float,
+    AdvancedField(
+        title="Layer Opacity",
+        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
+        default=1,
+        ge=0,
+        le=1,
+    ),
+]
+
+
+@register()
+def set_layer_opacity(
+    opacity: OpacityAnnotation = 1,
+) -> float:
+    return opacity
+
 
 DEFAULT_TILE_LAYER_PRESETS = {
     "OpenStreetMap": {
