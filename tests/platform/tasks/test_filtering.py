@@ -102,19 +102,13 @@ def test_filter_range_preserves_null_geometry(df_with_geometry):
     pd.testing.assert_frame_equal(filtered_df, expected_df)
 
 
-def test_filter_passes_through_non_point_geometry():
-    polygon = Polygon([(10.0, 10.0), (20.0, 10.0), (20.0, 20.0), (10.0, 20.0), (10.0, 10.0)])
-    df = pd.DataFrame(
-        {
-            "geometry": [
-                Point(0.0, 0.0),
-                polygon,
-            ]
-        }
-    )
+def test_filter_keeps_non_point_geometry_intersecting_bbox():
+    # Polygon overlaps the bounding box (10,10)-(15,15) ∩ (-1,-1)-(1,1) is empty,
+    # but a polygon spanning (-5,-5)-(5,5) does intersect (-1,-1)-(1,1).
+    polygon = Polygon([(-5.0, -5.0), (5.0, -5.0), (5.0, 5.0), (-5.0, 5.0), (-5.0, -5.0)])
+    df = pd.DataFrame({"geometry": [Point(0.0, 0.0), polygon]})
 
-    # BoundingBox excludes the polygon's vertices and centroid; an exact-coord
-    # filter targets the point. Polygon should still survive both.
+    # Exact-coord filter targets the point; polygon should survive on intersect.
     filtered_df = apply_reloc_coord_filter(
         df,
         bounding_box=BoundingBox(min_x=-1.0, max_x=1.0, min_y=-1.0, max_y=1.0),
@@ -123,6 +117,19 @@ def test_filter_passes_through_non_point_geometry():
 
     expected_df = pd.DataFrame({"geometry": [polygon]})
     pd.testing.assert_frame_equal(filtered_df, expected_df)
+
+
+def test_filter_drops_non_point_geometry_disjoint_from_bbox():
+    polygon = Polygon([(10.0, 10.0), (20.0, 10.0), (20.0, 20.0), (10.0, 20.0), (10.0, 10.0)])
+    df = pd.DataFrame({"geometry": [Point(100.0, 50.0), polygon]})
+
+    filtered_df = apply_reloc_coord_filter(
+        df,
+        bounding_box=BoundingBox(min_x=-1.0, max_x=1.0, min_y=-1.0, max_y=1.0),
+    )
+
+    expected_df = pd.DataFrame({"geometry": []})
+    pd.testing.assert_frame_equal(filtered_df, expected_df, check_dtype=False)
 
 
 def test_filter_with_roi(df_with_geometry):

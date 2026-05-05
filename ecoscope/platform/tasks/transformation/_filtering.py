@@ -79,10 +79,18 @@ def apply_reloc_coord_filter(
         if geometry is None:
             return True
 
-        # Non-Point geometries (e.g. Polygon, MultiPolygon) are pass-through:
-        # bounding-box / exact-coord filtering only applies to point relocations.
+        # For non-Point geometries (e.g. Polygon, MultiPolygon), keep rows whose
+        # geometry intersects the bounding box. The exact-coord filter only
+        # makes sense for point relocations, so it doesn't apply here.
         if geometry.geom_type != "Point":
-            return True
+            return geometry.intersects(
+                shapely.geometry.box(
+                    bounding_box.min_x,
+                    bounding_box.min_y,
+                    bounding_box.max_x,
+                    bounding_box.max_y,
+                )
+            )
 
         return (
             geometry.x > bounding_box.min_x
