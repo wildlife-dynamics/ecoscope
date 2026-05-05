@@ -13,12 +13,12 @@ from ecoscope.platform.tasks.results._pydeck_map import (
     GeoJSONLayerStyle,
     HexagonLayerStyle,
     IconLayerStyle,
-    LayerDefinition,
     LegendFromDataframe,
     LegendSegment,
     LegendValue,
     PathLayerStyle,
     PolygonLayerStyle,
+    PydeckLayerDefinition,
     ScatterplotLayerStyle,
     TextLayerStyle,
     TiledBitmapLayerDefinition,
@@ -825,14 +825,14 @@ def test_create_geojson_layer_with_url():
     url = "https://example.com/data.geojson"
     layer_def = create_geojson_layer(data_url=url)
 
-    assert isinstance(layer_def, LayerDefinition)
+    assert isinstance(layer_def, PydeckLayerDefinition)
     assert layer_def.data_url == url
     assert layer_def.geodataframe is None
     assert layer_def.layer_type == "GeoJsonLayer"
 
 
 def test_layer_definition_rejects_file_url():
-    """LayerDefinition rejects file:// data_urls; only http(s) URLs are allowed."""
+    """PydeckLayerDefinition rejects file:// data_urls; only http(s) URLs are allowed."""
     with pytest.raises(ValueError, match="file://"):
         create_geojson_layer(data_url="file:///some/long/path/data.geojson")
 

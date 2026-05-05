@@ -431,7 +431,7 @@ def set_base_maps_pydeck(
 
 
 @dataclass
-class LayerDefinition:
+class PydeckLayerDefinition:
     """
     A wrapper for a defined layer
     We do this to allow passing layers around between tasks while avoiding a compile time dependency on pydeck
@@ -445,7 +445,7 @@ class LayerDefinition:
 
     def __post_init__(self) -> None:
         if self.geodataframe is None and self.data_url is None:
-            raise ValueError("LayerDefinition requires either 'geodataframe' or 'data_url'.")
+            raise ValueError("PydeckLayerDefinition requires either 'geodataframe' or 'data_url'.")
         if self.data_url is not None and self.data_url.startswith("file://"):
             raise ValueError(
                 "data_url must be an http(s) URL; 'file://' URLs are not supported "
@@ -491,7 +491,7 @@ def view_state_from_geodataframes(
 
 @register()
 def view_state_from_layers(
-    layers: list[LayerDefinition],
+    layers: list[PydeckLayerDefinition],
     max_zoom: float = 20,
 ) -> Annotated[ViewState, Field()]:
     # TODO: handle view_state for 3-d layers with elevation
@@ -534,7 +534,7 @@ def create_hexagon_layer(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
-) -> Annotated[LayerDefinition, Field()]:
+) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a hexagon layer definition based on the provided configuration.
     """
@@ -549,7 +549,7 @@ def create_hexagon_layer(
         gdf_clean["lat"] = gdf_clean.geometry.y
         geodataframe = gdf_clean
 
-    return LayerDefinition(
+    return PydeckLayerDefinition(
         layer_type="HexagonLayer",
         layer_style=layer_style or HexagonLayerStyle(),
         legend=legend,
@@ -579,11 +579,11 @@ def create_path_layer(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
-) -> Annotated[LayerDefinition, Field()]:
+) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a polyline layer definition based on the provided configuration.
     """
-    return LayerDefinition(
+    return PydeckLayerDefinition(
         layer_type="PathLayer",
         layer_style=layer_style or PathLayerStyle(),
         legend=legend,
@@ -613,11 +613,11 @@ def create_polygon_layer_pydeck(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
-) -> Annotated[LayerDefinition, Field()]:
+) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a polyline layer definition based on the provided configuration.
     """
-    return LayerDefinition(
+    return PydeckLayerDefinition(
         layer_type="PolygonLayer",
         layer_style=layer_style or PolygonLayerStyle(),
         legend=legend,
@@ -650,11 +650,11 @@ def create_scatterplot_layer(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
-) -> Annotated[LayerDefinition, Field()]:
+) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a scatterplot layer definition based on the provided configuration.
     """
-    return LayerDefinition(
+    return PydeckLayerDefinition(
         layer_type="ScatterplotLayer",
         layer_style=layer_style or ScatterplotLayerStyle(),
         legend=legend,
@@ -684,11 +684,11 @@ def create_text_layer_pydeck(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
-) -> Annotated[LayerDefinition, Field()]:
+) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a text layer definition based on the provided configuration.
     """
-    return LayerDefinition(
+    return PydeckLayerDefinition(
         layer_type="TextLayer",
         layer_style=layer_style or TextLayerStyle(),
         legend=legend,
@@ -711,11 +711,11 @@ def create_icon_layer(
         IconLayerStyle | SkipJsonSchema[None],
         AdvancedField(default=IconLayerStyle(), description="Style arguments for the layer."),
     ] = None,
-) -> Annotated[LayerDefinition, Field()]:
+) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates an icon layer definition based on the provided configuration.
     """
-    return LayerDefinition(
+    return PydeckLayerDefinition(
         layer_type="IconLayer",
         layer_style=layer_style or IconLayerStyle(),
         # TODO support icons in legend
@@ -746,11 +746,11 @@ def create_geojson_layer(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
-) -> Annotated[LayerDefinition, Field()]:
+) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a GeoJSON layer definition based on the provided configuration.
     """
-    return LayerDefinition(
+    return PydeckLayerDefinition(
         layer_type="GeoJsonLayer",
         layer_style=layer_style or GeoJSONLayerStyle(),
         legend=legend,
@@ -762,7 +762,7 @@ def create_geojson_layer(
 @register()
 def draw_map(
     geo_layers: Annotated[
-        LayerDefinition | list[LayerDefinition] | SkipJsonSchema[None],
+        PydeckLayerDefinition | list[PydeckLayerDefinition] | SkipJsonSchema[None],
         Field(description="A list of map layers to add to the map.", exclude=True),
     ] = None,
     tile_layers: Annotated[
@@ -821,7 +821,7 @@ def draw_map(
     Creates a map based on the provided layer definitions and configuration.
 
     Args:
-    geo_layers (LayerDefinition | list[LayerDefinition] | None): Map layers to add to the map.
+    geo_layers (PydeckLayerDefinition | list[PydeckLayerDefinition] | None): Map layers to add to the map.
     tile_layers (list): A named tile layer, ie OpenStreetMap.
     static (bool): Set to true to disable map pan/zoom.
     title (str): The map title.
@@ -884,7 +884,7 @@ def draw_map(
     # Normalize geo_layers to a list
     if geo_layers is None:
         geo_layers = []
-    elif isinstance(geo_layers, LayerDefinition):
+    elif isinstance(geo_layers, PydeckLayerDefinition):
         geo_layers = [geo_layers]
     for layer_def in geo_layers:
         # Rendering: prefer data_url if set, fall back to geodataframe
