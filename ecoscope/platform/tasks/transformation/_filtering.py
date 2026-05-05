@@ -79,6 +79,11 @@ def apply_reloc_coord_filter(
         if geometry is None:
             return True
 
+        # Non-Point geometries (e.g. Polygon, MultiPolygon) are pass-through:
+        # bounding-box / exact-coord filtering only applies to point relocations.
+        if geometry.geom_type != "Point":
+            return True
+
         return (
             geometry.x > bounding_box.min_x
             and geometry.x < bounding_box.max_x
