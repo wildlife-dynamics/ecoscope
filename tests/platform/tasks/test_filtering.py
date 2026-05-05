@@ -102,6 +102,29 @@ def test_filter_range_preserves_null_geometry(df_with_geometry):
     pd.testing.assert_frame_equal(filtered_df, expected_df)
 
 
+def test_filter_passes_through_non_point_geometry():
+    polygon = Polygon([(10.0, 10.0), (20.0, 10.0), (20.0, 20.0), (10.0, 20.0), (10.0, 10.0)])
+    df = pd.DataFrame(
+        {
+            "geometry": [
+                Point(0.0, 0.0),
+                polygon,
+            ]
+        }
+    )
+
+    # BoundingBox excludes the polygon's vertices and centroid; an exact-coord
+    # filter targets the point. Polygon should still survive both.
+    filtered_df = apply_reloc_coord_filter(
+        df,
+        bounding_box=BoundingBox(min_x=-1.0, max_x=1.0, min_y=-1.0, max_y=1.0),
+        filter_point_coords=[Coordinate(x=0.0, y=0.0)],
+    )
+
+    expected_df = pd.DataFrame({"geometry": [polygon]})
+    pd.testing.assert_frame_equal(filtered_df, expected_df)
+
+
 def test_filter_with_roi(df_with_geometry):
     expected_df = gpd.GeoDataFrame({"geometry": [Point(0, 0), Point(100, 50)]})
 
