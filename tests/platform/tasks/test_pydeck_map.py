@@ -22,6 +22,7 @@ from ecoscope.platform.tasks.results._pydeck_map import (
     ScatterplotLayerStyle,
     TextLayerStyle,
     TiledBitmapLayerDefinition,
+    ViewState,
     create_geojson_layer,
     create_hexagon_layer,
     create_icon_layer,
@@ -985,3 +986,40 @@ def test_rewrite_file_urls_empty_list():
     html = "<html>no urls</html>"
     result = rewrite_file_urls_for_screenshots(html=html, file_urls=[])
     assert result == html
+
+
+def test_draw_map_combined_single_zoom(gdf_with_points):
+    flagged = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color=[255, 0, 0]),
+        zoom=True,
+    )
+    other = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color=[0, 255, 0]),
+    )
+
+    map_html = draw_map(
+        geo_layers=[flagged, other],
+        title="Combined Single Zoom",
+    )
+    assert isinstance(map_html, str)
+
+
+def test_draw_map_combined_view_state(gdf_with_points):
+    flagged = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color=[255, 0, 0]),
+        zoom=True,
+    )
+    other = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_fill_color=[0, 255, 0]),
+    )
+
+    map_html = draw_map(
+        geo_layers=[flagged, other],
+        title="Combined View State",
+        view_state=ViewState(),
+    )
+    assert isinstance(map_html, str)

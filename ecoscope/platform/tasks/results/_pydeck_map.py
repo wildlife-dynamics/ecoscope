@@ -442,6 +442,7 @@ class PydeckLayerDefinition:
     legend: LegendDefinition | None
     geodataframe: AnyGeoDataFrame | None = None
     data_url: str | None = None
+    zoom: bool = False
 
     def __post_init__(self) -> None:
         if self.geodataframe is None and self.data_url is None:
@@ -534,6 +535,14 @@ def create_hexagon_layer(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a hexagon layer definition based on the provided configuration.
@@ -555,6 +564,7 @@ def create_hexagon_layer(
         legend=legend,
         geodataframe=geodataframe,
         data_url=data_url,
+        zoom=zoom,
     )
 
 
@@ -579,6 +589,14 @@ def create_path_layer(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a polyline layer definition based on the provided configuration.
@@ -589,6 +607,7 @@ def create_path_layer(
         legend=legend,
         geodataframe=geodataframe,
         data_url=data_url,
+        zoom=zoom,
     )
 
 
@@ -613,6 +632,14 @@ def create_polygon_layer_pydeck(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a polyline layer definition based on the provided configuration.
@@ -623,6 +650,7 @@ def create_polygon_layer_pydeck(
         legend=legend,
         geodataframe=geodataframe,
         data_url=data_url,
+        zoom=zoom,
     )
 
 
@@ -650,6 +678,14 @@ def create_scatterplot_layer(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a scatterplot layer definition based on the provided configuration.
@@ -660,6 +696,7 @@ def create_scatterplot_layer(
         legend=legend,
         geodataframe=geodataframe,
         data_url=data_url,
+        zoom=zoom,
     )
 
 
@@ -684,6 +721,14 @@ def create_text_layer_pydeck(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a text layer definition based on the provided configuration.
@@ -694,6 +739,7 @@ def create_text_layer_pydeck(
         legend=legend,
         geodataframe=geodataframe,
         data_url=data_url,
+        zoom=zoom,
     )
 
 
@@ -711,6 +757,14 @@ def create_icon_layer(
         IconLayerStyle | SkipJsonSchema[None],
         AdvancedField(default=IconLayerStyle(), description="Style arguments for the layer."),
     ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates an icon layer definition based on the provided configuration.
@@ -722,6 +776,7 @@ def create_icon_layer(
         legend=None,
         geodataframe=geodataframe,
         data_url=data_url,
+        zoom=zoom,
     )
 
 
@@ -746,6 +801,14 @@ def create_geojson_layer(
             description="If present, includes this layer in the map legend",
         ),
     ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a GeoJSON layer definition based on the provided configuration.
@@ -756,6 +819,7 @@ def create_geojson_layer(
         legend=legend,
         geodataframe=geodataframe,
         data_url=data_url,
+        zoom=zoom,
     )
 
 
@@ -943,10 +1007,16 @@ def draw_map(
             )
         )
 
+    if view_state is None:
+        zoom_layers = [layer for layer in geo_layers if layer.zoom]
+        if not zoom_layers:
+            zoom_layers = geo_layers
+        view_state = view_state_from_layers(layers=zoom_layers, max_zoom=max_zoom)
+
     m = pdk.Deck(
         layers=map_layers,
         widgets=map_widgets,
-        initial_view_state=view_state or view_state_from_layers(layers=geo_layers, max_zoom=max_zoom),
+        initial_view_state=view_state,
         # The only non-default value here is repeat=True
         # which in our case allows tile layers to repeat/wrap at high zoom levels
         views=pdk.View(
