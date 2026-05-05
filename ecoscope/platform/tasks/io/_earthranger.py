@@ -234,6 +234,16 @@ IncludeRelatedEventsAnnotation = Annotated[
         description="Whether or not to include related events",
     ),
 ]
+ForcePointGeometryAnnotation = Annotated[
+    bool,
+    AdvancedField(
+        default=True,
+        description=(
+            "If True, polygon/multipolygon event geometries are reduced to their centroid."
+            " Set False to preserve native geometry types."
+        ),
+    ),
+]
 AnalysisFieldAnnotation = Annotated[
     str,
     Field(
@@ -584,6 +594,7 @@ def get_events(
     include_updates: IncludeUpdatesAnnotation = False,
     include_related_events: IncludeRelatedEventsAnnotation = False,
     include_display_values: IncludeDisplayValuesAnnotation = False,
+    force_point_geometry: ForcePointGeometryAnnotation = True,
 ) -> EventGDF | EventsWithDisplayNamesGDF | EmptyDataFrame:
     """Get events."""
     event_type_ids: list[str] = []
@@ -607,6 +618,7 @@ def get_events(
             include_details=include_details,
             include_updates=include_updates,
             include_related_events=include_related_events,
+            force_point_geometry=force_point_geometry,
         )
     )
 
