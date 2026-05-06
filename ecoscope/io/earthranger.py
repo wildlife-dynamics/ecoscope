@@ -842,6 +842,11 @@ class EarthRangerIO(ERClient):
             If set to duplicates, the event category value will be appended
                 only for event types with overlapping display names
             If set to never, no category names will be appended
+
+        Event types that are present on events but missing from the ER
+        event-type registry (e.g. deleted/orphan types still attached to
+        historical events) fall back to their raw event_type value as the
+        display, rather than raising KeyError.
         Returns
         -------
         gpd.GeoDataFrame
