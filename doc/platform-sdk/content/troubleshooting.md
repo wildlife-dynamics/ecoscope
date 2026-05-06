@@ -149,6 +149,66 @@ requirements:
   `--locked` from any local pixi commands or wrapper scripts when developing
   against a local ecoscope checkout.
 
+### When mixing editable ecoscope with a remote ext-custom build
+
+Workflows that pull `ecoscope-workflows-ext-custom` from a published conda
+channel **and** have `ecoscope` as a `path:` editable hit a cascade of channel-
+priority and version-skew failures, because the remote ext-custom recipe
+declares `ecoscope-platform` as a conda run-dep that drags an *older*
+ecoscope/lonboard/pydeck stack into the solve while the editable ecoscope
+expects the *newer* one. Symptoms (in order of when they surface):
+
+- `pydeck 0.0.2 is excluded ... due to strict channel priority` — ext-custom
+  needs the custom-channel pydeck, but conda-forge has a newer generic pydeck
+  that wins.
+- `lonboard 0.0.8 is excluded ... due to strict channel priority` — same
+  pattern with lonboard from the `ecoscope-workflows` channel.
+- `ecoscope[platform]==<latest> depends on pyarrow<24 and pyarrow==24.0.0` —
+  conda-forge's default `pyarrow` (24+) can't satisfy editable ecoscope's
+  upper bound.
+
+Fix: pin each conflicting package explicitly in `requirements:` so the
+intended channel and version win the solve. The set we currently need is:
+
+```yaml
+requirements:
+  - name: python
+    version: "3.12.*"
+  - name: numpy
+    version: ">=2,<2.1"
+    channel: conda-forge
+  - name: pyarrow
+    version: ">=20,<24"
+    channel: conda-forge
+  - name: ecoscope
+    path: /path/to/ecoscope
+    editable: true
+    extras: ["platform", "mapping", "analysis"]
+  - name: pydeck
+    version: "==0.0.2"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+  - name: lonboard
+    version: "==0.0.8"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+  - name: ecoscope-workflows-ext-custom
+    version: "0.1.0rc3"   # or whichever published version
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+```
+
+Notes:
+
+- Drop the `rasterio` pin from the editable-ecoscope recipe above — the
+  default `rasterio==1.5.0` requires `libgdal>=3.12`, which is incompatible
+  with the older `lonboard 0.0.8 → pyogrio → libgdal<3.10` chain. Letting
+  the solver pick rasterio against the older GDAL stack works.
+- After `pixi install`, expect a benign `WARN These conda-packages will be
+  overridden by pypi: lonboard, ecoscope, ...` — that's the editable PyPI
+  install masking the conda copies, which is the desired behavior.
+- This recipe is for *dev iteration only*. At publish time, swap the
+  editable `ecoscope` block for a versioned `ecoscope-platform` from the
+  workflows channel and remove the `pydeck` / `lonboard` / `pyarrow` pins.
+  CI rejects `path:` / `editable:` requirements in publish mode anyway.
+
 ---
 
 ## Getting help
