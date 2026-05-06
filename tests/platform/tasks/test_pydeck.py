@@ -1212,3 +1212,72 @@ def test_rewrite_file_urls_empty_list():
     html = "<html>no urls</html>"
     result = rewrite_file_urls_for_screenshots(html=html, file_urls=[])
     assert result == html
+
+
+# Tests for TooltipWidget assembly
+
+
+def test_draw_map_tooltip_widget_added_for_pickable_layer(gdf_with_points):
+    """TooltipWidget is added when any geo layer is pickable (default)."""
+    layer_def = create_scatterplot_layer(geodataframe=gdf_with_points)
+    map_html = draw_map(geo_layers=[layer_def])
+    assert "TooltipWidget" in map_html
+
+
+def test_draw_map_tooltip_widget_omitted_when_no_pickable_layer(gdf_with_points):
+    """TooltipWidget is omitted when no geo layer is pickable."""
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(pickable=False),
+    )
+    map_html = draw_map(geo_layers=[layer_def])
+    assert "TooltipWidget" not in map_html
+
+
+def test_draw_map_tooltip_widget_omitted_with_no_geo_layers():
+    """TooltipWidget is omitted when there are no geo layers."""
+    map_html = draw_map(geo_layers=[])
+    assert "TooltipWidget" not in map_html
+
+
+def test_draw_map_tooltip_widget_default_layer_columns_empty(gdf_with_points):
+    """Default rendering ships an empty layerColumns dict — JS side will fall back to 'show all'."""
+    layer_def = create_scatterplot_layer(geodataframe=gdf_with_points)
+    map_html = draw_map(geo_layers=[layer_def])
+    compact_html = "".join(map_html.split())
+    assert "TooltipWidget" in compact_html
+    assert '"layerColumns":{}' in compact_html
+
+
+def test_draw_map_tooltip_widget_layer_columns_keyed_by_layer_id(gdf_with_points):
+    """tooltip_columns surfaces in the widget layerColumns dict keyed by f'{layer_type}-{index}'."""
+    layer_def = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        tooltip_columns=["name", "category"],
+    )
+    map_html = draw_map(geo_layers=[layer_def])
+    compact_html = "".join(map_html.split())
+    assert '"ScatterplotLayer-0":["name","category"]' in compact_html
+
+
+def test_draw_map_tooltip_widget_layer_columns_skips_layers_with_none(gdf_with_points):
+    """A layer with tooltip_columns=None is omitted from layerColumns (= 'show all' on JS side)."""
+    explicit = create_scatterplot_layer(
+        geodataframe=gdf_with_points,
+        tooltip_columns=["category"],
+    )
+    default = create_path_layer(geodataframe=gpd.read_file(os.path.join(TEST_DATA_DIR, "test_path.geojson")))
+    map_html = draw_map(geo_layers=[explicit, default])
+    compact_html = "".join(map_html.split())
+    assert '"ScatterplotLayer-0":["category"]' in compact_html
+    assert "PathLayer-1" not in compact_html.split('"layerColumns":')[1].split("}")[0]
+
+
+def test_draw_map_assigns_explicit_layer_ids(gdf_with_points):
+    """Each geo layer gets f'{layer_type}-{index}' so the tooltip widget can address them."""
+    a = create_scatterplot_layer(geodataframe=gdf_with_points)
+    b = create_scatterplot_layer(geodataframe=gdf_with_points)
+    map_html = draw_map(geo_layers=[a, b])
+    compact_html = "".join(map_html.split())
+    assert '"id":"ScatterplotLayer-0"' in compact_html
+    assert '"id":"ScatterplotLayer-1"' in compact_html

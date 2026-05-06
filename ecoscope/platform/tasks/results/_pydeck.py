@@ -1,3 +1,4 @@
+import html
 import logging
 from dataclasses import dataclass
 from typing import Annotated, Literal, Tuple, TypeAlias, Union
@@ -16,7 +17,8 @@ from ecoscope.platform.tasks.results._map_utils import TileLayer
 PYDECK_CUSTOM_LIBRARIES = [
     {
         "libraryName": "EcoscopeDeckglExtensions",
-        "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.0.7/dist/bundle.js",
+        "resourceUri": "http://localhost/ecoscope-deckgl-extensions/bundle.js",
+        # "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.0.7/dist/bundle.js",
     }
 ]
 
@@ -337,6 +339,7 @@ class PydeckLayerDefinition:
     geodataframe: AnyGeoDataFrame | None = None
     data_url: str | None = None
     zoom: bool = False
+    tooltip_columns: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.geodataframe is None and self.data_url is None:
@@ -433,6 +436,15 @@ def create_hexagon_layer(
             exclude=True,
         ),
     ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a hexagon layer definition based on the provided configuration.
@@ -455,6 +467,7 @@ def create_hexagon_layer(
         geodataframe=geodataframe,
         data_url=data_url,
         zoom=zoom,
+        tooltip_columns=tooltip_columns,
     )
 
 
@@ -487,6 +500,15 @@ def create_path_layer(
             exclude=True,
         ),
     ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a polyline layer definition based on the provided configuration.
@@ -498,6 +520,7 @@ def create_path_layer(
         geodataframe=geodataframe,
         data_url=data_url,
         zoom=zoom,
+        tooltip_columns=tooltip_columns,
     )
 
 
@@ -530,6 +553,15 @@ def create_polygon_layer_pydeck(
             exclude=True,
         ),
     ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a polyline layer definition based on the provided configuration.
@@ -541,6 +573,7 @@ def create_polygon_layer_pydeck(
         geodataframe=geodataframe,
         data_url=data_url,
         zoom=zoom,
+        tooltip_columns=tooltip_columns,
     )
 
 
@@ -576,6 +609,15 @@ def create_scatterplot_layer(
             exclude=True,
         ),
     ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a scatterplot layer definition based on the provided configuration.
@@ -604,6 +646,7 @@ def create_scatterplot_layer(
         geodataframe=geodataframe,
         data_url=data_url,
         zoom=zoom,
+        tooltip_columns=tooltip_columns,
     )
 
 
@@ -636,6 +679,15 @@ def create_text_layer_pydeck(
             exclude=True,
         ),
     ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a text layer definition based on the provided configuration.
@@ -647,6 +699,7 @@ def create_text_layer_pydeck(
         geodataframe=geodataframe,
         data_url=data_url,
         zoom=zoom,
+        tooltip_columns=tooltip_columns,
     )
 
 
@@ -672,6 +725,15 @@ def create_icon_layer(
             exclude=True,
         ),
     ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates an icon layer definition based on the provided configuration.
@@ -684,6 +746,7 @@ def create_icon_layer(
         geodataframe=geodataframe,
         data_url=data_url,
         zoom=zoom,
+        tooltip_columns=tooltip_columns,
     )
 
 
@@ -716,6 +779,15 @@ def create_geojson_layer(
             exclude=True,
         ),
     ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
 ) -> Annotated[PydeckLayerDefinition, Field()]:
     """
     Creates a GeoJSON layer definition based on the provided configuration.
@@ -727,6 +799,7 @@ def create_geojson_layer(
         geodataframe=geodataframe,
         data_url=data_url,
         zoom=zoom,
+        tooltip_columns=tooltip_columns,
     )
 
 
@@ -855,7 +928,10 @@ def draw_map(
         geo_layers = []
     elif isinstance(geo_layers, PydeckLayerDefinition):
         geo_layers = [geo_layers]
-    for layer_def in geo_layers:
+
+    tooltip_layer_columns: dict[str, list[str]] = {}
+    any_pickable_geo_layer = False
+    for layer_index, layer_def in enumerate(geo_layers):
         # Rendering: prefer data_url if set, fall back to geodataframe
         if layer_def.data_url is not None:
             data = pdk.types.String(layer_def.data_url)
@@ -871,12 +947,19 @@ def draw_map(
                 )
             data = gdf
 
+        layer_id = f"{layer_def.layer_type}-{layer_index}"
         layer = pdk.Layer(
             type=layer_def.layer_type,
+            id=layer_id,
             data=data,
             **layer_def.layer_style.model_dump(exclude_none=True),
         )
         map_layers.append(layer)
+
+        if layer_def.tooltip_columns is not None:
+            tooltip_layer_columns[layer_id] = layer_def.tooltip_columns
+        if getattr(layer_def.layer_style, "pickable", False):
+            any_pickable_geo_layer = True
 
         # Legend: use geodataframe if present (regardless of rendering path)
         if legend_def := layer_def.legend:
@@ -911,6 +994,15 @@ def draw_map(
             pdk.Widget(
                 "TitleWidget",
                 title=title,
+            )
+        )
+
+    if any_pickable_geo_layer:
+        map_widgets.append(
+            pdk.Widget(
+                "TooltipWidget",
+                id="TooltipWidget",
+                layer_columns=tooltip_layer_columns,
             )
         )
 
