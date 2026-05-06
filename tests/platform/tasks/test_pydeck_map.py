@@ -9,6 +9,7 @@ import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
 import pytest
 from pydantic import ValidationError
 
+from ecoscope.platform.tasks.results._map_utils import set_base_maps
 from ecoscope.platform.tasks.results._pydeck_map import (
     BitmapLayerDefinition,
     GeoJSONLayerStyle,
@@ -36,7 +37,6 @@ from ecoscope.platform.tasks.results._pydeck_map import (
     draw_map,
     merge_tile_layers,
     rewrite_file_urls_for_screenshots,
-    set_base_maps_pydeck,
     view_state_from_geodataframes,
     view_state_from_layers,
 )
@@ -597,7 +597,7 @@ def test_set_base_maps():
     from wt_task import task
 
     res = (
-        task(set_base_maps_pydeck)
+        task(set_base_maps)
         .validate()
         .call(
             base_maps=[

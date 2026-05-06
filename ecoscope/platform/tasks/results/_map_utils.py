@@ -160,3 +160,28 @@ def make_preset_or_custom_json_schema_extra(tile_layer: TileLayer, presets: dict
         schema["items"].pop("$ref")
 
     return _preset_or_custom_json_schema_extra
+
+
+_preset_or_custom_json_schema_extra = make_preset_or_custom_json_schema_extra(TileLayer, DEFAULT_TILE_LAYER_PRESETS)
+
+
+@register()
+def set_base_maps(
+    base_maps: Annotated[
+        list[TileLayer] | SkipJsonSchema[None],
+        Field(
+            json_schema_extra=_preset_or_custom_json_schema_extra,
+            title=" ",
+            description=(
+                "Select tile layers to use as base layers in map outputs."
+                " The first layer in the list will be the bottommost layer displayed."
+            ),
+        ),
+    ] = None,
+) -> Annotated[list[TileLayer], Field()]:
+    if base_maps is None:
+        base_maps = [
+            TileLayer(layer_name="TERRAIN"),
+            TileLayer(layer_name="SATELLITE", opacity=0.5),
+        ]
+    return base_maps

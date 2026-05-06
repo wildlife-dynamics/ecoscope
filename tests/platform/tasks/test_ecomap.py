@@ -19,8 +19,8 @@ from ecoscope.platform.tasks.results._ecomap import (
     create_point_layer,
     create_polyline_layer,
     draw_ecomap,
-    set_base_maps,
 )
+from ecoscope.platform.tasks.results._map_utils import set_base_maps
 
 
 @pytest.fixture

@@ -5,7 +5,6 @@ from ._ecomap import (
     create_polyline_layer,
     create_text_layer,
     draw_ecomap,
-    set_base_maps,
 )
 from ._ecoplot import (
     SmoothingConfig,
@@ -16,7 +15,7 @@ from ._ecoplot import (
     draw_pie_chart,
     draw_time_series_bar_chart,
 )
-from ._map_utils import set_layer_opacity
+from ._map_utils import set_base_maps, set_layer_opacity
 from ._output_files import OutputFiles, gather_output_files
 from ._pydeck_map import (
     create_geojson_layer,
@@ -30,7 +29,6 @@ from ._pydeck_map import (
     draw_map,
     merge_tile_layers,
     rewrite_file_urls_for_screenshots,
-    set_base_maps_pydeck,
     view_state_from_geodataframes,
     view_state_from_layers,
 )
@@ -81,7 +79,6 @@ __all__ = [
     "draw_map",
     "merge_tile_layers",
     "rewrite_file_urls_for_screenshots",
-    "set_base_maps_pydeck",
     "view_state_from_geodataframes",
     "view_state_from_layers",
 ]

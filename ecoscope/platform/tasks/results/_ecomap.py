@@ -10,10 +10,8 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.tasks.results._map_utils import (
-    DEFAULT_TILE_LAYER_PRESETS,
     OpacityAnnotation,
     TileLayer,
-    make_preset_or_custom_json_schema_extra,
 )
 
 UnitType = Literal["meters", "pixels", "common"]
@@ -114,31 +112,6 @@ class LayerDefinition:
     legend: LegendDefinition | None
     tooltip_columns: list[str] | None
     zoom: bool = False
-
-
-_preset_or_custom_json_schema_extra = make_preset_or_custom_json_schema_extra(TileLayer, DEFAULT_TILE_LAYER_PRESETS)
-
-
-@register()
-def set_base_maps(
-    base_maps: Annotated[
-        list[TileLayer] | SkipJsonSchema[None],
-        Field(
-            json_schema_extra=_preset_or_custom_json_schema_extra,
-            title=" ",
-            description=(
-                "Select tile layers to use as base layers in map outputs."
-                " The first layer in the list will be the bottommost layer displayed."
-            ),
-        ),
-    ] = None,
-) -> Annotated[list[TileLayer], Field()]:
-    if base_maps is None:
-        base_maps = [
-            TileLayer(layer_name="TERRAIN"),
-            TileLayer(layer_name="SATELLITE", opacity=0.5),
-        ]
-    return base_maps
 
 
 @register()
