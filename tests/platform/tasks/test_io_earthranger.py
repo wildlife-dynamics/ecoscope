@@ -483,6 +483,36 @@ def test_get_events_empty_response(mock_empty_client):
     assert df.empty
 
 
+@pytest.mark.parametrize("force_point_geometry", [True, False])
+def test_get_events_forwards_force_point_geometry(mock_empty_client, force_point_geometry):
+    get_events(
+        client=mock_empty_client,
+        time_range=TimeRange(
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        event_types=["an_event"],
+        raise_on_empty=False,
+        force_point_geometry=force_point_geometry,
+    )
+    assert mock_empty_client.get_events.call_args.kwargs["force_point_geometry"] is force_point_geometry
+
+
+def test_get_events_force_point_geometry_default_is_true(mock_empty_client):
+    get_events(
+        client=mock_empty_client,
+        time_range=TimeRange(
+            since=datetime.strptime("2017-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2017-03-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        event_types=["an_event"],
+        raise_on_empty=False,
+    )
+    assert mock_empty_client.get_events.call_args.kwargs["force_point_geometry"] is True
+
+
 def test_get_patrols_empty_response(mock_empty_client):
     kwargs = {
         "client": mock_empty_client,

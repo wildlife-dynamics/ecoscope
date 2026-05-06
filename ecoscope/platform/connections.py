@@ -115,6 +115,7 @@ class EarthRangerClientProtocol(Protocol):
         include_details: bool,
         include_updates: bool,
         include_related_events: bool,
+        force_point_geometry: bool,
     ) -> AnyGeoDataFrame: ...
 
     def get_event_types(self) -> AnyDataFrame: ...
