@@ -1,23 +1,21 @@
 import logging
-import re
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal, Tuple, TypeAlias, Union
+from typing import Annotated, Literal, Tuple, TypeAlias, Union
 
 logger = logging.getLogger(__name__)
 
 import pandas as pd
 import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
-from pydantic import BaseModel, Field, PlainSerializer, field_validator, model_validator
+from pydantic import BaseModel, Field, PlainSerializer
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.tasks.results._map_utils import (
     DEFAULT_TILE_LAYER_PRESETS,
+    TileLayer,
     make_preset_or_custom_json_schema_extra,
 )
-
-TileLayerPresets = DEFAULT_TILE_LAYER_PRESETS
 
 PYDECK_CUSTOM_LIBRARIES = [
     {
@@ -321,83 +319,6 @@ class LegendFromDataframe:
 LegendDefinition = LegendFromDataframe | LegendSegment
 
 
-class TiledBitmapLayerDefinition(BaseModel):
-    """A tiled raster layer loaded on-demand from a URL template (e.g., base maps)."""
-
-    layer_name: SkipJsonSchema[str] = ""
-    url: Annotated[
-        str,
-        Field(
-            default="https://example.tiles.com/{z}/{x}/{y}.png",
-            title="Layer URL",
-            pattern=re.compile(
-                r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}([-a-zA-Z0-9()@:%_\+.~#?&//=\{\}]*)"
-            ),
-            description="The URL of a publicly accessible tiled raster service.",
-        ),
-    ] = "https://example.tiles.com/{z}/{x}/{y}.png"
-    opacity: Annotated[
-        float,
-        Field(
-            default=1,
-            ge=0,
-            le=1,
-            title="Layer Opacity",
-            description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
-        ),
-    ] = 1
-    max_zoom: Annotated[
-        int,
-        Field(
-            default=20,
-            title="Layer Max Zoom",
-            description="Set the maximum zoom level to fetch tiles for.",
-        ),
-    ] = 20
-    min_zoom: Annotated[
-        int,
-        Field(
-            default=0,
-            title="Layer Min Zoom",
-            description="Set the minimum zoom level to fetch tiles for.",
-        ),
-    ] = 0
-
-    @field_validator("layer_name", mode="before")
-    def _tile_layer_name_from_string(v: Any):
-        if isinstance(v, str):
-            for layer_name in TileLayerPresets.keys():
-                if layer_name == v:
-                    return v
-            raise ValueError(
-                f"String input must match one of: {[layer_name for layer_name in TileLayerPresets.keys()]}"
-            )
-        return v
-
-    @model_validator(mode="before")
-    @classmethod
-    def set_url(cls, values):
-        if (
-            isinstance(values, dict)
-            and values.get("layer_name")
-            and values.get("layer_name") != ""
-            and values.get("layer_name") in TileLayerPresets.keys()
-        ):
-            values["url"] = TileLayerPresets.get(values.get("layer_name")).get("url")
-        return values
-
-    def _as_json_schema_default(self):
-        default = {
-            "url": self.url,
-            "opacity": self.opacity,
-        }
-        if self.max_zoom is not None:
-            default["max_zoom"] = self.max_zoom
-        if self.min_zoom is not None:
-            default["min_zoom"] = self.min_zoom
-        return default
-
-
 class BitmapLayerDefinition(BaseModel):
     """A single-image overlay positioned at geographic bounds (e.g., raster from Earth Engine)."""
 
@@ -407,15 +328,13 @@ class BitmapLayerDefinition(BaseModel):
     legend: LegendSegment | SkipJsonSchema[None] = None
 
 
-_preset_or_custom_json_schema_extra = make_preset_or_custom_json_schema_extra(
-    TiledBitmapLayerDefinition, TileLayerPresets
-)
+_preset_or_custom_json_schema_extra = make_preset_or_custom_json_schema_extra(TileLayer, DEFAULT_TILE_LAYER_PRESETS)
 
 
 @register()
 def set_base_maps_pydeck(
     base_maps: Annotated[
-        list[TiledBitmapLayerDefinition] | SkipJsonSchema[None],
+        list[TileLayer] | SkipJsonSchema[None],
         Field(
             json_schema_extra=_preset_or_custom_json_schema_extra,
             title=" ",
@@ -423,11 +342,11 @@ def set_base_maps_pydeck(
             The first layer in the list will be the bottommost layer displayed.",
         ),
     ] = None,
-) -> Annotated[list[TiledBitmapLayerDefinition], Field()]:
+) -> Annotated[list[TileLayer], Field()]:
     if base_maps is None:
         base_maps = [
-            TiledBitmapLayerDefinition(layer_name="TERRAIN"),
-            TiledBitmapLayerDefinition(layer_name="SATELLITE", opacity=0.5),
+            TileLayer(layer_name="TERRAIN"),
+            TileLayer(layer_name="SATELLITE", opacity=0.5),
         ]
     return base_maps
 
@@ -690,6 +609,7 @@ def create_scatterplot_layer(
     """
     layer_style = layer_style if layer_style else ScatterplotLayerStyle()
 
+    # TODO think about this in the context of external data urls
     if isinstance(layer_style.get_radius, str):
         radius_series = geodataframe[layer_style.get_radius]
 
@@ -844,7 +764,7 @@ def draw_map(
         Field(description="A list of map layers to add to the map.", exclude=True),
     ] = None,
     tile_layers: Annotated[
-        list[TiledBitmapLayerDefinition | BitmapLayerDefinition] | SkipJsonSchema[None],
+        list[TileLayer | BitmapLayerDefinition] | SkipJsonSchema[None],
         Field(description="A list of tile layers (base maps and/or overlays)."),
     ] = None,
     static: Annotated[bool, Field(description="Set to true to disable map pan/zoom.")] = False,
@@ -1107,9 +1027,9 @@ def create_tiled_bitmap_layer(
             default=0,
         ),
     ] = 0,
-) -> Annotated[TiledBitmapLayerDefinition, Field()]:
+) -> Annotated[TileLayer, Field()]:
     """Creates a tiled bitmap layer definition from a tile URL."""
-    return TiledBitmapLayerDefinition(
+    return TileLayer(
         url=url,
         opacity=opacity,
         max_zoom=max_zoom,
@@ -1120,16 +1040,16 @@ def create_tiled_bitmap_layer(
 @register()
 def merge_tile_layers(
     base_layers: Annotated[
-        list[TiledBitmapLayerDefinition] | SkipJsonSchema[None],
+        list[TileLayer] | SkipJsonSchema[None],
         Field(description="Static base tile layers to prepend."),
     ] = None,
     overlay: Annotated[
         BitmapLayerDefinition | SkipJsonSchema[None],
         Field(description="Per-group overlay tile layer to append."),
     ] = None,
-) -> Annotated[list[TiledBitmapLayerDefinition | BitmapLayerDefinition], Field()]:
+) -> Annotated[list[TileLayer | BitmapLayerDefinition], Field()]:
     """Merges static base tile layers with a per-group overlay into a single list."""
-    layers: list[TiledBitmapLayerDefinition | BitmapLayerDefinition] = []
+    layers: list[TileLayer | BitmapLayerDefinition] = []
     if base_layers:
         layers.extend(base_layers)
     if overlay:

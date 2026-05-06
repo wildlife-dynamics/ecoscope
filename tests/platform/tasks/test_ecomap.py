@@ -269,7 +269,6 @@ def test_set_base_maps():
                     "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                     "opacity": 0.3,
                     "max_zoom": 17,
-                    "min_zoom": None,
                 },
             ]
         )

@@ -23,7 +23,7 @@ from ecoscope.platform.tasks.results._pydeck_map import (
     PydeckLayerDefinition,
     ScatterplotLayerStyle,
     TextLayerStyle,
-    TiledBitmapLayerDefinition,
+    TileLayer,
     ViewState,
     create_geojson_layer,
     create_hexagon_layer,
@@ -182,7 +182,7 @@ def test_hexagon_layer(gdf_with_points):
     map_html = draw_map(
         geo_layers=[layer_def],
         tile_layers=[
-            TiledBitmapLayerDefinition(
+            TileLayer(
                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
             )
         ],
@@ -563,7 +563,7 @@ def test_map_with_tiles():
     map_html = draw_map(
         geo_layers=[],
         tile_layers=[
-            TiledBitmapLayerDefinition(
+            TileLayer(
                 url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 max_zoom=3,
             )
@@ -575,20 +575,20 @@ def test_map_with_tiles():
 
 
 def test_tile_layer_name_string_validator():
-    TiledBitmapLayerDefinition(layer_name="OpenStreetMap", opacity=1.0)
+    TileLayer(layer_name="OpenStreetMap", opacity=1.0)
 
     with pytest.raises(ValidationError):
-        TiledBitmapLayerDefinition(layer_name="not a real layer", opacity=1.0)
+        TileLayer(layer_name="not a real layer", opacity=1.0)
 
 
 def test_custom_tile_layer_validation():
-    TiledBitmapLayerDefinition(
+    TileLayer(
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         max_zoom=13,
     )
 
     with pytest.raises(ValidationError):
-        TiledBitmapLayerDefinition(
+        TileLayer(
             url="ftp://test/?give=tiles_pls",
         )
 
@@ -611,8 +611,8 @@ def test_set_base_maps():
             ]
         )
     )
-    assert isinstance(res[0], TiledBitmapLayerDefinition)
-    assert isinstance(res[1], TiledBitmapLayerDefinition)
+    assert isinstance(res[0], TileLayer)
+    assert isinstance(res[1], TileLayer)
 
 
 def test_geojson_layer_numpy_types():
@@ -760,12 +760,12 @@ def test_geojson_layer_mixed_styling():
     assert '"filled":true' in compact_html
 
 
-# Tests for TiledBitmapLayerDefinition, BitmapLayerDefinition, and create_tiled_bitmap_layer
+# Tests for TileLayer, BitmapLayerDefinition, and create_tiled_bitmap_layer
 
 
 def test_tiled_bitmap_layer_definition_defaults():
-    """Test that TiledBitmapLayerDefinition has correct defaults."""
-    tile_def = TiledBitmapLayerDefinition(url="https://example.com/{z}/{x}/{y}.png")
+    """Test that TileLayer has correct defaults."""
+    tile_def = TileLayer(url="https://example.com/{z}/{x}/{y}.png")
     assert tile_def.url == "https://example.com/{z}/{x}/{y}.png"
     assert tile_def.opacity == 1.0
     assert tile_def.max_zoom == 20
@@ -773,8 +773,8 @@ def test_tiled_bitmap_layer_definition_defaults():
 
 
 def test_tiled_bitmap_layer_definition_custom_values():
-    """Test TiledBitmapLayerDefinition with custom values."""
-    tile_def = TiledBitmapLayerDefinition(
+    """Test TileLayer with custom values."""
+    tile_def = TileLayer(
         url="https://example.com/{z}/{x}/{y}.png",
         opacity=0.7,
         max_zoom=15,
@@ -786,11 +786,11 @@ def test_tiled_bitmap_layer_definition_custom_values():
 
 
 def test_create_tiled_bitmap_layer_basic():
-    """Test create_tiled_bitmap_layer returns a TiledBitmapLayerDefinition."""
+    """Test create_tiled_bitmap_layer returns a TileLayer."""
     result = create_tiled_bitmap_layer(
         url="https://earthengine.googleapis.com/v1/tiles/{z}/{x}/{y}",
     )
-    assert isinstance(result, TiledBitmapLayerDefinition)
+    assert isinstance(result, TileLayer)
     assert result.url == "https://earthengine.googleapis.com/v1/tiles/{z}/{x}/{y}"
     assert result.opacity == 1.0
 
@@ -837,7 +837,7 @@ def test_draw_map_with_bitmap_overlay():
 
 
 def test_draw_map_mixed_tile_layers():
-    """Test draw_map with both TiledBitmapLayerDefinition and BitmapLayerDefinition."""
+    """Test draw_map with both TileLayer and BitmapLayerDefinition."""
     from shapely.geometry import Point
 
     gdf = gpd.GeoDataFrame(
@@ -847,7 +847,7 @@ def test_draw_map_mixed_tile_layers():
     )
     geo_layer = create_scatterplot_layer(geodataframe=gdf)
 
-    base_tile = TiledBitmapLayerDefinition(
+    base_tile = TileLayer(
         url="https://base.example.com/{z}/{x}/{y}.png",
     )
     overlay = BitmapLayerDefinition(
@@ -905,7 +905,7 @@ def test_draw_map_bitmap_only_no_geo_layers():
         image="https://raster-only.example.com/image.png",
         bounds=[-1, -1, 1, 1],
     )
-    base_tile = TiledBitmapLayerDefinition(
+    base_tile = TileLayer(
         url="https://base.example.com/{z}/{x}/{y}.png",
     )
 
@@ -1133,7 +1133,7 @@ def test_merge_tile_layers_both_none():
 
 
 def test_merge_tile_layers_base_only():
-    base = TiledBitmapLayerDefinition(url="https://base.example.com/{z}/{x}/{y}.png")
+    base = TileLayer(url="https://base.example.com/{z}/{x}/{y}.png")
     result = merge_tile_layers(base_layers=[base], overlay=None)
     assert result == [base]
 
@@ -1148,8 +1148,8 @@ def test_merge_tile_layers_overlay_only():
 
 
 def test_merge_tile_layers_both():
-    base1 = TiledBitmapLayerDefinition(url="https://base1.example.com/{z}/{x}/{y}.png")
-    base2 = TiledBitmapLayerDefinition(url="https://base2.example.com/{z}/{x}/{y}.png")
+    base1 = TileLayer(url="https://base1.example.com/{z}/{x}/{y}.png")
+    base2 = TileLayer(url="https://base2.example.com/{z}/{x}/{y}.png")
     overlay = BitmapLayerDefinition(
         image="https://overlay.example.com/image.png",
         bounds=[-1, -1, 1, 1],
@@ -1160,13 +1160,13 @@ def test_merge_tile_layers_both():
 
 def test_merge_tile_layers_order():
     """Base layers come before overlay in the merged list."""
-    base = TiledBitmapLayerDefinition(url="https://base.example.com/{z}/{x}/{y}.png")
+    base = TileLayer(url="https://base.example.com/{z}/{x}/{y}.png")
     overlay = BitmapLayerDefinition(
         image="https://overlay.example.com/image.png",
         bounds=[-1, -1, 1, 1],
     )
     result = merge_tile_layers(base_layers=[base], overlay=overlay)
-    assert isinstance(result[0], TiledBitmapLayerDefinition)
+    assert isinstance(result[0], TileLayer)
     assert isinstance(result[1], BitmapLayerDefinition)
 
 

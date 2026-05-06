@@ -1,12 +1,9 @@
-import re
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Literal, Union
 
 from pydantic import (
     BaseModel,
     Field,
-    field_validator,
-    model_validator,
 )
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
@@ -15,10 +12,9 @@ from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.tasks.results._map_utils import (
     DEFAULT_TILE_LAYER_PRESETS,
     OpacityAnnotation,
+    TileLayer,
     make_preset_or_custom_json_schema_extra,
 )
-
-TileLayerPresets = DEFAULT_TILE_LAYER_PRESETS
 
 UnitType = Literal["meters", "pixels", "common"]
 WidgetPlacement = Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"]
@@ -120,73 +116,7 @@ class LayerDefinition:
     zoom: bool = False
 
 
-class TileLayer(BaseModel):
-    layer_name: SkipJsonSchema[str] = ""
-    url: Annotated[
-        str,
-        Field(
-            default="https://example.tiles.com/{z}/{x}/{y}.png",
-            title="Layer URL",
-            pattern=re.compile(
-                r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}([-a-zA-Z0-9()@:%_\+.~#?&//=\{\}]*)"
-            ),
-            description="The URL of a publicly accessible tiled raster service.",
-        ),
-    ] = "https://example.tiles.com/{z}/{x}/{y}.png"
-    opacity: OpacityAnnotation = 1
-    max_zoom: Annotated[
-        int | SkipJsonSchema[None],
-        Field(
-            default=None,
-            title="Layer Max Zoom",
-            description="Set the maximum zoom level to fetch tiles for.",
-        ),
-    ] = None
-    min_zoom: Annotated[
-        int | SkipJsonSchema[None],
-        Field(
-            default=None,
-            title="Layer Min Zoom",
-            description="Set the minimum zoom level to fetch tiles for.",
-        ),
-    ] = None
-
-    @field_validator("layer_name", mode="before")
-    def _tile_layer_name_from_string(v: Any):
-        if isinstance(v, str):
-            for layer_name in TileLayerPresets.keys():
-                if layer_name == v:
-                    return v
-            raise ValueError(
-                f"String input must match one of: {[layer_name for layer_name in TileLayerPresets.keys()]}"
-            )
-        return v
-
-    @model_validator(mode="before")
-    @classmethod
-    def set_url(cls, values):
-        if (
-            isinstance(values, dict)
-            and values.get("layer_name")
-            and values.get("layer_name") != ""
-            and values.get("layer_name") in TileLayerPresets.keys()
-        ):
-            values["url"] = TileLayerPresets.get(values.get("layer_name")).get("url")
-        return values
-
-    def _as_json_schema_default(self):
-        default = {
-            "url": self.url,
-            "opacity": self.opacity,
-        }
-        if self.max_zoom:
-            default["max_zoom"] = self.max_zoom
-        if self.min_zoom:
-            default["min_zoom"] = self.min_zoom
-        return default
-
-
-_preset_or_custom_json_schema_extra = make_preset_or_custom_json_schema_extra(TileLayer, TileLayerPresets)
+_preset_or_custom_json_schema_extra = make_preset_or_custom_json_schema_extra(TileLayer, DEFAULT_TILE_LAYER_PRESETS)
 
 
 @register()

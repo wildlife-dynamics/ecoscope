@@ -1,6 +1,8 @@
-from typing import Annotated, Type
+import re
+from typing import Annotated, Any, Type
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField
@@ -48,8 +50,73 @@ DEFAULT_TILE_LAYER_PRESETS = {
 }
 
 
-def custom_tile_layer_json_schema(model_cls: Type[BaseModel]) -> dict:
-    schema = model_cls.model_json_schema()
+class TileLayer(BaseModel):
+    """A tiled raster layer loaded on-demand from a URL template (e.g., base maps)."""
+
+    layer_name: SkipJsonSchema[str] = ""
+    url: Annotated[
+        str,
+        Field(
+            default="https://example.tiles.com/{z}/{x}/{y}.png",
+            title="Layer URL",
+            pattern=re.compile(
+                r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}([-a-zA-Z0-9()@:%_\+.~#?&//=\{\}]*)"
+            ),
+            description="The URL of a publicly accessible tiled raster service.",
+        ),
+    ] = "https://example.tiles.com/{z}/{x}/{y}.png"
+    opacity: OpacityAnnotation = 1
+    max_zoom: Annotated[
+        int,
+        Field(
+            default=20,
+            title="Layer Max Zoom",
+            description="Set the maximum zoom level to fetch tiles for.",
+        ),
+    ] = 20
+    min_zoom: Annotated[
+        int,
+        Field(
+            default=0,
+            title="Layer Min Zoom",
+            description="Set the minimum zoom level to fetch tiles for.",
+        ),
+    ] = 0
+
+    @field_validator("layer_name", mode="before")
+    def _tile_layer_name_from_string(v: Any):
+        if isinstance(v, str):
+            for layer_name in DEFAULT_TILE_LAYER_PRESETS.keys():
+                if layer_name == v:
+                    return v
+            raise ValueError(
+                f"String input must match one of: {[layer_name for layer_name in DEFAULT_TILE_LAYER_PRESETS.keys()]}"
+            )
+        return v
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_url(cls, values):
+        if (
+            isinstance(values, dict)
+            and values.get("layer_name")
+            and values.get("layer_name") != ""
+            and values.get("layer_name") in DEFAULT_TILE_LAYER_PRESETS.keys()
+        ):
+            values["url"] = DEFAULT_TILE_LAYER_PRESETS.get(values.get("layer_name")).get("url")
+        return values
+
+    def _as_json_schema_default(self):
+        return {
+            "url": self.url,
+            "opacity": self.opacity,
+            "max_zoom": self.max_zoom,
+            "min_zoom": self.min_zoom,
+        }
+
+
+def custom_tile_layer_json_schema(tile_layer: TileLayer) -> dict:
+    schema = tile_layer.model_json_schema()
     schema["properties"]["url"]["title"] = "Custom Layer URL"
     schema["properties"]["opacity"]["title"] = "Custom Layer Opacity"
     schema["properties"]["max_zoom"]["title"] = "Custom Layer Max Zoom"
@@ -58,8 +125,8 @@ def custom_tile_layer_json_schema(model_cls: Type[BaseModel]) -> dict:
     return schema
 
 
-def preset_tile_layer_json_schema(model_cls: Type[BaseModel], preset_name: str, presets: dict) -> dict:
-    schema = model_cls.model_json_schema()
+def preset_tile_layer_json_schema(tile_layer: TileLayer, preset_name: str, presets: dict) -> dict:
+    schema = tile_layer.model_json_schema()
     url = presets.get(preset_name, {}).get("url")
     title = presets.get(preset_name, {}).get("title")
     schema["properties"]["url"] |= {
@@ -76,18 +143,18 @@ def preset_tile_layer_json_schema(model_cls: Type[BaseModel], preset_name: str, 
     return schema
 
 
-def make_preset_or_custom_json_schema_extra(model_cls: Type[BaseModel], presets: dict):
+def make_preset_or_custom_json_schema_extra(tile_layer: TileLayer, presets: dict):
     """Build a json_schema_extra callable that renders preset+custom variants for the given tile-layer model."""
 
     def _preset_or_custom_json_schema_extra(schema: dict) -> None:
         schema["items"]["title"] = "Base Layer"
         schema["items"]["anyOf"] = [
-            preset_tile_layer_json_schema(model_cls, preset, presets) for preset in presets.keys()
+            preset_tile_layer_json_schema(tile_layer, preset, presets) for preset in presets.keys()
         ]
-        schema["items"]["anyOf"].append(custom_tile_layer_json_schema(model_cls))
+        schema["items"]["anyOf"].append(custom_tile_layer_json_schema(tile_layer))
         schema["default"] = [
-            model_cls(layer_name="TERRAIN")._as_json_schema_default(),
-            model_cls(layer_name="SATELLITE", opacity=0.5)._as_json_schema_default(),
+            tile_layer(layer_name="TERRAIN")._as_json_schema_default(),
+            tile_layer(layer_name="SATELLITE", opacity=0.5)._as_json_schema_default(),
         ]
         schema["ecoscope:advanced"] = True
         schema["items"].pop("$ref")
