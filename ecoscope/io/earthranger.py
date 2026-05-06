@@ -850,7 +850,9 @@ class EarthRangerIO(ERClient):
 
         event_types = self.get_event_types(include_inactive=True)
         event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
-        events_gdf["event_type_display"] = events_gdf["event_type"].map(lambda x: event_type_lookup[x])
+        events_gdf["event_type_display"] = (
+            events_gdf["event_type"].map(event_type_lookup).fillna(events_gdf["event_type"])
+        )
 
         has_duplicates = len(events_gdf["event_type_display"].unique()) != len(events_gdf["event_type"].unique())
         do_append = append_category_names == "always" or (append_category_names == "duplicates" and has_duplicates)
