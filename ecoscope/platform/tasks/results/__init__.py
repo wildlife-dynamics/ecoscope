@@ -17,7 +17,7 @@ from ._ecoplot import (
 )
 from ._map_utils import set_base_maps, set_layer_opacity
 from ._output_files import OutputFiles, gather_output_files
-from ._pydeck_map import (
+from ._pydeck import (
     create_geojson_layer,
     create_hexagon_layer,
     create_icon_layer,

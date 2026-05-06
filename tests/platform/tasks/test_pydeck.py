@@ -10,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from ecoscope.platform.tasks.results._map_utils import set_base_maps
-from ecoscope.platform.tasks.results._pydeck_map import (
+from ecoscope.platform.tasks.results._pydeck import (
     BitmapLayerDefinition,
     GeoJSONLayerStyle,
     HexagonLayerStyle,
