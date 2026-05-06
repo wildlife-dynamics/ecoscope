@@ -842,6 +842,11 @@ class EarthRangerIO(ERClient):
             If set to duplicates, the event category value will be appended
                 only for event types with overlapping display names
             If set to never, no category names will be appended
+
+        Event types that are present on events but missing from the ER
+        event-type registry (e.g. deleted/orphan types still attached to
+        historical events) fall back to their raw event_type value as the
+        display, rather than raising KeyError.
         Returns
         -------
         gpd.GeoDataFrame
@@ -850,7 +855,9 @@ class EarthRangerIO(ERClient):
 
         event_types = self.get_event_types(include_inactive=True)
         event_type_lookup = dict(zip(event_types["value"], event_types["display"]))
-        events_gdf["event_type_display"] = events_gdf["event_type"].map(lambda x: event_type_lookup[x])
+        events_gdf["event_type_display"] = (
+            events_gdf["event_type"].map(event_type_lookup).fillna(events_gdf["event_type"])
+        )
 
         has_duplicates = len(events_gdf["event_type_display"].unique()) != len(events_gdf["event_type"].unique())
         do_append = append_category_names == "always" or (append_category_names == "duplicates" and has_duplicates)
