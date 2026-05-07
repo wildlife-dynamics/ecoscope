@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 import pandas as pd
 import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
-from pydantic import BaseModel, Field, PlainSerializer
+from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -20,19 +20,20 @@ PYDECK_CUSTOM_LIBRARIES = [
     }
 ]
 
-# Wraps string values in pdk.types.String at dump time so pydeck treats them
-# as literal strings rather than data accessor expressions.
-_pdk_literal_string = PlainSerializer(lambda v: pdk.types.String(v), return_type=str, when_used="unless-none")
-PydeckString = Annotated[str, _pdk_literal_string]
+# Marker for fields that pydeck must treat as literal strings rather than data
+# accessor expressions. _model_dump_with_pydeck_literals looks for this in the
+# Annotated metadata and wraps the dumped value in pdk.types.String.
+PydeckAnnotation = "pydeck_string"
+PydeckString = Annotated[str, PydeckAnnotation]
 
-UnitType = Annotated[Literal["meters", "pixels"], _pdk_literal_string]
+UnitType = Annotated[Literal["meters", "pixels"], PydeckAnnotation]
 WidgetPlacement = Annotated[
     Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"],
-    _pdk_literal_string,
+    PydeckAnnotation,
 ]
-AlignmentBaseline = Annotated[Literal["top", "center", "bottom"], _pdk_literal_string]
-TextAnchor = Annotated[Literal["start", "middle", "end"], _pdk_literal_string]
-WordBreak = Annotated[Literal["break-word", "break-all"], _pdk_literal_string]
+AlignmentBaseline = Annotated[Literal["top", "center", "bottom"], PydeckAnnotation]
+TextAnchor = Annotated[Literal["start", "middle", "end"], PydeckAnnotation]
+WordBreak = Annotated[Literal["break-word", "break-all"], PydeckAnnotation]
 ColorAccessor = str | SkipJsonSchema[list[int]] | SkipJsonSchema[list[list[int]]]
 FloatAccessor = str | float | SkipJsonSchema[list[float]]
 LegendLabel: TypeAlias = str
@@ -403,6 +404,18 @@ def view_state_from_layers(
 def _color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     # eg [255,0,120,255] converts to 'rgba(255,0,120,1)'
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3] / 255})"
+
+
+def _model_dump_with_pydeck_literals(model: BaseModel) -> dict:
+    """
+    Dump a model and wrap fields tagged with PydeckAnnotation in pdk.types.String,
+    so pydeck treats them as literal values rather than data-accessor expressions.
+    """
+    dumped = model.model_dump(exclude_none=True)
+    for field, field_info in model.__class__.model_fields.items():
+        if PydeckAnnotation in field_info.metadata and dumped.get(field):
+            dumped[field] = pdk.types.String(dumped[field])
+    return dumped
 
 
 @register()
@@ -900,7 +913,7 @@ def draw_map(
 
     for tile_layer in tile_layers:
         if isinstance(tile_layer, BitmapLayerDefinition):
-            dump = tile_layer.model_dump(exclude_none=True)
+            dump = _model_dump_with_pydeck_literals(tile_layer)
             dump.pop("legend", None)
             layer = pdk.Layer("BitmapLayer", **dump)
             map_layers.append(layer)
@@ -949,7 +962,7 @@ def draw_map(
             type=layer_def.layer_type,
             id=layer_id,
             data=data,
-            **layer_def.layer_style.model_dump(exclude_none=True),
+            **_model_dump_with_pydeck_literals(layer_def.layer_style),
         )
         map_layers.append(layer)
 
