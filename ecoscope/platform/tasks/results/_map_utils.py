@@ -115,7 +115,7 @@ class TileLayer(BaseModel):
         }
 
 
-def custom_tile_layer_json_schema(tile_layer: TileLayer) -> dict:
+def custom_tile_layer_json_schema(tile_layer: type[TileLayer]) -> dict:
     schema = tile_layer.model_json_schema()
     schema["properties"]["url"]["title"] = "Custom Layer URL"
     schema["properties"]["opacity"]["title"] = "Custom Layer Opacity"
@@ -125,7 +125,7 @@ def custom_tile_layer_json_schema(tile_layer: TileLayer) -> dict:
     return schema
 
 
-def preset_tile_layer_json_schema(tile_layer: TileLayer, preset_name: str, presets: dict) -> dict:
+def preset_tile_layer_json_schema(tile_layer: type[TileLayer], preset_name: str, presets: dict) -> dict:
     schema = tile_layer.model_json_schema()
     url = presets.get(preset_name, {}).get("url")
     title = presets.get(preset_name, {}).get("title")
@@ -143,7 +143,7 @@ def preset_tile_layer_json_schema(tile_layer: TileLayer, preset_name: str, prese
     return schema
 
 
-def make_preset_or_custom_json_schema_extra(tile_layer: TileLayer, presets: dict):
+def make_preset_or_custom_json_schema_extra(tile_layer: type[TileLayer], presets: dict):
     """Build a json_schema_extra callable that renders preset+custom variants for the given tile-layer model."""
 
     def _preset_or_custom_json_schema_extra(schema: dict) -> None:
@@ -153,8 +153,8 @@ def make_preset_or_custom_json_schema_extra(tile_layer: TileLayer, presets: dict
         ]
         schema["items"]["anyOf"].append(custom_tile_layer_json_schema(tile_layer))
         schema["default"] = [
-            tile_layer(layer_name="TERRAIN")._as_json_schema_default(),
-            tile_layer(layer_name="SATELLITE", opacity=0.5)._as_json_schema_default(),
+            TileLayer(layer_name="TERRAIN")._as_json_schema_default(),
+            TileLayer(layer_name="SATELLITE", opacity=0.5)._as_json_schema_default(),
         ]
         schema["ecoscope:advanced"] = True
         schema["items"].pop("$ref")

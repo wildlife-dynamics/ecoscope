@@ -623,8 +623,7 @@ def create_scatterplot_layer(
     """
     layer_style = layer_style if layer_style else ScatterplotLayerStyle()
 
-    # TODO think about this in the context of external data urls
-    if isinstance(layer_style.get_radius, str):
+    if isinstance(layer_style.get_radius, str) and geodataframe is not None:
         radius_series = geodataframe[layer_style.get_radius]
 
         # Lift all values up such that the min == 1
