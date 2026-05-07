@@ -55,6 +55,38 @@ def create_map_widget_single_view(
 
 
 @register()
+def create_map_v2_widget_single_view(
+    title: Annotated[str, Field(description="The title of the widget")],
+    data: Annotated[
+        PrecomputedHTMLWidgetData,
+        Field(description="Path to precomputed HTML"),
+        SkippedDependencyFallback(_fallback_to_none),
+    ],
+    view: Annotated[
+        CompositeFilter | None,
+        Field(description="If grouped, the view of the widget", exclude=True),
+    ] = None,
+) -> Annotated[WidgetSingleView, Field(description="The widget")]:
+    """Create a map widget with a single view.
+
+    Args:
+        title: The title of the widget.
+        data: Path to json.
+        view: If grouped, the view of the widget.
+
+    Returns:
+        The widget.
+    """
+    return WidgetSingleView(
+        widget_type="map_v2",
+        title=title,
+        view=view,
+        data=data,
+        is_filtered=(view is not None),
+    )
+
+
+@register()
 def create_plot_widget_single_view(
     title: Annotated[str, Field(description="The title of the widget")],
     data: Annotated[
