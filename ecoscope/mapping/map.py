@@ -67,12 +67,6 @@ TILE_LAYERS = {
         "name": "Esri.WorldTopoMap",
         "max_zoom": 17,
     },
-    "LANDDX": {
-        "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
-        "attribution": "landDx",
-        "name": "landDx",
-        "max_zoom": 15,
-    },
     "USGS HILLSHADE": {
         "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
         "attribution": "USGS",
