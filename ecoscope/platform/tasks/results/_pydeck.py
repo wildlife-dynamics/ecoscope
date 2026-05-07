@@ -17,8 +17,7 @@ from ecoscope.platform.tasks.results._map_utils import TileLayer
 PYDECK_CUSTOM_LIBRARIES = [
     {
         "libraryName": "EcoscopeDeckglExtensions",
-        "resourceUri": "http://localhost/ecoscope-deckgl-extensions/bundle.js",
-        # "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.0.7/dist/bundle.js",
+        "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.0.8/dist/bundle.js",
     }
 ]
 
