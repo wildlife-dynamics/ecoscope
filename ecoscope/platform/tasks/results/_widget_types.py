@@ -10,9 +10,10 @@ WidgetTypes = Literal["graph", "map", "text", "stat", "table", "map_v2"]
 
 PrecomputedHTMLWidgetData: TypeAlias = Path | Url | None
 TextWidgetData: TypeAlias = str | None
+MapWidgetData: TypeAlias = str | None
 SingleValueWidgetData: TypeAlias = str | None
 
-WidgetData: TypeAlias = PrecomputedHTMLWidgetData | TextWidgetData | SingleValueWidgetData
+WidgetData: TypeAlias = PrecomputedHTMLWidgetData | TextWidgetData | MapWidgetData | SingleValueWidgetData
 GroupedWidgetMergeKey: TypeAlias = tuple[str, str]
 
 

@@ -34,6 +34,7 @@ from ._pydeck import (
 )
 from ._table import draw_table
 from ._widget_tasks import (
+    create_map_v2_widget_single_view,
     create_map_widget_single_view,
     create_plot_widget_single_view,
     create_single_value_widget_single_view,
@@ -62,6 +63,7 @@ __all__ = [
     "OutputFiles",
     "gather_output_files",
     "draw_table",
+    "create_map_v2_widget_single_view",
     "create_map_widget_single_view",
     "create_plot_widget_single_view",
     "create_single_value_widget_single_view",

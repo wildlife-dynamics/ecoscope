@@ -9,6 +9,7 @@ from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.tasks.results._widget_types import (
     GroupedWidget,
     GroupedWidgetMergeKey,
+    MapWidgetData,
     PrecomputedHTMLWidgetData,
     TextWidgetData,
     WidgetData,
@@ -58,8 +59,8 @@ def create_map_widget_single_view(
 def create_map_v2_widget_single_view(
     title: Annotated[str, Field(description="The title of the widget")],
     data: Annotated[
-        PrecomputedHTMLWidgetData,
-        Field(description="Path to precomputed HTML"),
+        MapWidgetData,
+        Field(description="A deck.gl JSON spec string"),
         SkippedDependencyFallback(_fallback_to_none),
     ],
     view: Annotated[
@@ -71,7 +72,7 @@ def create_map_v2_widget_single_view(
 
     Args:
         title: The title of the widget.
-        data: Path to json.
+        data: A deck.gl JSON spec string.
         view: If grouped, the view of the widget.
 
     Returns:
