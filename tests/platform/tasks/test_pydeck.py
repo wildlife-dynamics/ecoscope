@@ -5,9 +5,12 @@ from typing import Literal
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
+import pandas as pd
 import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
 import pytest
 from pydantic import ValidationError
+from shapely.geometry import MultiPolygon, Point, Polygon
+from wt_task import task
 
 from ecoscope.platform.tasks.results._map_utils import set_base_maps
 from ecoscope.platform.tasks.results._pydeck import (
@@ -206,8 +209,6 @@ def test_polygon_layer():
 
 def test_draw_map_explodes_multipolygon():
     """draw_map should explode MultiPolygon geometries into Polygons for deck.gl compatibility."""
-    from shapely.geometry import MultiPolygon, Polygon
-
     poly1 = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
     poly2 = Polygon([(2, 2), (3, 2), (3, 3), (2, 3)])
     multi = MultiPolygon([poly1, poly2])
@@ -594,8 +595,6 @@ def test_custom_tile_layer_validation():
 
 
 def test_set_base_maps():
-    from wt_task import task
-
     res = (
         task(set_base_maps)
         .validate()
@@ -621,9 +620,6 @@ def test_geojson_layer_numpy_types():
     during serialization. This ensures that columns with numpy types in the
     GeoDataFrame don't cause JSON serialization errors when pydeck converts them.
     """
-    import numpy as np
-    import pandas as pd
-    from shapely.geometry import Point
 
     # Create a GDF with explicit numpy types that often cause serialization issues
     df = pd.DataFrame(
@@ -648,8 +644,6 @@ def test_geojson_layer_styling():
     Verify that static styling properties (like filled, stroked, colors, line widths)
     are correctly passed from GeoJSONLayerStyle to the generated deck.gl layer.
     """
-    from shapely.geometry import Point
-
     gdf = gpd.GeoDataFrame({"col": [1]}, geometry=[Point(0, 0)], crs="EPSG:4326")
     style = GeoJSONLayerStyle(
         filled=False,
@@ -681,9 +675,6 @@ def test_geojson_layer_data_driven_styling():
     passed to pydeck using the default '@@=colname' syntax. This confirms that
     data-driven styling works by referencing properties in the GeoJSON features.
     """
-    import pandas as pd
-    from shapely.geometry import Point
-
     df = pd.DataFrame(
         {
             "fill_color": [[255, 0, 0, 255]],
@@ -729,9 +720,6 @@ def test_geojson_layer_mixed_styling():
     Verify that mixing static values (e.g., fixed color) and data-driven accessors
     (e.g., variable elevation from a column) works correctly in the same layer style.
     """
-    import pandas as pd
-    from shapely.geometry import Polygon
-
     # Create a simple polygon dataframe
     poly = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
     df = pd.DataFrame({"elevation_val": [500], "geometry": [poly]})
@@ -810,8 +798,6 @@ def test_create_tiled_bitmap_layer_with_options():
 
 def test_draw_map_with_bitmap_overlay():
     """Test draw_map with BitmapLayerDefinition in tile_layers."""
-    from shapely.geometry import Point
-
     # Create a simple geo layer
     gdf = gpd.GeoDataFrame(
         {"col": [1]},
@@ -838,8 +824,6 @@ def test_draw_map_with_bitmap_overlay():
 
 def test_draw_map_mixed_tile_layers():
     """Test draw_map with both TileLayer and BitmapLayerDefinition."""
-    from shapely.geometry import Point
-
     gdf = gpd.GeoDataFrame(
         {"col": [1]},
         geometry=[Point(0, 0)],
@@ -867,8 +851,6 @@ def test_draw_map_mixed_tile_layers():
 
 def test_draw_map_multiple_bitmap_overlays():
     """Test draw_map with multiple BitmapLayerDefinition overlays."""
-    from shapely.geometry import Point
-
     gdf = gpd.GeoDataFrame(
         {"col": [1]},
         geometry=[Point(0, 0)],
@@ -978,10 +960,6 @@ def test_legend_shows_all_labels_with_shared_colors(gdf_with_points):
     share the same color. The legend should deduplicate by label (not by
     color), so each unique name gets its own entry.
     """
-    # Add a third category that shares the same color as "first"
-    import pandas as pd
-    from shapely.geometry import Point
-
     extra = gpd.GeoDataFrame(
         {"category": ["third"], "color": [(255, 255, 0, 255)]},
         geometry=[Point(0, 0)],
