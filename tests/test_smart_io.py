@@ -12,6 +12,7 @@ def check_time_is_parsed(df):
             assert pd.api.types.is_datetime64_ns_dtype(df[col]) or df[col].isna().all()
 
 
+@pytest.mark.skip(reason="SMART API is currently down")
 def test_smart_get_events(smart_io):
     events = smart_io.get_events(
         ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",
@@ -27,6 +28,7 @@ def test_smart_get_events(smart_io):
     check_time_is_parsed(events)
 
 
+@pytest.mark.skip(reason="SMART API is currently down")
 def test_smart_get_patrol_observations(smart_io):
     result = smart_io.get_patrol_observations(
         ca_uuid="735606d2-c34e-49c3-a45b-7496ca834e58",

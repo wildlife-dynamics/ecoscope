@@ -839,6 +839,33 @@ def test_get_event_type_display_names_from_events_categories_duplicates_only(er_
     assert "Inactive Event" in events["event_type_display"].unique()
 
 
+def test_get_event_type_display_names_from_events_falls_back_for_unknown_type(er_events_io):
+    # Event types attached to historical events are sometimes absent from the ER
+    # event-type registry (e.g., deleted types). The function must fall back to
+    # the raw event_type value rather than raising KeyError.
+    events_gdf = gpd.GeoDataFrame(
+        {
+            "event_type": ["accident", "orphan_event_type"],
+            "geometry": [Point(0, 0), Point(1, 1)],
+        },
+        crs=4326,
+    )
+    registry = pd.DataFrame(
+        {
+            "value": ["accident"],
+            "display": ["Accident"],
+            "category": [{"value": "security", "display": "Security"}],
+        }
+    )
+    with patch.object(er_events_io, "get_event_types", return_value=registry):
+        result = er_events_io.get_event_type_display_names_from_events(
+            events_gdf=events_gdf,
+            append_category_names="never",
+        )
+
+    assert list(result["event_type_display"]) == ["Accident", "orphan_event_type"]
+
+
 def test_get_event_type_display_names_from_patrol_events(er_events_io):
     patrol_events = er_events_io.get_patrol_events(
         since=pd.Timestamp("2017-01-01").isoformat(),
