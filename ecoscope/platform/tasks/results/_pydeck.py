@@ -1,4 +1,3 @@
-import html
 import logging
 from dataclasses import dataclass
 from typing import Annotated, Literal, Tuple, TypeAlias, Union
@@ -23,7 +22,7 @@ PYDECK_CUSTOM_LIBRARIES = [
 
 # Wraps string values in pdk.types.String at dump time so pydeck treats them
 # as literal strings rather than data accessor expressions.
-_pdk_literal_string = PlainSerializer(lambda v: pdk.types.String(v), when_used="unless-none")
+_pdk_literal_string = PlainSerializer(lambda v: pdk.types.String(v), return_type=str, when_used="unless-none")
 PydeckString = Annotated[str, _pdk_literal_string]
 
 UnitType = Annotated[Literal["meters", "pixels"], _pdk_literal_string]
