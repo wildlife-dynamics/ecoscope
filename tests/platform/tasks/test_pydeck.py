@@ -273,6 +273,55 @@ def test_combined_with_extrusion(extruded):
     assert f'"depthTest": {expected_depth_test}' in map_html
 
 
+def test_draw_map_json_output():
+    lines = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_path.geojson"))
+    path_layer_def = create_path_layer(
+        geodataframe=lines,
+        layer_style=PathLayerStyle(get_width=3, get_color=[255, 0, 0]),
+    )
+    polys = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_poly.geojson"))
+    poly_layer_def = create_polygon_layer_pydeck(
+        geodataframe=polys,
+        layer_style=PolygonLayerStyle(get_fill_color=[255, 0, 0]),
+    )
+
+    view_state = ViewState(longitude=10.5, latitude=-2.3, zoom=8, pitch=15, bearing=45)
+
+    result = draw_map(
+        geo_layers=[path_layer_def, poly_layer_def],
+        view_state=view_state,
+        title="My Map",
+        output_type="json",
+    )
+
+    assert isinstance(result, str)
+    spec = json.loads(result)
+
+    assert set(spec.keys()) >= {"layers", "initialViewState", "views", "widgets", "parameters", "mapStyle"}
+
+    assert spec["initialViewState"] == {
+        "longitude": 10.5,
+        "latitude": -2.3,
+        "zoom": 8,
+        "pitch": 15,
+        "bearing": 45,
+    }
+
+    assert len(spec["layers"]) == 2
+    layer_types_by_id = {layer["id"]: layer["@@type"] for layer in spec["layers"]}
+    assert layer_types_by_id == {"PathLayer-0": "PathLayer", "PolygonLayer-1": "PolygonLayer"}
+
+    widget_types = {w["@@type"] for w in spec["widgets"]}
+    assert {"NorthArrowWidget", "ScaleWidget", "SaveImageWidget", "TitleWidget"} <= widget_types
+
+    assert spec["views"]["@@type"] == "MapView"
+    assert spec["views"]["controller"] is True
+    assert spec["views"]["repeat"] is True
+
+    north_arrow = next(w for w in spec["widgets"] if w["@@type"] == "NorthArrowWidget")
+    assert north_arrow["placement"] == "top-left"
+
+
 def test_view_state_calc():
     x1 = 34.683838
     y1 = -3.173425

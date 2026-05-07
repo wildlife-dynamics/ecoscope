@@ -824,6 +824,10 @@ def draw_map(
         Field(description="A list of tile layers (base maps and/or overlays)."),
     ] = None,
     static: Annotated[bool, Field(description="Set to true to disable map pan/zoom.")] = False,
+    output_type: Annotated[
+        Literal["html", "json"],
+        Field(description="Whether to return rendered HTML or a deck.gl JSON spec string."),
+    ] = "html",
     title: Annotated[
         str | SkipJsonSchema[None],
         AdvancedField(
@@ -886,7 +890,8 @@ def draw_map(
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
     Returns:
-    str: A static HTML representation of the map.
+    str: A static HTML representation of the map, or a deck.gl JSON spec string
+        if ``output_type="json"``.
     """
     pdk.settings.custom_libraries = PYDECK_CUSTOM_LIBRARIES
 
@@ -1039,8 +1044,9 @@ def draw_map(
         map_style=pdk.map_styles.LIGHT_NO_LABELS,
     )
 
-    html = m.to_html(as_string=True)
-    return html
+    if output_type == "json":
+        return m.to_json()
+    return m.to_html(as_string=True)
 
 
 @register()
