@@ -1,6 +1,7 @@
+import json
 import logging
 from dataclasses import dataclass
-from typing import Annotated, Literal, Tuple, TypeAlias, Union
+from typing import Annotated, Any, Literal, Tuple, TypeAlias, Union
 
 logger = logging.getLogger(__name__)
 
@@ -826,7 +827,7 @@ def draw_map(
     static: Annotated[bool, Field(description="Set to true to disable map pan/zoom.")] = False,
     output_type: Annotated[
         Literal["html", "json"],
-        Field(description="Whether to return rendered HTML or a deck.gl JSON spec string."),
+        Field(description="Whether to return rendered HTML or a deck.gl JSON spec dict."),
     ] = "html",
     title: Annotated[
         str | SkipJsonSchema[None],
@@ -874,7 +875,7 @@ def draw_map(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | dict[str, Any], Field()]:
     """
     Creates a map based on the provided layer definitions and configuration.
 
@@ -890,8 +891,8 @@ def draw_map(
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
     Returns:
-    str: A static HTML representation of the map, or a deck.gl JSON spec string
-        if ``output_type="json"``.
+    str | dict: A static HTML representation of the map, or a deck.gl JSON spec
+        dict if ``output_type="json"``.
     """
     pdk.settings.custom_libraries = PYDECK_CUSTOM_LIBRARIES
 
@@ -1045,7 +1046,7 @@ def draw_map(
     )
 
     if output_type == "json":
-        return m.to_json()
+        return json.loads(m.to_json())
     return m.to_html(as_string=True)
 
 

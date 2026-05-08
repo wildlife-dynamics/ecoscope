@@ -287,15 +287,14 @@ def test_draw_map_json_output():
 
     view_state = ViewState(longitude=10.5, latitude=-2.3, zoom=8, pitch=15, bearing=45)
 
-    result = draw_map(
+    spec = draw_map(
         geo_layers=[path_layer_def, poly_layer_def],
         view_state=view_state,
         title="My Map",
         output_type="json",
     )
 
-    assert isinstance(result, str)
-    spec = json.loads(result)
+    assert isinstance(spec, dict)
 
     assert set(spec.keys()) >= {"layers", "initialViewState", "views", "widgets", "parameters", "mapStyle"}
 

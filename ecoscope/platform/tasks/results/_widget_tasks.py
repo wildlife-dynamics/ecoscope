@@ -60,7 +60,7 @@ def create_map_v2_widget_single_view(
     title: Annotated[str, Field(description="The title of the widget")],
     data: Annotated[
         MapWidgetData,
-        Field(description="A deck.gl JSON spec string"),
+        Field(description="A deck.gl JSON spec as a dict"),
         SkippedDependencyFallback(_fallback_to_none),
     ],
     view: Annotated[
@@ -72,7 +72,7 @@ def create_map_v2_widget_single_view(
 
     Args:
         title: The title of the widget.
-        data: A deck.gl JSON spec string.
+        data: A deck.gl JSON spec as a dict.
         view: If grouped, the view of the widget.
 
     Returns:

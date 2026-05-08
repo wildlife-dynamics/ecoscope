@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, TypeAlias
+from typing import Any, Literal, TypeAlias
 
 from pydantic_core import Url
 
@@ -10,7 +10,7 @@ WidgetTypes = Literal["graph", "map", "text", "stat", "table", "map_v2"]
 
 PrecomputedHTMLWidgetData: TypeAlias = Path | Url | None
 TextWidgetData: TypeAlias = str | None
-MapWidgetData: TypeAlias = str | None
+MapWidgetData: TypeAlias = dict[str, Any] | None
 SingleValueWidgetData: TypeAlias = str | None
 
 WidgetData: TypeAlias = PrecomputedHTMLWidgetData | TextWidgetData | MapWidgetData | SingleValueWidgetData
