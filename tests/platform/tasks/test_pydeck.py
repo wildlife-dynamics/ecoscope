@@ -15,6 +15,7 @@ from wt_task import task
 from ecoscope.platform.tasks.results._map_utils import set_base_maps
 from ecoscope.platform.tasks.results._pydeck import (
     BitmapLayerDefinition,
+    DeckJsonSpec,
     GeoJSONLayerStyle,
     HexagonLayerStyle,
     IconLayerStyle,
@@ -294,11 +295,9 @@ def test_draw_map_json_output():
         output_type="json",
     )
 
-    assert isinstance(spec, dict)
+    assert isinstance(spec, DeckJsonSpec)
 
-    assert set(spec.keys()) >= {"layers", "initialViewState", "views", "widgets", "parameters", "mapStyle"}
-
-    assert spec["initialViewState"] == {
+    assert spec.initialViewState == {
         "longitude": 10.5,
         "latitude": -2.3,
         "zoom": 8,
@@ -306,19 +305,32 @@ def test_draw_map_json_output():
         "bearing": 45,
     }
 
-    assert len(spec["layers"]) == 2
-    layer_types_by_id = {layer["id"]: layer["@@type"] for layer in spec["layers"]}
+    assert len(spec.layers) == 2
+    layer_types_by_id = {layer["id"]: layer["@@type"] for layer in spec.layers}
     assert layer_types_by_id == {"PathLayer-0": "PathLayer", "PolygonLayer-1": "PolygonLayer"}
 
-    widget_types = {w["@@type"] for w in spec["widgets"]}
+    widget_types = {w["@@type"] for w in spec.widgets}
     assert {"NorthArrowWidget", "ScaleWidget", "SaveImageWidget", "TitleWidget"} <= widget_types
 
-    assert spec["views"]["@@type"] == "MapView"
-    assert spec["views"]["controller"] is True
-    assert spec["views"]["repeat"] is True
+    assert isinstance(spec.views, dict)
+    assert spec.views["@@type"] == "MapView"
+    assert spec.views["controller"] is True
+    assert spec.views["repeat"] is True
 
-    north_arrow = next(w for w in spec["widgets"] if w["@@type"] == "NorthArrowWidget")
+    north_arrow = next(w for w in spec.widgets if w["@@type"] == "NorthArrowWidget")
     assert north_arrow["placement"] == "top-left"
+
+    # extras (mapStyle, mapProvider, parameters) flow through via extra="allow"
+    dumped = spec.model_dump()
+    assert {"layers", "initialViewState", "views", "widgets", "parameters", "mapStyle"} <= dumped.keys()
+
+
+def test_draw_map_json_validation_rejects_bad_shape():
+    """DeckJsonSpec rejects payloads missing required top-level keys."""
+    from pydantic import ValidationError as PydanticValidationError
+
+    with pytest.raises(PydanticValidationError):
+        DeckJsonSpec.model_validate({"layers": []})  # missing initialViewState + views
 
 
 def test_view_state_calc():

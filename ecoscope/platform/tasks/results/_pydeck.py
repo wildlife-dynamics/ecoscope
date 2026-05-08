@@ -7,12 +7,29 @@ logger = logging.getLogger(__name__)
 
 import pandas as pd
 import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.tasks.results._map_utils import TileLayer
+
+
+class DeckJsonSpec(BaseModel):
+    """Loose schema for a deck.gl JSON spec.
+
+    Validates the top-level shape produced by ``pydeck.Deck.to_json()`` (must have
+    layers, an initial view state, and a views config) and lets every other key
+    pass through untouched via ``extra="allow"``.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    layers: list[dict[str, Any]]
+    initialViewState: dict[str, Any]
+    views: dict[str, Any] | list[dict[str, Any]]
+    widgets: list[dict[str, Any]] = Field(default_factory=list)
+
 
 PYDECK_CUSTOM_LIBRARIES = [
     {
@@ -875,7 +892,7 @@ def draw_map(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str | dict[str, Any], Field()]:
+) -> Annotated[str | DeckJsonSpec, Field()]:
     """
     Creates a map based on the provided layer definitions and configuration.
 
@@ -891,8 +908,8 @@ def draw_map(
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
     Returns:
-    str | dict: A static HTML representation of the map, or a deck.gl JSON spec
-        dict if ``output_type="json"``.
+    str | DeckJsonSpec: A static HTML representation of the map, or a validated
+        deck.gl JSON spec if ``output_type="json"``.
     """
     pdk.settings.custom_libraries = PYDECK_CUSTOM_LIBRARIES
 
@@ -1046,7 +1063,7 @@ def draw_map(
     )
 
     if output_type == "json":
-        return json.loads(m.to_json())
+        return DeckJsonSpec.model_validate(json.loads(m.to_json()))
     return m.to_html(as_string=True)
 
 

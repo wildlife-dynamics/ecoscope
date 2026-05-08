@@ -90,3 +90,20 @@ def test_persist_json_generated_filename_with_suffix(tmp_path):
     dst = persist_json(data, root_path, filename_suffix="grouped")
     expected_filename = hashlib.sha256(json.dumps(data).encode()).hexdigest()[:7] + "_grouped.json"
     assert dst == os.path.join(root_path, expected_filename)
+
+
+def test_persist_json_accepts_basemodel(tmp_path):
+    from ecoscope.platform.tasks.results._pydeck import DeckJsonSpec
+
+    spec = DeckJsonSpec(
+        layers=[],
+        initialViewState={"longitude": 0, "latitude": 0, "zoom": 1},
+        views={"@@type": "MapView"},
+    )
+    root_path = str(tmp_path / "test")
+    dst = persist_json(spec, root_path, filename="map.json")
+    with open(dst) as f:
+        loaded = json.load(f)
+    assert loaded["layers"] == []
+    assert loaded["initialViewState"] == {"longitude": 0, "latitude": 0, "zoom": 1}
+    assert loaded["views"] == {"@@type": "MapView"}

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrame
@@ -53,7 +53,10 @@ def persist_text(
 
 @register()
 def persist_json(
-    data: Annotated[dict[str, Any], Field(description="JSON-serializable dict to persist")],
+    data: Annotated[
+        dict[str, Any] | BaseModel,
+        Field(description="JSON-serializable dict or pydantic model to persist"),
+    ],
     root_path: Annotated[str, Field(description="Root path to persist data to")],
     filename: Annotated[
         str | None,
@@ -74,8 +77,11 @@ def persist_json(
         ),
     ] = None,
 ) -> Annotated[str, Field(description="Path to persisted JSON")]:
-    """Serialize a dict to JSON and persist to a file or cloud storage object."""
-    payload = json.dumps(data)
+    """Serialize JSON-shaped data and persist to a file or cloud storage object."""
+    if isinstance(data, BaseModel):
+        payload = data.model_dump_json()
+    else:
+        payload = json.dumps(data)
 
     if not filename:
         filename = hashlib.sha256(payload.encode()).hexdigest()[:7] + ".json"
