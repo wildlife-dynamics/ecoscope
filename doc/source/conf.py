@@ -20,8 +20,8 @@ import sys
 sys.path.insert(0, os.path.abspath("../.."))  # Necessary for viewcode
 sys.path.insert(0, os.path.abspath(".."))
 
-project = "Ecocope"
-copyright = "2025, Wildlife Dynamics"
+project = "Ecoscope"
+copyright = "2026, Wildlife Dynamics"
 author = "Wildlife Dynamics"
 
 source_suffix = {
@@ -99,6 +99,10 @@ html_logo = "_static/images/logo.svg"
 # material theme options (see theme.conf for more information)
 html_theme_options = {
     "github_url": "https://github.com/wildlife-dynamics/ecoscope",
+    "logo": {
+        "image_light": "_static/images/logo.svg",
+        "image_dark": "_static/images/logo-grayscale.svg",
+    },
     "pygment_light_style": "rainbow_dash",
     "pygment_dark_style": "dracula",
 }
