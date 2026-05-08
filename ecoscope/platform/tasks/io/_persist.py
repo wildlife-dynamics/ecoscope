@@ -14,7 +14,10 @@ from ecoscope.platform.serde import _persist_bytes, _persist_text
 # because in the end to end test that tag is used to determine which tasks to mock.
 # Ultimately, we should make the mocking process less brittle, but to get his PR merged,
 # I'm going to leave this as is for now.
-@register()
+@register(
+    deprecated=True,
+    deprecation_message="Use persist_text_v2 instead, which accepts a configurable file extension.",
+)
 def persist_text(
     text: Annotated[str, Field(description="Text to persist")],
     root_path: Annotated[str, Field(description="Root path to persist text to")],
@@ -38,11 +41,59 @@ def persist_text(
         ),
     ] = None,
 ) -> Annotated[str, Field(description="Path to persisted text")]:
-    """Persist text to a file or cloud storage object."""
+    """Persist text to a file or cloud storage object.
+
+    Deprecated: hardcodes ``.html`` as the extension for auto-generated
+    filenames. Use ``persist_text_v2`` to choose a different extension.
+    """
 
     if not filename:
         # generate a filename if none is explicitly provided
         filename = hashlib.sha256(text.encode()).hexdigest()[:7] + ".html"
+    if filename_suffix:
+        filepath = Path(filename)
+        filename = f"{filepath.stem}_{filename_suffix}{filepath.suffix}"
+
+    return _persist_text(text, root_path, filename)
+
+
+@register()
+def persist_text_v2(
+    text: Annotated[str, Field(description="Text to persist")],
+    root_path: Annotated[str, Field(description="Root path to persist text to")],
+    extension: Annotated[
+        str,
+        Field(
+            description=(
+                "File extension used when auto-generating a "
+                "filename from a content hash. Ignored when `filename` is provided."
+            ),
+        ),
+    ] = "html",
+    filename: Annotated[
+        str | None,
+        Field(
+            description="""\
+            Optional filename to persist text to within the `root_path`.
+            If not provided, a filename will be generated based on a hash of the text content.
+            """,
+            exclude=True,
+        ),
+    ] = None,
+    filename_suffix: Annotated[
+        str | None,
+        Field(
+            description="""\
+            If present, will be appended to the filename stem before the extension.
+            """,
+            exclude=True,
+        ),
+    ] = None,
+) -> Annotated[str, Field(description="Path to persisted text")]:
+    """Persist text to a file or cloud storage object."""
+
+    if not filename:
+        filename = hashlib.sha256(text.encode()).hexdigest()[:7] + f".{extension}"
     if filename_suffix:
         filepath = Path(filename)
         filename = f"{filepath.stem}_{filename_suffix}{filepath.suffix}"

@@ -29,7 +29,7 @@ from ._earthranger import (
     unpack_events_from_patrols_df,
     unpack_events_from_patrols_df_and_combined_params,
 )
-from ._persist import persist_df, persist_text
+from ._persist import persist_df, persist_text, persist_text_v2
 from ._set_connection import set_er_connection, set_gee_connection, set_smart_connection
 from ._smart import get_events_from_smart, get_patrol_observations_from_smart
 from ._spatial_features import (
@@ -74,6 +74,7 @@ __all__ = [
     "unpack_events_from_patrols_df_and_combined_params",
     "persist_df",
     "persist_text",
+    "persist_text_v2",
     "set_er_connection",
     "set_gee_connection",
     "set_smart_connection",
