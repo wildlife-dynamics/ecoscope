@@ -1,7 +1,8 @@
 import hashlib
 import io
+import json
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field
 from wt_registry import register
@@ -14,10 +15,7 @@ from ecoscope.platform.serde import _persist_bytes, _persist_text
 # because in the end to end test that tag is used to determine which tasks to mock.
 # Ultimately, we should make the mocking process less brittle, but to get his PR merged,
 # I'm going to leave this as is for now.
-@register(
-    deprecated=True,
-    deprecation_message="Use persist_text_v2 instead, which accepts a configurable file extension.",
-)
+@register()
 def persist_text(
     text: Annotated[str, Field(description="Text to persist")],
     root_path: Annotated[str, Field(description="Root path to persist text to")],
@@ -41,11 +39,7 @@ def persist_text(
         ),
     ] = None,
 ) -> Annotated[str, Field(description="Path to persisted text")]:
-    """Persist text to a file or cloud storage object.
-
-    Deprecated: hardcodes ``.html`` as the extension for auto-generated
-    filenames. Use ``persist_text_v2`` to choose a different extension.
-    """
+    """Persist text to a file or cloud storage object."""
 
     if not filename:
         # generate a filename if none is explicitly provided
@@ -58,24 +52,16 @@ def persist_text(
 
 
 @register()
-def persist_text_v2(
-    text: Annotated[str, Field(description="Text to persist")],
-    root_path: Annotated[str, Field(description="Root path to persist text to")],
-    extension: Annotated[
-        str,
-        Field(
-            description=(
-                "File extension used when auto-generating a "
-                "filename from a content hash. Ignored when `filename` is provided."
-            ),
-        ),
-    ] = "html",
+def persist_json(
+    data: Annotated[dict[str, Any], Field(description="JSON-serializable dict to persist")],
+    root_path: Annotated[str, Field(description="Root path to persist data to")],
     filename: Annotated[
         str | None,
         Field(
             description="""\
-            Optional filename to persist text to within the `root_path`.
-            If not provided, a filename will be generated based on a hash of the text content.
+            Optional filename (within `root_path`). If not provided, a filename will
+            be generated from a hash of the serialized JSON content. The `.json`
+            extension is appended automatically when one isn't already present.
             """,
             exclude=True,
         ),
@@ -83,22 +69,23 @@ def persist_text_v2(
     filename_suffix: Annotated[
         str | None,
         Field(
-            description="""\
-            If present, will be appended to the filename stem before the extension.
-            """,
+            description="If present, appended to the filename stem before the extension.",
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field(description="Path to persisted text")]:
-    """Persist text to a file or cloud storage object."""
+) -> Annotated[str, Field(description="Path to persisted JSON")]:
+    """Serialize a dict to JSON and persist to a file or cloud storage object."""
+    payload = json.dumps(data)
 
     if not filename:
-        filename = hashlib.sha256(text.encode()).hexdigest()[:7] + f".{extension}"
+        filename = hashlib.sha256(payload.encode()).hexdigest()[:7] + ".json"
+    elif not Path(filename).suffix:
+        filename = f"{filename}.json"
     if filename_suffix:
         filepath = Path(filename)
         filename = f"{filepath.stem}_{filename_suffix}{filepath.suffix}"
 
-    return _persist_text(text, root_path, filename)
+    return _persist_text(payload, root_path, filename)
 
 
 FileType = Literal["csv", "gpkg", "geoparquet", "parquet", "geojson", "json"]

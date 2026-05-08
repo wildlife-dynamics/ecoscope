@@ -1,7 +1,8 @@
 import hashlib
+import json
 import os
 
-from ecoscope.platform.tasks.io import persist_text, persist_text_v2
+from ecoscope.platform.tasks.io import persist_json, persist_text
 
 
 def test_persist_text(tmp_path):
@@ -50,46 +51,42 @@ def test_persist_text_generated_filename_with_suffix(tmp_path):
     )
 
 
-def test_persist_text_v2_explicit_filename(tmp_path):
-    text = '{"layers": []}'
+def test_persist_json_explicit_filename(tmp_path):
+    data = {"layers": [], "viewState": {"zoom": 1}}
     root_path = str(tmp_path / "test")
-    filename = "map.json"
-    dst = persist_text_v2(text, root_path, filename=filename)
+    dst = persist_json(data, root_path, filename="map.json")
     with open(dst) as f:
-        assert f.read() == text
-    assert dst == os.path.join(root_path, filename)
+        assert json.load(f) == data
+    assert dst == os.path.join(root_path, "map.json")
 
 
-def test_persist_text_v2_default_extension_is_html(tmp_path):
-    text = "<div>map</div>"
+def test_persist_json_generated_filename(tmp_path):
+    data = {"layers": [], "viewState": {"zoom": 1}}
     root_path = str(tmp_path / "test")
-    dst = persist_text_v2(text, root_path)
+    dst = persist_json(data, root_path)
     with open(dst) as f:
-        assert f.read() == text
-    expected_filename = hashlib.sha256(text.encode()).hexdigest()[:7] + ".html"
+        assert json.load(f) == data
+    expected_filename = hashlib.sha256(json.dumps(data).encode()).hexdigest()[:7] + ".json"
     assert dst == os.path.join(root_path, expected_filename)
 
 
-def test_persist_text_v2_json_extension(tmp_path):
-    text = '{"layers": []}'
+def test_persist_json_appends_extension_when_filename_has_none(tmp_path):
+    data = {"layers": []}
     root_path = str(tmp_path / "test")
-    dst = persist_text_v2(text, root_path, extension="json")
-    with open(dst) as f:
-        assert f.read() == text
-    expected_filename = hashlib.sha256(text.encode()).hexdigest()[:7] + ".json"
-    assert dst == os.path.join(root_path, expected_filename)
+    dst = persist_json(data, root_path, filename="map")
+    assert dst == os.path.join(root_path, "map.json")
 
 
-def test_persist_text_v2_extension_ignored_when_filename_given(tmp_path):
-    text = '{"layers": []}'
+def test_persist_json_with_suffix(tmp_path):
+    data = {"layers": []}
     root_path = str(tmp_path / "test")
-    dst = persist_text_v2(text, root_path, extension="json", filename="map.geojson")
-    assert dst == os.path.join(root_path, "map.geojson")
+    dst = persist_json(data, root_path, filename="map.json", filename_suffix="v2")
+    assert dst == os.path.join(root_path, "map_v2.json")
 
 
-def test_persist_text_v2_generated_filename_with_suffix_uses_extension(tmp_path):
-    text = '{"layers": []}'
+def test_persist_json_generated_filename_with_suffix(tmp_path):
+    data = {"layers": []}
     root_path = str(tmp_path / "test")
-    dst = persist_text_v2(text, root_path, extension="json", filename_suffix="grouped")
-    expected_filename = hashlib.sha256(text.encode()).hexdigest()[:7] + "_grouped.json"
+    dst = persist_json(data, root_path, filename_suffix="grouped")
+    expected_filename = hashlib.sha256(json.dumps(data).encode()).hexdigest()[:7] + "_grouped.json"
     assert dst == os.path.join(root_path, expected_filename)
