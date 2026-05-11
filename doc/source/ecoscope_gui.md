@@ -1,15 +1,40 @@
-Ecoscope GUI
+---
+orphan: true
+---
+
+Ecoscope Downloader
 ----
+
+:::{admonition} Sunset notice
+:class: important
+
+**Ecoscope Downloader will no longer be available to download after June 30, 2026.**
+
+Ecoscope Downloader is being replaced by Ecoscope Desktop, a new application rebuilt from the ground up to be faster,
+more reliable, and easier to improve. Windows, macOS, and Linux will continue to be supported.
+
+After June 30, 2026, the Ecoscope Downloader links on this page will be replaced with links to download Ecoscope
+Desktop. At that time, we recommend switching to Ecoscope Desktop.
+
+**Why we are making this change**
+
+Ecoscope Desktop will provide a more polished and user-friendly experience while preserving all existing Downloader
+functionality for exporting your EarthRanger data. Ecoscope Desktop will also allow us to update workflow templates
+separately from the application itself, so we can deliver workflow bug fixes and improvements to you more quickly. You
+will also be able to run other Ecoscope workflows locally on your own computer, giving you more ways to analyze and work
+with your data.
+
+:::
 
 ## Features
 
-The Ecoscope GUI (graphical user interface) is an easy-to-use cross-platform software that allows you to:
+Ecoscope Downloader is an easy-to-use cross-platform app that allows you to:
 
 - choose events or subject group observations from your EarthRanger instance, optionally filtered by date ranges
 - download the data
 - export the resulting data as either a geopackage (`.gpkg`) or a CSV (`.csv`) file and save it to your machine.
 
-The GUI supports 3 user interface languages at the moment:
+The app supports 3 user interface languages at the moment:
 
 - 🇬🇧 English
 - 🇫🇷 French
@@ -17,8 +42,8 @@ The GUI supports 3 user interface languages at the moment:
 
 Screenshots can be found at [the bottom of the page](#Screenshots).
 
-The GUI uses `ecoscope` under the hood to filter, clean, and process the downloaded data. The interface is built with
-Python and the Qt graphical framework.
+Ecoscope Downloader uses `ecoscope` under the hood to filter, clean, and process the downloaded data. The interface is
+built with Python and the Qt graphical framework.
 
 ## Requirements
 
@@ -34,10 +59,9 @@ the [Downloads](#Downloads) section.
 
 ## Downloads
 
-**We are actively working on open-sourcing the GUI code but until then downloads are hosted on the EarthRanger team's
-Google Drive (links below).** Once the code has been open-sourced, releases will be provided via GitHub. More details
-will
-be provided on this page when that happens.
+**We are actively working on open-sourcing the Ecoscope Downloader code, but until then downloads are hosted on the
+EarthRanger team's Google Drive (links below).** Once the code has been open-sourced, releases will be provided via
+GitHub. More details will be provided on this page when that happens.
 
 :::{note}
 We do not collect any usage or other data about your use of the software. In addition, to ensure the safety of your
@@ -82,20 +106,20 @@ Please make sure to review the instructions **before starting your download**.
 #### Instructions
 
 1. Download the `.zip` file from the link below
-2. Unzip the downloaded `.zip` file to get an `Ecoscope GUI.app` file
+2. Unzip the downloaded `.zip` file to get an `Ecoscope Downloader.app` file
 3. Open a command-prompt and type the following command:
 
 ```
-xattr -dr com.apple.quarantine '/path/to/Ecoscope GUI.app'
+xattr -dr com.apple.quarantine '/path/to/Ecoscope Downloader.app'
 ```
 
 For example, if you downloaded the file to your `Downloads` folder, you would write
 
 ```
-xattr -dr com.apple.quarantine '/Users/your_macos_username/Downloads/Ecoscope GUI.app'
+xattr -dr com.apple.quarantine '/Users/your_macos_username/Downloads/Ecoscope Downloader.app'
 ```
 
-4. Double-click on the `Ecoscope GUI.app` file in Finder to run it.
+4. Double-click on the `Ecoscope Downloader.app` file in Finder to run it.
 
 | Link                                                                                              | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
 |---------------------------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
@@ -104,17 +128,17 @@ xattr -dr com.apple.quarantine '/Users/your_macos_username/Downloads/Ecoscope GU
 
 :::{attention}
 Step 3 above is mandatory. If you skip it, you will not be able to open the program by
-double-clicking `Ecoscope GUI.app`. Instead, you will see the following error dialog that
-says `"Ecoscope GUI.app" is damaged and can't be opened.`
+double-clicking `Ecoscope Downloader.app`. Instead, you will see the following error dialog that
+says `"Ecoscope Downloader.app" is damaged and can't be opened.`
 
    ```{figure-md}
-   ![GUI Interface](_static/images/gui_interface_damaged_error.png){.bg-primary .mb-1 width=100px}
+   ![Downloader interface](_static/images/gui_interface_damaged_error.png){.bg-primary .mb-1 width=100px}
 
-   '"Ecoscope GUI.app" is damaged and can't be opened' error.
+   '"Ecoscope Downloader.app" is damaged and can't be opened' error.
    ```
 
-If you see this error, do Step 3 and try double-clicking on `Ecoscope GUI.app` again. You do not need to re-download the
-app.
+If you see this error, do Step 3 and try double-clicking on `Ecoscope Downloader.app` again. You do not need to
+re-download the app.
 :::
 
 :::{note}
@@ -131,9 +155,9 @@ Please make sure to review the instructions **before starting your download**.
 #### Instructions
 
 1. Download the `.zip` file from the link below.
-2. Unzip the download `.zip` file to get an `Ecoscope GUI` directory.
-3. Go into the `Ecoscope GUI` directory.
-4. Double-click on the `Ecoscope GUI` binary executable.
+2. Unzip the download `.zip` file to get an `Ecoscope Downloader` directory.
+3. Go into the `Ecoscope Downloader` directory.
+4. Double-click on the `Ecoscope Downloader` binary executable.
 
 | Link                                                                          | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
 |-------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
@@ -142,19 +166,19 @@ Please make sure to review the instructions **before starting your download**.
 ## Screenshots
 
 :::{figure-md}
-![GUI Interface](_static/images/gui_interface_1.png){.bg-primary .mb-1 width=200px}
+![Downloader interface](_static/images/gui_interface_1.png){.bg-primary .mb-1 width=200px}
 
 Events download configuration screen (English)
 :::
 
 :::{figure-md}
-![GUI Interface](_static/images/gui_interface_2.png){.bg-primary .mb-1 width=200px}
+![Downloader interface](_static/images/gui_interface_2.png){.bg-primary .mb-1 width=200px}
 
 Subject group observations download configuration screen (French)
 :::
 
 :::{figure-md}
-![GUI Interface](_static/images/gui_interface_3.png){.bg-primary .mb-1 width=200px}
+![Downloader interface](_static/images/gui_interface_3.png){.bg-primary .mb-1 width=200px}
 
 Confirm your password on startup screen (Spanish)
 :::

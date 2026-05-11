@@ -9,7 +9,26 @@ build:
     # - cat environment.yml
     # - mamba env create --quiet --name docs --file environment.yml
     - python -m pip install --upgrade --upgrade-strategy only-if-needed --no-cache-dir .[docs]
-    - cd doc/source/ && python -m sphinx -T -b html -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html
+    # Publish the static landing page at the Read the Docs version root.
+    - mkdir -p $READTHEDOCS_OUTPUT/html
+    - cp html/index.html $READTHEDOCS_OUTPUT/html/index.html
+    - cp html/styles.css $READTHEDOCS_OUTPUT/html/styles.css
+    - cp html/site.js $READTHEDOCS_OUTPUT/html/site.js
+    - cp -R html/backgrounds $READTHEDOCS_OUTPUT/html/backgrounds
+    # Build the existing Sphinx docs under /docs/ so the landing page owns the root.
+    - cd doc/source/ && python -m sphinx -T -b html -d _build/doctrees -D language=en -D exclude_patterns=ecoscope_gui.md . $READTHEDOCS_OUTPUT/html/docs
+    # Build the legacy Ecoscope Downloader page separately. Sphinx 8 writes
+    # root_doc/index.html even for targeted builds, so do not build directly
+    # into the published root where it would overwrite the custom landing page.
+    - rm -rf $READTHEDOCS_OUTPUT/ecoscope_gui_html $READTHEDOCS_OUTPUT/ecoscope_gui_doctrees $READTHEDOCS_OUTPUT/ecoscope_gui_templates
+    - mkdir -p $READTHEDOCS_OUTPUT/ecoscope_gui_templates
+    - echo "<span hidden aria-hidden='true'></span>" > $READTHEDOCS_OUTPUT/ecoscope_gui_templates/navbar-empty-center.html
+    - cd doc/source/ && python -m sphinx -T -b html -d $READTHEDOCS_OUTPUT/ecoscope_gui_doctrees -D language=en -D templates_path=$READTHEDOCS_OUTPUT/ecoscope_gui_templates -D html_show_sourcelink=0 -D html_copy_source=0 -A theme_navbar_center=navbar-empty-center -A theme_article_header_start= . $READTHEDOCS_OUTPUT/ecoscope_gui_html ecoscope_gui.md
+    - cp $READTHEDOCS_OUTPUT/ecoscope_gui_html/ecoscope_gui.html $READTHEDOCS_OUTPUT/html/ecoscope_gui.html
+    - cp $READTHEDOCS_OUTPUT/ecoscope_gui_html/search.html $READTHEDOCS_OUTPUT/html/search.html
+    - cp $READTHEDOCS_OUTPUT/ecoscope_gui_html/searchindex.js $READTHEDOCS_OUTPUT/html/searchindex.js
+    - cp -R $READTHEDOCS_OUTPUT/ecoscope_gui_html/_static $READTHEDOCS_OUTPUT/html/_static
+    - if [ -d $READTHEDOCS_OUTPUT/ecoscope_gui_html/_images ]; then cp -R $READTHEDOCS_OUTPUT/ecoscope_gui_html/_images $READTHEDOCS_OUTPUT/html/_images; fi
     # Build MkDocs platform-sdk docs, and append them to existing sphinx output
     - mkdocs build -f doc/platform-sdk/mkdocs.yml -d $READTHEDOCS_OUTPUT/html/platform-sdk
 formats: []
