@@ -19,8 +19,8 @@ from ecoscope.platform.tasks.results._ecomap import (
     create_point_layer,
     create_polyline_layer,
     draw_ecomap,
-    set_base_maps,
 )
+from ecoscope.platform.tasks.results._map_utils import set_base_maps
 
 
 @pytest.fixture
@@ -269,7 +269,6 @@ def test_set_base_maps():
                     "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                     "opacity": 0.3,
                     "max_zoom": 17,
-                    "min_zoom": None,
                 },
             ]
         )

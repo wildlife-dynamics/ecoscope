@@ -1,0 +1,124 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "icon_data": {
+            "url": "https://cdn.cookielaw.org/logos/9953adaa-f07f-4d06-8531-c8c2a0db0152/3593d516-42e1-432a-89b5-ecb82c267279/6198e6a0-9523-4e74-88d0-b2d1c8978ab5/EarthRanger_Ai2_Logos-H-UI.png",
+            "width": 960,
+            "height": 259
+        }
+      },
+      "geometry": {
+        "coordinates": [
+          -3.683230094602038,
+          42.44607414107304
+        ],
+        "type": "Point"
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "icon_data": {
+            "url":"https://cdn.cookielaw.org/logos/9953adaa-f07f-4d06-8531-c8c2a0db0152/3593d516-42e1-432a-89b5-ecb82c267279/6198e6a0-9523-4e74-88d0-b2d1c8978ab5/EarthRanger_Ai2_Logos-H-UI.png",
+            "width": 960,
+            "height": 259
+        }
+      },
+      "geometry": {
+        "coordinates": [
+          -62.141260902492434,
+          -16.179705647776345
+        ],
+        "type": "Point"
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "icon_data": {
+            "url": "https://cdn.cookielaw.org/logos/9953adaa-f07f-4d06-8531-c8c2a0db0152/3593d516-42e1-432a-89b5-ecb82c267279/6198e6a0-9523-4e74-88d0-b2d1c8978ab5/EarthRanger_Ai2_Logos-H-UI.png",
+            "width": 960,
+            "height": 259
+        }
+      },
+      "geometry": {
+        "coordinates": [
+          20.244857402435343,
+          -18.786367862152787
+        ],
+        "type": "Point"
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "icon_data": {
+            "url": "https://cdn.cookielaw.org/logos/9953adaa-f07f-4d06-8531-c8c2a0db0152/3593d516-42e1-432a-89b5-ecb82c267279/6198e6a0-9523-4e74-88d0-b2d1c8978ab5/EarthRanger_Ai2_Logos-H-UI.png",
+            "width": 960,
+            "height": 259
+        }
+      },
+      "geometry": {
+        "coordinates": [
+          110.04963091017663,
+          60.145800028220975
+        ],
+        "type": "Point"
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "icon_data": {
+            "url": "https://cdn.cookielaw.org/logos/9953adaa-f07f-4d06-8531-c8c2a0db0152/3593d516-42e1-432a-89b5-ecb82c267279/6198e6a0-9523-4e74-88d0-b2d1c8978ab5/EarthRanger_Ai2_Logos-H-UI.png",
+            "width": 960,
+            "height": 259
+        }
+      },
+      "geometry": {
+        "coordinates": [
+          149.09518460919475,
+          -35.06464716233493
+        ],
+        "type": "Point"
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "icon_data": {
+            "url": "https://cdn.cookielaw.org/logos/9953adaa-f07f-4d06-8531-c8c2a0db0152/3593d516-42e1-432a-89b5-ecb82c267279/6198e6a0-9523-4e74-88d0-b2d1c8978ab5/EarthRanger_Ai2_Logos-H-UI.png",
+            "width": 960,
+            "height": 259
+        }
+      },
+      "geometry": {
+        "coordinates": [
+          85.06047654280525,
+          17.301407237840607
+        ],
+        "type": "Point"
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "icon_data":{
+            "url": "https://cdn.cookielaw.org/logos/9953adaa-f07f-4d06-8531-c8c2a0db0152/3593d516-42e1-432a-89b5-ecb82c267279/6198e6a0-9523-4e74-88d0-b2d1c8978ab5/EarthRanger_Ai2_Logos-H-UI.png",
+            "width": 960,
+            "height": 259
+        }
+      },
+      "geometry": {
+        "coordinates": [
+          -95.72043708364795,
+          42.365165469023054
+        ],
+        "type": "Point"
+      }
+    }
+  ]
+}

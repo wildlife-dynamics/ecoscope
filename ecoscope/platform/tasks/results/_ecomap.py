@@ -1,31 +1,21 @@
-import re
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Literal, Union
 
 from pydantic import (
     BaseModel,
     Field,
-    field_validator,
-    model_validator,
 )
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.tasks.results._map_utils import (
+    OpacityAnnotation,
+    TileLayer,
+)
 
 UnitType = Literal["meters", "pixels", "common"]
 WidgetPlacement = Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"]
-
-OpacityAnnotation = Annotated[
-    float,
-    AdvancedField(
-        title="Layer Opacity",
-        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
-        default=1,
-        ge=0,
-        le=1,
-    ),
-]
 
 
 class LayerStyleBase(BaseModel):
@@ -122,169 +112,6 @@ class LayerDefinition:
     legend: LegendDefinition | None
     tooltip_columns: list[str] | None
     zoom: bool = False
-
-
-TileLayerPresets = {
-    "OpenStreetMap": {
-        "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "title": "Open Street Map",
-    },
-    "ROADMAP": {
-        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-        "title": "Roadmap",
-    },
-    "SATELLITE": {
-        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        "title": "Satellite",
-    },
-    "TERRAIN": {
-        "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-        "title": "Terrain",
-    },
-    "LANDDX": {
-        "url": "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
-        "title": "LandDx",
-    },
-    "USGS HILLSHADE": {
-        "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
-        "title": "USGS Hillshade",
-    },
-}
-
-
-class TileLayer(BaseModel):
-    layer_name: SkipJsonSchema[str] = ""
-    url: Annotated[
-        str,
-        Field(
-            default="https://example.tiles.com/{z}/{x}/{y}.png",
-            title="Layer URL",
-            pattern=re.compile(
-                r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}([-a-zA-Z0-9()@:%_\+.~#?&//=\{\}]*)"
-            ),
-            description="The URL of a publicly accessible tiled raster service.",
-        ),
-    ] = "https://example.tiles.com/{z}/{x}/{y}.png"
-    opacity: OpacityAnnotation = 1
-    max_zoom: Annotated[
-        int | SkipJsonSchema[None],
-        Field(
-            default=None,
-            title="Layer Max Zoom",
-            description="Set the maximum zoom level to fetch tiles for.",
-        ),
-    ] = None
-    min_zoom: Annotated[
-        int | SkipJsonSchema[None],
-        Field(
-            default=None,
-            title="Layer Min Zoom",
-            description="Set the minimum zoom level to fetch tiles for.",
-        ),
-    ] = None
-
-    @field_validator("layer_name", mode="before")
-    def _tile_layer_name_from_string(v: Any):
-        if isinstance(v, str):
-            for layer_name in TileLayerPresets.keys():
-                if layer_name == v:
-                    return v
-            raise ValueError(
-                f"String input must match one of: {[layer_name for layer_name in TileLayerPresets.keys()]}"
-            )
-        return v
-
-    @model_validator(mode="before")
-    @classmethod
-    def set_url(cls, values):
-        if (
-            isinstance(values, dict)
-            and values.get("layer_name")
-            and values.get("layer_name") != ""
-            and values.get("layer_name") in TileLayerPresets.keys()
-        ):
-            values["url"] = TileLayerPresets.get(values.get("layer_name")).get("url")
-        return values
-
-    def _as_json_schema_default(self):
-        default = {
-            "url": self.url,
-            "opacity": self.opacity,
-        }
-        if self.max_zoom:
-            default["max_zoom"] = self.max_zoom
-        if self.min_zoom:
-            default["min_zoom"] = self.min_zoom
-        return default
-
-
-def _custom_tile_layer_json_schema() -> dict:
-    schema = TileLayer.model_json_schema()
-    schema["properties"]["url"]["title"] = "Custom Layer URL"
-    schema["properties"]["opacity"]["title"] = "Custom Layer Opacity"
-    schema["properties"]["max_zoom"]["title"] = "Custom Layer Max Zoom"
-    schema["properties"]["min_zoom"]["title"] = "Custom Layer Min Zoom"
-    schema["title"] = "Custom Layer (Advanced)"
-    return schema
-
-
-def _preset_tile_layer_json_schema(preset_name: str) -> dict:
-    schema = TileLayer.model_json_schema()
-    url = TileLayerPresets.get(preset_name, {}).get("url")
-    title = TileLayerPresets.get(preset_name, {}).get("title")
-    schema["properties"]["url"] |= {
-        "const": url,
-        "default": url,
-        "enum": [url],
-        "title": "Preset Layer URL",
-    }
-    schema["properties"]["url"].pop("description")
-    schema["properties"]["url"].pop("pattern")
-    schema["properties"].pop("max_zoom")
-    schema["properties"].pop("min_zoom")
-    schema["title"] = title
-    return schema
-
-
-def _preset_or_custom_json_schema_extra(schema: dict) -> None:
-    schema["items"]["title"] = "Base Layer"
-    schema["items"]["anyOf"] = [_preset_tile_layer_json_schema(preset) for preset in TileLayerPresets.keys()]
-    schema["items"]["anyOf"].append(_custom_tile_layer_json_schema())
-    schema["default"] = [
-        TileLayer(layer_name="TERRAIN")._as_json_schema_default(),
-        TileLayer(layer_name="SATELLITE", opacity=0.5)._as_json_schema_default(),
-    ]
-    schema["ecoscope:advanced"] = True
-    schema["items"].pop("$ref")
-
-
-@register()
-def set_layer_opacity(
-    opacity: OpacityAnnotation = 1,
-) -> float:
-    return opacity
-
-
-@register()
-def set_base_maps(
-    base_maps: Annotated[
-        list[TileLayer] | SkipJsonSchema[None],
-        Field(
-            json_schema_extra=_preset_or_custom_json_schema_extra,
-            title=" ",
-            description=(
-                "Select tile layers to use as base layers in map outputs."
-                " The first layer in the list will be the bottommost layer displayed."
-            ),
-        ),
-    ] = None,
-) -> Annotated[list[TileLayer], Field()]:
-    if base_maps is None:
-        base_maps = [
-            TileLayer(layer_name="TERRAIN"),
-            TileLayer(layer_name="SATELLITE", opacity=0.5),
-        ]
-    return base_maps
 
 
 @register()

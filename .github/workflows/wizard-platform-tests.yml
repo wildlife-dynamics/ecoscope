@@ -58,6 +58,7 @@ jobs:
               "name": "ecoscope",
               "path": "${{ github.workspace }}",
               "editable": True,
+              "extras": ["platform"],
           })
           spec_path.write_text(yaml.dump(data, default_flow_style=False))
           EOF
