@@ -5,14 +5,16 @@ from typing import Literal, TypeAlias
 from pydantic_core import Url
 
 from ecoscope.platform.indexes import CompositeFilter
+from ecoscope.platform.tasks.results._pydeck import DeckJsonSpec
 
-WidgetTypes = Literal["graph", "map", "text", "stat", "table"]
+WidgetTypes = Literal["graph", "map", "text", "stat", "table", "map_v2"]
 
 PrecomputedHTMLWidgetData: TypeAlias = Path | Url | None
 TextWidgetData: TypeAlias = str | None
+MapWidgetData: TypeAlias = DeckJsonSpec | None
 SingleValueWidgetData: TypeAlias = str | None
 
-WidgetData: TypeAlias = PrecomputedHTMLWidgetData | TextWidgetData | SingleValueWidgetData
+WidgetData: TypeAlias = PrecomputedHTMLWidgetData | TextWidgetData | MapWidgetData | SingleValueWidgetData
 GroupedWidgetMergeKey: TypeAlias = tuple[str, str]
 
 

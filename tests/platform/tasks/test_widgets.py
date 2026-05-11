@@ -3,6 +3,7 @@ import re
 import pytest
 
 from ecoscope.platform.tasks.results import (
+    create_map_v2_widget_single_view,
     create_map_widget_single_view,
     create_plot_widget_single_view,
     create_single_value_widget_single_view,
@@ -10,6 +11,7 @@ from ecoscope.platform.tasks.results import (
     create_text_widget_single_view,
     merge_widget_views,
 )
+from ecoscope.platform.tasks.results._pydeck import DeckJsonSpec
 from ecoscope.platform.tasks.results._widget_tasks import (
     GroupedWidget,
     WidgetSingleView,
@@ -145,6 +147,25 @@ def test_create_table_widget_single_view():
     widget = create_table_widget_single_view(title, data, view)
     assert widget == WidgetSingleView(
         widget_type="table",
+        title=title,
+        data=data,
+        view=view,
+        is_filtered=True,
+    )
+
+
+def test_create_map_v2_widget_single_view():
+    title = "A Great V2 Map"
+    view = (("month", "=", "january"), ("year", "=", "2022"))
+    data = DeckJsonSpec(
+        layers=[],
+        initialViewState={"longitude": 0, "latitude": 0, "zoom": 1},
+        views={"@@type": "MapView"},
+    )
+
+    widget = create_map_v2_widget_single_view(title, data, view)
+    assert widget == WidgetSingleView(
+        widget_type="map_v2",
         title=title,
         data=data,
         view=view,
