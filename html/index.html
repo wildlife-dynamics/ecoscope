@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ecoscope</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="prefetch" href="ecoscope_gui.html" as="document">
+<link rel="prefetch" href="platform-sdk/" as="document">
+<link rel="prefetch" href="docs/" as="document">
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <nav>
+      <a href="./" aria-label="Home" class="logo-link-raised">
+        <svg width="128" height="40" viewBox="0 0 128 40" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_5385_14471)"><path d="M38.0044 28.8235V10.1254H46.1917V12.8361H41.1023V17.9808H45.3619V20.6915H41.1023V26.1128H46.3024V28.8235H38.0044Z" fill="white"/><path d="M57.8646 25.1171C57.8646 27.9937 55.9837 29.0448 53.1624 29.0448H53.1071C50.2305 29.0448 48.3496 27.9937 48.3496 25.1171V13.8319C48.3496 11.0659 50.2305 9.90414 53.1071 9.90414H53.1624C55.9837 9.90414 57.8646 11.0659 57.8646 13.8319V17.2617H54.7667V14.3297C54.7667 13.0021 54.1029 12.6148 53.1071 12.6148C52.1114 12.6148 51.5028 13.0021 51.5028 14.3297V24.6192C51.5028 25.9469 52.1114 26.3341 53.1071 26.3341C54.1029 26.3341 54.7667 25.9469 54.7667 24.6192V21.1894H57.8646V25.1171Z" fill="white"/><path d="M64.9455 9.90414H65.1115C67.9881 9.90414 69.869 11.0105 69.869 13.8319V25.1171C69.869 27.9384 67.9881 29.0448 65.1115 29.0448H64.9455C62.0689 29.0448 60.188 27.9384 60.188 25.1171V13.8319C60.188 11.0105 62.0689 9.90414 64.9455 9.90414ZM65.0561 26.3341C66.0519 26.3341 66.7157 25.9469 66.7157 24.6192V14.3297C66.7157 13.0021 66.0519 12.6148 65.0561 12.6148C64.0604 12.6148 63.3412 13.0021 63.3412 14.3297V24.6192C63.3412 25.9469 64.0051 26.3341 65.0561 26.3341Z" fill="white"/><path d="M78.278 16.8191V14.1638C78.3049 13.9466 78.2819 13.7263 78.2108 13.5194C78.1397 13.3125 78.0223 13.1245 77.8676 12.9698C77.7129 12.8152 77.525 12.6978 77.3181 12.6267C77.1112 12.5556 76.8908 12.5326 76.6737 12.5595C76.4566 12.5326 76.2362 12.5556 76.0293 12.6267C75.8224 12.6978 75.6345 12.8152 75.4798 12.9698C75.3251 13.1245 75.2077 13.3125 75.1366 13.5194C75.0655 13.7263 75.0425 13.9466 75.0694 14.1638V15.4361C75.0694 16.4319 75.4014 16.8744 76.2865 17.3723L78.4993 18.5893C80.2695 19.5851 81.3759 20.4149 81.3759 22.4617V25.1724C81.3759 28.049 79.5503 29.0448 76.729 29.0448H76.6737C73.8524 29.0448 72.0269 28.049 72.0269 25.1724V21.9085H75.0694V24.7298C75.0428 24.9542 75.0673 25.1817 75.1413 25.3952C75.2153 25.6087 75.3367 25.8027 75.4965 25.9624C75.6562 26.1222 75.8502 26.2436 76.0637 26.3176C76.2772 26.3916 76.5047 26.4161 76.729 26.3894C76.949 26.4072 77.1703 26.3761 77.3768 26.2981C77.5833 26.2202 77.77 26.0975 77.9234 25.9388C78.0768 25.7801 78.1931 25.5894 78.264 25.3803C78.3349 25.1713 78.3586 24.9491 78.3333 24.7298V23.2362C78.3333 22.2958 78.0014 21.7979 77.061 21.3L74.9035 20.083C73.0779 19.0319 72.0269 18.1468 72.0269 16.2106V13.7212C72.0269 10.9552 74.0737 9.90414 76.6737 9.90414H76.729C79.2737 9.90414 81.3206 10.9552 81.3206 13.7212V16.8191H78.278Z" fill="white"/><path d="M92.9921 25.1171C92.9921 27.9937 91.1112 29.0448 88.2899 29.0448H88.2345C85.3579 29.0448 83.4771 27.9937 83.4771 25.1171V13.8319C83.4771 11.0659 85.3579 9.90414 88.2345 9.90414H88.2899C91.1112 9.90414 92.9921 11.0659 92.9921 13.8319V17.2617H89.8941V14.3297C89.8941 13.0021 89.2303 12.6148 88.2345 12.6148C87.2388 12.6148 86.6303 13.0021 86.6303 14.3297V24.6192C86.6303 25.9469 87.2388 26.3341 88.2345 26.3341C89.2303 26.3341 89.8941 25.9469 89.8941 24.6192V21.1894H92.9921V25.1171Z" fill="white"/><path d="M100.073 9.90414H100.239C103.116 9.90414 104.997 11.0105 104.997 13.8319V25.1171C104.997 27.9384 103.116 29.0448 100.239 29.0448H100.073C97.1968 29.0448 95.3159 27.9384 95.3159 25.1171V13.8319C95.3159 11.0105 97.1968 9.90414 100.073 9.90414ZM100.129 26.3341C101.18 26.3341 101.844 25.9469 101.844 24.6192V14.3297C101.844 13.0021 101.18 12.6148 100.129 12.6148C99.0777 12.6148 98.4138 13.0021 98.4138 14.3297V24.6192C98.4138 25.9469 99.133 26.3341 100.129 26.3341Z" fill="white"/><path d="M117.112 14.0531V17.6489C117.112 20.4702 115.231 21.5766 112.41 21.5766H110.639V28.8235H107.542V10.1254H112.41C115.231 10.1254 117.112 11.2318 117.112 14.0531ZM114.014 14.551C114.014 13.2233 113.295 12.8361 112.299 12.8361H110.639V18.8659H112.299C113.295 18.8659 114.014 18.4787 114.014 17.151V14.551Z" fill="white"/><path d="M119.104 28.8235V10.1254H127.291V12.8361H122.201V17.9808H126.461V20.6915H122.201V26.1128H127.401V28.8235H119.104Z" fill="white"/><path d="M33.8005 29.3214L29.2643 26.998L17.8684 32.9725C17.7928 33.0101 17.7088 33.0277 17.6245 33.0239C17.5401 33.0201 17.4581 32.9948 17.3862 32.9506C17.3143 32.9063 17.2548 32.8445 17.2134 32.7709C17.1719 32.6973 17.1499 32.6144 17.1493 32.53V29.764L8.46408 25.2278L0.553335 29.3214C0.401272 29.4045 0.27354 29.5259 0.182752 29.6735C0.0919643 29.8211 0.0412612 29.9899 0.0356739 30.1631C0.0300866 30.3363 0.0698095 30.508 0.150895 30.6611C0.231981 30.8143 0.351622 30.9436 0.498012 31.0363L16.7067 39.445C16.8392 39.5285 16.9926 39.5728 17.1493 39.5728C17.3059 39.5728 17.4594 39.5285 17.5918 39.445L33.8005 31.0363C33.9657 30.9619 34.1058 30.8415 34.2041 30.6894C34.3024 30.5373 34.3547 30.36 34.3547 30.1789C34.3547 29.9978 34.3024 29.8205 34.2041 29.6684C34.1058 29.5163 33.9657 29.3958 33.8005 29.3214Z" fill="white" fill-opacity="0.6"/><path d="M33.8005 19.4191L28.6558 16.7638L17.8684 22.4064C17.7928 22.4439 17.7088 22.4616 17.6245 22.4578C17.5401 22.4539 17.4581 22.4287 17.3862 22.3844C17.3143 22.3402 17.2548 22.2783 17.2134 22.2048C17.1719 22.1312 17.1499 22.0483 17.1493 21.9638V19.1978L9.07258 15.0489L0.553335 19.4191C0.401272 19.5022 0.27354 19.6236 0.182752 19.7712C0.0919643 19.9188 0.0412612 20.0876 0.0356739 20.2608C0.0300866 20.434 0.0698095 20.6056 0.150895 20.7588C0.231981 20.912 0.351622 21.0413 0.498012 21.134L17.1493 29.7639L33.8005 21.134C33.9657 21.0597 34.1058 20.9392 34.2041 20.7871C34.3024 20.635 34.3547 20.4577 34.3547 20.2766C34.3547 20.0955 34.3024 19.9182 34.2041 19.7661C34.1058 19.614 33.9657 19.4935 33.8005 19.4191Z" fill="white" fill-opacity="0.8"/><path d="M0.498012 10.6233L17.1493 19.1979L33.8005 10.6233C33.9657 10.5489 34.1058 10.4284 34.2041 10.2763C34.3024 10.1242 34.3547 9.94694 34.3547 9.76583C34.3547 9.58472 34.3024 9.40745 34.2041 9.25534C34.1058 9.10324 33.9657 8.98275 33.8005 8.90836L17.5918 0.555082C17.4594 0.471545 17.3059 0.427216 17.1493 0.427216C16.9926 0.427216 16.8392 0.471545 16.7067 0.555082L0.553335 8.90836C0.401272 8.99148 0.27354 9.11285 0.182752 9.26046C0.0919643 9.40807 0.0412612 9.57682 0.0356739 9.75003C0.0300866 9.92323 0.0698095 10.0949 0.150895 10.248C0.231981 10.4012 0.351622 10.5305 0.498012 10.6233Z" fill="white"/></g><defs><clipPath id="clip0_5385_14471"><rect width="128" height="40" fill="white"/></clipPath></defs></svg>
+      </a>
+
+      <div class="nav-links">
+        <a href="https://app.ecoscope.io/login">Web App</a>
+        <a href="https://app.ecoscope.io/download">Desktop App</a>
+        <a href="ecoscope_gui.html">Ecoscope Downloader</a>
+        <div class="nav-dropdown">
+          <button type="button" class="nav-dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="develop-submenu">Develop</button>
+          <div class="nav-submenu" id="develop-submenu" hidden>
+            <a href="platform-sdk/" class="nav-submenu-link">SDK</a>
+            <a href="docs/" class="nav-submenu-link">Core</a>
+          </div>
+        </div>
+        <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope" target="_blank" rel="noopener noreferrer">Help Center</a>
+      </div>
+
+      <button type="button" class="hamburger-btn" aria-label="Open menu">
+        <svg id="hamburger-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg id="close-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="close-icon-initial"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </nav>
+  </div>
+
+  <div class="mobile-overlay" id="mobile-overlay">
+    <div class="mobile-menu-links">
+      <a href="https://app.ecoscope.io/login">Web App</a>
+      <a href="https://app.ecoscope.io/download">Desktop App</a>
+      <a href="ecoscope_gui.html">Ecoscope Downloader</a>
+      <div class="mobile-menu-group">
+        <span class="mobile-menu-label">Develop</span>
+        <a href="platform-sdk/" class="mobile-submenu-link">SDK</a>
+        <a href="docs/" class="mobile-submenu-link">Core</a>
+      </div>
+      <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope" target="_blank" rel="noopener noreferrer">Help Center</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-overlay"></div>
+  <div class="container hero-content">
+    <div class="hero-text">
+      <h1>Ecoscope</h1>
+      <p>A free and open-source data analytics and reporting platform designed to turn conservation data into action.</p>
+      <div class="hero-ctas">
+        <a href="https://app.ecoscope.io/login" class="btn-login-hero">Log in</a>
+        <a href="https://app.ecoscope.io/download" class="btn-download-hero">Download</a>
+      </div>
+    </div>
+    <div class="hero-image">
+      <img src="backgrounds/website-ecoscope-hero-heatmap.png" alt="Home range and speed analysis visualizations">
+    </div>
+  </div>
+</section>
+
+<section class="insights">
+  <div class="container">
+    <div class="insights-grid">
+      <div class="insights-image">
+        <img src="backgrounds/patrol-outputs.png" alt="Patrol tracks, events, and analytics dashboard">
+      </div>
+      <div class="insights-text">
+        <h2>Insights in minutes, not weeks</h2>
+        <p>Conservation teams collect more data than ever, but turning it into insight is still a struggle. Ecoscope cuts time spent wrangling spreadsheets, bridges the gap between data collection and decision-making, and frees up more time for the field.</p>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSep4xDWIOWx_IXoK4wDaQJyPHGO_vNW5bjlh1f5DEo8S6QjNw/viewform" target="_blank" rel="noopener noreferrer" class="btn-green">Sign up</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="offerings">
+  <div class="container">
+    <h2>What Ecoscope offers conservationists</h2>
+    <div class="offerings-top-row">
+      <a href="https://app.ecoscope.io/login" class="offering-card">
+        <div class="offering-card-body">
+          <h3>Web App</h3>
+          <p>Automatically pull in raw data, run calculations, and generate visualizations that reveal patterns &mdash; so teams can monitor trends and spot risks at a glance.</p>
+        </div>
+        <div class="offering-card-image">
+          <img src="backgrounds/advanced.jpg" alt="Web app advanced analysis visualization">
+        </div>
+      </a>
+      <a href="https://app.ecoscope.io/download" class="offering-card">
+        <div class="offering-card-body">
+          <h3>Desktop App</h3>
+          <p>The power of Ecoscope on your computer</p>
+        </div>
+        <div class="offering-card-image">
+          <img src="backgrounds/patrol-dashboard.jpg" alt="Desktop app Patrols Dashboard with statistics and charts">
+        </div>
+      </a>
+    </div>
+    <div class="offerings-bottom-row">
+      <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope" target="_blank" rel="noopener noreferrer" class="offering-icon-card">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M11 18h2v-2h-2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4"/></svg>
+        <div>
+          <h3>Help Center</h3>
+          <p>Learn to use the apps and troubleshoot issues.</p>
+        </div>
+      </a>
+      <a href="platform-sdk/" class="offering-icon-card">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6z"/></svg>
+        <div>
+          <h3>SDK</h3>
+          <p>Everything you need to build your own workflows.</p>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="collaboration">
+  <div class="container">
+    <div class="collaboration-grid">
+      <div class="collaboration-text">
+        <h2>Made possible by collaboration</h2>
+        <p>Ecoscope was first envisioned by Dr. Jake Wall in the effort to understand and protect African elephants. It&#8217;s a free and open-source platform led by Wildlife Dynamics and EarthRanger, supported by Allen Family Philanthropies, Mara Elephant Project, Save the Elephants, and Elephants Alive.</p>
+        <p>Get in touch to support Ecoscope through donations, collaboration, or partnerships.</p>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSe6mMSvZH7JlIID2yjKUvPN4Cl4eddlZVZGrikHKvA21HdF1g/viewform" target="_blank" rel="noopener noreferrer" class="btn-green">Get in touch</a>
+      </div>
+      <div class="collaboration-image">
+        <img src="backgrounds/ER used in collaring 2019 credit adam bannister-p-1600.jpg" alt="EarthRanger used in elephant collaring operation">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="testimonial">
+  <div class="container">
+    <blockquote>
+      <p>&ldquo;Ecoscope has changed the game entirely; at the click of the button we can make sense of it all, seeing patterns and trends that help us to design more effective conservation responses.&rdquo;</p>
+      <footer>&ndash; Craig Millar, Big Life Foundation</footer>
+    </blockquote>
+  </div>
+</section>
+
+<section class="acknowledgments">
+  <div class="container">
+    <h2>Acknowledgments</h2>
+    <p>We thank the many individuals and organizations who have contributed to the development of Ecoscope. In particular: Jake Wall, Charles Stern, Alex Morling, Yun Wu, Ray R, Marcos Davidovich, Mariano Martinez, Tiffany Wong, Jes Lefcourt, Chris Jones, Chris Doehring, Juan Lescano, Anderson Arendt, Tevin Temu, Eric Gitonga, Rodney Omukuti, Peter Kulits, Zakaria Hussein, Catherine Villeneuve, Lydia Tiller, Harry Williams, India Taylor-Smith, Anil Patel, Holly Dublin, George Wittemyer, Allen Family Philanthropies, Allen Institute for Artificial Intelligence, Google Earth Outreach, Mara Elephant Project, Save the Elephants, and Elephants Alive.</p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="site-footer-content">
+      <a href="https://github.com/wildlife-dynamics/ecoscope" class="site-footer-github" aria-label="Ecoscope on GitHub" target="_blank" rel="noopener noreferrer">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2Z"/></svg>
+      </a>
+      <p class="site-footer-copyright">Copyright &copy; 2026 Ecoscope. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js" defer></script>
+</body>
+</html>
