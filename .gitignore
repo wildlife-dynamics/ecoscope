@@ -175,3 +175,5 @@ tests/test_output/point_density.tif
 environment-dev.yml
 
 uv.lock
+
+.serena

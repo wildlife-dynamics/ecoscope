@@ -6,4 +6,3 @@
    :hidden:
 
    Home <self>
-   ecoscope_gui
