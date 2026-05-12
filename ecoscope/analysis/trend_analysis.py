@@ -12,11 +12,11 @@ import numpy as np
 import pandas as pd
 
 try:
-    import rpy2.robjects as ro
+    import rpy2.robjects as ro  # type: ignore[import-untyped]
     import statsmodels.api as sm  # type: ignore[import-not-found,import-untyped]
     from joblib import Parallel, delayed  # type: ignore[import-not-found,import-untyped]
     from rpy2.robjects import pandas2ri
-    from rpy2.robjects.packages import importr
+    from rpy2.robjects.packages import importr  # type: ignore[import-untyped]
     from scipy.spatial.distance import euclidean  # type: ignore[import-not-found,import-untyped]
     from sklearn.base import BaseEstimator, RegressorMixin  # type: ignore[import-not-found,import-untyped]
     from sklearn.model_selection import (  # type: ignore[import-not-found,import-untyped]
@@ -31,7 +31,7 @@ try:
         Gaussian,
         Poisson,
     )
-    from statsmodels.genmod.families.links import Log
+    from statsmodels.genmod.families.links import Log  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. Please run pip install ecoscope["analysis"]'
