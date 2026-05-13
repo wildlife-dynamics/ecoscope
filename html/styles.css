@@ -253,7 +253,8 @@ header nav {
   display: flex;
   align-items: center;
   min-height: 90vh;
-  padding: 8rem 0;
+  padding-top: 8rem;
+  padding-bottom: 8rem;
 }
 
 .hero-text {
@@ -701,4 +702,9 @@ header nav {
 
 .icon-no-shrink {
   flex-shrink: 0;
+}
+
+/* Hide Read the Docs' injected version flyout on the custom landing page. */
+readthedocs-flyout {
+  display: none !important;
 }

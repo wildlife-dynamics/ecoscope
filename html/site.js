@@ -16,7 +16,7 @@ function toggleMobileMenu() {
   } else {
     overlay.classList.add('open');
     hamburgerIcon.style.display = 'none';
-    closeIcon.style.display = '';
+    closeIcon.style.display = 'block';
     menuButton.setAttribute('aria-label', 'Close menu');
   }
 }

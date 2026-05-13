@@ -14,6 +14,12 @@ build:
     - cp html/index.html $READTHEDOCS_OUTPUT/html/index.html
     - cp html/styles.css $READTHEDOCS_OUTPUT/html/styles.css
     - cp html/site.js $READTHEDOCS_OUTPUT/html/site.js
+    - cp html/favicon.ico $READTHEDOCS_OUTPUT/html/favicon.ico
+    - cp html/favicon-16x16.png $READTHEDOCS_OUTPUT/html/favicon-16x16.png
+    - cp html/favicon-32x32.png $READTHEDOCS_OUTPUT/html/favicon-32x32.png
+    - cp html/android-chrome-192x192.png $READTHEDOCS_OUTPUT/html/android-chrome-192x192.png
+    - cp html/android-chrome-512x512.png $READTHEDOCS_OUTPUT/html/android-chrome-512x512.png
+    - cp html/apple-touch-icon.png $READTHEDOCS_OUTPUT/html/apple-touch-icon.png
     - cp -R html/backgrounds $READTHEDOCS_OUTPUT/html/backgrounds
     # Build the existing Sphinx docs under /docs/ so the landing page owns the root.
     - cd doc/source/ && python -m sphinx -T -b html -d _build/doctrees -D language=en -D exclude_patterns=ecoscope_gui.md . $READTHEDOCS_OUTPUT/html/docs
