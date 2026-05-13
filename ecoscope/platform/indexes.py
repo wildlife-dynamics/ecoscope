@@ -156,7 +156,6 @@ class ValueGrouper(BaseModel):
             "title": "Category",
             "properties": {
                 "index_name": {
-                    "oneOf": [],  # to be overridden in spec.yaml `rjsf-overrides` section
                     "title": "Category",
                     "type": "string",
                 },
