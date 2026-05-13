@@ -37,7 +37,7 @@ outputs:
         - matplotlib-base
         - networkx
         - numba
-        - numpy<2.1
+        - numpy<3
         - scipy
         - scikit-image
         - scikit-learn
