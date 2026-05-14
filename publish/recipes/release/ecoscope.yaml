@@ -72,7 +72,7 @@ outputs:
     requirements:
       run:
         - ecoscope ==${{ version }}
-        - pandera >=0.24.0,<0.29
+        - pandera >=0.28,<0.29
         - pydantic <2.9.0
         - pydantic-settings
         - cloudpathlib-gs
