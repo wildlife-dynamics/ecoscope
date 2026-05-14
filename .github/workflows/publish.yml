@@ -149,11 +149,9 @@ jobs:
           name: prefix-conda
           path: /tmp/ecoscope/release/artifacts
       - name: Install rattler-build
-        run: |
-          curl -L -o "${HOME}/.local/bin/rattler-build" \
-            https://github.com/prefix-dev/rattler-build/releases/latest/download/rattler-build-x86_64-unknown-linux-musl
-          chmod +x "${HOME}/.local/bin/rattler-build"
-          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+        uses: prefix-dev/rattler-build-action@v0.2.37
+        with:
+          setup-only: true
       - name: Upload to prefix.dev
         run: |
           for file in /tmp/ecoscope/release/artifacts/**/*.conda; do
