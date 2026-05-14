@@ -84,6 +84,9 @@ outputs:
       - python:
           imports:
             - ecoscope.platform
+      - script: |
+          wt-registry --package ecoscope.platform.tasks --format json \
+            | python -c "import json, sys; data = json.load(sys.stdin); assert data, 'wt-registry returned empty result'"
 
 about:
   summary: Standard Analytical Reporting Framework for Conservation
