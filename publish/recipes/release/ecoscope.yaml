@@ -79,7 +79,7 @@ outputs:
         - wt-registry >=0.2.0,<0.3.0
         - wt-task >=0.1.0,<0.2.0
         - pydeck ==0.9.2
-        - ecoscope-earthranger-io-core ==0.0.12
+        - ecoscope-earthranger-io-core ==0.0.14
     tests:
       - python:
           imports:
