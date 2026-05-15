@@ -92,7 +92,7 @@ def apply_classification(
     if not output_column_name:
         output_column_name = f"{input_column_name}_classified"
 
-    if len(dataframe[input_column_name].unique()) == 1:
+    if dataframe[input_column_name].nunique(dropna=False) == 1:
         dataframe[output_column_name] = labels[0] if labels else dataframe[input_column_name]
         return dataframe
 
@@ -123,7 +123,7 @@ def apply_classification(
     assert len(labels) == len(classifier.bins)
     if label_prefix or label_suffix:
         labels = [f"{label_prefix}{label}{label_suffix}" for label in labels]
-    dataframe[output_column_name] = [labels[i] for i in classifier.yb]
+    dataframe[output_column_name] = np.asarray(labels, dtype=object)[classifier.yb]
     return dataframe
 
 
@@ -154,8 +154,7 @@ def apply_color_map(
     s = dataframe[input_column_name]
     NAN_COLOR = (0, 0, 0, 0)
 
-    # uniques split into non-nulls and whether there are any nulls
-    unique_non_na = [v for v in s.unique() if pd.notna(v)]
+    unique_non_na = s.dropna().unique()
     k = len(unique_non_na)
 
     if k == 0:
@@ -169,20 +168,19 @@ def apply_color_map(
         mpl_cmap = mpl.colormaps[cmap]
         # numeric vs categorical handling (on non-null values only)
         if pd.api.types.is_numeric_dtype(s.dtype):
-            s_non_na = s.dropna()
-            val_min = s_non_na.min()
-            val_max = s_non_na.max()
-            value_range = 1 if val_min == val_max else (val_max - val_min)
-
-            # generate in the order of unique_non_na so index aligns
-            cmap_colors = [mpl_cmap((float(v) - float(val_min)) / float(value_range)) for v in unique_non_na]
+            arr = np.asarray(unique_non_na, dtype=float)
+            val_min = arr.min()
+            val_max = arr.max()
+            value_range = 1.0 if val_min == val_max else (val_max - val_min)
+            cmap_colors = mpl_cmap((arr - val_min) / value_range)
         else:
             # categorical/string: cycle through the colormap
             if k < mpl_cmap.N:
                 mpl_cmap = mpl_cmap.resampled(max(k, 1))
-            cmap_colors = [mpl_cmap(i % mpl_cmap.N) for i in range(k)]
+            cmap_colors = mpl_cmap(np.arange(k) % mpl_cmap.N)
 
-        color_list = [tuple(round(chan * 255) for chan in c) for c in cmap_colors]
+        scaled = np.rint(np.asarray(cmap_colors) * 255).astype(int).tolist()
+        color_list = [tuple(row) for row in scaled]
         cmap_series = pd.Series(color_list, index=unique_non_na)
     elif isinstance(cmap, dict):
         cmap_series = pd.Series({k: hex_to_rgba(v) for k, v in cmap.items()})
@@ -196,7 +194,12 @@ def apply_color_map(
         output_column_name = f"{input_column_name}_colormap"
 
     mapped = s.map(cmap_series)
-    dataframe[output_column_name] = [NAN_COLOR if pd.isna(v) else v for v in mapped]
+    nan_mask = mapped.isna().to_numpy()
+    if nan_mask.any():
+        mapped_arr = mapped.to_numpy()
+        dataframe[output_column_name] = [NAN_COLOR if nan_mask[i] else mapped_arr[i] for i in range(len(mapped_arr))]
+    else:
+        dataframe[output_column_name] = mapped
     return dataframe
 
 
@@ -223,21 +226,20 @@ def classify_percentile(
     """
     assert pd.api.types.is_numeric_dtype(df[input_column_name]), "input column must contain numeric values"
 
+    if not percentile_levels:
+        return df
+
     input_values = df[input_column_name].to_numpy()
     input_values = np.sort(input_values[~np.isnan(input_values)])
     csum = np.cumsum(input_values)
 
-    percentile_values = []
-    for percentile in percentile_levels:
-        percentile_values.append(input_values[np.argmin(np.abs(csum[-1] * (1 - percentile / 100) - csum))])
+    percentile_values = np.array(
+        [input_values[np.argmin(np.abs(csum[-1] * (1 - p / 100) - csum))] for p in percentile_levels]
+    )
 
-    def find_percentile(value):
-        for i in range(len(percentile_levels)):
-            if value >= percentile_values[i]:
-                return percentile_levels[i]
-        return np.nan
-
-    for i in range(len(percentile_levels)):
-        df[output_column_name] = df[input_column_name].apply(find_percentile)
+    levels = np.asarray(percentile_levels)
+    values = df[input_column_name].to_numpy()
+    mask = values[:, None] >= percentile_values[None, :]
+    df[output_column_name] = np.where(mask.any(axis=1), levels[mask.argmax(axis=1)], np.nan)
 
     return df
