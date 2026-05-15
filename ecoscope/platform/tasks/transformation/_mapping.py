@@ -82,11 +82,12 @@ def map_values_with_unit(
         AdvancedField(default=1, description="The number of decimal places to display."),
     ] = 1,
 ) -> AnyDataFrame:
-    def format_with_unit(x):
-        data = with_unit(x, original_unit=original_unit, new_unit=new_unit)
-        return f"{data.value:.{decimal_places}f} {data.unit or ''}".strip()
-
-    df[output_column_name] = df[input_column_name].apply(format_with_unit)
+    quantity = with_unit(1.0, original_unit=original_unit, new_unit=new_unit)
+    factor = quantity.value
+    unit_str = str(quantity.unit) if quantity.unit else ""
+    suffix = f" {unit_str}".rstrip()
+    converted = df[input_column_name].to_numpy() * factor
+    df[output_column_name] = [f"{v:.{decimal_places}f}{suffix}" for v in converted]
     return df
 
 
