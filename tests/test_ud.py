@@ -18,9 +18,14 @@ def sample_observations():
     return gdf
 
 
-@pytest.fixture
-def movebank_trajectory(movebank_relocations):
-    # apply relocation coordinate filter to movebank data
+@pytest.fixture(scope="module")
+def movebank_trajectory(movebank_gdf):
+    relocs = ecoscope.Relocations.from_gdf(
+        movebank_gdf,
+        groupby_col="individual-local-identifier",
+        time_col="timestamp",
+        uuid_col="event-id",
+    )
     pnts_filter = ecoscope.base.RelocsCoordinateFilter(
         min_x=-5,
         max_x=1,
@@ -28,11 +33,9 @@ def movebank_trajectory(movebank_relocations):
         max_y=18,
         filter_point_coords=[[180, 90], [0, 0]],
     )
-    movebank_relocations.apply_reloc_filter(pnts_filter, inplace=True)
-    movebank_relocations.remove_filtered(inplace=True)
-
-    # Create Trajectory
-    return ecoscope.Trajectory.from_relocations(movebank_relocations)
+    relocs.apply_reloc_filter(pnts_filter, inplace=True)
+    relocs.remove_filtered(inplace=True)
+    return ecoscope.Trajectory.from_relocations(relocs)
 
 
 @pytest.fixture

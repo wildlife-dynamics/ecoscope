@@ -67,8 +67,8 @@ def er_events_io():
     return er_events_io
 
 
-@pytest.fixture
-def movebank_relocations():
+@pytest.fixture(scope="session")
+def movebank_gdf():
     df = pd.read_feather("tests/sample_data/vector/movebank_data.feather")
     gdf = gpd.GeoDataFrame(
         df,
@@ -76,8 +76,13 @@ def movebank_relocations():
         crs=4326,
     )
     gdf["timestamp"] = pd.to_datetime(gdf["timestamp"], utc=True)
+    return gdf
+
+
+@pytest.fixture
+def movebank_relocations(movebank_gdf):
     return Relocations.from_gdf(
-        gdf,
+        movebank_gdf,
         groupby_col="individual-local-identifier",
         time_col="timestamp",
         uuid_col="event-id",
