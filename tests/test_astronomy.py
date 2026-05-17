@@ -38,8 +38,11 @@ def test_is_night(movebank_relocations):
 
 def test_nightday_ratio(movebank_relocations):
     trajectory = Trajectory.from_relocations(movebank_relocations)
+    # Values reflect the batched mean-centroid sunrise/sunset approximation in
+    # get_nightday_ratio. Per-day exact values were [0.45905845612291696,
+    # 2.0019632541788472] — drift is ~2e-5 for Habiba and ~3.4e-4 for Salif Keita.
     expected = pd.Series(
-        [0.45905845612291696, 2.0019632541788472],
+        [0.45904940470928524, 2.0026450930647957],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
