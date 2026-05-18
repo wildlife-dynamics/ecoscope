@@ -89,7 +89,7 @@ def movebank_relocations(movebank_gdf):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def aoi_gdf():
     AOI_FILE = "tests/sample_data/vector/maec_4zones_UTM36S.gpkg"
     regions_gdf = gpd.GeoDataFrame.from_file(AOI_FILE).to_crs(4326)
@@ -97,12 +97,16 @@ def aoi_gdf():
     return regions_gdf
 
 
-@pytest.fixture
-def sample_relocs():
+@pytest.fixture(scope="session")
+def sample_relocs_gdf():
     gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
-    gdf = ecoscope.io.utils.clean_time_cols(gdf)
+    return ecoscope.io.utils.clean_time_cols(gdf)
 
-    return ecoscope.Relocations.from_gdf(gdf)
+
+@pytest.fixture
+def sample_relocs(sample_relocs_gdf):
+    # Relocations.from_gdf defaults to copy=True, so the cached session gdf is not mutated.
+    return ecoscope.Relocations.from_gdf(sample_relocs_gdf)
 
 
 @pytest.fixture
