@@ -57,7 +57,8 @@ def is_night(
     geometry: gpd.GeoSeries,
     time: pd.Series,
     time_resolution: u.Quantity = DEFAULT_IS_NIGHT_TIME_RESOLUTION,
-) -> pd.Series:
+    time_binning: str = "10min",
+) -> np.ndarray:
     """
     Classify each (geometry, time) pair as night vs day.
 
@@ -67,14 +68,31 @@ def is_night(
     time_resolution: sample spacing for astropy's ErfaAstromInterpolator. Smaller
         values give more accurate astrom matrices near sunrise/sunset but cost
         more setup time; larger values are faster but introduce sub-degree
-        errors in sun altitude. Defaults to 1 hour, which empirically gives
-        100% agreement with the un-interpolated path on test data.
+        errors in sun altitude. Defaults to 1 hour.
+    time_binning: pandas offset alias (e.g. "10min", "5min") used to floor
+        timestamps before sun-altitude computation. Identical timestamps in the
+        same bin share one result, broadcast back to all input rows. Within ±half
+        the bin width of sunrise/sunset the label can shift by one bin; everywhere
+        else it's identical. Geometry is collapsed to a single mean centroid for
+        the same reason — see get_nightday_ratio for the rationale. Defaults to
+        "10min" which is well below the noise floor of animal-tracking day/night
+        labelling. Set to "1s" (or any sub-second-cadence value) to effectively
+        disable binning.
     """
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Geometry is in a geographic CRS.", UserWarning)
         coords = geometry if (geometry.geom_type == "Point").all() else geometry.centroid
+
+        rounded = pd.to_datetime(time).dt.floor(time_binning)
+        unique_rounded = pd.DatetimeIndex(rounded.unique()).sort_values()
+
+        mean_loc = EarthLocation(lon=coords.x.mean(), lat=coords.y.mean())
+        observer = astroplan.Observer(location=mean_loc)
         with erfa_astrom.set(ErfaAstromInterpolator(time_resolution)):
-            return astroplan.Observer(to_EarthLocation(coords)).is_night(time)
+            unique_labels = observer.is_night(Time(unique_rounded.to_pydatetime(), scale="utc"))
+
+        label_map = pd.Series(unique_labels, index=unique_rounded)
+        return rounded.map(label_map).to_numpy()
 
 
 def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
