@@ -35,10 +35,15 @@ def movebank_trajectory(movebank_gdf):
     )
     relocs.apply_reloc_filter(pnts_filter, inplace=True)
     relocs.remove_filtered(inplace=True)
+    # Stride-sample Salif's ~22k points to keep ETD compute fast while preserving
+    # spatial extent. To exercise the full trajectory, drop this slice and compare
+    # against tests/test_output/etd_percentile_area.feather (the full-trajectory
+    # reference) instead of the _subset reference used below.
+    relocs.gdf = relocs.gdf.iloc[::20].copy()
     return ecoscope.Trajectory.from_relocations(relocs)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def raster_profile():
     return ecoscope.io.raster.RasterProfile(
         pixel_size=250.0,
@@ -48,49 +53,47 @@ def raster_profile():
     )
 
 
-def test_etd_range_with_tif_file(movebank_trajectory, raster_profile):
-    file = NamedTemporaryFile(delete=False)
+@pytest.fixture(scope="module")
+def etd_raster_data(movebank_trajectory, raster_profile):
+    """Run calculate_etd_range once per module, writing a tif and returning both the
+    in-memory result and the result read back from the tif. Lets the two ETD tests
+    share the ~10s ETD compute while still covering each code path independently."""
+    with NamedTemporaryFile(suffix=".tif", delete=False) as f:
+        path = f.name
     try:
-        calculate_etd_range(
+        in_memory = calculate_etd_range(
             trajectory=movebank_trajectory,
-            output_path=file.name,
+            output_path=path,
             max_speed_kmhr=1.05 * movebank_trajectory.gdf.speed_kmhr.max(),
             raster_profile=raster_profile,
             expansion_factor=1.3,
         )
-
-        raster_data = ecoscope.io.raster.RasterData.from_raster_file(file.name)
-
-        percentile_area = get_percentile_area(
-            percentile_levels=[99.9], raster_data=raster_data, subject_id="Salif_Keita"
-        ).to_crs(4326)
+        from_file = ecoscope.io.raster.RasterData.from_raster_file(path)
+        yield in_memory, from_file
     finally:
-        file.close()
-        os.unlink(file.name)
-
-    expected_percentile_area = gpd.read_feather("tests/test_output/etd_percentile_area.feather")
-    gpd.testing.geom_almost_equals(percentile_area, expected_percentile_area)
+        os.unlink(path)
 
 
-def test_etd_range_without_tif_file(movebank_trajectory, raster_profile):
-    file = NamedTemporaryFile(delete=False)
-    try:
-        raster_data = calculate_etd_range(
-            trajectory=movebank_trajectory,
-            max_speed_kmhr=1.05 * movebank_trajectory.gdf.speed_kmhr.max(),
-            raster_profile=raster_profile,
-            expansion_factor=1.3,
-        )
+def test_etd_range_percentile_area(etd_raster_data):
+    in_memory, _ = etd_raster_data
+    percentile_area = get_percentile_area(
+        percentile_levels=[99.9], raster_data=in_memory, subject_id="Salif_Keita"
+    ).to_crs(4326)
 
-        percentile_area = get_percentile_area(
-            percentile_levels=[99.9], raster_data=raster_data, subject_id="Salif_Keita"
-        ).to_crs(4326)
-    finally:
-        file.close()
-        os.unlink(file.name)
+    expected_percentile_area = gpd.read_feather("tests/test_output/etd_percentile_area_subset.feather")
+    assert gpd.testing.geom_almost_equals(percentile_area, expected_percentile_area)
 
-    expected_percentile_area = gpd.read_feather("tests/test_output/etd_percentile_area.feather")
-    gpd.testing.geom_almost_equals(percentile_area, expected_percentile_area)
+
+def test_etd_range_tif_roundtrip(etd_raster_data):
+    in_memory, from_file = etd_raster_data
+    in_memory_area = get_percentile_area(
+        percentile_levels=[99.9], raster_data=in_memory, subject_id="Salif_Keita"
+    ).to_crs(4326)
+    from_file_area = get_percentile_area(
+        percentile_levels=[99.9], raster_data=from_file, subject_id="Salif_Keita"
+    ).to_crs(4326)
+
+    assert gpd.testing.geom_almost_equals(from_file_area, in_memory_area)
 
 
 def test_reduce_regions(aoi_gdf):

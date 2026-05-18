@@ -11,6 +11,10 @@ def sample_spatial_features():
 
 
 def test_proximity(sample_relocs, sample_spatial_features):
+    # Subsample to keep the test fast; the assertion only checks that every spatial
+    # feature appears in the output, which holds with any non-empty per-group subset.
+    sample_relocs.gdf = sample_relocs.gdf.groupby("groupby_col").head(100)
+
     prox_profile = ProximityProfile([])
 
     for row in sample_spatial_features.iterrows():
