@@ -56,17 +56,6 @@ def client():
 
 
 @pytest.fixture
-def named_mock_env():
-    return {
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER": (os.environ["EARTHRANGER_SERVER"]),
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USERNAME": os.environ["EARTHRANGER_USERNAME"],
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__PASSWORD": os.environ["EARTHRANGER_PASSWORD"],
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__TCP_LIMIT": "5",
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SUB_PAGE_SIZE": "4000",
-    }
-
-
-@pytest.fixture
 def mock_empty_client():
     mock = MagicMock()
     mock.get_patrols.return_value = pd.DataFrame()
@@ -604,7 +593,10 @@ def test_unpack_events_from_patrols_df_empty_response(mock_empty_client):
     assert df.empty
 
 
-def test_patrol_events_combined(named_mock_env):
+def test_patrol_events_combined():
+    """The set_patrols_and_patrol_events_params -> _from_combined_params path produces
+    the same underlying IO calls as the direct task path, for both patrol-observations
+    and patrol-events."""
     patrol_obs_args = {
         "client": "MEP_DEV",
         "time_range": TimeRange(
@@ -659,34 +651,39 @@ def test_patrol_events_combined(named_mock_env):
         "patrols_overlap_daterange": True,
     }
 
-    with patch.dict(os.environ, named_mock_env):
-        mock_patrol_obs = MagicMock(return_value=pd.DataFrame())
-        mock_patrol_events = MagicMock(return_value=pd.DataFrame())
-        with patch(
-            "ecoscope.io.EarthRangerIO.get_patrol_observations_with_patrol_filter",
-            mock_patrol_obs,
-        ):
-            with patch("ecoscope.io.EarthRangerIO.get_patrol_events", mock_patrol_events):
-                task(get_patrol_observations).validate().call(**patrol_obs_args)
-                task(get_patrol_events).validate().call(**patrol_events_args)
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+    mock_client.get_patrol_events.return_value = pd.DataFrame()
 
-                combined_params = set_patrols_and_patrol_events_params(**combined_args)
-                get_patrol_events_from_combined_params(combined_params)
-                get_patrol_observations_from_combined_params(combined_params)
+    with (
+        _patched_named_connection(mock_client),
+        patch(
+            "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+            return_value=None,
+        ),
+    ):
+        task(get_patrol_observations).validate().call(**patrol_obs_args)
+        task(get_patrol_events).validate().call(**patrol_events_args)
 
-                # Check that the underlying IO calls were made with identical args
-                mock_patrol_obs.assert_has_calls(
-                    [
-                        call(**expected_patrol_obs_call_args),
-                        call(**expected_patrol_obs_call_args),
-                    ]
-                )
-                mock_patrol_events.assert_has_calls(
-                    [
-                        call(**expected_patrol_events_call_args),
-                        call(**expected_patrol_events_call_args),
-                    ]
-                )
+        combined_params = set_patrols_and_patrol_events_params(**combined_args)
+        get_patrol_events_from_combined_params(combined_params)
+        get_patrol_observations_from_combined_params(combined_params)
+
+    # Each underlying method should have been called twice (once per code path) with
+    # identical args. assert_has_calls is order-preserving but allows other calls
+    # in between, which is fine here.
+    mock_client.get_patrol_observations_with_patrol_filter.assert_has_calls(
+        [
+            call(**expected_patrol_obs_call_args),
+            call(**expected_patrol_obs_call_args),
+        ]
+    )
+    mock_client.get_patrol_events.assert_has_calls(
+        [
+            call(**expected_patrol_events_call_args),
+            call(**expected_patrol_events_call_args),
+        ]
+    )
 
 
 # The *_combined_parity tests verify that the "task-style" entry point (e.g.
