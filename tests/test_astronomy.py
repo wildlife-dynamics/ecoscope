@@ -37,9 +37,17 @@ def test_is_night(movebank_relocations):
 
 
 def test_nightday_ratio(movebank_relocations):
+    # Stride-sample within each subject (~23k -> ~1.2k points) to keep this test fast;
+    # astropy's per-point sunrise/sunset calc dominated CI time at full size.
+    # To exercise the full trajectory, drop the line below; the expected ratios for the
+    # full data are: Habiba=0.45905845612291696, Salif Keita=2.0019632541788472.
+    movebank_relocations.gdf = movebank_relocations.gdf.groupby("groupby_col", group_keys=False).apply(
+        lambda g: g.iloc[::20]
+    )
+
     trajectory = Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
-        [0.45905845612291696, 2.0019632541788472],
+        [0.8604903101171724, 6.205051267739121],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
