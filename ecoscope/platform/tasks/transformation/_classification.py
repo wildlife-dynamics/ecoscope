@@ -204,9 +204,18 @@ def classify_is_night(
     Returns:
         The input dataframe with a `is_night` column appended.
     """
+    # TEMP: stage timing instrumentation to diagnose Cloud Run slowness. Revert when done.
+    import time
+
+    t0 = time.perf_counter()
     from astropy.utils import iers
 
+    t_iers_import = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
     from ecoscope.analysis.astronomy import is_night
+
+    t_isnight_import = time.perf_counter() - t0
 
     # Astropy auto-downloads IERS Earth-orientation tables on first time conversion that
     # needs UT1-UTC outside the bundled range — fine locally but adds 10-60s of cold-start
@@ -214,7 +223,27 @@ def classify_is_night(
     # the minute-scale precision is_night needs.
     iers.conf.auto_download = False
 
-    relocations["is_night"] = is_night(relocations.geometry, relocations.fixtime)
+    t0 = time.perf_counter()
+    coords = relocations.geometry
+    fixtime = relocations.fixtime
+    t_cols = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
+    result = is_night(coords, fixtime)
+    t_isnight = time.perf_counter() - t0
+
+    logger.warning(
+        "classify_is_night stage timings: import_iers=%.3fs import_is_night=%.3fs "
+        "col_access=%.3fs is_night=%.3fs n=%d iers.auto_download=%s",
+        t_iers_import,
+        t_isnight_import,
+        t_cols,
+        t_isnight,
+        len(relocations),
+        iers.conf.auto_download,
+    )
+
+    relocations["is_night"] = result
 
     return relocations
 

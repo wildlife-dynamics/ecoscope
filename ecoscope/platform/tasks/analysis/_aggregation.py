@@ -1,3 +1,4 @@
+import logging
 from operator import add, floordiv, mod, mul, pow, sub, truediv
 from typing import Annotated, Literal, cast
 
@@ -6,6 +7,8 @@ from pydantic import Field
 from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
+
+logger = logging.getLogger(__name__)
 
 ColumnName = Annotated[str, Field(description="Column to aggregate")]
 
@@ -127,12 +130,35 @@ def apply_arithmetic_operation_over_rows(
 def get_night_day_ratio(
     df: AnyGeoDataFrame,
 ) -> Annotated[float, Field(description="Night/Day ratio")]:
+    # TEMP: stage timing instrumentation to diagnose Cloud Run slowness. Revert when done.
+    import time
+
+    t0 = time.perf_counter()
     from astropy.utils import iers
 
+    t_iers_import = time.perf_counter() - t0
+
+    t0 = time.perf_counter()
     from ecoscope.analysis import astronomy
+
+    t_astronomy_import = time.perf_counter() - t0
 
     # See classify_is_night for rationale — disable IERS auto-download to avoid
     # cold-start network IO on cloud workers.
     iers.conf.auto_download = False
 
-    return astronomy.get_nightday_ratio(df)
+    t0 = time.perf_counter()
+    result = astronomy.get_nightday_ratio(df)
+    t_ratio = time.perf_counter() - t0
+
+    logger.warning(
+        "get_night_day_ratio stage timings: import_iers=%.3fs import_astronomy=%.3fs "
+        "get_nightday_ratio=%.3fs n=%d iers.auto_download=%s",
+        t_iers_import,
+        t_astronomy_import,
+        t_ratio,
+        len(df),
+        iers.conf.auto_download,
+    )
+
+    return result
