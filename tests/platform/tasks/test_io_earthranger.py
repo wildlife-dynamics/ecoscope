@@ -96,57 +96,67 @@ def test_get_subject_group_observations(client):
     assert "junk_status" in result
 
 
-def test_get_patrol_observations(named_mock_env):
-    with patch.dict(os.environ, named_mock_env):
-        result = (
-            task(get_patrol_observations)
-            .validate()
-            .call(
-                client="MEP_DEV",
-                time_range={
-                    "since": "2015-01-01T00:00:00Z",
-                    "until": "2015-03-01T23:59:59Z",
-                    "timezone": {
-                        "label": "UTC",
-                        "tzCode": "UTC",
-                        "name": "UTC",
-                        "utc": "+00:00",
-                    },
+def test_get_patrol_observations():
+    """The task-validated entry point strips whitespace from patrol_types before the
+    underlying client call. This is the wrapper behavior we want to lock in."""
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+
+    with (
+        _patched_named_connection(mock_client),
+        patch(
+            "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+            return_value=None,
+        ),
+    ):
+        task(get_patrol_observations).validate().call(
+            client="MEP_DEV",
+            time_range={
+                "since": "2015-01-01T00:00:00Z",
+                "until": "2015-03-01T23:59:59Z",
+                "timezone": {
+                    "label": "UTC",
+                    "tzCode": "UTC",
+                    "name": "UTC",
+                    "utc": "+00:00",
                 },
-                patrol_types=["    ecoscope_patrol           "],  # whitespaces are intentional to test stripping
-                status=None,
-                include_patrol_details=True,
-            )
+            },
+            patrol_types=["    ecoscope_patrol           "],  # whitespaces are intentional to test stripping
+            status=None,
+            include_patrol_details=True,
+            raise_on_empty=False,
         )
 
-        assert len(result) > 0
-        assert "geometry" in result
-        assert "groupby_col" in result
-        assert "fixtime" in result
-        assert "junk_status" in result
+    call_kwargs = mock_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
+    assert call_kwargs["patrol_type_value"] == ["ecoscope_patrol"]
 
 
-def test_get_patrol_observations_with_whitespace_in_patrol_types_without_pydantic_validations(
-    client,
-):
-    with pytest.raises(
-        ValueError,
-        match="Failed to find IDs for values",
+def test_get_patrol_observations_with_whitespace_in_patrol_types_without_pydantic_validations():
+    """Direct (non-task) calls bypass pydantic, so whitespace is passed through as-is to
+    the underlying client. This is the complement to the test above: stripping is
+    pydantic's responsibility, not the wrapper's."""
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=None,
     ):
         get_patrol_observations(
-            client=client,
+            client=mock_client,
             time_range=TimeRange(
                 since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
                 until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
                 timezone=UTC_TIMEZONEINFO,
             ),
             patrol_types=["    ecoscope_patrol           "],
-            # the whitespaces here will NOT get stripped because we're not using
-            # Pydantic validation. This should cause ERClient to signal an exception.
             status=None,
             include_patrol_details=True,
-            raise_on_empty=True,
+            raise_on_empty=False,
         )
+
+    call_kwargs = mock_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
+    assert call_kwargs["patrol_type_value"] == ["    ecoscope_patrol           "]
 
 
 def test_get_patrol_events(client):
@@ -234,55 +244,82 @@ def test_get_events_with_details(client):
     assert "is_linked_to" in result
 
 
-def test_get_events_with_event_type_whitespace(named_mock_env):
-    with patch.dict(os.environ, named_mock_env):
-        result = (
-            task(get_events)
-            .validate()
-            .call(
-                client="MEP_DEV",
-                time_range={
-                    "since": "2015-01-01T00:00:00Z",
-                    "until": "2015-12-31T23:59:59Z",
-                    "timezone": {
-                        "label": "UTC",
-                        "tzCode": "UTC",
-                        "name": "UTC",
-                        "utc": "+00:00",
-                    },
+def test_get_events_with_event_type_whitespace():
+    """Task-validated event_types are stripped of whitespace before the wrapper's
+    get_event_types lookup. Verify by mocking get_event_types to return clean values
+    and confirming the wrapper resolved IDs (i.e., stripping happened, otherwise
+    the .isin() lookup would miss everything)."""
+    expected_clean = [
+        "hwc_rep",
+        "bird_sighting_rep",
+        "wildlife_sighting_rep",
+        "poacher_camp_rep",
+        "fire_rep",
+        "injured_animal_rep",
+    ]
+    event_types_df = pd.DataFrame(
+        {
+            "id": [f"id-{i}" for i in range(len(expected_clean))],
+            "value": expected_clean,
+        }
+    )
+    mock_client = _make_mock_client()
+    mock_client.get_event_types.return_value = event_types_df
+    mock_client.get_events.return_value = pd.DataFrame(
+        {"id": ["e1"], "time": [pd.Timestamp("2015-06-01", tz="UTC")], "event_type": ["hwc_rep"], "geometry": [None]}
+    )
+
+    with _patched_named_connection(mock_client):
+        task(get_events).validate().call(
+            client="MEP_DEV",
+            time_range={
+                "since": "2015-01-01T00:00:00Z",
+                "until": "2015-12-31T23:59:59Z",
+                "timezone": {
+                    "label": "UTC",
+                    "tzCode": "UTC",
+                    "name": "UTC",
+                    "utc": "+00:00",
                 },
-                event_types=[
-                    "         hwc_rep    ",  # whitespaces are intentional to test stripping
-                    "   bird_sighting_rep           ",  # whitespaces are intentional to test stripping
-                    "      wildlife_sighting_rep        ",  # whitespaces are intentional to test stripping
-                    "  poacher_camp_rep    ",  # whitespaces are intentional to test stripping
-                    "    fire_rep   ",  # whitespaces are intentional to test stripping
-                    "     injured_animal_rep   ",  # whitespaces are intentional to test stripping
-                ],
-                event_columns=["id", "time", "event_type", "geometry"],
-            )
+            },
+            event_types=[
+                "         hwc_rep    ",  # whitespaces are intentional to test stripping
+                "   bird_sighting_rep           ",
+                "      wildlife_sighting_rep        ",
+                "  poacher_camp_rep    ",
+                "    fire_rep   ",
+                "     injured_animal_rep   ",
+            ],
+            event_columns=["id", "time", "event_type", "geometry"],
         )
 
-        assert len(result) > 0
-        assert "id" in result
+    # If stripping happened, all 6 ids should be resolved and passed to client.get_events.
+    assert mock_client.get_events.call_count == 1
+    resolved_ids = mock_client.get_events.call_args.kwargs["event_type"]
+    assert sorted(resolved_ids) == sorted(event_types_df["id"].tolist())
 
 
-def test_get_events_bad_event_type(client):
+def test_get_events_bad_event_type():
+    """When event_types don't match any known type, the wrapper short-circuits to an
+    empty DataFrame without calling get_events."""
+    mock_client = _make_mock_client()
+    # The known event types in this fake registry don't include "not a real type"
+    mock_client.get_event_types.return_value = pd.DataFrame({"id": ["abc123"], "value": ["a_real_type"]})
+
     result = get_events(
-        client=client,
+        client=mock_client,
         time_range=TimeRange(
             since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
-        event_types=[
-            "not a real type",
-        ],
+        event_types=["not a real type"],
         raise_on_empty=False,
         event_columns=["id", "time", "event_type", "geometry"],
     )
 
     assert result.empty
+    mock_client.get_events.assert_not_called()
 
 
 def test_bad_token_fails():
@@ -992,9 +1029,14 @@ def test_get_patrol_events_with_display_values(client):
     assert "geometry" in result
 
 
-def test_get_patrol_events_with_display_values_empty(client):
+def test_get_patrol_events_with_display_values_empty():
+    """When the underlying client returns empty, include_display_values=True must not
+    crash and must not call the display-name resolver."""
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_events.return_value = pd.DataFrame()
+
     result = get_patrol_events(
-        client=client,
+        client=mock_client,
         time_range=TimeRange(
             since=datetime.strptime("1985-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             until=datetime.strptime("1985-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
@@ -1008,6 +1050,7 @@ def test_get_patrol_events_with_display_values_empty(client):
     )
 
     assert result.empty
+    mock_client.get_event_type_display_names_from_events.assert_not_called()
 
 
 def test_get_events_with_display_values(client):
@@ -1038,9 +1081,14 @@ def test_get_events_with_display_values(client):
     assert "geometry" in result
 
 
-def test_get_events_with_display_values_empty(client):
+def test_get_events_with_display_values_empty():
+    """When get_events returns empty, include_display_values=True must not crash and
+    must not call the display-name resolver."""
+    mock_client = _make_mock_client()
+    mock_client.get_events.return_value = pd.DataFrame()
+
     result = get_events(
-        client=client,
+        client=mock_client,
         time_range=TimeRange(
             since=datetime.strptime("1985-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             until=datetime.strptime("1985-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
@@ -1053,6 +1101,7 @@ def test_get_events_with_display_values_empty(client):
     )
 
     assert result.empty
+    mock_client.get_event_type_display_names_from_events.assert_not_called()
 
 
 def test_get_choices_from_v2_event_type(client):
