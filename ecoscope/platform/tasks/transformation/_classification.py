@@ -204,26 +204,9 @@ def classify_is_night(
     Returns:
         The input dataframe with a `is_night` column appended.
     """
-    # TEMP: stage timing instrumentation to diagnose Cloud Run slowness. Revert when done.
-    # Attaches stage timings to the active OTel span so they appear in Cloud Trace.
-    import time
-
-    try:
-        from opentelemetry import trace as _otel_trace
-
-        _span = _otel_trace.get_current_span()
-    except ImportError:
-        _span = None
-
-    t0 = time.perf_counter()
     from astropy.utils import iers
 
-    t_iers_import = time.perf_counter() - t0
-
-    t0 = time.perf_counter()
     from ecoscope.analysis.astronomy import is_night
-
-    t_isnight_import = time.perf_counter() - t0
 
     # Astropy auto-downloads IERS Earth-orientation tables on first time conversion that
     # needs UT1-UTC outside the bundled range — fine locally but adds 10-60s of cold-start
@@ -231,24 +214,7 @@ def classify_is_night(
     # the minute-scale precision is_night needs.
     iers.conf.auto_download = False
 
-    t0 = time.perf_counter()
-    coords = relocations.geometry
-    fixtime = relocations.fixtime
-    t_cols = time.perf_counter() - t0
-
-    t0 = time.perf_counter()
-    result = is_night(coords, fixtime)
-    t_isnight = time.perf_counter() - t0
-
-    if _span is not None:
-        _span.set_attribute("timing.import_iers_seconds", t_iers_import)
-        _span.set_attribute("timing.import_is_night_seconds", t_isnight_import)
-        _span.set_attribute("timing.col_access_seconds", t_cols)
-        _span.set_attribute("timing.is_night_seconds", t_isnight)
-        _span.set_attribute("n_relocations", len(relocations))
-        _span.set_attribute("iers.auto_download", iers.conf.auto_download)
-
-    relocations["is_night"] = result
+    relocations["is_night"] = is_night(relocations.geometry, relocations.fixtime)
 
     return relocations
 
