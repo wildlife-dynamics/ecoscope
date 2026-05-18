@@ -131,7 +131,15 @@ def get_night_day_ratio(
     df: AnyGeoDataFrame,
 ) -> Annotated[float, Field(description="Night/Day ratio")]:
     # TEMP: stage timing instrumentation to diagnose Cloud Run slowness. Revert when done.
+    # Attaches stage timings to the active OTel span so they appear in Cloud Trace.
     import time
+
+    try:
+        from opentelemetry import trace as _otel_trace
+
+        _span = _otel_trace.get_current_span()
+    except ImportError:
+        _span = None
 
     t0 = time.perf_counter()
     from astropy.utils import iers
@@ -151,14 +159,11 @@ def get_night_day_ratio(
     result = astronomy.get_nightday_ratio(df)
     t_ratio = time.perf_counter() - t0
 
-    logger.warning(
-        "get_night_day_ratio stage timings: import_iers=%.3fs import_astronomy=%.3fs "
-        "get_nightday_ratio=%.3fs n=%d iers.auto_download=%s",
-        t_iers_import,
-        t_astronomy_import,
-        t_ratio,
-        len(df),
-        iers.conf.auto_download,
-    )
+    if _span is not None:
+        _span.set_attribute("timing.import_iers_seconds", t_iers_import)
+        _span.set_attribute("timing.import_astronomy_seconds", t_astronomy_import)
+        _span.set_attribute("timing.get_nightday_ratio_seconds", t_ratio)
+        _span.set_attribute("n_rows", len(df))
+        _span.set_attribute("iers.auto_download", iers.conf.auto_download)
 
     return result
