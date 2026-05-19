@@ -6,7 +6,9 @@ from ecoscope.platform.tasks.transformation import (
     assign_value,
     fill_na,
     map_values,
+    map_values_with_unit,
 )
+from ecoscope.platform.tasks.transformation._unit import Unit
 
 
 @pytest.fixture
@@ -87,6 +89,58 @@ def test_fill_na_numeric():
     result = fill_na(df_with_nans, value=0.0, columns=["col_a"])
     assert result["col_a"].equals(column_with_nans_filled)
     assert result["col_b"].equals(column_with_nans)
+
+
+def test_map_values_with_unit_converts_and_formats():
+    df = pd.DataFrame({"dist": [1500.0, 2750.5, 0.0]})
+    result = map_values_with_unit(
+        df,
+        input_column_name="dist",
+        output_column_name="dist_km",
+        original_unit=Unit.METER,
+        new_unit=Unit.KILOMETER,
+        decimal_places=2,
+    )
+    assert result["dist_km"].tolist() == ["1.50 km", "2.75 km", "0.00 km"]
+
+
+def test_map_values_with_unit_same_unit_skips_conversion():
+    df = pd.DataFrame({"dist": [1.234, 5.678]})
+    result = map_values_with_unit(
+        df,
+        input_column_name="dist",
+        output_column_name="dist_fmt",
+        original_unit=Unit.METER,
+        new_unit=Unit.METER,
+        decimal_places=1,
+    )
+    # Same-unit short-circuit: no scaling, just decimal formatting with the unit suffix.
+    assert result["dist_fmt"].tolist() == ["1.2 m", "5.7 m"]
+
+
+def test_map_values_with_unit_no_unit_at_all():
+    df = pd.DataFrame({"v": [3.14, 2.71]})
+    result = map_values_with_unit(
+        df,
+        input_column_name="v",
+        output_column_name="v_fmt",
+        decimal_places=1,
+    )
+    # No unit specified: format only, no suffix.
+    assert result["v_fmt"].tolist() == ["3.1", "2.7"]
+
+
+def test_map_values_with_unit_speed_conversion():
+    df = pd.DataFrame({"speed": [10.0, 0.0]})
+    result = map_values_with_unit(
+        df,
+        input_column_name="speed",
+        output_column_name="speed_kmh",
+        original_unit=Unit.METERS_PER_SECOND,
+        new_unit=Unit.KILOMETERS_PER_HOUR,
+        decimal_places=1,
+    )
+    assert result["speed_kmh"].tolist() == ["36.0 km/h", "0.0 km/h"]
 
 
 def test_fill_na_string():
