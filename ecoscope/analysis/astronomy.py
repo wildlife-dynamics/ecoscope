@@ -67,8 +67,7 @@ def is_night(
     time_resolution: sample spacing for astropy's ErfaAstromInterpolator. Smaller
         values give more accurate astrom matrices near sunrise/sunset but cost
         more setup time; larger values are faster but introduce sub-degree
-        errors in sun altitude. Defaults to 1 hour, which empirically gives
-        100% agreement with the un-interpolated path on test data.
+        errors in sun altitude. Defaults to 1 hour.
     """
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Geometry is in a geographic CRS.", UserWarning)
@@ -113,28 +112,32 @@ def calculate_day_night_distance(
     daily_summary.loc[date, "night_distance"] += (1 - day_percent) * dist_meters
 
 
-def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
-    gdf["date"] = pd.to_datetime(gdf["segment_start"]).dt.date
+def calculate_day_fraction(
+    sunrise: pd.Series,
+    sunset: pd.Series,
+    segment_start: pd.Series,
+    segment_end: pd.Series,
+) -> np.ndarray:
+    """
+    Vectorized fraction of each [segment_start, segment_end] interval that falls
+    in daylight, given the corresponding sunrise/sunset per row.
 
-    daily_summary = gdf.groupby("date").first()["geometry"].reset_index()
-    daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.date, x.geometry), axis=1)
-    daily_summary = daily_summary.set_index("date")
-
-    sunrise = gdf["date"].map(daily_summary["sunrise"])
-    sunset = gdf["date"].map(daily_summary["sunset"])
-    segment_start = gdf["segment_start"]
-    segment_end = gdf["segment_end"]
+    Handles both `sunrise < sunset` (normal) and `sunrise >= sunset` (inverted /
+    high-latitude) day orderings. Boundary samples (segment touching sunrise or
+    sunset exactly) are assigned to the same side as the adjacent open interval,
+    so np.select never falls through to NaN for valid `segment_start < segment_end`.
+    """
     duration = segment_end - segment_start
 
     sr_lt_ss = sunrise < sunset
-    cond_day_to_night = (segment_start < sunset) & (segment_end > sunset)
-    cond_night_to_day = (segment_start < sunrise) & (segment_end > sunrise)
-    cond_all_night_normal = sr_lt_ss & ((segment_end < sunrise) | (segment_start > sunset))
+    cond_day_to_night = (segment_start <= sunset) & (segment_end > sunset)
+    cond_night_to_day = (segment_start <= sunrise) & (segment_end > sunrise)
+    cond_all_night_normal = sr_lt_ss & ((segment_end <= sunrise) | (segment_start >= sunset))
     cond_all_day_normal = sr_lt_ss & (segment_start >= sunrise) & (segment_end <= sunset)
-    cond_all_day_inverted = (~sr_lt_ss) & ((segment_end < sunset) | (segment_start > sunrise))
+    cond_all_day_inverted = (~sr_lt_ss) & ((segment_end <= sunset) | (segment_start >= sunrise))
     cond_all_night_inverted = (~sr_lt_ss) & (segment_start >= sunset) & (segment_end <= sunrise)
 
-    day_percent = np.select(
+    return np.select(
         [
             cond_day_to_night,
             cond_night_to_day,
@@ -154,8 +157,23 @@ def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
         default=np.nan,
     )
 
-    day_dist = day_percent * gdf["dist_meters"]
-    night_dist = (1 - day_percent) * gdf["dist_meters"]
+
+def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
+    gdf["date"] = pd.to_datetime(gdf["segment_start"]).dt.date
+
+    daily_summary = gdf.groupby("date").first()["geometry"].reset_index()
+    daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.date, x.geometry), axis=1)
+    daily_summary = daily_summary.set_index("date")
+
+    day_fraction = calculate_day_fraction(
+        sunrise=gdf["date"].map(daily_summary["sunrise"]),
+        sunset=gdf["date"].map(daily_summary["sunset"]),
+        segment_start=gdf["segment_start"],
+        segment_end=gdf["segment_end"],
+    )
+
+    day_dist = day_fraction * gdf["dist_meters"]
+    night_dist = (1 - day_fraction) * gdf["dist_meters"]
 
     daily_summary["day_distance"] = day_dist.groupby(gdf["date"]).sum().reindex(daily_summary.index, fill_value=0.0)
     daily_summary["night_distance"] = night_dist.groupby(gdf["date"]).sum().reindex(daily_summary.index, fill_value=0.0)

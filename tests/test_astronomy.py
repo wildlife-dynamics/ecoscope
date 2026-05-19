@@ -170,8 +170,8 @@ def test_inverted_all_night(inverted_daily_summary):
     assert inverted_daily_summary.loc[date, "day_distance"] == 0
 
 
-def _day_percent_one(sunrise, sunset, segment_start, segment_end):
-    result = astronomy.compute_day_percent(
+def _day_fraction_one(sunrise, sunset, segment_start, segment_end):
+    result = astronomy.calculate_day_fraction(
         sunrise=pd.Series([sunrise]),
         sunset=pd.Series([sunset]),
         segment_start=pd.Series([segment_start]),
@@ -232,8 +232,8 @@ def _day_percent_one(sunrise, sunset, segment_start, segment_end):
         ),
     ],
 )
-def test_compute_day_percent_branches(sunrise, sunset, segment_start, segment_end, expected, label):
-    actual = _day_percent_one(sunrise, sunset, segment_start, segment_end)
+def test_calculate_day_fraction_branches(sunrise, sunset, segment_start, segment_end, expected, label):
+    actual = _day_fraction_one(sunrise, sunset, segment_start, segment_end)
     assert actual == pytest.approx(expected), f"{label}: got {actual}, expected {expected}"
 
 
@@ -261,13 +261,13 @@ def test_compute_day_percent_branches(sunrise, sunset, segment_start, segment_en
         ),
     ],
 )
-def test_compute_day_percent_boundary_edges(sunrise, sunset, segment_start, segment_end, expected, label):
-    actual = _day_percent_one(sunrise, sunset, segment_start, segment_end)
+def test_calculate_day_fraction_boundary_edges(sunrise, sunset, segment_start, segment_end, expected, label):
+    actual = _day_fraction_one(sunrise, sunset, segment_start, segment_end)
     assert not np.isnan(actual), f"{label}: fell through to NaN"
     assert actual == pytest.approx(expected), f"{label}: got {actual}, expected {expected}"
 
 
-def test_compute_day_percent_vectorized():
+def test_calculate_day_fraction_vectorized():
     """Run several rows in one call to confirm vectorization preserves alignment."""
     rows = [
         (SUNRISE, SUNSET, datetime(2024, 1, 1, 17), datetime(2024, 1, 1, 19), 0.5),
@@ -277,7 +277,7 @@ def test_compute_day_percent_vectorized():
         (SUNRISE, SUNSET, datetime(2024, 1, 1, 18), datetime(2024, 1, 1, 20), 0.0),
     ]
     sunrise, sunset, starts, ends, expected = zip(*rows)
-    actual = astronomy.compute_day_percent(
+    actual = astronomy.calculate_day_fraction(
         sunrise=pd.Series(sunrise),
         sunset=pd.Series(sunset),
         segment_start=pd.Series(starts),
