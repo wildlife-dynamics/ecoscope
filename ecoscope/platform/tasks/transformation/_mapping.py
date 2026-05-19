@@ -6,7 +6,7 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
-from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
+from ecoscope.platform.tasks.transformation._unit import Unit, is_linear_unit_conversion, with_unit
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +82,25 @@ def map_values_with_unit(
         AdvancedField(default=1, description="The number of decimal places to display."),
     ] = 1,
 ) -> AnyDataFrame:
-    quantity = with_unit(1.0, original_unit=original_unit, new_unit=new_unit)
-    factor = quantity.value
-    unit_str = str(quantity.unit) if quantity.unit else ""
-    suffix = f" {unit_str}".rstrip()
-    converted = df[input_column_name].to_numpy() * factor
-    df[output_column_name] = [f"{v:.{decimal_places}f}{suffix}" for v in converted]
+    if new_unit is None or original_unit == new_unit:
+        # no conversion: just format with the original (or absent) unit
+        suffix = f" {original_unit}".rstrip() if original_unit else ""
+        values = df[input_column_name].to_numpy()
+    elif is_linear_unit_conversion(original_unit, new_unit):
+        # multiplicative conversion: probe the factor once and broadcast
+        quantity = with_unit(1.0, original_unit=original_unit, new_unit=new_unit)
+        suffix = f" {quantity.unit}".rstrip() if quantity.unit else ""
+        values = df[input_column_name].to_numpy() * quantity.value
+    else:
+        # non-linear units ie. dB
+        def format_row(x):
+            data = with_unit(x, original_unit=original_unit, new_unit=new_unit)
+            return f"{data.value:.{decimal_places}f} {data.unit or ''}".strip()
+
+        df[output_column_name] = df[input_column_name].apply(format_row)
+        return df
+
+    df[output_column_name] = [f"{v:.{decimal_places}f}{suffix}" for v in values]
     return df
 
 
