@@ -37,9 +37,14 @@ def test_is_night(movebank_relocations):
 
 
 def test_nightday_ratio(movebank_relocations):
+    # movebank_relocations is subsampled to keep execution speed low.
+    # Expected ratios for the full data are:
+    # Habiba=0.45905845612291696, Salif Keita=2.0019632541788472.
+    movebank_relocations.gdf = movebank_relocations.gdf.groupby("groupby_col", group_keys=False).head(100)
+
     trajectory = Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
-        [0.45905845612291696, 2.0019632541788472],
+        [0.3736601604553539, 2.1840195829850435],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     pd.testing.assert_series_equal(
