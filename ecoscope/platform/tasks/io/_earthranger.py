@@ -441,13 +441,14 @@ def get_subjectgroup_observations(
     """Get observations for a subject group from EarthRanger."""
     from ecoscope.relocations import Relocations
 
+    filter_int = _EXCLUSION_FILTER_TO_INT[filter]
+
     if warehouse_client := _make_warehouse_client_from_env(
         er_site_url=client.server,
         er_api_token=SecretStr(client.token) if client.token else None,
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
-        logger.warning("Exclusion flags filter is not yet supported by the warehouse API and will be ignored")
         table = warehouse_client.get_subjectgroup_observations(
             subject_group_name=subject_group_name,
             include_subject_details=True,
@@ -456,11 +457,10 @@ def get_subjectgroup_observations(
             include_subjectsource_details=include_subjectsource_details,
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
-            # TODO: pass exclusion flags filter once supported in the DWH API
+            filter=filter_int,
         )
         subject_group_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
     else:
-        filter_int = _EXCLUSION_FILTER_TO_INT[filter]
         subject_group_obs_relocs = client.get_subjectgroup_observations(
             subject_group_name=subject_group_name,
             include_subject_details=True,
@@ -503,11 +503,6 @@ def get_patrol_observations(
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
-        if not patrols_overlap_daterange:
-            logger.warning(
-                "patrols_overlap_daterange=False is not yet supported by the warehouse API; "
-                "overlap semantics will be used"
-            )
         table = warehouse_client.get_patrol_observations_with_patrol_filter(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
@@ -515,8 +510,7 @@ def get_patrol_observations(
             status=status,
             include_patrol_details=include_patrol_details,
             sub_page_size=sub_page_size,
-            # TODO: pass patrols_overlap_daterange once the warehouse API supports it;
-            # currently the API always uses overlap semantics (equivalent to True).
+            patrols_overlap_daterange=patrols_overlap_daterange,
         )
         patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
     else:
@@ -740,8 +734,6 @@ def get_patrol_observations_from_patrols_df(
             patrols_df=patrols_df,
             include_patrol_details=include_patrol_details,
             sub_page_size=sub_page_size,
-            # TODO: pass patrols_overlap_daterange once the warehouse API supports it;
-            # currently the API always uses overlap semantics (equivalent to True).
         )
         patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
     else:
