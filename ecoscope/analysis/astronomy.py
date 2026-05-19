@@ -65,8 +65,8 @@ def is_night(
     ----------
     geometry, time: aligned series of locations and timestamps.
     time_resolution: sample spacing for astropy's ErfaAstromInterpolator. Smaller
-        values give more accurate astrom matrices near sunrise/sunset but cost
-        more setup time; larger values are faster but introduce sub-degree
+        values give more accurate results near sunrise/sunset at the cost
+        of execution speed; larger values are much faster, introducing sub-degree
         errors in sun altitude. Defaults to 1 hour.
     """
     with warnings.catch_warnings():
