@@ -37,11 +37,8 @@ def test_is_night(movebank_relocations):
 
 
 def test_nightday_ratio(movebank_relocations):
-    # Take the first 100 contiguous points per subject. get_nightday_ratio's cost scales
-    # with the count of unique dates (one astropy sunrise/sunset call per date), not with
-    # the count of points, so taking a contiguous head() compresses the date range and
-    # drops the test from minutes to under a second. To exercise the full trajectory,
-    # drop the line below; the expected ratios for the full data are:
+    # movebank_relocations is subsampled to keep execution speed low.
+    # Expected ratios for the full data are:
     # Habiba=0.45905845612291696, Salif Keita=2.0019632541788472.
     movebank_relocations.gdf = movebank_relocations.gdf.groupby("groupby_col", group_keys=False).head(100)
 

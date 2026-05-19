@@ -37,8 +37,8 @@ def movebank_trajectory(movebank_gdf):
     )
     relocs.apply_reloc_filter(pnts_filter, inplace=True)
     relocs.remove_filtered(inplace=True)
-    # Stride-sample Salif's ~22k points to keep ETD compute fast while preserving
-    # spatial extent. To exercise the full trajectory, drop this slice and compare
+    # Relocs are subsampled to keep execution speed low.
+    # To run against the full trajectory, drop this slice and compare
     # against tests/test_output/etd_percentile_area.feather (the full-trajectory
     # reference) instead of the _subset reference used below.
     relocs.gdf = relocs.gdf.iloc[::20].copy()

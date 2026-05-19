@@ -91,13 +91,7 @@ def test_get_patrol_observations():
     mock_client = _make_mock_client()
     mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
 
-    with (
-        _patched_named_connection(mock_client),
-        patch(
-            "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-            return_value=None,
-        ),
-    ):
+    with _patched_named_connection(mock_client):
         task(get_patrol_observations).validate().call(
             client="MEP_DEV",
             time_range={
@@ -127,22 +121,18 @@ def test_get_patrol_observations_with_whitespace_in_patrol_types_without_pydanti
     mock_client = _make_mock_client()
     mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=None,
-    ):
-        get_patrol_observations(
-            client=mock_client,
-            time_range=TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            patrol_types=["    ecoscope_patrol           "],
-            status=None,
-            include_patrol_details=True,
-            raise_on_empty=False,
-        )
+    get_patrol_observations(
+        client=mock_client,
+        time_range=TimeRange(
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        patrol_types=["    ecoscope_patrol           "],
+        status=None,
+        include_patrol_details=True,
+        raise_on_empty=False,
+    )
 
     call_kwargs = mock_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
     assert call_kwargs["patrol_type_value"] == ["    ecoscope_patrol           "]
@@ -655,13 +645,7 @@ def test_patrol_events_combined():
     mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
     mock_client.get_patrol_events.return_value = pd.DataFrame()
 
-    with (
-        _patched_named_connection(mock_client),
-        patch(
-            "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-            return_value=None,
-        ),
-    ):
+    with _patched_named_connection(mock_client):
         task(get_patrol_observations).validate().call(**patrol_obs_args)
         task(get_patrol_events).validate().call(**patrol_events_args)
 
@@ -766,13 +750,7 @@ def test_get_patrol_observations_combined_parity():
     mock_client = _make_mock_client()
     mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
 
-    with (
-        _patched_named_connection(mock_client),
-        patch(
-            "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-            return_value=None,
-        ),
-    ):
+    with _patched_named_connection(mock_client):
         task(get_patrol_observations).validate().call(**args)
         # event_types is not an arg in get_patrol_observations, but it is required for
         # CombinedPatrolAndEventsParams so explicitly add here
@@ -851,13 +829,7 @@ def test_get_patrol_observations_from_patrols_df_combined_parity():
     mock_client = _make_mock_client()
     mock_client.get_patrol_observations.return_value = pd.DataFrame()
 
-    with (
-        _patched_named_connection(mock_client),
-        patch(
-            "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-            return_value=None,
-        ),
-    ):
+    with _patched_named_connection(mock_client):
         task(get_patrol_observations_from_patrols_df).validate().call(**shared_args, patrols_df=patrols_df)
         combined = CombinedPatrolAndEventsParams(
             **shared_args,
