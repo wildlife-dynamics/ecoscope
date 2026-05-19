@@ -79,7 +79,7 @@ def is_night(
 def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
     midnight = Time(
         datetime(date.year, date.month, date.day) + timedelta(seconds=1), scale="utc"
-    )  # add 1 second shift to avoid leap_second_strict warning
+    )  # add 1 second shift to avoid leap_seis_strict warning
     observer = astroplan.Observer(location=EarthLocation(lon=geometry.centroid.x, lat=geometry.centroid.y))
     sunrise = observer.sun_rise_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
     sunset = observer.sun_set_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
@@ -130,21 +130,21 @@ def calculate_day_fraction(
     duration = segment_end - segment_start
 
     sr_lt_ss = sunrise < sunset
-    cond_day_to_night = (segment_start <= sunset) & (segment_end > sunset)
-    cond_night_to_day = (segment_start <= sunrise) & (segment_end > sunrise)
-    cond_all_night_normal = sr_lt_ss & ((segment_end <= sunrise) | (segment_start >= sunset))
-    cond_all_day_normal = sr_lt_ss & (segment_start >= sunrise) & (segment_end <= sunset)
-    cond_all_day_inverted = (~sr_lt_ss) & ((segment_end <= sunset) | (segment_start >= sunrise))
-    cond_all_night_inverted = (~sr_lt_ss) & (segment_start >= sunset) & (segment_end <= sunrise)
+    is_day_to_night = (segment_start <= sunset) & (segment_end > sunset)
+    is_night_to_day = (segment_start <= sunrise) & (segment_end > sunrise)
+    is_all_night_normal = sr_lt_ss & ((segment_end <= sunrise) | (segment_start >= sunset))
+    is_all_day_normal = sr_lt_ss & (segment_start >= sunrise) & (segment_end <= sunset)
+    is_all_day_inverted = (~sr_lt_ss) & ((segment_end <= sunset) | (segment_start >= sunrise))
+    is_all_night_inverted = (~sr_lt_ss) & (segment_start >= sunset) & (segment_end <= sunrise)
 
     return np.select(
         [
-            cond_day_to_night,
-            cond_night_to_day,
-            cond_all_night_normal,
-            cond_all_day_normal,
-            cond_all_day_inverted,
-            cond_all_night_inverted,
+            is_day_to_night,
+            is_night_to_day,
+            is_all_night_normal,
+            is_all_day_normal,
+            is_all_day_inverted,
+            is_all_night_inverted,
         ],
         [
             (sunset - segment_start) / duration,
