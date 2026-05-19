@@ -1,9 +1,11 @@
 import os
 from tempfile import NamedTemporaryFile
+from unittest.mock import patch
 
 import geopandas as gpd
 import geopandas.testing
 import numpy as np
+import pandas as pd
 import pytest
 from shapely.geometry import Point
 
@@ -72,6 +74,51 @@ def etd_raster_data(movebank_trajectory, raster_profile):
         yield in_memory, from_file
     finally:
         os.unlink(path)
+
+
+@pytest.fixture
+def synthetic_traj():
+    timestamps = pd.date_range("2020-01-01", periods=15, freq="1h", tz="UTC")
+    rng = np.random.default_rng(seed=0)
+    steps = rng.uniform(0.002, 0.008, size=(15, 2))
+    coords = np.cumsum(steps, axis=0).tolist()
+    gdf = gpd.GeoDataFrame(
+        {
+            "id": [f"p{i}" for i in range(15)],
+            "subject": ["s1"] * 15,
+            "fixtime": timestamps,
+            "geometry": [Point(x, y) for x, y in coords],
+        },
+        crs=4326,
+    )
+    relocs = ecoscope.Relocations.from_gdf(gdf, groupby_col="subject", uuid_col="id")
+    return ecoscope.Trajectory.from_relocations(relocs)
+
+
+def test_calculate_etd_range_skips_write_when_no_output_path(synthetic_traj, raster_profile):
+    with patch("ecoscope.analysis.UD.etd_range.raster.RasterPy.write") as mock_write:
+        result = calculate_etd_range(
+            trajectory=synthetic_traj,
+            output_path=None,
+            max_speed_kmhr=1.05 * synthetic_traj.gdf.speed_kmhr.max(),
+            raster_profile=raster_profile,
+            expansion_factor=1.3,
+        )
+    mock_write.assert_not_called()
+    assert isinstance(result, ecoscope.io.raster.RasterData)
+    assert result.data.size > 0
+
+
+def test_calculate_etd_range_writes_when_output_path(synthetic_traj, raster_profile, tmp_path):
+    with patch("ecoscope.analysis.UD.etd_range.raster.RasterPy.write") as mock_write:
+        calculate_etd_range(
+            trajectory=synthetic_traj,
+            output_path=str(tmp_path / "out.tif"),
+            max_speed_kmhr=1.05 * synthetic_traj.gdf.speed_kmhr.max(),
+            raster_profile=raster_profile,
+            expansion_factor=1.3,
+        )
+    mock_write.assert_called_once()
 
 
 def test_etd_range_percentile_area(etd_raster_data):
