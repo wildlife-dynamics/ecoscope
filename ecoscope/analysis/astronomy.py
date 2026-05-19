@@ -79,7 +79,7 @@ def is_night(
 def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
     midnight = Time(
         datetime(date.year, date.month, date.day) + timedelta(seconds=1), scale="utc"
-    )  # add 1 second shift to avoid leap_seis_strict warning
+    )  # add 1 second shift to avoid leap_second_strict warning
     observer = astroplan.Observer(location=EarthLocation(lon=geometry.centroid.x, lat=geometry.centroid.y))
     sunrise = observer.sun_rise_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
     sunset = observer.sun_set_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
