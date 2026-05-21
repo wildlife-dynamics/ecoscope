@@ -4,6 +4,7 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pytest
+from shapely.geometry import Point
 
 from ecoscope.platform.tasks.transformation._classification import (
     CustomLabels,
@@ -14,6 +15,7 @@ from ecoscope.platform.tasks.transformation._classification import (
     StdMeanArgs,
     apply_classification,
     apply_color_map,
+    classify_is_night,
     classify_seasons,
 )
 
@@ -94,6 +96,25 @@ def test_apply_classification(test_df, classification_args, label_args):
     )
 
     assert "classified" in result.columns
+
+
+def test_classify_is_night():
+    # Two equatorial fixes ~12 hours apart: local noon should be day, local midnight should be night.
+    relocations = gpd.GeoDataFrame(
+        {
+            "fixtime": pd.to_datetime(
+                ["2024-06-15T12:00:00+00:00", "2024-06-15T00:00:00+00:00"],
+                utc=True,
+            ),
+            "geometry": [Point(0.0, 0.0), Point(0.0, 0.0)],
+        },
+        crs=4326,
+    )
+
+    result = classify_is_night(relocations)
+
+    assert "is_night" in result.columns
+    assert result["is_night"].tolist() == [False, True]
 
 
 def test_classify_seasons():

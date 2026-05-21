@@ -20,6 +20,23 @@ class Unit(Enum):
         return self.value
 
 
+def is_linear_unit_conversion(original_unit: "Unit | None", new_unit: "Unit | None") -> bool:
+    """
+    True if converting between these units is a pure multiplication (so a single
+    factor probed at value=1 can be broadcast across an array). False for
+    log-scale units like dB/mag where astropy applies a nonlinear transform.
+    """
+    import astropy.units as u  # type: ignore[import-untyped]
+    from astropy.units.function.mixin import FunctionMixin  # type: ignore[import-untyped]
+
+    if original_unit is None or new_unit is None:
+        return True
+
+    a = u.Unit(original_unit.value)
+    b = u.Unit(new_unit.value)
+    return not (isinstance(a, FunctionMixin) or isinstance(b, FunctionMixin))
+
+
 @dataclass
 class Quantity:
     value: int | float

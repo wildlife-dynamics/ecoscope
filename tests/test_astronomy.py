@@ -1,11 +1,19 @@
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
 import pyproj
 import pytest
 
 from ecoscope import Trajectory
 from ecoscope.analysis import astronomy
+
+# Normal day: sunrise 06:00, sunset 18:00
+SUNRISE = datetime(2024, 1, 1, 6, 0)
+SUNSET = datetime(2024, 1, 1, 18, 0)
+# Inverted day (polar / high-latitude): sunset 06:00, sunrise 18:00
+INVERTED_SUNRISE = datetime(2024, 1, 1, 18, 0)
+INVERTED_SUNSET = datetime(2024, 1, 1, 6, 0)
 
 
 def test_to_EarthLocation(movebank_relocations):
@@ -165,3 +173,119 @@ def test_inverted_all_night(inverted_daily_summary):
     )
     assert inverted_daily_summary.loc[date, "night_distance"] == 1000
     assert inverted_daily_summary.loc[date, "day_distance"] == 0
+
+
+def _day_fraction_one(sunrise, sunset, segment_start, segment_end):
+    result = astronomy.calculate_day_fraction(
+        sunrise=pd.Series([sunrise]),
+        sunset=pd.Series([sunset]),
+        segment_start=pd.Series([segment_start]),
+        segment_end=pd.Series([segment_end]),
+    )
+    return result[0]
+
+
+@pytest.mark.parametrize(
+    "sunrise, sunset, segment_start, segment_end, expected, label",
+    [
+        # --- normal day (sunrise < sunset) ---
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 17), datetime(2024, 1, 1, 19), 0.5, "normal: day->night transition"),
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 5), datetime(2024, 1, 1, 7), 0.5, "normal: night->day transition"),
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 2), datetime(2024, 1, 1, 4), 0.0, "normal: all night before sunrise"),
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 20), datetime(2024, 1, 1, 22), 0.0, "normal: all night after sunset"),
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 10), datetime(2024, 1, 1, 14), 1.0, "normal: all day"),
+        # --- inverted day (sunrise > sunset, polar / high latitude) ---
+        (
+            INVERTED_SUNRISE,
+            INVERTED_SUNSET,
+            datetime(2024, 1, 1, 4),
+            datetime(2024, 1, 1, 5),
+            1.0,
+            "inverted: all day before sunset",
+        ),
+        (
+            INVERTED_SUNRISE,
+            INVERTED_SUNSET,
+            datetime(2024, 1, 1, 20),
+            datetime(2024, 1, 1, 22),
+            1.0,
+            "inverted: all day after sunrise",
+        ),
+        (
+            INVERTED_SUNRISE,
+            INVERTED_SUNSET,
+            datetime(2024, 1, 1, 7),
+            datetime(2024, 1, 1, 17),
+            0.0,
+            "inverted: all night",
+        ),
+        (
+            INVERTED_SUNRISE,
+            INVERTED_SUNSET,
+            datetime(2024, 1, 1, 5),
+            datetime(2024, 1, 1, 7),
+            0.5,
+            "inverted: day->night transition at sunset",
+        ),
+        (
+            INVERTED_SUNRISE,
+            INVERTED_SUNSET,
+            datetime(2024, 1, 1, 17),
+            datetime(2024, 1, 1, 19),
+            0.5,
+            "inverted: night->day transition at sunrise",
+        ),
+    ],
+)
+def test_calculate_day_fraction_branches(sunrise, sunset, segment_start, segment_end, expected, label):
+    actual = _day_fraction_one(sunrise, sunset, segment_start, segment_end)
+    assert actual == pytest.approx(expected), f"{label}: got {actual}, expected {expected}"
+
+
+@pytest.mark.parametrize(
+    "sunrise, sunset, segment_start, segment_end, expected, label",
+    [
+        # The four boundary edge cases that the strict-inequality version dropped to NaN.
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 18), datetime(2024, 1, 1, 20), 0.0, "normal: start exactly at sunset"),
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 4), datetime(2024, 1, 1, 6), 0.0, "normal: end exactly at sunrise"),
+        (
+            INVERTED_SUNRISE,
+            INVERTED_SUNSET,
+            datetime(2024, 1, 1, 18),
+            datetime(2024, 1, 1, 20),
+            1.0,
+            "inverted: start exactly at sunrise",
+        ),
+        (
+            INVERTED_SUNRISE,
+            INVERTED_SUNSET,
+            datetime(2024, 1, 1, 4),
+            datetime(2024, 1, 1, 6),
+            1.0,
+            "inverted: end exactly at sunset",
+        ),
+    ],
+)
+def test_calculate_day_fraction_boundary_edges(sunrise, sunset, segment_start, segment_end, expected, label):
+    actual = _day_fraction_one(sunrise, sunset, segment_start, segment_end)
+    assert not np.isnan(actual), f"{label}: fell through to NaN"
+    assert actual == pytest.approx(expected), f"{label}: got {actual}, expected {expected}"
+
+
+def test_calculate_day_fraction_vectorized():
+    """Run several rows in one call to confirm vectorization preserves alignment."""
+    rows = [
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 17), datetime(2024, 1, 1, 19), 0.5),
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 10), datetime(2024, 1, 1, 14), 1.0),
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 2), datetime(2024, 1, 1, 4), 0.0),
+        (INVERTED_SUNRISE, INVERTED_SUNSET, datetime(2024, 1, 1, 7), datetime(2024, 1, 1, 17), 0.0),
+        (SUNRISE, SUNSET, datetime(2024, 1, 1, 18), datetime(2024, 1, 1, 20), 0.0),
+    ]
+    sunrise, sunset, starts, ends, expected = zip(*rows)
+    actual = astronomy.calculate_day_fraction(
+        sunrise=pd.Series(sunrise),
+        sunset=pd.Series(sunset),
+        segment_start=pd.Series(starts),
+        segment_end=pd.Series(ends),
+    )
+    np.testing.assert_allclose(actual, expected)
