@@ -8,7 +8,7 @@ import pytest
 from pydantic import SecretStr
 from wt_task import task
 
-from ecoscope.platform.connections import EarthRangerConnection
+from ecoscope.platform.connections import EarthRangerClientProtocol, EarthRangerConnection
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
     get_analysis_field_from_event_details,
@@ -56,17 +56,6 @@ def client():
 
 
 @pytest.fixture
-def named_mock_env():
-    return {
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SERVER": (os.environ["EARTHRANGER_SERVER"]),
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USERNAME": os.environ["EARTHRANGER_USERNAME"],
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__PASSWORD": os.environ["EARTHRANGER_PASSWORD"],
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__TCP_LIMIT": "5",
-        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__SUB_PAGE_SIZE": "4000",
-    }
-
-
-@pytest.fixture
 def mock_empty_client():
     mock = MagicMock()
     mock.get_patrols.return_value = pd.DataFrame()
@@ -96,57 +85,57 @@ def test_get_subject_group_observations(client):
     assert "junk_status" in result
 
 
-def test_get_patrol_observations(named_mock_env):
-    with patch.dict(os.environ, named_mock_env):
-        result = (
-            task(get_patrol_observations)
-            .validate()
-            .call(
-                client="MEP_DEV",
-                time_range={
-                    "since": "2015-01-01T00:00:00Z",
-                    "until": "2015-03-01T23:59:59Z",
-                    "timezone": {
-                        "label": "UTC",
-                        "tzCode": "UTC",
-                        "name": "UTC",
-                        "utc": "+00:00",
-                    },
+def test_get_patrol_observations():
+    """The task-validated entry point strips whitespace from patrol_types before the
+    underlying client call. This is the wrapper behavior we want to lock in."""
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+
+    with _patched_named_connection(mock_client):
+        task(get_patrol_observations).validate().call(
+            client="MEP_DEV",
+            time_range={
+                "since": "2015-01-01T00:00:00Z",
+                "until": "2015-03-01T23:59:59Z",
+                "timezone": {
+                    "label": "UTC",
+                    "tzCode": "UTC",
+                    "name": "UTC",
+                    "utc": "+00:00",
                 },
-                patrol_types=["    ecoscope_patrol           "],  # whitespaces are intentional to test stripping
-                status=None,
-                include_patrol_details=True,
-            )
-        )
-
-        assert len(result) > 0
-        assert "geometry" in result
-        assert "groupby_col" in result
-        assert "fixtime" in result
-        assert "junk_status" in result
-
-
-def test_get_patrol_observations_with_whitespace_in_patrol_types_without_pydantic_validations(
-    client,
-):
-    with pytest.raises(
-        ValueError,
-        match="Failed to find IDs for values",
-    ):
-        get_patrol_observations(
-            client=client,
-            time_range=TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            patrol_types=["    ecoscope_patrol           "],
-            # the whitespaces here will NOT get stripped because we're not using
-            # Pydantic validation. This should cause ERClient to signal an exception.
+            },
+            patrol_types=["    ecoscope_patrol           "],  # whitespaces are intentional to test stripping
             status=None,
             include_patrol_details=True,
-            raise_on_empty=True,
+            raise_on_empty=False,
         )
+
+    call_kwargs = mock_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
+    assert call_kwargs["patrol_type_value"] == ["ecoscope_patrol"]
+
+
+def test_get_patrol_observations_with_whitespace_in_patrol_types_without_pydantic_validations():
+    """Direct (non-task) calls bypass pydantic, so whitespace is passed through as-is to
+    the underlying client. This is the complement to the test above: stripping is
+    pydantic's responsibility, not the wrapper's."""
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+
+    get_patrol_observations(
+        client=mock_client,
+        time_range=TimeRange(
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        patrol_types=["    ecoscope_patrol           "],
+        status=None,
+        include_patrol_details=True,
+        raise_on_empty=False,
+    )
+
+    call_kwargs = mock_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
+    assert call_kwargs["patrol_type_value"] == ["    ecoscope_patrol           "]
 
 
 def test_get_patrol_events(client):
@@ -234,55 +223,82 @@ def test_get_events_with_details(client):
     assert "is_linked_to" in result
 
 
-def test_get_events_with_event_type_whitespace(named_mock_env):
-    with patch.dict(os.environ, named_mock_env):
-        result = (
-            task(get_events)
-            .validate()
-            .call(
-                client="MEP_DEV",
-                time_range={
-                    "since": "2015-01-01T00:00:00Z",
-                    "until": "2015-12-31T23:59:59Z",
-                    "timezone": {
-                        "label": "UTC",
-                        "tzCode": "UTC",
-                        "name": "UTC",
-                        "utc": "+00:00",
-                    },
+def test_get_events_with_event_type_whitespace():
+    """Task-validated event_types are stripped of whitespace before the wrapper's
+    get_event_types lookup. Verify by mocking get_event_types to return clean values
+    and confirming the wrapper resolved IDs (i.e., stripping happened, otherwise
+    the .isin() lookup would miss everything)."""
+    expected_clean = [
+        "hwc_rep",
+        "bird_sighting_rep",
+        "wildlife_sighting_rep",
+        "poacher_camp_rep",
+        "fire_rep",
+        "injured_animal_rep",
+    ]
+    event_types_df = pd.DataFrame(
+        {
+            "id": [f"id-{i}" for i in range(len(expected_clean))],
+            "value": expected_clean,
+        }
+    )
+    mock_client = _make_mock_client()
+    mock_client.get_event_types.return_value = event_types_df
+    mock_client.get_events.return_value = pd.DataFrame(
+        {"id": ["e1"], "time": [pd.Timestamp("2015-06-01", tz="UTC")], "event_type": ["hwc_rep"], "geometry": [None]}
+    )
+
+    with _patched_named_connection(mock_client):
+        task(get_events).validate().call(
+            client="MEP_DEV",
+            time_range={
+                "since": "2015-01-01T00:00:00Z",
+                "until": "2015-12-31T23:59:59Z",
+                "timezone": {
+                    "label": "UTC",
+                    "tzCode": "UTC",
+                    "name": "UTC",
+                    "utc": "+00:00",
                 },
-                event_types=[
-                    "         hwc_rep    ",  # whitespaces are intentional to test stripping
-                    "   bird_sighting_rep           ",  # whitespaces are intentional to test stripping
-                    "      wildlife_sighting_rep        ",  # whitespaces are intentional to test stripping
-                    "  poacher_camp_rep    ",  # whitespaces are intentional to test stripping
-                    "    fire_rep   ",  # whitespaces are intentional to test stripping
-                    "     injured_animal_rep   ",  # whitespaces are intentional to test stripping
-                ],
-                event_columns=["id", "time", "event_type", "geometry"],
-            )
+            },
+            event_types=[
+                "         hwc_rep    ",  # whitespaces are intentional to test stripping
+                "   bird_sighting_rep           ",
+                "      wildlife_sighting_rep        ",
+                "  poacher_camp_rep    ",
+                "    fire_rep   ",
+                "     injured_animal_rep   ",
+            ],
+            event_columns=["id", "time", "event_type", "geometry"],
         )
 
-        assert len(result) > 0
-        assert "id" in result
+    # If stripping happened, all 6 ids should be resolved and passed to client.get_events.
+    assert mock_client.get_events.call_count == 1
+    resolved_ids = mock_client.get_events.call_args.kwargs["event_type"]
+    assert sorted(resolved_ids) == sorted(event_types_df["id"].tolist())
 
 
-def test_get_events_bad_event_type(client):
+def test_get_events_bad_event_type():
+    """When event_types don't match any known type, the wrapper short-circuits to an
+    empty DataFrame without calling get_events."""
+    mock_client = _make_mock_client()
+    # The known event types in this fake registry don't include "not a real type"
+    mock_client.get_event_types.return_value = pd.DataFrame({"id": ["abc123"], "value": ["a_real_type"]})
+
     result = get_events(
-        client=client,
+        client=mock_client,
         time_range=TimeRange(
             since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             until=datetime.strptime("2015-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             timezone=UTC_TIMEZONEINFO,
         ),
-        event_types=[
-            "not a real type",
-        ],
+        event_types=["not a real type"],
         raise_on_empty=False,
         event_columns=["id", "time", "event_type", "geometry"],
     )
 
     assert result.empty
+    mock_client.get_events.assert_not_called()
 
 
 def test_bad_token_fails():
@@ -567,7 +583,10 @@ def test_unpack_events_from_patrols_df_empty_response(mock_empty_client):
     assert df.empty
 
 
-def test_patrol_events_combined(named_mock_env):
+def test_patrol_events_combined():
+    """The set_patrols_and_patrol_events_params -> _from_combined_params path produces
+    the same underlying IO calls as the direct task path, for both patrol-observations
+    and patrol-events."""
     patrol_obs_args = {
         "client": "MEP_DEV",
         "time_range": TimeRange(
@@ -622,116 +641,177 @@ def test_patrol_events_combined(named_mock_env):
         "patrols_overlap_daterange": True,
     }
 
-    with patch.dict(os.environ, named_mock_env):
-        mock_patrol_obs = MagicMock(return_value=pd.DataFrame())
-        mock_patrol_events = MagicMock(return_value=pd.DataFrame())
-        with patch(
-            "ecoscope.io.EarthRangerIO.get_patrol_observations_with_patrol_filter",
-            mock_patrol_obs,
-        ):
-            with patch("ecoscope.io.EarthRangerIO.get_patrol_events", mock_patrol_events):
-                task(get_patrol_observations).validate().call(**patrol_obs_args)
-                task(get_patrol_events).validate().call(**patrol_events_args)
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+    mock_client.get_patrol_events.return_value = pd.DataFrame()
 
-                combined_params = set_patrols_and_patrol_events_params(**combined_args)
-                get_patrol_events_from_combined_params(combined_params)
-                get_patrol_observations_from_combined_params(combined_params)
+    with _patched_named_connection(mock_client):
+        task(get_patrol_observations).validate().call(**patrol_obs_args)
+        task(get_patrol_events).validate().call(**patrol_events_args)
 
-                # Check that the underlying IO calls were made with identical args
-                mock_patrol_obs.assert_has_calls(
-                    [
-                        call(**expected_patrol_obs_call_args),
-                        call(**expected_patrol_obs_call_args),
-                    ]
-                )
-                mock_patrol_events.assert_has_calls(
-                    [
-                        call(**expected_patrol_events_call_args),
-                        call(**expected_patrol_events_call_args),
-                    ]
-                )
+        combined_params = set_patrols_and_patrol_events_params(**combined_args)
+        get_patrol_events_from_combined_params(combined_params)
+        get_patrol_observations_from_combined_params(combined_params)
+
+    # Each underlying method should have been called twice (once per code path) with
+    # identical args. assert_has_calls is order-preserving but allows other calls
+    # in between, which is fine here.
+    mock_client.get_patrol_observations_with_patrol_filter.assert_has_calls(
+        [
+            call(**expected_patrol_obs_call_args),
+            call(**expected_patrol_obs_call_args),
+        ]
+    )
+    mock_client.get_patrol_events.assert_has_calls(
+        [
+            call(**expected_patrol_events_call_args),
+            call(**expected_patrol_events_call_args),
+        ]
+    )
 
 
-def test_get_patrol_observations_combined_parity(named_mock_env):
-    with patch.dict(os.environ, named_mock_env):
-        args = {
-            "client": "MEP_DEV",
-            "time_range": TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            "patrol_types": ["ecoscope_patrol"],
-            "status": None,
-            "sub_page_size": 100,
+# The *_combined_parity tests verify that the "task-style" entry point (e.g.
+# `task(get_patrol_observations).validate().call(...)`) and the "combined-params"
+# entry point (e.g. `get_patrol_observations_from_combined_params(...)`) produce
+# identical underlying IO calls. That's a logical equivalence check, so it doesn't
+# need a live EarthRanger server. The connection layer and warehouse selector are
+# mocked so the test is fully hermetic — no login, no downloads, no flakes.
+
+
+def _assert_calls_match(calls):
+    """Assert that a mock was invoked exactly twice with identical args.
+
+    Handles DataFrames in kwargs (which can't be compared with ==).
+    """
+    assert len(calls) == 2, f"Expected 2 calls, got {len(calls)}"
+    a, b = calls[0], calls[1]
+    assert a.args == b.args, f"positional args differ: {a.args} vs {b.args}"
+    assert a.kwargs.keys() == b.kwargs.keys(), f"kwarg keys differ: {a.kwargs.keys()} vs {b.kwargs.keys()}"
+    for k in a.kwargs:
+        va, vb = a.kwargs[k], b.kwargs[k]
+        if isinstance(va, pd.DataFrame):
+            pd.testing.assert_frame_equal(va, vb)
+        else:
+            assert va == vb, f"kwarg {k!r} differs: {va!r} vs {vb!r}"
+
+
+def _make_mock_client():
+    """Build a MagicMock that satisfies the pydantic protocol check AND can stand in
+    for an EarthRangerIO instance when callers access `.server` / `.token` (the
+    warehouse selector reads these before any IO method is called)."""
+    mock_client = MagicMock(spec=EarthRangerClientProtocol)
+    mock_client.server = "fake-server"
+    mock_client.token = None
+    return mock_client
+
+
+def _patched_named_connection(mock_client):
+    """Make `EarthRangerConnection.client_from_named_connection(<any>)` return mock_client.
+
+    Patching at `from_named_connection` (rather than at `client_from_named_connection`)
+    works around the fact that the BeforeValidator captures the bound classmethod at
+    import time — but `from_named_connection` is looked up dynamically inside that
+    classmethod, so patching it at runtime takes effect. As a side effect, no env
+    vars are required: env reading happens inside the patched-out method.
+    """
+    fake_conn = MagicMock()
+    fake_conn.get_client.return_value = mock_client
+    return patch(
+        "ecoscope.platform.connections.EarthRangerConnection.from_named_connection",
+        return_value=fake_conn,
+    )
+
+
+def _fake_patrols_df():
+    """Minimal DataFrame satisfying PatrolsDFSchema (id, state, serial_number, patrol_segments)."""
+    return pd.DataFrame(
+        {
+            "id": ["patrol-1"],
+            "state": ["done"],
+            "serial_number": pd.array([1], dtype="int64"),
+            "patrol_segments": [[]],
         }
+    )
 
-        result = task(get_patrol_observations).validate().call(**args)
-        assert len(result) > 0
-        assert "geometry" in result
-        assert "groupby_col" in result
-        assert "fixtime" in result
-        assert "junk_status" in result
 
+def test_get_patrol_observations_combined_parity():
+    args = {
+        "client": "MEP_DEV",
+        "time_range": TimeRange(
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        "patrol_types": ["ecoscope_patrol"],
+        "status": None,
+        "sub_page_size": 100,
+        "raise_on_empty": False,
+    }
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+
+    with _patched_named_connection(mock_client):
+        task(get_patrol_observations).validate().call(**args)
         # event_types is not an arg in get_patrol_observations, but it is required for
         # CombinedPatrolAndEventsParams so explicitly add here
         combined = CombinedPatrolAndEventsParams(**args, event_types=[])
-        pd.testing.assert_frame_equal(get_patrol_observations_from_combined_params(combined), result)
+        get_patrol_observations_from_combined_params(combined)
+
+    _assert_calls_match(mock_client.get_patrol_observations_with_patrol_filter.call_args_list)
 
 
-def test_get_patrol_events_combined_parity(named_mock_env):
-    with patch.dict(os.environ, named_mock_env):
-        args = {
-            "client": "MEP_DEV",
-            "time_range": TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            "patrol_types": ["ecoscope_patrol"],
-            "event_types": [],
-            "status": None,
-            "sub_page_size": 100,
-        }
+def test_get_patrol_events_combined_parity():
+    args = {
+        "client": "MEP_DEV",
+        "time_range": TimeRange(
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        "patrol_types": ["ecoscope_patrol"],
+        "event_types": [],
+        "status": None,
+        "sub_page_size": 100,
+        "raise_on_empty": False,
+    }
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_events.return_value = pd.DataFrame()
 
-        result = task(get_patrol_events).validate().call(**args)
-        assert len(result) > 0
-        assert "id" in result
-        assert "event_type" in result
-        assert "geometry" in result
-
+    with _patched_named_connection(mock_client):
+        task(get_patrol_events).validate().call(**args)
         combined = CombinedPatrolAndEventsParams(**args)
-        pd.testing.assert_frame_equal(get_patrol_events_from_combined_params(combined), result)
+        get_patrol_events_from_combined_params(combined)
+
+    _assert_calls_match(mock_client.get_patrol_events.call_args_list)
 
 
-def test_get_patrols_combined_parity(named_mock_env):
-    with patch.dict(os.environ, named_mock_env):
-        args = {
-            "client": "MEP_DEV",
-            "time_range": TimeRange(
-                since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            "patrol_types": ["ecoscope_patrol"],
-            "status": None,
-            "sub_page_size": 100,
-        }
+def test_get_patrols_combined_parity():
+    args = {
+        "client": "MEP_DEV",
+        "time_range": TimeRange(
+            since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        "patrol_types": ["ecoscope_patrol"],
+        "status": None,
+        "sub_page_size": 100,
+        "raise_on_empty": False,
+    }
+    mock_client = _make_mock_client()
+    mock_client.get_patrols.return_value = pd.DataFrame()
 
-        result = task(get_patrols).validate().call(**args)
-        assert len(result) > 0
-        assert "id" in result
-        assert "state" in result
-        assert "patrol_segments" in result
-        assert "geometry" not in result
-
+    with _patched_named_connection(mock_client):
+        task(get_patrols).validate().call(**args)
         # event_types is not an arg in get_patrols, but it is required for
         # CombinedPatrolAndEventsParams so explicitly add here
         combined = CombinedPatrolAndEventsParams(**args, event_types=[])
-        pd.testing.assert_frame_equal(get_patrols_from_combined_params(combined), result)
+        get_patrols_from_combined_params(combined)
+
+    _assert_calls_match(mock_client.get_patrols.call_args_list)
 
 
-def test_get_patrol_observations_from_patrols_df_combined_parity(client, named_mock_env):
+def test_get_patrol_observations_from_patrols_df_combined_parity():
     time_range = TimeRange(
         since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
         until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
@@ -739,26 +819,18 @@ def test_get_patrol_observations_from_patrols_df_combined_parity(client, named_m
     )
     patrol_types = "ecoscope_patrol"
     status = None
+    patrols_df = _fake_patrols_df()
 
-    patrols_df = get_patrols(
-        client=client,
-        time_range=time_range,
-        patrol_types=patrol_types,
-        status=status,
-    )
-    with patch.dict(os.environ, named_mock_env):
-        shared_args = {
-            "client": "MEP_DEV",
-            "include_patrol_details": True,
-        }
+    shared_args = {
+        "client": "MEP_DEV",
+        "include_patrol_details": True,
+        "raise_on_empty": False,
+    }
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_observations.return_value = pd.DataFrame()
 
-        result = task(get_patrol_observations_from_patrols_df).validate().call(**shared_args, patrols_df=patrols_df)
-        assert len(result) > 0
-        assert "geometry" in result
-        assert "groupby_col" in result
-        assert "fixtime" in result
-        assert "junk_status" in result
-
+    with _patched_named_connection(mock_client):
+        task(get_patrol_observations_from_patrols_df).validate().call(**shared_args, patrols_df=patrols_df)
         combined = CombinedPatrolAndEventsParams(
             **shared_args,
             time_range=time_range,
@@ -766,50 +838,36 @@ def test_get_patrol_observations_from_patrols_df_combined_parity(client, named_m
             status=status,
             event_types=[],
         )
-        pd.testing.assert_frame_equal(
-            get_patrol_observations_from_patrols_df_and_combined_params(
-                patrols_df=patrols_df, combined_params=combined
-            ),
-            result,
-        )
+        get_patrol_observations_from_patrols_df_and_combined_params(patrols_df=patrols_df, combined_params=combined)
+
+    _assert_calls_match(mock_client.get_patrol_observations.call_args_list)
 
 
-def test_unpack_events_from_patrols_df_combined_parity(client, named_mock_env):
+def test_unpack_events_from_patrols_df_combined_parity():
     time_range = TimeRange(
         since=datetime.strptime("2015-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
         until=datetime.strptime("2015-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
         timezone=UTC_TIMEZONEINFO,
     )
-    patrol_types = "ecoscope_patrol"
-    status = None
+    patrols_df = _fake_patrols_df()
+    shared_args = {
+        "time_range": time_range,
+        "event_types": [],
+        "raise_on_empty": False,
+    }
+    mock_helper = MagicMock(return_value=pd.DataFrame())
 
-    patrols_df = get_patrols(
-        client=client,
-        time_range=time_range,
-        patrol_types=patrol_types,
-        status=status,
-    )
-    with patch.dict(os.environ, named_mock_env):
-        shared_args = {
-            "time_range": time_range,
-            "event_types": [],
-        }
-        result = task(unpack_events_from_patrols_df).validate().call(**shared_args, patrols_df=patrols_df)
-        assert len(result) > 0
-        assert "id" in result
-        assert "event_type" in result
-        assert "geometry" in result
-
+    with patch("ecoscope.io.earthranger_utils.unpack_events_from_patrols_df", mock_helper):
+        task(unpack_events_from_patrols_df).validate().call(**shared_args, patrols_df=patrols_df)
         combined = CombinedPatrolAndEventsParams(
             **shared_args,
-            client=client,
-            patrol_types=patrol_types,
-            status=status,
+            client="MEP_DEV",
+            patrol_types="ecoscope_patrol",
+            status=None,
         )
-        pd.testing.assert_frame_equal(
-            unpack_events_from_patrols_df_and_combined_params(patrols_df=patrols_df, combined_params=combined),
-            result,
-        )
+        unpack_events_from_patrols_df_and_combined_params(patrols_df=patrols_df, combined_params=combined)
+
+    _assert_calls_match(mock_helper.call_args_list)
 
 
 def test_get_patrols(client):
@@ -940,9 +998,14 @@ def test_get_patrol_events_with_display_values(client):
     assert "geometry" in result
 
 
-def test_get_patrol_events_with_display_values_empty(client):
+def test_get_patrol_events_with_display_values_empty():
+    """When the underlying client returns empty, include_display_values=True must not
+    crash and must not call the display-name resolver."""
+    mock_client = _make_mock_client()
+    mock_client.get_patrol_events.return_value = pd.DataFrame()
+
     result = get_patrol_events(
-        client=client,
+        client=mock_client,
         time_range=TimeRange(
             since=datetime.strptime("1985-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             until=datetime.strptime("1985-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
@@ -956,6 +1019,7 @@ def test_get_patrol_events_with_display_values_empty(client):
     )
 
     assert result.empty
+    mock_client.get_event_type_display_names_from_events.assert_not_called()
 
 
 def test_get_events_with_display_values(client):
@@ -986,9 +1050,14 @@ def test_get_events_with_display_values(client):
     assert "geometry" in result
 
 
-def test_get_events_with_display_values_empty(client):
+def test_get_events_with_display_values_empty():
+    """When get_events returns empty, include_display_values=True must not crash and
+    must not call the display-name resolver."""
+    mock_client = _make_mock_client()
+    mock_client.get_events.return_value = pd.DataFrame()
+
     result = get_events(
-        client=client,
+        client=mock_client,
         time_range=TimeRange(
             since=datetime.strptime("1985-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
             until=datetime.strptime("1985-12-31", "%Y-%m-%d").replace(tzinfo=timezone.utc),
@@ -1001,6 +1070,7 @@ def test_get_events_with_display_values_empty(client):
     )
 
     assert result.empty
+    mock_client.get_event_type_display_names_from_events.assert_not_called()
 
 
 def test_get_choices_from_v2_event_type(client):
