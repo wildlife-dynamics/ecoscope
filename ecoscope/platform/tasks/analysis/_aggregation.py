@@ -127,6 +127,10 @@ def apply_arithmetic_operation_over_rows(
 def get_night_day_ratio(
     df: AnyGeoDataFrame,
 ) -> Annotated[float, Field(description="Night/Day ratio")]:
+    from astropy.utils import iers  # type: ignore[import-untyped]
+
     from ecoscope.analysis import astronomy
 
-    return astronomy.get_nightday_ratio(df)
+    # See classify_is_night for rationale on disabling auto-download.
+    with iers.conf.set_temp("auto_download", False):
+        return astronomy.get_nightday_ratio(df)
