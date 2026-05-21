@@ -1333,6 +1333,16 @@ def test_get_patrol_observations_via_warehouse_client():
 
     mock_warehouse_client.get_patrol_observations_with_patrol_filter.assert_called_once()
     mock_legacy_client.get_patrol_observations_with_patrol_filter.assert_not_called()
+    call_kwargs = mock_warehouse_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
+    assert call_kwargs == {
+        "since": "2024-01-01T00:00:00+00:00",
+        "until": "2024-03-01T00:00:00+00:00",
+        "patrol_type_value": ["routine_patrol"],
+        "status": ["done"],
+        "include_patrol_details": True,
+        "sub_page_size": 100,
+        "patrols_overlap_daterange": True,
+    }
     assert isinstance(result, gpd.GeoDataFrame)
     assert "geometry" in result
     assert "patrol_type__value" in result
@@ -1356,9 +1366,76 @@ def test_get_patrol_observations_from_patrols_df_via_warehouse_client():
 
     mock_warehouse_client.get_patrol_observations.assert_called_once()
     mock_legacy_client.get_patrol_observations.assert_not_called()
+    call_kwargs = mock_warehouse_client.get_patrol_observations.call_args.kwargs
+    assert set(call_kwargs.keys()) == {"patrols_df", "include_patrol_details", "sub_page_size"}
+    assert call_kwargs["include_patrol_details"] is True
+    assert call_kwargs["sub_page_size"] == 100
+    assert call_kwargs["patrols_df"] is patrols_df
     assert isinstance(result, gpd.GeoDataFrame)
     assert "geometry" in result
     assert "patrol_type__value" in result
+
+
+@pytest.mark.parametrize(
+    "filter_value, expected_int",
+    list(_EXCLUSION_FILTER_TO_INT.items()),
+)
+def test_get_subjectgroup_observations_via_warehouse_client_forwards_filter(filter_value, expected_int):
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_subjectgroup_observations.return_value = _make_observations_arrow_table()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        get_subjectgroup_observations(
+            client=mock_legacy_client,
+            subject_group_name="Ecoscope",
+            time_range=TimeRange(
+                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                timezone=UTC_TIMEZONEINFO,
+            ),
+            raise_on_empty=False,
+            filter=filter_value,
+        )
+
+    mock_warehouse_client.get_subjectgroup_observations.assert_called_once()
+    mock_legacy_client.get_subjectgroup_observations.assert_not_called()
+    assert mock_warehouse_client.get_subjectgroup_observations.call_args.kwargs["filter"] == expected_int
+
+
+@pytest.mark.parametrize("value", [True, False])
+def test_get_patrol_observations_via_warehouse_client_forwards_patrols_overlap_daterange(value):
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_patrol_observations_with_patrol_filter.return_value = (
+        _make_patrol_observations_arrow_table()
+    )
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        get_patrol_observations(
+            client=mock_legacy_client,
+            time_range=TimeRange(
+                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+                timezone=UTC_TIMEZONEINFO,
+            ),
+            patrol_types=["routine_patrol"],
+            raise_on_empty=False,
+            patrols_overlap_daterange=value,
+        )
+
+    mock_warehouse_client.get_patrol_observations_with_patrol_filter.assert_called_once()
+    mock_legacy_client.get_patrol_observations_with_patrol_filter.assert_not_called()
+    assert (
+        mock_warehouse_client.get_patrol_observations_with_patrol_filter.call_args.kwargs["patrols_overlap_daterange"]
+        == value
+    )
 
 
 def test_warehouse_disabled_falls_back_to_legacy_client():
