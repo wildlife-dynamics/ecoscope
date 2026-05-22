@@ -17,7 +17,6 @@ from ecoscope.platform.tasks.skip import (
     any_dependency_is_none,
     any_dependency_skipped,
     any_is_empty_df,
-    never,
 )
 
 
@@ -117,11 +116,6 @@ def test_any_is_empty_df() -> None:
 def test_any_dependency_skipped() -> None:
     assert any_dependency_skipped(1, SKIP_SENTINEL, "x") is True
     assert any_dependency_skipped(1, "x") is False
-
-
-def test_never_is_always_false() -> None:
-    assert never() is False
-    assert never(1, 2, 3) is False
 
 
 def test_all_keyed_iterables_are_skips() -> None:

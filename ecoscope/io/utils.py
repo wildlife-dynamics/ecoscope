@@ -38,6 +38,10 @@ def download_file(
     the response header
     """
 
+    if not os.path.isdir(path) and os.path.exists(path) and not overwrite_existing:
+        print(f"{path} exists and overwrite_existing is False. Skipping...")
+        return
+
     s = requests.Session()
     max_retries = Retry(total=retries, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
     s.mount("https://", HTTPAdapter(max_retries=max_retries))
@@ -57,9 +61,9 @@ def download_file(
             raise ValueError("URL has no RFC 6266 filename.")
         path = os.path.join(path, filename)  # type: ignore[arg-type]
 
-    if os.path.exists(path) and not overwrite_existing:
-        print(f"{path} exists. Skipping...")
-        return
+        if os.path.exists(path) and not overwrite_existing:
+            print(f"{path} exists and overwrite_existing is False. Skipping...")
+            return
 
     with open(path, "wb") as f:
         content_length = r.headers.get("content-length")
@@ -75,7 +79,7 @@ def download_file(
 
 
 def __is_gdrive_url(url: str) -> re.Match | None:
-    pattern = r"https://drive\.google\.com/file/d/(.*?)"
+    pattern = r"https://drive\.google\.com/file/d/[^/?#]+"
     return re.match(pattern, url)
 
 
@@ -85,12 +89,16 @@ def __is_dropbox_url(url: str) -> re.Match | None:
 
 
 def __transform_gdrive_url(url: str) -> str:
-    file_id = url.split("/d/")[1].split("/")[0]
+    after_d = url.split("/d/")[1]
+    file_id = re.split(r"[/?#]", after_d)[0]
     return "https://drive.google.com/uc?export=download&id=" + file_id
 
 
 def __transform_dropbox_url(url: str) -> str:
-    return url[:-1] + "1"
+    if re.search(r"[?&]dl=\d+", url):
+        return re.sub(r"([?&]dl=)\d+", r"\g<1>1", url)
+    sep = "&" if "?" in url else "?"
+    return f"{url}{sep}dl=1"
 
 
 def clean_time_cols(df: pd.DataFrame | gpd.GeoDataFrame) -> pd.DataFrame | gpd.GeoDataFrame:

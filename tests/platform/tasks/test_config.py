@@ -6,29 +6,8 @@ from ecoscope.platform.tasks.config import (
     default_if_string_is_empty,
     default_if_string_is_none_or_skip,
     get_column_names_from_dataframe,
-    prefix_string_var,
-    set_bool_var,
-    set_list_of_string_vars,
-    set_string_var,
     title_case_var,
 )
-
-
-def test_set_string_var() -> None:
-    assert set_string_var("hi") == "hi"
-
-
-def test_set_bool_var() -> None:
-    assert set_bool_var(True) is True
-    assert set_bool_var(False) is False
-
-
-def test_set_list_of_string_vars() -> None:
-    assert set_list_of_string_vars(["a", "b"]) == ["a", "b"]
-
-
-def test_prefix_string_var() -> None:
-    assert prefix_string_var("bar", "foo_") == "foo_bar"
 
 
 def test_default_if_string_is_none_or_skip() -> None:

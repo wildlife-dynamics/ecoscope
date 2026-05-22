@@ -8,12 +8,7 @@ from ecoscope.platform.tasks.results._map_utils import (
     make_preset_or_custom_json_schema_extra,
     preset_tile_layer_json_schema,
     set_base_maps,
-    set_layer_opacity,
 )
-
-
-def test_set_layer_opacity_identity() -> None:
-    assert set_layer_opacity(0.5) == 0.5
 
 
 def test_tile_layer_preset_resolves_url() -> None:

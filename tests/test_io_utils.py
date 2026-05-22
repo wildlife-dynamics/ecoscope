@@ -12,8 +12,9 @@ from requests.exceptions import RetryError
 import ecoscope
 from ecoscope.io import utils
 
+pytestmark = pytest.mark.io
 
-@pytest.mark.io
+
 def test_download_file_github_csv():
     ECOSCOPE_RAW = "https://raw.githubusercontent.com/wildlife-dynamics/ecoscope/master"
     output_dir = "tests/test_output"
@@ -27,7 +28,6 @@ def test_download_file_github_csv():
     assert len(data) > 0
 
 
-@pytest.mark.io
 def test_download_file_gdrive_share_link():
     output_dir = "tests/test_output"
     ecoscope.io.download_file(
@@ -40,7 +40,6 @@ def test_download_file_gdrive_share_link():
     assert len(data) > 0
 
 
-@pytest.mark.io
 def test_download_file_gdrive():
     output_dir = "tests/test_output"
     ecoscope.io.download_file(
@@ -53,7 +52,6 @@ def test_download_file_gdrive():
     assert len(data) > 0
 
 
-@pytest.mark.io
 def test_download_file_gdrive_zip():
     output_dir = "tests/test_output"
     ecoscope.io.download_file(
@@ -67,7 +65,6 @@ def test_download_file_gdrive_zip():
     assert len(data) > 0
 
 
-@pytest.mark.io
 def test_download_file_dropbox_json():
     URL = "https://www.dropbox.com/scl/fi/qaw3krcsnot69x94mdfxy/config.json?rlkey=zdmipl2la7rplgl218vc13end&dl=1"
     output_path = "tests/test_output/config.json"
@@ -81,7 +78,6 @@ def test_download_file_dropbox_json():
         assert config is not None
 
 
-@pytest.mark.io
 def test_download_file_dropbox_share_link():
     output_dir = "tests/test_output"
     ecoscope.io.download_file(
@@ -94,7 +90,6 @@ def test_download_file_dropbox_share_link():
     assert len(data) > 0
 
 
-@pytest.mark.io
 @patch("urllib3.connectionpool.HTTPConnectionPool._get_conn")
 def test_download_file_retry_on_error(mock):
     mock.return_value.getresponse.side_effect = [
@@ -226,8 +221,40 @@ def test_download_file_skips_existing_when_overwrite_false(tmp_path, capsys) -> 
 
         utils.download_file("https://example.com/x.bin", str(target), overwrite_existing=False)
 
+        session.get.assert_not_called()
+
     assert target.read_bytes() == b"original"
     assert "Skipping" in capsys.readouterr().out
+
+
+def test_download_file_does_not_transform_gdrive_url_without_file_id(tmp_path) -> None:
+    target = tmp_path / "out.bin"
+    url = "https://drive.google.com/file/d/"
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(b"x")
+
+        utils.download_file(url, str(target))
+
+        called_url = session.get.call_args.args[0]
+        assert called_url == url
+
+
+def test_download_file_dropbox_url_preserves_trailing_params(tmp_path) -> None:
+    target = tmp_path / "out.bin"
+    url = "https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz&dl=0&foo=bar"
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(b"x")
+
+        utils.download_file(url, str(target))
+
+        called_url = session.get.call_args.args[0]
+        assert "dl=1" in called_url
+        assert "foo=bar" in called_url
+        assert "dl=0" not in called_url
 
 
 def test_download_file_unzip_extracts_contents(tmp_path) -> None:
