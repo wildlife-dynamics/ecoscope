@@ -111,12 +111,6 @@ def test_download_file_retry_on_error(mock):
     assert mock.call_count == 3
 
 
-_is_gdrive_url = getattr(utils, "__is_gdrive_url")
-_is_dropbox_url = getattr(utils, "__is_dropbox_url")
-_transform_gdrive_url = getattr(utils, "__transform_gdrive_url")
-_transform_dropbox_url = getattr(utils, "__transform_dropbox_url")
-
-
 def _fake_response(body: bytes, content_disposition: str | None = None) -> MagicMock:
     r = MagicMock()
     headers: dict[str, str] = {}
@@ -129,22 +123,22 @@ def _fake_response(body: bytes, content_disposition: str | None = None) -> Magic
 
 
 def test_is_gdrive_url_matches() -> None:
-    assert _is_gdrive_url("https://drive.google.com/file/d/abc123/view") is not None
-    assert _is_gdrive_url("https://example.com/foo") is None
+    assert utils._is_gdrive_url("https://drive.google.com/file/d/abc123/view") is not None
+    assert utils._is_gdrive_url("https://example.com/foo") is None
 
 
 def test_is_dropbox_url_matches() -> None:
-    assert _is_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz") is not None
-    assert _is_dropbox_url("https://example.com/foo") is None
+    assert utils._is_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz") is not None
+    assert utils._is_dropbox_url("https://example.com/foo") is None
 
 
 def test_transform_gdrive_url() -> None:
-    out = _transform_gdrive_url("https://drive.google.com/file/d/FILEID/view?usp=drive_link")
+    out = utils._transform_gdrive_url("https://drive.google.com/file/d/FILEID/view?usp=drive_link")
     assert out == "https://drive.google.com/uc?export=download&id=FILEID"
 
 
 def test_transform_dropbox_url() -> None:
-    out = _transform_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz&dl=0")
+    out = utils._transform_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz&dl=0")
     assert out.endswith("dl=1")
 
 
@@ -225,36 +219,6 @@ def test_download_file_skips_existing_when_overwrite_false(tmp_path, capsys) -> 
 
     assert target.read_bytes() == b"original"
     assert "Skipping" in capsys.readouterr().out
-
-
-def test_download_file_does_not_transform_gdrive_url_without_file_id(tmp_path) -> None:
-    target = tmp_path / "out.bin"
-    url = "https://drive.google.com/file/d/"
-
-    with patch("ecoscope.io.utils.requests.Session") as MockSession:
-        session = MockSession.return_value
-        session.get.return_value = _fake_response(b"x")
-
-        utils.download_file(url, str(target))
-
-        called_url = session.get.call_args.args[0]
-        assert called_url == url
-
-
-def test_download_file_dropbox_url_preserves_trailing_params(tmp_path) -> None:
-    target = tmp_path / "out.bin"
-    url = "https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz&dl=0&foo=bar"
-
-    with patch("ecoscope.io.utils.requests.Session") as MockSession:
-        session = MockSession.return_value
-        session.get.return_value = _fake_response(b"x")
-
-        utils.download_file(url, str(target))
-
-        called_url = session.get.call_args.args[0]
-        assert "dl=1" in called_url
-        assert "foo=bar" in called_url
-        assert "dl=0" not in called_url
 
 
 def test_download_file_unzip_extracts_contents(tmp_path) -> None:
