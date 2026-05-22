@@ -124,11 +124,8 @@ def test_never_is_always_false() -> None:
     assert never(1, 2, 3) is False
 
 
-def test_all_keyed_iterables_are_skips_true() -> None:
+def test_all_keyed_iterables_are_skips() -> None:
     assert all_keyed_iterables_are_skips([("k1", SKIP_SENTINEL), ("k2", SKIP_SENTINEL)]) is True
-
-
-def test_all_keyed_iterables_are_skips_false() -> None:
     assert all_keyed_iterables_are_skips([("k1", SKIP_SENTINEL), ("k2", "value")]) is False
 
 

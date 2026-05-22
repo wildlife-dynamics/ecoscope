@@ -31,15 +31,9 @@ def test_prefix_string_var() -> None:
     assert prefix_string_var("bar", "foo_") == "foo_bar"
 
 
-def test_default_if_string_is_none_or_skip_with_skip() -> None:
+def test_default_if_string_is_none_or_skip() -> None:
     assert default_if_string_is_none_or_skip(SkipSentinel(), "fallback") == "fallback"
-
-
-def test_default_if_string_is_none_or_skip_with_none() -> None:
     assert default_if_string_is_none_or_skip(None, "fallback") == "fallback"
-
-
-def test_default_if_string_is_none_or_skip_with_value() -> None:
     assert default_if_string_is_none_or_skip("keep", "fallback") == "keep"
 
 
