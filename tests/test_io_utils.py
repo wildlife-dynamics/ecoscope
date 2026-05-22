@@ -221,6 +221,26 @@ def test_download_file_skips_existing_when_overwrite_false(tmp_path, capsys) -> 
     assert "Skipping" in capsys.readouterr().out
 
 
+def test_download_file_skips_existing_when_dir_and_inferred_filename_exists(tmp_path, capsys) -> None:
+    existing = tmp_path / "inferred.csv"
+    existing.write_bytes(b"original")
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(
+            b"replacement",
+            content_disposition='attachment; filename="inferred.csv"',
+        )
+
+        utils.download_file("https://example.com/x", str(tmp_path), overwrite_existing=False)
+
+        # the HTTP request is required to discover the filename from the response header
+        session.get.assert_called_once()
+
+    assert existing.read_bytes() == b"original"
+    assert "Skipping" in capsys.readouterr().out
+
+
 def test_download_file_unzip_extracts_contents(tmp_path) -> None:
     zip_target = tmp_path / "bundle.zip"
     inner_name = "inside.txt"
