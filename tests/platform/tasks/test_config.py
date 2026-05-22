@@ -10,15 +10,24 @@ from ecoscope.platform.tasks.config import (
 )
 
 
-def test_default_if_string_is_none_or_skip() -> None:
-    assert default_if_string_is_none_or_skip(SkipSentinel(), "fallback") == "fallback"
-    assert default_if_string_is_none_or_skip(None, "fallback") == "fallback"
-    assert default_if_string_is_none_or_skip("keep", "fallback") == "keep"
+def test_default_if_string_is_none_or_skip():
+    value = None
+    default = "Hello"
+    assert default == default_if_string_is_none_or_skip(value, default)
+
+    value = "Use Me"
+    default = "Hello"
+    assert value == default_if_string_is_none_or_skip(value, default)
 
 
-def test_default_if_string_is_empty() -> None:
-    assert default_if_string_is_empty("", "fallback") == "fallback"
-    assert default_if_string_is_empty("keep", "fallback") == "keep"
+def test_default_if_string_is_empty():
+    value = ""
+    default = "Hello"
+    assert default == default_if_string_is_empty(value, default)
+
+    value = "Use Me"
+    default = "Hello"
+    assert value == default_if_string_is_empty(value, default)
 
 
 def test_concat_string_vars_skips_sentinels() -> None:

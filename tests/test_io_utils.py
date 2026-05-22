@@ -122,23 +122,23 @@ def _fake_response(body: bytes, content_disposition: str | None = None) -> Magic
     return r
 
 
-def test_is_gdrive_url_matches() -> None:
-    assert utils._is_gdrive_url("https://drive.google.com/file/d/abc123/view") is not None
-    assert utils._is_gdrive_url("https://example.com/foo") is None
+def test__is_gdrive_url_matches() -> None:
+    assert utils.__is_gdrive_url("https://drive.google.com/file/d/abc123/view") is not None
+    assert utils.__is_gdrive_url("https://example.com/foo") is None
 
 
-def test_is_dropbox_url_matches() -> None:
-    assert utils._is_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz") is not None
-    assert utils._is_dropbox_url("https://example.com/foo") is None
+def test__is_dropbox_url_matches() -> None:
+    assert utils.__is_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz") is not None
+    assert utils.__is_dropbox_url("https://example.com/foo") is None
 
 
-def test_transform_gdrive_url() -> None:
-    out = utils._transform_gdrive_url("https://drive.google.com/file/d/FILEID/view?usp=drive_link")
+def test__transform_gdrive_url() -> None:
+    out = utils.__transform_gdrive_url("https://drive.google.com/file/d/FILEID/view?usp=drive_link")
     assert out == "https://drive.google.com/uc?export=download&id=FILEID"
 
 
-def test_transform_dropbox_url() -> None:
-    out = utils._transform_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz&dl=0")
+def test__transform_dropbox_url() -> None:
+    out = utils.__transform_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz&dl=0")
     assert out.endswith("dl=1")
 
 

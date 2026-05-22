@@ -46,10 +46,10 @@ def download_file(
     max_retries = Retry(total=retries, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
     s.mount("https://", HTTPAdapter(max_retries=max_retries))
 
-    if _is_gdrive_url(url):
-        url = _transform_gdrive_url(url)
-    elif _is_dropbox_url(url):
-        url = _transform_dropbox_url(url)
+    if __is_gdrive_url(url):
+        url = __transform_gdrive_url(url)
+    elif __is_dropbox_url(url):
+        url = __transform_dropbox_url(url)
 
     r = s.get(url, stream=True, **request_kwargs)
 
@@ -78,22 +78,22 @@ def download_file(
             zip_ref.extractall(os.path.dirname(path))
 
 
-def _is_gdrive_url(url: str) -> re.Match | None:
+def __is_gdrive_url(url: str) -> re.Match | None:
     pattern = r"https://drive\.google\.com/file/d/(.*?)"
     return re.match(pattern, url)
 
 
-def _is_dropbox_url(url: str) -> re.Match | None:
+def __is_dropbox_url(url: str) -> re.Match | None:
     pattern = r"https://www\.dropbox\.com/scl/fi/(.*?)/(.*?)\?rlkey=(.*?)"
     return re.match(pattern, url)
 
 
-def _transform_gdrive_url(url: str) -> str:
+def __transform_gdrive_url(url: str) -> str:
     file_id = url.split("/d/")[1].split("/")[0]
     return "https://drive.google.com/uc?export=download&id=" + file_id
 
 
-def _transform_dropbox_url(url: str) -> str:
+def __transform_dropbox_url(url: str) -> str:
     return url[:-1] + "1"
 
 
