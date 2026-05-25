@@ -39,3 +39,36 @@ def test_remove_filtered(sample_gdf):
     edf.remove_filtered(inplace=True)
     assert len(edf.gdf) == 1
     gpd.testing.assert_geodataframe_equal(edf.gdf, expected)
+
+
+def test_from_file():
+    edf = EcoDataFrame.from_file("tests/sample_data/vector/AOI_sites.gpkg")
+    assert isinstance(edf, EcoDataFrame)
+    assert len(edf.gdf) > 0
+
+
+def test_from_features():
+    features = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [0.0, 0.0]},
+            "properties": {"id": 1},
+        },
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [1.0, 1.0]},
+            "properties": {"id": 2},
+        },
+    ]
+    edf = EcoDataFrame.from_features(features)
+    assert isinstance(edf, EcoDataFrame)
+    assert len(edf.gdf) == 2
+
+
+def test_remove_filtered_warns_on_non_bool_junk_status(sample_gdf):
+    sample_gdf["junk_status"] = sample_gdf["junk_status"].astype(int)
+
+    edf = EcoDataFrame(gdf=sample_gdf)
+    with pytest.warns(UserWarning, match="junk_status column is of type"):
+        edf.remove_filtered(inplace=True)
+    assert len(edf.gdf) == 1
