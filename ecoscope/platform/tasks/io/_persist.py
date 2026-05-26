@@ -181,6 +181,23 @@ def _iso_format_timestamp_columns(df):
     return out
 
 
+def _downcast_float_columns(df):
+    """Re-encode float64 columns as float32. @geoarrow/deck.gl-geoarrow hands
+    scalar accessor columns (radius, width, weight, elevation) through to
+    deck.gl as binary attributes, and the underlying layers' attribute system
+    rejects Float64Array — Float32Array is the expected typed array for these
+    accessors. Geometry coordinate columns aren't affected (GeoArrow encodes
+    them as fixed-size lists / structs, not plain float columns).
+    """
+    import pandas as pd
+
+    out = df.copy()
+    for col in df.columns:
+        if pd.api.types.is_float_dtype(df[col].dtype) and df[col].dtype == "float64":
+            out[col] = df[col].astype("float32")
+    return out
+
+
 def _pack_color_columns(df):
     """Re-encode object-dtype columns of length-3 or length-4 int tuples in
     the 0-255 range as pyarrow FixedSizeList<Uint8>[3|4] — the shape
@@ -283,6 +300,7 @@ def persist_arrow(
 
     gdf = gpd.GeoDataFrame(df)
     gdf = _iso_format_timestamp_columns(gdf)
+    gdf = _downcast_float_columns(gdf)
     gdf = _pack_color_columns(gdf)
     buffer = io.BytesIO()
     gdf.to_parquet(buffer, index=False, geometry_encoding="geoarrow")

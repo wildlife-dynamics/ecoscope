@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 import pandas as pd
 import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -40,7 +41,7 @@ PYDECK_CUSTOM_LIBRARIES = [
 ]
 
 # Marker for fields that pydeck must treat as literal strings rather than data
-# accessor expressions. _model_dump_with_pydeck_literals looks for this in the
+# accessor expressions. _model_dump_for_pydeck looks for this in the
 # Annotated metadata and wraps the dumped value in pdk.types.String.
 PydeckAnnotation = "pydeck_string"
 PydeckString = Annotated[str, PydeckAnnotation]
@@ -425,15 +426,30 @@ def _color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3] / 255})"
 
 
-def _model_dump_with_pydeck_literals(model: BaseModel) -> dict:
+def _is_hex_color(value: object) -> bool:
+    """True for strings shaped like ``#RGB``/``#RGBA``/``#RRGGBB``/``#RRGGBBAA``."""
+    if not isinstance(value, str) or not value.startswith("#"):
+        return False
+    hex_part = value[1:]
+    return len(hex_part) in (3, 4, 6, 8) and all(c in "0123456789abcdefABCDEF" for c in hex_part)
+
+
+def _is_pydeck_literal(field_info: FieldInfo) -> bool:
+    if PydeckAnnotation in field_info.metadata:
+        return True
+    return False
+
+
+def _model_dump_for_pydeck(model: BaseModel) -> dict:
     """
     Dump a model and wrap fields tagged with PydeckAnnotation in pdk.types.String,
     so pydeck treats them as literal values rather than data-accessor expressions.
     """
     dumped = model.model_dump(exclude_none=True)
     for field, field_info in model.__class__.model_fields.items():
-        if PydeckAnnotation in field_info.metadata and dumped.get(field):
-            dumped[field] = pdk.types.String(dumped[field])
+        value = dumped.get(field)
+        if value and (_is_pydeck_literal(field_info) or _is_hex_color(value)):
+            dumped[field] = pdk.types.String(value)
     return dumped
 
 
@@ -665,7 +681,7 @@ def create_scatterplot_layer(
 
 
 @register()
-def normalize_radius_values(
+def shift_radius_values(
     gdf: Annotated[
         AnyGeoDataFrame,
         Field(description="Source geodataframe.", exclude=True),
@@ -1131,7 +1147,7 @@ def draw_map(
 
     for tile_layer in tile_layers:
         if isinstance(tile_layer, BitmapLayerDefinition):
-            dump = _model_dump_with_pydeck_literals(tile_layer)
+            dump = _model_dump_for_pydeck(tile_layer)
             dump.pop("legend", None)
             layer = pdk.Layer("BitmapLayer", **dump)
             map_layers.append(layer)
@@ -1176,7 +1192,7 @@ def draw_map(
             data = gdf
 
         layer_id = f"{layer_def.layer_type}-{layer_index}"
-        style_dump = _model_dump_with_pydeck_literals(layer_def.layer_style)
+        style_dump = _model_dump_for_pydeck(layer_def.layer_style)
         if layer_def.layer_type.startswith("GeoArrow"):
             # GeoArrow layers auto-detect the geometry column from its Arrow
             # extension type; the GeoJSON-style "geometry.coordinates"

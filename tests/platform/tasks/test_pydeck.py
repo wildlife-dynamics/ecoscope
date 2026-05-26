@@ -30,7 +30,7 @@ from ecoscope.platform.tasks.results._pydeck import (
     TextLayerStyle,
     TileLayer,
     ViewState,
-    _model_dump_with_pydeck_literals,
+    _model_dump_for_pydeck,
     clamp_scatterplot_radius,
     create_geoarrow_path_layer,
     create_geoarrow_polygon_layer,
@@ -364,9 +364,9 @@ def test_view_state_calc():
 
 
 def test_pydeck_literals():
-    path = _model_dump_with_pydeck_literals(PathLayerStyle())
-    point = _model_dump_with_pydeck_literals(ScatterplotLayerStyle())
-    poly = _model_dump_with_pydeck_literals(PolygonLayerStyle())
+    path = _model_dump_for_pydeck(PathLayerStyle())
+    point = _model_dump_for_pydeck(ScatterplotLayerStyle())
+    poly = _model_dump_for_pydeck(PolygonLayerStyle())
 
     assert isinstance(path["width_units"], pdk.types.String)
     assert isinstance(point["line_width_units"], pdk.types.String)

@@ -29,6 +29,7 @@ from ._pydeck import (
     draw_map,
     merge_tile_layers,
     rewrite_file_urls_for_screenshots,
+    shift_radius_values,
     view_state_from_geodataframes,
     view_state_from_layers,
 )
@@ -78,6 +79,7 @@ __all__ = [
     "create_scatterplot_layer",
     "create_text_layer_pydeck",
     "create_tiled_bitmap_layer",
+    "shift_radius_values",
     "draw_map",
     "merge_tile_layers",
     "rewrite_file_urls_for_screenshots",
