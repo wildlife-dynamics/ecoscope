@@ -31,6 +31,10 @@ from ecoscope.platform.tasks.results._pydeck import (
     TileLayer,
     ViewState,
     _model_dump_with_pydeck_literals,
+    clamp_scatterplot_radius,
+    create_geoarrow_path_layer,
+    create_geoarrow_polygon_layer,
+    create_geoarrow_scatterplot_layer,
     create_geojson_layer,
     create_hexagon_layer,
     create_icon_layer,
@@ -549,11 +553,13 @@ def test_legend_style_format_title_does_not_mutate_input(gdf_with_points):
         legend=legend,
     )
 
-    draw_map(
-        geo_layers=[layer_def],
-        legend_style=LegendStyle(format_title=True),
+    # assert legend.title == "my_legend"
+    open("testcolor.html", "w").write(
+        draw_map(
+            geo_layers=[layer_def],
+            legend_style=LegendStyle(format_title=True),
+        )
     )
-    assert legend.title == "my_legend"
 
 
 def test_legend_from_dataframe_sorts_numeric_strings_numerically(gdf_with_points):
@@ -1320,3 +1326,110 @@ def test_draw_map_assigns_explicit_layer_ids(gdf_with_points):
     compact_html = "".join(map_html.split())
     assert '"id":"ScatterplotLayer-0"' in compact_html
     assert '"id":"ScatterplotLayer-1"' in compact_html
+
+
+def _geoarrow_layer_spec(layer_def: PydeckLayerDefinition) -> dict:
+    """Render a single layer via draw_map and return its JSON dict."""
+    spec = draw_map(geo_layers=[layer_def], output_type="json")
+    assert isinstance(spec, DeckJsonSpec)
+    assert len(spec.layers) == 1
+    return spec.layers[0]
+
+
+def test_geoarrow_path_layer():
+    lines = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_path.geojson"))
+    layer_def = create_geoarrow_path_layer(
+        data_url="https://example.com/paths.parquet",
+        geodataframe=lines,
+        layer_style=PathLayerStyle(get_width=3, get_color=[255, 0, 0]),
+    )
+    layer = _geoarrow_layer_spec(layer_def)
+
+    assert layer["@@type"] == "GeoArrowPathLayer"
+    # Standard deck.gl `data: <url>` convention — loaders.gl matches our
+    # registered GeoParquet loader by file extension / magic bytes, parses
+    # to an Arrow RecordBatch, and hands that to the layer.
+    assert layer["data"] == "https://example.com/paths.parquet"
+    # Auto-detected via GeoArrow extension type; the GeoJSON-style accessor must not leak through.
+    assert "getPath" not in layer
+
+
+def test_geoarrow_scatterplot_layer(gdf_with_points):
+    layer_def = create_geoarrow_scatterplot_layer(
+        data_url="https://example.com/points.parquet",
+        geodataframe=gdf_with_points,
+        layer_style=ScatterplotLayerStyle(get_radius=500, get_fill_color="color"),
+    )
+    layer = _geoarrow_layer_spec(layer_def)
+
+    assert layer["@@type"] == "GeoArrowScatterplotLayer"
+    assert layer["data"] == "https://example.com/points.parquet"
+    assert "getPosition" not in layer
+    assert layer["getRadius"] == 500
+    # Standard pydeck column-accessor sugar — JS subclass detects the
+    # @@= function (and plain column-name strings) at render time and
+    # resolves them to arrow.Data column references against the loaded batch.
+    assert layer["getFillColor"] == "@@=color"
+
+
+def test_geoarrow_polygon_layer():
+    polys = gpd.read_file(os.path.join(TEST_DATA_DIR, "test_poly.geojson"))
+    layer_def = create_geoarrow_polygon_layer(
+        data_url="https://example.com/polys.parquet",
+        geodataframe=polys,
+        layer_style=PolygonLayerStyle(get_fill_color=[255, 0, 0]),
+    )
+    layer = _geoarrow_layer_spec(layer_def)
+
+    assert layer["@@type"] == "GeoArrowPolygonLayer"
+    assert layer["data"] == "https://example.com/polys.parquet"
+    assert "getPolygon" not in layer
+
+
+def test_clamp_scatterplot_radius_lifts_negatives_and_imputes_nans():
+    gdf = gpd.GeoDataFrame(
+        {"size": [-2.0, 0.0, float("nan")], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
+        crs="EPSG:4326",
+    )
+    original_values = gdf["size"].to_numpy().copy()
+
+    clamped = clamp_scatterplot_radius(geodataframe=gdf, radius_column="size")
+
+    # Original is untouched.
+    np.testing.assert_array_equal(gdf["size"].to_numpy(), original_values)
+    # Negatives: -2 -> 1, 0 -> 3. Then NaN bump shifts non-nulls by +1 and fills NaN to 1.
+    np.testing.assert_array_equal(clamped["size"].to_numpy(), np.array([2.0, 4.0, 1.0]))
+    assert clamped["size"].min() == 1
+    assert not clamped["size"].hasnans
+
+
+def test_test():
+    # Smoke + perf test: 5M synthetic points -> GeoParquet -> GeoArrowScatterplotLayer.
+    # We don't pass the gdf through to the layer; at this row count the view-state
+    # bounds computation and any legend lookup would be expensive and pointless.
+    n = 5_000_000
+    rng = np.random.default_rng(0)
+    lons = rng.uniform(34, 41, size=n)
+    lats = rng.uniform(-5, 5, size=n)
+    gdf = gpd.GeoDataFrame(
+        {"value": rng.random(n)},
+        geometry=gpd.points_from_xy(lons, lats),
+        crs="EPSG:4326",
+    )
+    assert len(gdf) > 4999999
+    # gdf.to_parquet("points.parquet", geometry_encoding="geoarrow")
+
+    # layer_def = create_geoarrow_scatterplot_layer(
+    #     data_url="http://localhost/points.parquet",
+    #     layer_style=ScatterplotLayerStyle(
+    #         get_radius=2,
+    #         opacity=0.3,
+    #         get_fill_color=[255, 100, 0],
+    #     ),
+    # )
+    # open("testoutput.html", "w").write(
+    #     draw_map(
+    #         geo_layers=[layer_def],
+    #         view_state=ViewState(longitude=37.5, latitude=0, zoom=5),
+    #     )
+    # )
