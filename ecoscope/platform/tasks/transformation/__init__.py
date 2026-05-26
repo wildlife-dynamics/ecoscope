@@ -9,6 +9,7 @@ from ._conversion import (
     convert_column_values_to_string,
     convert_values_to_timezone,
 )
+from ._crs import convert_crs
 from ._exploding import explode
 from ._extract import extract_column_as_type, extract_value_from_json_column
 from ._filter import filter_df
@@ -51,6 +52,7 @@ __all__ = [
     "classify_seasons",
     "convert_column_values_to_numeric",
     "convert_column_values_to_string",
+    "convert_crs",
     "convert_values_to_timezone",
     "explode",
     "extract_column_as_type",
