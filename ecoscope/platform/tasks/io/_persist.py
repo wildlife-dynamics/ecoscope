@@ -174,11 +174,9 @@ def _iso_format_timestamp_columns(df):
     """
     import pandas as pd
 
-    out = df.copy()
     for col in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[col].dtype):
-            out[col] = df[col].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
-    return out
+            df[col] = df[col].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
 
 
 def _downcast_float_columns(df):
@@ -191,11 +189,9 @@ def _downcast_float_columns(df):
     """
     import pandas as pd
 
-    out = df.copy()
     for col in df.columns:
         if pd.api.types.is_float_dtype(df[col].dtype) and df[col].dtype == "float64":
-            out[col] = df[col].astype("float32")
-    return out
+            df[col] = df[col].astype("float32")
 
 
 def _pack_color_columns(df):
@@ -216,7 +212,6 @@ def _pack_color_columns(df):
     import pandas as pd
     import pyarrow as pa
 
-    out = df.copy()
     for col in df.columns:
         if df[col].dtype != "object":
             continue
@@ -243,8 +238,7 @@ def _pack_color_columns(df):
                 f"persisting."
             )
         fsl = pa.array(df[col].tolist(), type=pa.list_(pa.uint8(), sample.shape[1]))
-        out[col] = pd.arrays.ArrowExtensionArray(fsl)
-    return out
+        df[col] = pd.arrays.ArrowExtensionArray(fsl)
 
 
 @register()
@@ -298,10 +292,10 @@ def persist_arrow(
             hash_input = f"{df.shape}{df.head(5).to_dict()}".encode()
         filename = hashlib.sha256(hash_input).hexdigest()[:7]
 
-    gdf = gpd.GeoDataFrame(df)
-    gdf = _iso_format_timestamp_columns(gdf)
-    gdf = _downcast_float_columns(gdf)
-    gdf = _pack_color_columns(gdf)
+    gdf = gpd.GeoDataFrame(df).copy()
+    _iso_format_timestamp_columns(gdf)
+    _downcast_float_columns(gdf)
+    _pack_color_columns(gdf)
     buffer = io.BytesIO()
     gdf.to_parquet(buffer, index=False, geometry_encoding="geoarrow")
     return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
