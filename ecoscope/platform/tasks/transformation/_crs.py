@@ -38,8 +38,6 @@ def convert_crs(
     """
     if df.crs is None:  # type: ignore[attr-defined]
         raise ValueError(
-            "GeoDataFrame has no CRS information. "
-            f"Cannot safely convert to {crs} without knowing the source CRS. "
-            "Please ensure the source data includes CRS metadata."
+            "GeoDataFrame has no CRS information. " f"Cannot safely convert to {crs} without knowing the source CRS. "
         )
     return cast(AnyGeoDataFrame, df.to_crs(crs))  # type: ignore[operator]
