@@ -791,8 +791,6 @@ def create_geoarrow_scatterplot_layer(
             description=(
                 "Optional source geodataframe used for legend lookups and view-state "
                 "computation; not used for rendering (data flows from data_url). "
-                "If the layer style references a radius column, run "
-                "`clamp_scatterplot_radius` on the gdf before persisting to GeoParquet."
             ),
             exclude=True,
         ),

@@ -31,7 +31,6 @@ from ecoscope.platform.tasks.results._pydeck import (
     TileLayer,
     ViewState,
     _model_dump_for_pydeck,
-    clamp_scatterplot_radius,
     create_geoarrow_path_layer,
     create_geoarrow_polygon_layer,
     create_geoarrow_scatterplot_layer,
@@ -46,6 +45,7 @@ from ecoscope.platform.tasks.results._pydeck import (
     draw_map,
     merge_tile_layers,
     rewrite_file_urls_for_screenshots,
+    shift_radius_values,
     view_state_from_geodataframes,
     view_state_from_layers,
 )
@@ -568,13 +568,11 @@ def test_legend_style_format_title_does_not_mutate_input(gdf_with_points):
         legend=legend,
     )
 
-    # assert legend.title == "my_legend"
-    open("testcolor.html", "w").write(
-        draw_map(
-            geo_layers=[layer_def],
-            legend_style=LegendStyle(format_title=True),
-        )
+    draw_map(
+        geo_layers=[layer_def],
+        legend_style=LegendStyle(format_title=True),
     )
+    assert legend.title == "my_legend"
 
 
 def test_legend_from_dataframe_sorts_numeric_strings_numerically(gdf_with_points):
@@ -1401,50 +1399,18 @@ def test_geoarrow_polygon_layer():
     assert "getPolygon" not in layer
 
 
-def test_clamp_scatterplot_radius_lifts_negatives_and_imputes_nans():
+def test_shift_radius_values_lifts_negatives_and_imputes_nans():
     gdf = gpd.GeoDataFrame(
         {"size": [-2.0, 0.0, float("nan")], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
         crs="EPSG:4326",
     )
     original_values = gdf["size"].to_numpy().copy()
 
-    clamped = clamp_scatterplot_radius(geodataframe=gdf, radius_column="size")
+    shift = shift_radius_values(geodataframe=gdf, radius_column="size")
 
     # Original is untouched.
     np.testing.assert_array_equal(gdf["size"].to_numpy(), original_values)
     # Negatives: -2 -> 1, 0 -> 3. Then NaN bump shifts non-nulls by +1 and fills NaN to 1.
-    np.testing.assert_array_equal(clamped["size"].to_numpy(), np.array([2.0, 4.0, 1.0]))
-    assert clamped["size"].min() == 1
-    assert not clamped["size"].hasnans
-
-
-def test_test():
-    # Smoke + perf test: 5M synthetic points -> GeoParquet -> GeoArrowScatterplotLayer.
-    # We don't pass the gdf through to the layer; at this row count the view-state
-    # bounds computation and any legend lookup would be expensive and pointless.
-    n = 5_000_000
-    rng = np.random.default_rng(0)
-    lons = rng.uniform(34, 41, size=n)
-    lats = rng.uniform(-5, 5, size=n)
-    gdf = gpd.GeoDataFrame(
-        {"value": rng.random(n)},
-        geometry=gpd.points_from_xy(lons, lats),
-        crs="EPSG:4326",
-    )
-    assert len(gdf) > 4999999
-    # gdf.to_parquet("points.parquet", geometry_encoding="geoarrow")
-
-    # layer_def = create_geoarrow_scatterplot_layer(
-    #     data_url="http://localhost/points.parquet",
-    #     layer_style=ScatterplotLayerStyle(
-    #         get_radius=2,
-    #         opacity=0.3,
-    #         get_fill_color=[255, 100, 0],
-    #     ),
-    # )
-    # open("testoutput.html", "w").write(
-    #     draw_map(
-    #         geo_layers=[layer_def],
-    #         view_state=ViewState(longitude=37.5, latitude=0, zoom=5),
-    #     )
-    # )
+    np.testing.assert_array_equal(shift["size"].to_numpy(), np.array([2.0, 4.0, 1.0]))
+    assert shift["size"].min() == 1
+    assert not shift["size"].hasnans

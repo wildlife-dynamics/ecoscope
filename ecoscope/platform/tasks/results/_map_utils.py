@@ -1,14 +1,18 @@
+import hashlib
+import io
 import re
 from typing import Annotated, Any, Type
 
 import geopandas as gpd  # type: ignore[import-untyped]
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.serde import _persist_bytes
 
 OpacityAnnotation = Annotated[
     float,
@@ -242,7 +246,7 @@ def _pack_color_columns(df):
 
 @register()
 def persist_geoarrow_for_pydeck(
-    df: Annotated[AnyDataFrame, Field(description="Dataframe to persist as GeoArrow-encoded parquet")],
+    gdf: Annotated[AnyGeoDataFrame, Field(description="GeoDataframe to persist as GeoArrow-encoded parquet")],
     root_path: Annotated[str, Field(description="Root path to persist parquet to")],
     filename: Annotated[
         str | None,
@@ -256,24 +260,22 @@ def persist_geoarrow_for_pydeck(
         ),
     ] = None,
 ) -> Annotated[str, Field(description="Path to persisted parquet")]:
-    """Persist a dataframe as GeoArrow-encoded parquet, ready for
+    """Persist a gdf as GeoArrow-encoded parquet, ready for
     use in geoarrow layers.
 
     Intended for use with the maps created by this module, use
     `tasks.io.persist_df(filetype='geoparquet')` instead when writing for
     standard WKB-expecting consumers (e.g. QGIS, PostGIS)
     """
-    import geopandas as gpd  # type: ignore[import-untyped]
-    import pandas as pd
 
     if not filename:
         try:
-            hash_input = bytes(pd.util.hash_pandas_object(df).values)
+            hash_input = bytes(pd.util.hash_pandas_object(gdf).values)
         except (TypeError, ValueError):
-            hash_input = f"{df.shape}{df.head(5).to_dict()}".encode()
+            hash_input = f"{gdf.shape}{gdf.head(5).to_dict()}".encode()
         filename = hashlib.sha256(hash_input).hexdigest()[:7]
 
-    gdf = gpd.GeoDataFrame(df).copy()
+    gdf = gpd.GeoDataFrame(gdf).copy()
     _iso_format_timestamp_columns(gdf)
     _downcast_float_columns(gdf)
     _pack_color_columns(gdf)
