@@ -1,6 +1,9 @@
 import re
 from typing import Annotated, Any, Type
 
+import geopandas as gpd  # type: ignore[import-untyped]
+import pandas as pd
+import pyarrow as pa
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
@@ -185,3 +188,95 @@ def set_base_maps(
             TileLayer(layer_name="SATELLITE", opacity=0.5),
         ]
     return base_maps
+
+
+def _iso_format_timestamp_columns(df):
+    """Convert pandas datetime64[*] columns (tz-naive and tz-aware) to ISO-8601 string columns."""
+
+    for col in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[col].dtype):
+            df[col] = df[col].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def _downcast_float_columns(df):
+    """Re-encode float64 columns as float32."""
+
+    for col in df.columns:
+        if pd.api.types.is_float_dtype(df[col].dtype) and df[col].dtype == "float64":
+            df[col] = df[col].astype("float32")
+
+
+def _pack_color_columns(df):
+    """Re-encode object-dtype columns of length-3 or length-4 int tuples in
+    the 0-255 range as pyarrow FixedSizeList<Uint8>[3|4] for use as a color accessor.
+    """
+
+    for col in df.columns:
+        if df[col].dtype != "object":
+            continue
+        non_null = df[col].dropna()
+        if non_null.empty or not isinstance(non_null.iloc[0], (tuple, list)):
+            continue
+        try:
+            sample = np.asarray(non_null.tolist())
+        except ValueError:
+            continue  # ragged / mixed lengths
+        if (
+            sample.ndim != 2
+            or sample.dtype.kind not in "iu"
+            or sample.shape[1] not in (3, 4)
+            or sample.min() < 0
+            or sample.max() > 255
+        ):
+            continue
+        if len(non_null) != len(df):
+            raise ValueError(
+                f"Color column {col!r} contains null values, which parquet's "
+                f"FixedSizeList encoding can't represent. Fill null rows with "
+                f"a sentinel color (e.g. (0, 0, 0, 0) for transparent) before "
+                f"persisting."
+            )
+        fsl = pa.array(df[col].tolist(), type=pa.list_(pa.uint8(), sample.shape[1]))
+        df[col] = pd.arrays.ArrowExtensionArray(fsl)
+
+
+@register()
+def persist_geoarrow_for_pydeck(
+    df: Annotated[AnyDataFrame, Field(description="Dataframe to persist as GeoArrow-encoded parquet")],
+    root_path: Annotated[str, Field(description="Root path to persist parquet to")],
+    filename: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Optional filename within `root_path`. Auto-generated from a "
+                "df content hash if absent. The `.parquet` extension is "
+                "appended automatically."
+            ),
+            exclude=True,
+        ),
+    ] = None,
+) -> Annotated[str, Field(description="Path to persisted parquet")]:
+    """Persist a dataframe as GeoArrow-encoded parquet, ready for
+    use in geoarrow layers.
+
+    Intended for use with the maps created by this module, use
+    `tasks.io.persist_df(filetype='geoparquet')` instead when writing for
+    standard WKB-expecting consumers (e.g. QGIS, PostGIS)
+    """
+    import geopandas as gpd  # type: ignore[import-untyped]
+    import pandas as pd
+
+    if not filename:
+        try:
+            hash_input = bytes(pd.util.hash_pandas_object(df).values)
+        except (TypeError, ValueError):
+            hash_input = f"{df.shape}{df.head(5).to_dict()}".encode()
+        filename = hashlib.sha256(hash_input).hexdigest()[:7]
+
+    gdf = gpd.GeoDataFrame(df).copy()
+    _iso_format_timestamp_columns(gdf)
+    _downcast_float_columns(gdf)
+    _pack_color_columns(gdf)
+    buffer = io.BytesIO()
+    gdf.to_parquet(buffer, index=False, geometry_encoding="geoarrow")
+    return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
