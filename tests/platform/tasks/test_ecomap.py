@@ -436,17 +436,3 @@ def test_legend_shows_all_labels_with_shared_colors(trajectories):
     assert "Subject A" in map_html, "Legend missing 'Subject A'"
     assert "Subject B" in map_html, "Legend missing 'Subject B'"
     assert "Subject C" in map_html, "Legend missing 'Subject C'"
-
-
-def test_test(relocations):
-    geo_layer = create_point_layer(
-        geodataframe=relocations,
-        layer_style=PointLayerStyle(get_fill_color="#0000FF"),
-    )
-    map_html = draw_ecomap(
-        geo_layers=[geo_layer],
-        tile_layers=[],
-        title="Relocations",
-    )
-    assert isinstance(map_html, str)
-    open("lonboard.html", "w").write(map_html)

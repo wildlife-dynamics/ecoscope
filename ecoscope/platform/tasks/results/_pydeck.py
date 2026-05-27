@@ -705,8 +705,7 @@ def shift_radius_values(
     ],
 ) -> Annotated[AnyGeoDataFrame, Field()]:
     """
-    Returns a copy of the dataframe with the given radius column shifted so all
-    values are >= 1 and NaNs are replaced with 1.
+    Shifts the given radius column so that values are >= 1 and NaNs are replaced with 1.
     Intended for use when displaying the given gdf as a scatterplot layer, where
     the numeric values in radius_column determine the size of the scatterplot points.
     """

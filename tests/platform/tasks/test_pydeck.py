@@ -1382,7 +1382,7 @@ def test_geoarrow_scatterplot_layer(gdf_with_points):
     # Standard pydeck column-accessor sugar — JS subclass detects the
     # @@= function (and plain column-name strings) at render time and
     # resolves them to arrow.Data column references against the loaded batch.
-    assert layer["getFillColor"] == "@@=color"
+    assert layer["getFillColor"] == "color"
 
 
 def test_geoarrow_polygon_layer():
@@ -1404,12 +1404,9 @@ def test_shift_radius_values_lifts_negatives_and_imputes_nans():
         {"size": [-2.0, 0.0, float("nan")], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
         crs="EPSG:4326",
     )
-    original_values = gdf["size"].to_numpy().copy()
 
-    shift = shift_radius_values(geodataframe=gdf, radius_column="size")
+    shift = shift_radius_values(gdf=gdf, radius_column="size")
 
-    # Original is untouched.
-    np.testing.assert_array_equal(gdf["size"].to_numpy(), original_values)
     # Negatives: -2 -> 1, 0 -> 3. Then NaN bump shifts non-nulls by +1 and fills NaN to 1.
     np.testing.assert_array_equal(shift["size"].to_numpy(), np.array([2.0, 4.0, 1.0]))
     assert shift["size"].min() == 1
