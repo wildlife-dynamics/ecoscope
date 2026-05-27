@@ -35,8 +35,7 @@ class DeckJsonSpec(BaseModel):
 PYDECK_CUSTOM_LIBRARIES = [
     {
         "libraryName": "EcoscopeDeckglExtensions",
-        # "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.0.8/dist/bundle.js",
-        "resourceUri": "http://localhost/ecoscope-deckgl-extensions/bundle.js",
+        "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.1.0/dist/bundle.js",
     }
 ]
 
