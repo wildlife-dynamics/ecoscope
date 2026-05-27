@@ -373,6 +373,21 @@ def test_pydeck_literals():
     assert isinstance(poly["line_width_units"], pdk.types.String)
 
 
+def test_pydeck_literals_geoarrow_wraps_strings_and_strips_geometry_accessors():
+    style = ScatterplotLayerStyle(get_fill_color="my_color_column", get_radius="my_radius_column")
+    dump = _model_dump_for_pydeck(style, layer_type="GeoArrowScatterplotLayer")
+
+    assert "get_position" not in dump
+    assert isinstance(dump["get_fill_color"], pdk.types.String)
+    assert str(dump["get_fill_color"]) == "my_color_column"
+    assert isinstance(dump["get_radius"], pdk.types.String)
+    assert str(dump["get_radius"]) == "my_radius_column"
+    assert isinstance(dump["radius_units"], pdk.types.String)
+    # Non-string fields untouched.
+    assert dump["radius_scale"] == 1
+    assert dump["filled"] is True
+
+
 @pytest.mark.parametrize(
     "label_column, color_column, sort, suffix",
     [
