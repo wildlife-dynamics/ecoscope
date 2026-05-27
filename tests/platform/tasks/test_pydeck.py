@@ -1359,9 +1359,6 @@ def test_geoarrow_path_layer():
     layer = _geoarrow_layer_spec(layer_def)
 
     assert layer["@@type"] == "GeoArrowPathLayer"
-    # Standard deck.gl `data: <url>` convention — loaders.gl matches our
-    # registered GeoParquet loader by file extension / magic bytes, parses
-    # to an Arrow RecordBatch, and hands that to the layer.
     assert layer["data"] == "https://example.com/paths.parquet"
     # Auto-detected via GeoArrow extension type; the GeoJSON-style accessor must not leak through.
     assert "getPath" not in layer
@@ -1379,9 +1376,6 @@ def test_geoarrow_scatterplot_layer(gdf_with_points):
     assert layer["data"] == "https://example.com/points.parquet"
     assert "getPosition" not in layer
     assert layer["getRadius"] == 500
-    # Standard pydeck column-accessor sugar — JS subclass detects the
-    # @@= function (and plain column-name strings) at render time and
-    # resolves them to arrow.Data column references against the loaded batch.
     assert layer["getFillColor"] == "color"
 
 
