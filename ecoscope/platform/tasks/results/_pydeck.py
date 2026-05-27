@@ -440,16 +440,26 @@ def _is_pydeck_literal(field_info: FieldInfo) -> bool:
     return False
 
 
-def _model_dump_for_pydeck(model: BaseModel) -> dict:
+def _model_dump_for_pydeck(model: BaseModel, layer_type: str | None = None) -> dict:
     """
-    Dump a model and wrap fields tagged with PydeckAnnotation in pdk.types.String,
-    so pydeck treats them as literal values rather than data-accessor expressions.
+    Dump a layer style for pydeck consumption, wrapping fields that must be
+    treated as literal strings (rather than ``@@=`` accessor expressions) in
+    ``pdk.types.String``.
+
+    If layer_type matches a GeoArrow layer, we always treat strings as literal
+    and drop the geometry accessor.
     """
+    is_geoarrow = layer_type is not None and layer_type.startswith("GeoArrow")
     dumped = model.model_dump(exclude_none=True)
     for field, field_info in model.__class__.model_fields.items():
         value = dumped.get(field)
-        if value and (_is_pydeck_literal(field_info) or _is_hex_color(value)):
+        if not value:
+            continue
+        if _is_pydeck_literal(field_info) or _is_hex_color(value) or (is_geoarrow and isinstance(value, str)):
             dumped[field] = pdk.types.String(value)
+    if is_geoarrow:
+        for accessor in ("get_position", "get_path", "get_polygon"):
+            dumped.pop(accessor, None)
     return dumped
 
 
@@ -1192,13 +1202,7 @@ def draw_map(
             data = gdf
 
         layer_id = f"{layer_def.layer_type}-{layer_index}"
-        style_dump = _model_dump_for_pydeck(layer_def.layer_style)
-        if layer_def.layer_type.startswith("GeoArrow"):
-            # GeoArrow layers auto-detect the geometry column from its Arrow
-            # extension type; the GeoJSON-style "geometry.coordinates"
-            # accessor defaults from the shared style classes don't apply.
-            for accessor in ("get_position", "get_path", "get_polygon"):
-                style_dump.pop(accessor, None)
+        style_dump = _model_dump_for_pydeck(layer_def.layer_style, layer_def.layer_type)
         layer = pdk.Layer(
             type=layer_def.layer_type,
             id=layer_id,
