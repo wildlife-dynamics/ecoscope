@@ -100,83 +100,6 @@ def test_scatterplot_layer(
     assert isinstance(map_html, str)
 
 
-def test_scatterplot_radius_from_column(gdf_with_points):
-    gdf_with_points["size"] = list(range(3, 3 + len(gdf_with_points)))
-
-    layer_def = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_radius="size"),
-    )
-
-    np.testing.assert_array_equal(
-        layer_def.layer_style.get_radius,
-        gdf_with_points["size"].values,
-    )
-
-
-def test_scatterplot_radius_lifts_negatives(gdf_with_points):
-    # min raw value is -4, so post-lift min must be 1 and the gap of 1 between
-    # consecutive values must be preserved.
-    gdf_with_points["size"] = list(range(-4, -4 + len(gdf_with_points)))
-
-    layer_def = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_radius="size"),
-    )
-
-    normalized_radius_values = np.asarray(layer_def.layer_style.get_radius)
-    assert normalized_radius_values.min() == 1
-    np.testing.assert_array_equal(normalized_radius_values, np.arange(1, 1 + len(gdf_with_points)))
-
-
-def test_scatterplot_radius_handles_nans(gdf_with_points):
-    # NaN must collapse to 1 while real values are bumped by 1 to offset.
-    sizes = [float(3 + i) for i in range(len(gdf_with_points))]  # [3, 4, 5, 6, ...]
-    sizes[0] = float("nan")
-    sizes[2] = float("nan")
-    gdf_with_points["size"] = sizes
-
-    layer_def = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_radius="size"),
-    )
-
-    normalized_radius_values = np.asarray(layer_def.layer_style.get_radius)
-    assert normalized_radius_values[0] == 1  # was NaN
-    assert normalized_radius_values[1] == 5  # was 4
-    assert normalized_radius_values[2] == 1  # was NaN
-    assert normalized_radius_values[3] == 7  # was 6
-    assert not np.isnan(normalized_radius_values).any()
-
-
-def test_scatterplot_radius_handles_negatives_and_nans(gdf_with_points):
-    # Combined: negatives get lifted so min real value is 1, then everything
-    # gets +1 (real values now >= 2) and NaNs are filled with 1.
-    sizes = [float(v) for v in range(-2, -2 + len(gdf_with_points))]
-    sizes[0] = float("nan")
-    gdf_with_points["size"] = sizes
-
-    layer_def = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_radius="size"),
-    )
-
-    normalized_radius_values = np.asarray(layer_def.layer_style.get_radius)
-    assert normalized_radius_values[0] == 1  # was NaN
-    assert normalized_radius_values.min() == 1
-    real_min = np.nanmin(normalized_radius_values[1:])
-    assert real_min == 2
-    assert not np.isnan(normalized_radius_values).any()
-
-
-def test_scatterplot_radius_numeric_passthrough(gdf_with_points):
-    layer_def = create_scatterplot_layer(
-        geodataframe=gdf_with_points,
-        layer_style=ScatterplotLayerStyle(get_radius=500),
-    )
-    assert layer_def.layer_style.get_radius == 500
-
-
 def test_hexagon_layer(gdf_with_points):
     layer_def = create_hexagon_layer(
         geodataframe=gdf_with_points,
@@ -1393,15 +1316,66 @@ def test_geoarrow_polygon_layer():
     assert "getPolygon" not in layer
 
 
-def test_shift_radius_values_lifts_negatives_and_imputes_nans():
+def test_shift_radius_values_passthrough_when_all_positive_and_no_nans():
+    # No negatives and no NaNs → neither branch fires; values are untouched.
     gdf = gpd.GeoDataFrame(
-        {"size": [-2.0, 0.0, float("nan")], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
+        {"size": [3.0, 4.0, 5.0], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
         crs="EPSG:4326",
     )
 
-    shift = shift_radius_values(gdf=gdf, radius_column="size")
+    result = shift_radius_values(gdf=gdf, radius_column="size")
 
-    # Negatives: -2 -> 1, 0 -> 3. Then NaN bump shifts non-nulls by +1 and fills NaN to 1.
-    np.testing.assert_array_equal(shift["size"].to_numpy(), np.array([2.0, 4.0, 1.0]))
-    assert shift["size"].min() == 1
-    assert not shift["size"].hasnans
+    np.testing.assert_array_equal(result["size"].to_numpy(), np.array([3.0, 4.0, 5.0]))
+
+
+def test_shift_radius_values_lifts_negatives():
+    # Min raw value -4, so post-lift min must be 1 and the gap of 1 between
+    # consecutive values must be preserved.
+    gdf = gpd.GeoDataFrame(
+        {"size": [-4.0, -3.0, -2.0, -1.0, 0.0], "geometry": [Point(i, i) for i in range(5)]},
+        crs="EPSG:4326",
+    )
+
+    result = shift_radius_values(gdf=gdf, radius_column="size")
+
+    np.testing.assert_array_equal(result["size"].to_numpy(), np.arange(1.0, 6.0))
+    assert result["size"].min() == 1
+
+
+def test_shift_radius_values_imputes_nans():
+    # NaN collapses to 1 while real values are bumped by +1 to stay distinguishable.
+    gdf = gpd.GeoDataFrame(
+        {
+            "size": [float("nan"), 4.0, float("nan"), 6.0],
+            "geometry": [Point(i, i) for i in range(4)],
+        },
+        crs="EPSG:4326",
+    )
+
+    result = shift_radius_values(gdf=gdf, radius_column="size")
+    out = result["size"].to_numpy()
+
+    assert out[0] == 1  # was NaN
+    assert out[1] == 5  # was 4
+    assert out[2] == 1  # was NaN
+    assert out[3] == 7  # was 6
+    assert not np.isnan(out).any()
+
+
+def test_shift_radius_values_handles_negatives_and_nans():
+    # Combined: negatives lifted so real min is 1, then everything bumped by +1
+    # (real values now >= 2) and NaNs filled with 1.
+    gdf = gpd.GeoDataFrame(
+        {
+            "size": [float("nan"), -1.0, 0.0, 1.0],
+            "geometry": [Point(i, i) for i in range(4)],
+        },
+        crs="EPSG:4326",
+    )
+
+    result = shift_radius_values(gdf=gdf, radius_column="size")
+    out = result["size"].to_numpy()
+
+    # -1 → +2 → 1 → +1 → 2; 0 → 2 → 3; 1 → 3 → 4; NaN → 1
+    np.testing.assert_array_equal(out, np.array([1.0, 2.0, 3.0, 4.0]))
+    assert not np.isnan(out).any()

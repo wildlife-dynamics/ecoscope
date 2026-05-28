@@ -1,11 +1,17 @@
+import geopandas as gpd  # type: ignore[import-untyped]
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 from pydantic import ValidationError
+from shapely.geometry import Point
 
 from ecoscope.platform.tasks.results._map_utils import (
     DEFAULT_TILE_LAYER_PRESETS,
     TileLayer,
     custom_tile_layer_json_schema,
     make_preset_or_custom_json_schema_extra,
+    persist_geoarrow_for_pydeck,
     preset_tile_layer_json_schema,
     set_base_maps,
 )
@@ -71,3 +77,74 @@ def test_set_base_maps_default_returns_two_layers() -> None:
     layers = set_base_maps(None)
     assert len(layers) == 2
     assert all(isinstance(layer, TileLayer) for layer in layers)
+
+
+def _points_gdf() -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(
+        {"val": [1, 2, 3], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
+        crs="EPSG:4326",
+    )
+
+
+def test_persist_geoarrow_for_pydeck_roundtrip(tmp_path) -> None:
+    gdf = _points_gdf()
+    dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="demo")
+
+    assert dst.endswith("demo.parquet")
+    schema = pq.read_schema(dst)
+    # GeoArrow stores points as a struct<x, y> tagged with the geoarrow.point extension.
+    geom_field = schema.field("geometry")
+    assert geom_field.metadata[b"ARROW:extension:name"] == b"geoarrow.point"
+    gdf_read = gpd.read_parquet(dst)
+    assert list(gdf_read["val"]) == [1, 2, 3]
+    assert gdf_read.crs == gdf.crs
+
+
+def test_persist_geoarrow_for_pydeck_re_encodes_columns(tmp_path) -> None:
+    gdf = gpd.GeoDataFrame(
+        {
+            "val": pd.Series([1.5, 2.5, 3.5], dtype="float64"),
+            "ts_naive": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"]),
+            "ts_aware": pd.to_datetime(["2024-01-01", "2024-01-02", "2024-01-03"], utc=True),
+            "rgba": [(255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 255)],
+            "rgb": [(10, 20, 30), (40, 50, 60), (70, 80, 90)],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        crs="EPSG:4326",
+    )
+    dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="reencoded")
+    schema = pq.read_schema(dst)
+    assert schema.field("val").type == pa.float32()
+    assert schema.field("ts_naive").type == pa.string()
+    assert schema.field("ts_aware").type == pa.string()
+    assert schema.field("rgba").type == pa.list_(pa.uint8(), 4)
+    assert schema.field("rgb").type == pa.list_(pa.uint8(), 3)
+
+
+def test_persist_geoarrow_for_pydeck_color_column_with_nulls_raises(tmp_path) -> None:
+    gdf = gpd.GeoDataFrame(
+        {
+            "rgba": [(255, 0, 0, 255), None, (0, 0, 255, 255)],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        crs="EPSG:4326",
+    )
+    with pytest.raises(ValueError, match="null values"):
+        persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="colors")
+
+
+def test_persist_geoarrow_for_pydeck_skips_non_color_object_columns(tmp_path) -> None:
+    # Ragged tuples must not be coerced to a fixed-size color list.
+    gdf = gpd.GeoDataFrame(
+        {
+            "ragged": [(1, 2), (3, 4, 5), (6, 7)],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        crs="EPSG:4326",
+    )
+    dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="ragged")
+    schema = pq.read_schema(dst)
+    # Left untouched as an object column → arrow encodes it however pandas defaults
+    # (list/struct/binary), but it must NOT be uint8 fixed-size-list.
+    assert schema.field("ragged").type != pa.list_(pa.uint8(), 3)
+    assert schema.field("ragged").type != pa.list_(pa.uint8(), 4)
