@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 import pytest
+from shapely.geometry import Point
 
 from ecoscope import Trajectory
 from ecoscope.analysis import astronomy
@@ -289,3 +290,13 @@ def test_calculate_day_fraction_vectorized():
         segment_end=pd.Series(ends),
     )
     np.testing.assert_allclose(actual, expected)
+
+
+def test_sun_time_unresolved_returns_nat():
+    # At a polar-day latitude the sun never sets within astroplan's search window, so
+    # astroplan returns a masked 0-d value. sun_time must coerce it to NaT rather than
+    # passing the 0-d array through, which would later crash get_nightday_ratio with
+    # "iteration over a 0-d array" during the calculate_day_fraction comparisons.
+    result = astronomy.sun_time(datetime(2025, 6, 21), Point(0.0, 80.0))
+    assert pd.isna(result["sunrise"])
+    assert pd.isna(result["sunset"])

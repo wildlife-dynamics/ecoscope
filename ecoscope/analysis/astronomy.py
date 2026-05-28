@@ -83,6 +83,15 @@ def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
     observer = astroplan.Observer(location=EarthLocation(lon=geometry.centroid.x, lat=geometry.centroid.y))
     sunrise = observer.sun_rise_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
     sunset = observer.sun_set_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
+    # astroplan returns a masked 0-d array when it cannot bracket the event within its
+    # bounded forward search window (e.g. mid-latitude days where the "next" sunrise/sunset
+    # falls at the window edge, or polar day/night). Coerce to NaT so the day is dropped from
+    # the night/day ratio instead of crashing the downstream Timestamp comparisons in
+    # calculate_day_fraction with "iteration over a 0-d array".
+    if not isinstance(sunrise, datetime):
+        sunrise = pd.NaT
+    if not isinstance(sunset, datetime):
+        sunset = pd.NaT
     return pd.Series({"sunrise": sunrise, "sunset": sunset})
 
 
