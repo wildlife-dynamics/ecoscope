@@ -1,4 +1,5 @@
 from ecoscope.analysis.trend_analysis import (
+    GAMMRegressor,
     GAMRegressor,
     GLMRegressor,
     LinearRegressionRegressor,
