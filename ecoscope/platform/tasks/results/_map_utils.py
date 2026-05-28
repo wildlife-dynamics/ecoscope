@@ -6,7 +6,7 @@ from typing import Annotated, Any, Type
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
-import pyarrow as pa
+import pyarrow as pa  # type: ignore[import-untyped]
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
