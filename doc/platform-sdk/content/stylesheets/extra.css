@@ -8,6 +8,12 @@
   --md-default-fg-color--light: #2a6b6b;
   --md-default-bg-color: #f5ece0;
   --md-default-bg-color--light: #faf6f0;
+  --md-typeset-a-color: #105257;
+}
+
+/* Underline body links in light mode for clear distinction from text */
+[data-md-color-scheme="default"] .md-typeset a:not(.headerlink) {
+  text-decoration: underline;
 }
 
 /* Dark mode — Dark Teal + Off White/Green */
