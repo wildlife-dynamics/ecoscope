@@ -28,6 +28,20 @@
   --md-default-bg-color--light: #163a3c;
 }
 
+/* The theme sets --md-typeset-a-color via a two-attribute selector
+   ([scheme][primary] -> #5488e8), which outranks a scheme-only rule. Match
+   that specificity to override it once; this single variable drives both
+   body link color and the active nav item, and hover still falls back to
+   --md-accent-fg-color via the theme's own a:hover rule. */
+[data-md-color-scheme="slate"][data-md-color-primary] {
+  --md-typeset-a-color: #0FCB8C;
+}
+
+/* Underline body links in dark mode for clear distinction from text */
+[data-md-color-scheme="slate"] .md-typeset a:not(.headerlink) {
+  text-decoration: underline;
+}
+
 /* Remove the outer mkdocstrings container "card" */
 .md-typeset .doc.doc-object.doc-module {
   border: none;
