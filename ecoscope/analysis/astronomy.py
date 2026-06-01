@@ -168,7 +168,8 @@ def calculate_day_fraction(
 
 
 def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
-    gdf["date"] = pd.to_datetime(gdf["segment_start"]).dt.date
+    # Ensure UTC here so each date lines up with the UTC midnight reference used by sun_time
+    gdf["date"] = gdf["segment_start"].dt.tz_convert("UTC").dt.date
 
     daily_summary = gdf.groupby("date").first()["geometry"].reset_index()
     daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.date, x.geometry), axis=1)
