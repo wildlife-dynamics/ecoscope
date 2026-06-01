@@ -61,6 +61,8 @@ def test_get_source_observations(er_io):
     relocations = er_io.get_source_observations(
         source_ids=er_io.SOURCE_IDS,
         include_source_details=True,
+        since="2008-03-01",
+        until="2008-04-01",
     )
     assert isinstance(relocations, ecoscope.Relocations)
     assert "fixtime" in relocations.gdf
@@ -80,6 +82,8 @@ def test_get_subjectsource_observations(er_io):
     relocations = er_io.get_subjectsource_observations(
         subjectsource_ids=er_io.SUBJECTSOURCE_IDS,
         include_source_details=True,
+        since="2008-03-01",
+        until="2008-04-01",
     )
     assert isinstance(relocations, ecoscope.Relocations)
     assert "fixtime" in relocations.gdf
@@ -91,18 +95,28 @@ def test_get_subjectsource_no_observations(er_io):
     relocations = er_io.get_subjectsource_observations(
         subjectsource_ids=str(uuid.uuid4()),
         include_source_details=True,
+        since="2008-03-01",
+        until="2008-04-01",
     )
     assert relocations.gdf.empty
 
 
 def test_get_subjectgroup_observations(er_io):
-    relocations = er_io.get_subjectgroup_observations(subject_group_name=er_io.GROUP_NAME)
+    relocations = er_io.get_subjectgroup_observations(
+        subject_group_name=er_io.GROUP_NAME,
+        since="2008-03-01",
+        until="2008-04-01",
+    )
     assert "groupby_col" in relocations.gdf
     assert len(relocations.gdf["extra__subject_id"].unique()) == 2
 
 
 def test_get_events(er_events_io):
-    events = er_events_io.get_events(event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"])
+    events = er_events_io.get_events(
+        event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"],
+        since="2023-11-15",
+        until="2023-11-16",
+    )
     assert not events.empty
     check_time_is_parsed(events)
 
