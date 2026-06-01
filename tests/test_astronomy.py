@@ -48,9 +48,9 @@ def test_is_night(movebank_relocations):
 @pytest.mark.parametrize(
     "timezone",
     [
-        timezone(timedelta(hours=5)),
+        timezone(timedelta(hours=10)),
         timezone.utc,
-        timezone(timedelta(hours=-5)),
+        timezone(timedelta(hours=-6)),
     ],
 )
 def test_nightday_ratio(movebank_relocations, timezone):
@@ -64,6 +64,7 @@ def test_nightday_ratio(movebank_relocations, timezone):
         [0.3736601604553539, 2.1840195829850435],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
+    # test against a handful of timezone to ensure this calculation is agnotisc of input timezone
     trajectory.gdf["segment_start"] = trajectory.gdf["segment_start"].dt.tz_convert(timezone).dt.as_unit("ns")
     pd.testing.assert_series_equal(
         trajectory.gdf.groupby("groupby_col")[trajectory.gdf.columns].apply(
