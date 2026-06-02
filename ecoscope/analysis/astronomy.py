@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 import pytz
+import shapely
 from shapely.geometry.base import BaseGeometry
 
 try:
@@ -80,6 +81,8 @@ def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
     """
     Sunrise and sunset of the local solar day labelled by `date` at `geometry`.
     Returned timestamps are in UTC, representing the UTC time of the local sunrise/sunset.
+
+    The `geometry` provided is assumed to be in EPSG:4326 (WGS84 lon/lat)
     """
     centroid = geometry.centroid
     offset = timedelta(hours=centroid.x / 15.0)
@@ -173,13 +176,23 @@ def calculate_day_fraction(
 
 
 def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
-    lon = gdf["geometry"].to_crs(4326).centroid.x
+    start_points = gpd.GeoSeries(
+        shapely.get_point(gdf["geometry"].values, 0),
+        crs=gdf.crs,
+        index=gdf.index,
+    ).to_crs(4326)
 
     # Bin by local solar date to prevent UTC timestamps straddling local night -> day
-    offset = pd.to_timedelta(lon / 15.0, unit="h")
+    # NOTE: this calculation will skew if tracks cross the -180, 180 boundary
+    offset = pd.to_timedelta(start_points.x / 15.0, unit="h")
     gdf["local_date"] = (gdf["segment_start"].dt.tz_convert("UTC").dt.tz_localize(None) + offset).dt.date
 
-    daily_summary = gdf.groupby("local_date").first()["geometry"].reset_index()
+    daily_summary = (
+        pd.DataFrame({"local_date": gdf["local_date"].values, "geometry": start_points.values})
+        .groupby("local_date")
+        .first()
+        .reset_index()
+    )
     daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.local_date, x.geometry), axis=1)
     daily_summary = daily_summary.set_index("local_date")
 
