@@ -79,16 +79,12 @@ def is_night(
 def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
     """
     Sunrise and sunset of the local solar day labelled by `date` at `geometry`.
-
-    `date` is the local solar date — the UTC offset is derived from longitude
-    (lon / 15 h), not a political timezone. Anchoring the search at local solar
-    noon and asking for the previous sunrise + next sunset guarantees both
-    events lie on the same local day even when local midnight straddles UTC
-    midnight, which is the failure mode when binning by UTC date.
+    Returned timestamps are in UTC, representing the UTC time of the local sunrise/sunset.
     """
     centroid = geometry.centroid
     offset = timedelta(hours=centroid.x / 15.0)
     local_noon_utc = datetime(date.year, date.month, date.day, 12) - offset
+    # Anchoring the search at local solar noon guarantees both events lie on the same local day
     anchor = Time(local_noon_utc, scale="utc")
     observer = astroplan.Observer(location=EarthLocation(lon=centroid.x, lat=centroid.y))
     sunrise = observer.sun_rise_time(anchor, which="previous", n_grid_points=150).to_datetime(timezone=pytz.UTC)
@@ -177,24 +173,19 @@ def calculate_day_fraction(
 
 
 def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
-    # Bin by local solar date (UTC offset = lon / 15 h) so each row is matched
-    # against the sunrise/sunset of the local day its segment actually sits in.
-    # Binning by UTC date mismatches cross-midnight segments at non-zero
-    # longitudes against rise/set events from the adjacent local day, which
-    # stretches day or night sections.
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", "Geometry is in a geographic CRS.", UserWarning)
-        lon = gdf["geometry"].to_crs(4326).centroid.x
-    offset = pd.to_timedelta(lon / 15.0, unit="h")
-    gdf["date"] = (gdf["segment_start"].dt.tz_convert("UTC").dt.tz_localize(None) + offset).dt.date
+    lon = gdf["geometry"].to_crs(4326).centroid.x
 
-    daily_summary = gdf.groupby("date").first()["geometry"].reset_index()
-    daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.date, x.geometry), axis=1)
-    daily_summary = daily_summary.set_index("date")
+    # Bin by local solar date to prevent UTC timestamps straddling local night -> day
+    offset = pd.to_timedelta(lon / 15.0, unit="h")
+    gdf["local_date"] = (gdf["segment_start"].dt.tz_convert("UTC").dt.tz_localize(None) + offset).dt.date
+
+    daily_summary = gdf.groupby("local_date").first()["geometry"].reset_index()
+    daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.local_date, x.geometry), axis=1)
+    daily_summary = daily_summary.set_index("local_date")
 
     day_fraction = calculate_day_fraction(
-        sunrise=gdf["date"].map(daily_summary["sunrise"]),
-        sunset=gdf["date"].map(daily_summary["sunset"]),
+        sunrise=gdf["local_date"].map(daily_summary["sunrise"]),
+        sunset=gdf["local_date"].map(daily_summary["sunset"]),
         segment_start=gdf["segment_start"],
         segment_end=gdf["segment_end"],
     )
@@ -202,8 +193,12 @@ def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
     day_dist = day_fraction * gdf["dist_meters"]
     night_dist = (1 - day_fraction) * gdf["dist_meters"]
 
-    daily_summary["day_distance"] = day_dist.groupby(gdf["date"]).sum().reindex(daily_summary.index, fill_value=0.0)
-    daily_summary["night_distance"] = night_dist.groupby(gdf["date"]).sum().reindex(daily_summary.index, fill_value=0.0)
+    daily_summary["day_distance"] = (
+        day_dist.groupby(gdf["local_date"]).sum().reindex(daily_summary.index, fill_value=0.0)
+    )
+    daily_summary["night_distance"] = (
+        night_dist.groupby(gdf["local_date"]).sum().reindex(daily_summary.index, fill_value=0.0)
+    )
 
     daily_summary["night_day_ratio"] = daily_summary["night_distance"] / daily_summary["day_distance"]
     mean_night_day_ratio = daily_summary["night_day_ratio"].replace([np.inf, -np.inf], np.nan).dropna().mean()
