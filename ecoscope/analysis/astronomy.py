@@ -77,15 +77,24 @@ def is_night(
 
 
 def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
-    midnight = Time(
-        datetime(date.year, date.month, date.day) + timedelta(seconds=1), scale="utc"
-    )  # add 1 second shift to avoid leap_second_strict warning
-    observer = astroplan.Observer(location=EarthLocation(lon=geometry.centroid.x, lat=geometry.centroid.y))
-    sunrise = observer.sun_rise_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
-    sunset = observer.sun_set_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
+    """
+    Sunrise and sunset of the local solar day labelled by `date` at `geometry`.
+
+    `date` is the local solar date — the UTC offset is derived from longitude
+    (lon / 15 h), not a political timezone. Anchoring the search at local solar
+    noon and asking for the previous sunrise + next sunset guarantees both
+    events lie on the same local day even when local midnight straddles UTC
+    midnight, which is the failure mode when binning by UTC date.
+    """
+    centroid = geometry.centroid
+    offset = timedelta(hours=centroid.x / 15.0)
+    local_noon_utc = datetime(date.year, date.month, date.day, 12) - offset
+    anchor = Time(local_noon_utc, scale="utc")
+    observer = astroplan.Observer(location=EarthLocation(lon=centroid.x, lat=centroid.y))
+    sunrise = observer.sun_rise_time(anchor, which="previous", n_grid_points=150).to_datetime(timezone=pytz.UTC)
+    sunset = observer.sun_set_time(anchor, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
     # astroplan returns a masked 0-d array when it cannot bracket the event within its
-    # bounded forward search window (e.g. mid-latitude days where the "next" sunrise/sunset
-    # falls at the window edge, or polar day/night). Coerce to NaT so the day is dropped from
+    # bounded search window (polar day/night). Coerce to NaT so the day is dropped from
     # the night/day ratio instead of crashing the downstream Timestamp comparisons in
     # calculate_day_fraction with "iteration over a 0-d array".
     if not isinstance(sunrise, datetime):
@@ -168,8 +177,16 @@ def calculate_day_fraction(
 
 
 def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
-    # Ensure UTC here so each date lines up with the UTC midnight reference used by sun_time
-    gdf["date"] = gdf["segment_start"].dt.tz_convert("UTC").dt.date
+    # Bin by local solar date (UTC offset = lon / 15 h) so each row is matched
+    # against the sunrise/sunset of the local day its segment actually sits in.
+    # Binning by UTC date mismatches cross-midnight segments at non-zero
+    # longitudes against rise/set events from the adjacent local day, which
+    # stretches day or night sections.
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", "Geometry is in a geographic CRS.", UserWarning)
+        lon = gdf["geometry"].to_crs(4326).centroid.x
+    offset = pd.to_timedelta(lon / 15.0, unit="h")
+    gdf["date"] = (gdf["segment_start"].dt.tz_convert("UTC").dt.tz_localize(None) + offset).dt.date
 
     daily_summary = gdf.groupby("date").first()["geometry"].reset_index()
     daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.date, x.geometry), axis=1)
