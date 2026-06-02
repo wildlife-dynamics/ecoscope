@@ -15,6 +15,7 @@ from ecoscope.platform.schemas import EmptyDataFrame, RegionsGDF
 from ecoscope.platform.tasks.io._earthranger import (
     get_spatial_features_group,
 )
+from ecoscope.platform.tasks.transformation._crs import convert_crs
 
 GEOPARQUET_EXTENSIONS = (".parquet", ".geoparquet")
 GEOPACKAGE_EXTENSIONS = (".gpkg",)
@@ -115,17 +116,6 @@ def _validate_regions(regions_gdf: gpd.GeoDataFrame) -> None:
         raise ValueError(f"Region names must be unique. Duplicates: {sorted(duplicated.unique())}")
 
 
-def _normalize_crs(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """Convert GeoDataFrame to CRS 4326."""
-    if gdf.crs is None:
-        raise ValueError(
-            "GeoDataFrame has no CRS information. "
-            "Cannot safely convert to EPSG:4326 without knowing the source CRS. "
-            "Please ensure the source file includes CRS metadata."
-        )
-    return gdf.to_crs(4326)
-
-
 def _load_spatial_regions_from_file(
     file_path: str,
     layer: str | None,
@@ -145,7 +135,7 @@ def _load_spatial_regions_from_file(
     if "geometry" not in gdf.columns:
         raise ValueError("File must have a 'geometry' column")
 
-    gdf = _normalize_crs(gdf)
+    gdf = convert_crs(gdf, crs="EPSG:4326")
 
     # Filter to polygon geometries only
     polygon_mask = gdf.geometry.geom_type.isin({"Polygon", "MultiPolygon"})
