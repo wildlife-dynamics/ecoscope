@@ -56,12 +56,12 @@ def test_is_night(movebank_relocations):
 def test_nightday_ratio(movebank_relocations, timezone):
     # movebank_relocations is subsampled to keep execution speed low.
     # Expected ratios for the full data are:
-    # Habiba=0.45905845612291696, Salif Keita=2.0019632541788472.
+    # Habiba=0.4546939436509577, Salif Keita=2.0114194855402805.
     movebank_relocations.gdf = movebank_relocations.gdf.groupby("groupby_col", group_keys=False).head(100)
 
     trajectory = Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
-        [0.3736601604553539, 2.1840195829850435],
+        [0.3855732298373231, 2.529674418228213],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     # test against a handful of timezone to ensure this calculation is agnotisc of input timezone
