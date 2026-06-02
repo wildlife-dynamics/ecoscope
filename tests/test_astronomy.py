@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta, timezone
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
 import pytest
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 
 from ecoscope import Trajectory
 from ecoscope.analysis import astronomy
@@ -53,7 +54,7 @@ def test_is_night(movebank_relocations):
         timezone(timedelta(hours=-6)),
     ],
 )
-def test_nightday_ratio(movebank_relocations, timezone):
+def test_nightday_ratio_salif_habiba(movebank_relocations, timezone):
     # movebank_relocations is subsampled to keep execution speed low.
     # Expected ratios for the full data are:
     # Habiba=0.4546939436509577, Salif Keita=2.0114194855402805.
@@ -72,6 +73,30 @@ def test_nightday_ratio(movebank_relocations, timezone):
         ),
         expected,
     )
+
+
+@pytest.mark.parametrize("lon", [0.0, 60.0, 120.0, -60.0, -120.0, 23.0, -77.0])
+def test_nightday_ratio_synthetic_baseline(lon):
+    # Place two segments at clear local-night times and two at clear local-day times;
+    # the calculated ratio should always be 1.0.
+    # For non-zero longitudes the segments straddle two UTC dates, so this also
+    # ensures we're agnostic of UTC date boundaries.
+    utc_midnight = pd.Timestamp("2024-03-20", tz="UTC")
+    offset = pd.Timedelta(hours=lon / 15.0)
+    local_hours = [2, 12, 13, 22]  # two clearly-night, two clearly-day
+    starts = [utc_midnight + pd.Timedelta(hours=h) - offset for h in local_hours]
+    ends = [s + pd.Timedelta(hours=1) for s in starts]
+    segment = LineString([(lon, 0.0), (lon + 0.001, 0.0)])
+    gdf = gpd.GeoDataFrame(
+        {
+            "segment_start": starts,
+            "segment_end": ends,
+            "geometry": [segment] * 4,
+            "dist_meters": [1000.0] * 4,
+        },
+        crs="EPSG:4326",
+    )
+    assert astronomy.get_nightday_ratio(gdf) == pytest.approx(1.0, rel=1e-6)
 
 
 @pytest.fixture
