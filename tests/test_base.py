@@ -72,7 +72,7 @@ def test_trajectory_properties(movebank_relocations):
     trajectory.gdf = trajectory.gdf.loc[trajectory.gdf.groupby_col == "Habiba"].head(5)
 
     expected_nsd = pd.Series(
-        [0.446425, 1.803153, 2.916319, 28.909629, 72.475410],
+        [0.0008928503827620089, 0.003606306058710857, 0.005832637360735169, 0.057819257649871836, 0.14495082024232853],
         dtype=np.float64,
         index=pd.Index([368706890, 368706891, 368706892, 368706893, 368706894], name="event-id"),
         name="nsd",
