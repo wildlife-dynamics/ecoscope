@@ -125,7 +125,7 @@ jobs:
       - name: Create channel
         run: mkdir -p /tmp/ecoscope/release/artifacts
       - name: Build prefix release
-        uses: prefix-dev/rattler-build-action@v0.2.37
+        uses: prefix-dev/rattler-build-action@v0.2.38
         with:
           recipe-path: publish/recipes/release/ecoscope.yaml
           build-args: --output-dir /tmp/ecoscope/release/artifacts --channel https://prefix.dev/ecoscope-workflows --channel conda-forge
@@ -149,7 +149,7 @@ jobs:
           name: prefix-conda
           path: /tmp/ecoscope/release/artifacts
       - name: Install rattler-build
-        uses: prefix-dev/rattler-build-action@v0.2.37
+        uses: prefix-dev/rattler-build-action@v0.2.38
         with:
           setup-only: true
       - name: Upload to prefix.dev
