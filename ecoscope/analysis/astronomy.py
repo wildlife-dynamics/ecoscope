@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 import pytz
+import shapely
 from shapely.geometry.base import BaseGeometry
 
 try:
@@ -77,15 +78,22 @@ def is_night(
 
 
 def sun_time(date: datetime, geometry: BaseGeometry) -> pd.Series:
-    midnight = Time(
-        datetime(date.year, date.month, date.day) + timedelta(seconds=1), scale="utc"
-    )  # add 1 second shift to avoid leap_second_strict warning
-    observer = astroplan.Observer(location=EarthLocation(lon=geometry.centroid.x, lat=geometry.centroid.y))
-    sunrise = observer.sun_rise_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
-    sunset = observer.sun_set_time(midnight, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
+    """
+    Sunrise and sunset of the local solar day labelled by `date` at `geometry`.
+    Returned timestamps are in UTC, representing the UTC time of the local sunrise/sunset.
+
+    The `geometry` provided is assumed to be in EPSG:4326 (WGS84 lon/lat)
+    """
+    centroid = geometry.centroid
+    offset = timedelta(hours=centroid.x / 15.0)
+    local_noon_utc = datetime(date.year, date.month, date.day, 12) - offset
+    # Anchoring the search at local solar noon guarantees both events lie on the same local day
+    anchor = Time(local_noon_utc, scale="utc")
+    observer = astroplan.Observer(location=EarthLocation(lon=centroid.x, lat=centroid.y))
+    sunrise = observer.sun_rise_time(anchor, which="previous", n_grid_points=150).to_datetime(timezone=pytz.UTC)
+    sunset = observer.sun_set_time(anchor, which="next", n_grid_points=150).to_datetime(timezone=pytz.UTC)
     # astroplan returns a masked 0-d array when it cannot bracket the event within its
-    # bounded forward search window (e.g. mid-latitude days where the "next" sunrise/sunset
-    # falls at the window edge, or polar day/night). Coerce to NaT so the day is dropped from
+    # bounded search window (polar day/night). Coerce to NaT so the day is dropped from
     # the night/day ratio instead of crashing the downstream Timestamp comparisons in
     # calculate_day_fraction with "iteration over a 0-d array".
     if not isinstance(sunrise, datetime):
@@ -168,16 +176,29 @@ def calculate_day_fraction(
 
 
 def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
-    # Ensure UTC here so each date lines up with the UTC midnight reference used by sun_time
-    gdf["date"] = gdf["segment_start"].dt.tz_convert("UTC").dt.date
+    start_points = gpd.GeoSeries(
+        shapely.get_point(gdf["geometry"].values, 0),
+        crs=gdf.crs,
+        index=gdf.index,
+    ).to_crs(4326)
 
-    daily_summary = gdf.groupby("date").first()["geometry"].reset_index()
-    daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.date, x.geometry), axis=1)
-    daily_summary = daily_summary.set_index("date")
+    # Bin by local solar date to prevent UTC timestamps straddling local night -> day
+    # NOTE: this calculation will skew if tracks cross the -180, 180 boundary
+    offset = pd.to_timedelta(start_points.x / 15.0, unit="h")
+    gdf["local_date"] = (gdf["segment_start"].dt.tz_convert("UTC").dt.tz_localize(None) + offset).dt.date
+
+    daily_summary = (
+        pd.DataFrame({"local_date": gdf["local_date"].values, "geometry": start_points.values})
+        .groupby("local_date")
+        .first()
+        .reset_index()
+    )
+    daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.local_date, x.geometry), axis=1)
+    daily_summary = daily_summary.set_index("local_date")
 
     day_fraction = calculate_day_fraction(
-        sunrise=gdf["date"].map(daily_summary["sunrise"]),
-        sunset=gdf["date"].map(daily_summary["sunset"]),
+        sunrise=gdf["local_date"].map(daily_summary["sunrise"]),
+        sunset=gdf["local_date"].map(daily_summary["sunset"]),
         segment_start=gdf["segment_start"],
         segment_end=gdf["segment_end"],
     )
@@ -185,8 +206,12 @@ def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
     day_dist = day_fraction * gdf["dist_meters"]
     night_dist = (1 - day_fraction) * gdf["dist_meters"]
 
-    daily_summary["day_distance"] = day_dist.groupby(gdf["date"]).sum().reindex(daily_summary.index, fill_value=0.0)
-    daily_summary["night_distance"] = night_dist.groupby(gdf["date"]).sum().reindex(daily_summary.index, fill_value=0.0)
+    daily_summary["day_distance"] = (
+        day_dist.groupby(gdf["local_date"]).sum().reindex(daily_summary.index, fill_value=0.0)
+    )
+    daily_summary["night_distance"] = (
+        night_dist.groupby(gdf["local_date"]).sum().reindex(daily_summary.index, fill_value=0.0)
+    )
 
     daily_summary["night_day_ratio"] = daily_summary["night_distance"] / daily_summary["day_distance"]
     mean_night_day_ratio = daily_summary["night_day_ratio"].replace([np.inf, -np.inf], np.nan).dropna().mean()
