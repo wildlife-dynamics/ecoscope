@@ -133,6 +133,38 @@ def test_persist_geoarrow_for_pydeck_color_column_with_nulls_raises(tmp_path) ->
         persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="colors")
 
 
+def test_persist_geoarrow_for_pydeck_stringifies_mixed_json(tmp_path) -> None:
+    # `count` is sometimes int, sometimes str — pyarrow can't unify, so the
+    # column should fall back to a JSON-encoded string column.
+    gdf = gpd.GeoDataFrame(
+        {
+            "payload": [{"count": 3}, {"count": "3"}, {"count": 4}],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        crs="EPSG:4326",
+    )
+    dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="drift")
+    schema = pq.read_schema(dst)
+    assert schema.field("payload").type == pa.string()
+    gdf_read = gpd.read_parquet(dst)
+    assert gdf_read["payload"].tolist() == ['{"count": 3}', '{"count": "3"}', '{"count": 4}']
+
+
+def test_persist_geoarrow_for_pydeck_preserves_uniform_json(tmp_path) -> None:
+    # Uniform / disjoint-key dicts that pyarrow CAN infer should be left as
+    # structs, not jsonified.
+    gdf = gpd.GeoDataFrame(
+        {
+            "payload": [{"a": 1}, {"b": 2}, {"a": 3, "b": 4}],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        crs="EPSG:4326",
+    )
+    dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="struct")
+    schema = pq.read_schema(dst)
+    assert pa.types.is_struct(schema.field("payload").type)
+
+
 def test_persist_geoarrow_for_pydeck_skips_non_color_object_columns(tmp_path) -> None:
     # Ragged tuples must not be coerced to a fixed-size color list.
     gdf = gpd.GeoDataFrame(

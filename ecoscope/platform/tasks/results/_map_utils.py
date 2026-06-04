@@ -1,5 +1,6 @@
 import hashlib
 import io
+import json
 import re
 from typing import Annotated, Any, Type
 
@@ -244,6 +245,20 @@ def _pack_color_columns(df):
         df[col] = pd.arrays.ArrowExtensionArray(fsl)
 
 
+def _stringify_mixed_json(df):
+    """Object columns whose values pyarrow can't infer a unified type for
+    (int/str mixing on the same key, for example) are re-encoded as JSON strings.
+    """
+
+    for col in df.columns:
+        if df[col].dtype != "object":
+            continue
+        try:
+            pa.array(df[col])
+        except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+            df[col] = df[col].map(lambda v: None if v is None else json.dumps(v, default=str))
+
+
 @register()
 def persist_geoarrow_for_pydeck(
     gdf: Annotated[AnyGeoDataFrame, Field(description="GeoDataframe to persist as GeoArrow-encoded parquet")],
@@ -279,6 +294,7 @@ def persist_geoarrow_for_pydeck(
     _iso_format_timestamp_columns(gdf)
     _downcast_float_columns(gdf)
     _pack_color_columns(gdf)
+    _stringify_mixed_json(gdf)
     buffer = io.BytesIO()
     gdf.to_parquet(buffer, index=False, geometry_encoding="geoarrow")
     return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
