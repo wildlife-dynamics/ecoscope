@@ -67,8 +67,8 @@ def er_events_io():
     return er_events_io
 
 
-@pytest.fixture
-def movebank_relocations():
+@pytest.fixture(scope="session")
+def movebank_gdf():
     df = pd.read_feather("tests/sample_data/vector/movebank_data.feather")
     gdf = gpd.GeoDataFrame(
         df,
@@ -76,15 +76,20 @@ def movebank_relocations():
         crs=4326,
     )
     gdf["timestamp"] = pd.to_datetime(gdf["timestamp"], utc=True)
+    return gdf
+
+
+@pytest.fixture
+def movebank_relocations(movebank_gdf):
     return Relocations.from_gdf(
-        gdf,
+        movebank_gdf,
         groupby_col="individual-local-identifier",
         time_col="timestamp",
         uuid_col="event-id",
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def aoi_gdf():
     AOI_FILE = "tests/sample_data/vector/maec_4zones_UTM36S.gpkg"
     regions_gdf = gpd.GeoDataFrame.from_file(AOI_FILE).to_crs(4326)
@@ -92,12 +97,16 @@ def aoi_gdf():
     return regions_gdf
 
 
-@pytest.fixture
-def sample_relocs():
+@pytest.fixture(scope="session")
+def sample_relocs_gdf():
     gdf = gpd.read_parquet("tests/sample_data/vector/sample_relocs.parquet")
-    gdf = ecoscope.io.utils.clean_time_cols(gdf)
+    return ecoscope.io.utils.clean_time_cols(gdf)
 
-    return ecoscope.Relocations.from_gdf(gdf)
+
+@pytest.fixture
+def sample_relocs(sample_relocs_gdf):
+    # Relocations.from_gdf defaults to copy=True, so the cached session gdf is not mutated.
+    return ecoscope.Relocations.from_gdf(sample_relocs_gdf)
 
 
 @pytest.fixture

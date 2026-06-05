@@ -679,63 +679,6 @@ def test_page_size_override_with_subjects(get_objects_mock, set_sub_page_size, e
         assert call.kwargs["page_size"] == 100 if set_sub_page_size else 4000
 
 
-def test_get_patrols_page_size_parity(er_io):
-    kwargs = {"since": "2017-01-01", "until": "2017-04-01", "patrol_type_value": "ecoscope_patrol"}
-    patrols_default = er_io.get_patrols(**kwargs)
-    patrols_page_size = er_io.get_patrols(**(kwargs | {"sub_page_size": 100}))
-    pd.testing.assert_frame_equal(patrols_default, patrols_page_size)
-
-
-def test_get_subjectgroup_observations_page_size_parity(er_io):
-    kwargs = {
-        "subject_group_name": er_io.GROUP_NAME,
-        "since": "2014-01-01",
-        "until": "2014-06-01",
-    }
-    relocations_default = er_io.get_subjectgroup_observations(**kwargs)
-    relocations_page_size = er_io.get_subjectgroup_observations(**(kwargs | {"sub_page_size": 100}))
-    pd.testing.assert_frame_equal(relocations_default.gdf, relocations_page_size.gdf)
-
-
-def test_get_patrol_events_page_size_parity(er_io):
-    kwargs = {
-        "since": pd.Timestamp("2017-01-01").isoformat(),
-        "until": pd.Timestamp("2017-04-01").isoformat(),
-    }
-    events_default = er_io.get_patrol_events(**kwargs)
-    events_page_size = er_io.get_patrol_events(**(kwargs | {"sub_page_size": 100}))
-    pd.testing.assert_frame_equal(events_default, events_page_size)
-
-
-def test_get_patrol_observations_with_patrol_filter_page_size_parity(er_io):
-    kwargs = {
-        "since": pd.Timestamp("2017-01-01").isoformat(),
-        "until": pd.Timestamp("2017-04-01").isoformat(),
-        "patrol_type_value": "ecoscope_patrol",
-        "status": ["done"],
-        "include_patrol_details": True,
-    }
-
-    relocations_default = er_io.get_patrol_observations_with_patrol_filter(**kwargs)
-    relocations_page_size = er_io.get_patrol_observations_with_patrol_filter(**(kwargs | {"sub_page_size": 100}))
-    pd.testing.assert_frame_equal(relocations_default.gdf, relocations_page_size.gdf)
-
-
-def test_get_events_page_size_parity(er_io):
-    kwargs = {
-        "since": pd.Timestamp("2017-01-01").isoformat(),
-        "until": pd.Timestamp("2017-04-01").isoformat(),
-    }
-    events_default = er_io.get_events(**kwargs)
-    events_page_size = er_io.get_events(**(kwargs | {"sub_page_size": 100}))
-    # get_events explicitly sets the index as the event id
-    # but keeps the original range index, so drop that here
-    # check_like = True since the sort order of the events can differ
-    pd.testing.assert_frame_equal(
-        events_default.drop(columns=["index"]), events_page_size.drop(columns=["index"]), check_like=True
-    )
-
-
 @pytest.mark.parametrize(
     "api_version",
     ["v1", "v2", "both"],

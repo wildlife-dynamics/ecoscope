@@ -38,6 +38,10 @@ def download_file(
     the response header
     """
 
+    if not os.path.isdir(path) and os.path.exists(path) and not overwrite_existing:
+        print(f"{path} exists and overwrite_existing is False. Skipping...")
+        return
+
     s = requests.Session()
     max_retries = Retry(total=retries, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504])
     s.mount("https://", HTTPAdapter(max_retries=max_retries))
@@ -57,9 +61,9 @@ def download_file(
             raise ValueError("URL has no RFC 6266 filename.")
         path = os.path.join(path, filename)  # type: ignore[arg-type]
 
-    if os.path.exists(path) and not overwrite_existing:
-        print(f"{path} exists. Skipping...")
-        return
+        if os.path.exists(path) and not overwrite_existing:
+            print(f"{path} exists and overwrite_existing is False. Skipping...")
+            return
 
     with open(path, "wb") as f:
         content_length = r.headers.get("content-length")

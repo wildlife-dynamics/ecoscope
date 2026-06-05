@@ -95,7 +95,7 @@ def calculate_etd_range(
     max_speed_kmhr: float = 0.0,
     max_speed_percentage: float = 0.9999,
     expansion_factor: float = 1.3,
-    weibull_pdf: Weibull2Parameter = Weibull2Parameter(),
+    weibull_pdf: Weibull2Parameter | None = None,
     grid_threshold: int = 100,
 ) -> raster.RasterData:
     """
@@ -113,6 +113,8 @@ def calculate_etd_range(
     """
 
     trajectory_gdf = trajectory.gdf if isinstance(trajectory, Trajectory) else trajectory
+    if weibull_pdf is None:
+        weibull_pdf = Weibull2Parameter()
     # if two-parameter weibull has default values; run an optimization routine to auto-determine parameters
     if isinstance(weibull_pdf, Weibull2Parameter) and all([weibull_pdf.shape == 1.0, weibull_pdf.scale == 1.0]):
         speed_kmhr = trajectory_gdf.speed_kmhr

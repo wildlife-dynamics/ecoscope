@@ -7,6 +7,7 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+-rc"
     branches:
       - "master"
+  pull_request:
 
 env:
   PYTHON_VERSION: "3.10.12"
@@ -60,6 +61,7 @@ jobs:
     needs:
     - build
     - install
+    - publish-to-prefix
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -101,7 +103,6 @@ jobs:
     - build
     - install
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v6
       - name: Download the built dist
@@ -110,7 +111,13 @@ jobs:
           name: pip-dist
           path: dist/
       - name: Add tag to recipe
-        run: sed -i "s/TAG_VERSION/${GITHUB_REF_NAME#v}/g" publish/recipes/release/ecoscope.yaml
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0.dev0"
+          fi
+          sed -i "s/TAG_VERSION/${VERSION}/g" publish/recipes/release/ecoscope.yaml
       - name: Add dist to recipe
         run: sed -i "s/DIST_NAME/$(find ./dist/*.tar.gz  -printf "%f\n")/g" publish/recipes/release/ecoscope.yaml
       - name: Log the generated recipe
@@ -118,11 +125,35 @@ jobs:
       - name: Create channel
         run: mkdir -p /tmp/ecoscope/release/artifacts
       - name: Build prefix release
-        uses: prefix-dev/rattler-build-action@v0.2.37
+        uses: prefix-dev/rattler-build-action@v0.2.38
         with:
           recipe-path: publish/recipes/release/ecoscope.yaml
           build-args: --output-dir /tmp/ecoscope/release/artifacts --channel https://prefix.dev/ecoscope-workflows --channel conda-forge
-      - run: |
+      - name: Upload built conda artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: prefix-conda
+          path: /tmp/ecoscope/release/artifacts/**/*.conda
+
+  publish-to-prefix:
+    name: Publish prefix package
+    needs:
+    - build-for-prefix
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download built conda artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: prefix-conda
+          path: /tmp/ecoscope/release/artifacts
+      - name: Install rattler-build
+        uses: prefix-dev/rattler-build-action@v0.2.38
+        with:
+          setup-only: true
+      - name: Upload to prefix.dev
+        run: |
           for file in /tmp/ecoscope/release/artifacts/**/*.conda; do
             rattler-build upload prefix -c ecoscope-workflows "$file"
           done

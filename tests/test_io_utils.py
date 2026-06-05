@@ -1,7 +1,8 @@
 import json
 import os
+import zipfile
 from http.client import HTTPMessage
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import fsspec
 import pandas as pd
@@ -9,6 +10,7 @@ import pytest
 from requests.exceptions import RetryError
 
 import ecoscope
+from ecoscope.io import utils
 
 pytestmark = pytest.mark.io
 
@@ -107,3 +109,153 @@ def test_download_file_retry_on_error(mock):
         )
 
     assert mock.call_count == 3
+
+
+def _fake_response(body: bytes, content_disposition: str | None = None) -> MagicMock:
+    r = MagicMock()
+    headers: dict[str, str] = {}
+    if content_disposition is not None:
+        headers["content-disposition"] = content_disposition
+    headers["content-length"] = str(len(body))
+    r.headers = headers
+    r.iter_content.return_value = [body]
+    return r
+
+
+def test__is_gdrive_url_matches() -> None:
+    assert utils.__is_gdrive_url("https://drive.google.com/file/d/abc123/view") is not None
+    assert utils.__is_gdrive_url("https://example.com/foo") is None
+
+
+def test__is_dropbox_url_matches() -> None:
+    assert utils.__is_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz") is not None
+    assert utils.__is_dropbox_url("https://example.com/foo") is None
+
+
+def test__transform_gdrive_url() -> None:
+    out = utils.__transform_gdrive_url("https://drive.google.com/file/d/FILEID/view?usp=drive_link")
+    assert out == "https://drive.google.com/uc?export=download&id=FILEID"
+
+
+def test__transform_dropbox_url() -> None:
+    out = utils.__transform_dropbox_url("https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz&dl=0")
+    assert out.endswith("dl=1")
+
+
+def test_download_file_writes_body(tmp_path) -> None:
+    target = tmp_path / "out.bin"
+    body = b"hello-world"
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(body)
+
+        utils.download_file("https://example.com/x.bin", str(target))
+
+    assert target.read_bytes() == body
+
+
+def test_download_file_gdrive_url_transformed_before_request(tmp_path) -> None:
+    target = tmp_path / "out.bin"
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(b"x")
+
+        utils.download_file("https://drive.google.com/file/d/FILEID/view", str(target))
+
+        called_url = session.get.call_args.args[0]
+        assert called_url == "https://drive.google.com/uc?export=download&id=FILEID"
+
+
+def test_download_file_dropbox_url_transformed_before_request(tmp_path) -> None:
+    target = tmp_path / "out.bin"
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(b"x")
+
+        utils.download_file(
+            "https://www.dropbox.com/scl/fi/abc/name.csv?rlkey=xyz&dl=0",
+            str(target),
+        )
+
+        called_url = session.get.call_args.args[0]
+        assert called_url.endswith("dl=1")
+
+
+def test_download_file_infers_filename_from_response_header(tmp_path) -> None:
+    body = b"csv,body"
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(body, content_disposition='attachment; filename="inferred.csv"')
+
+        utils.download_file("https://example.com/x", str(tmp_path))
+
+    assert (tmp_path / "inferred.csv").read_bytes() == body
+
+
+def test_download_file_raises_when_dir_and_no_filename(tmp_path) -> None:
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(b"x")
+
+        with pytest.raises(ValueError, match="RFC 6266 filename"):
+            utils.download_file("https://example.com/x", str(tmp_path))
+
+
+def test_download_file_skips_existing_when_overwrite_false(tmp_path, capsys) -> None:
+    target = tmp_path / "out.bin"
+    target.write_bytes(b"original")
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(b"replacement")
+
+        utils.download_file("https://example.com/x.bin", str(target), overwrite_existing=False)
+
+        session.get.assert_not_called()
+
+    assert target.read_bytes() == b"original"
+    assert "Skipping" in capsys.readouterr().out
+
+
+def test_download_file_skips_existing_when_dir_and_inferred_filename_exists(tmp_path, capsys) -> None:
+    existing = tmp_path / "inferred.csv"
+    existing.write_bytes(b"original")
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(
+            b"replacement",
+            content_disposition='attachment; filename="inferred.csv"',
+        )
+
+        utils.download_file("https://example.com/x", str(tmp_path), overwrite_existing=False)
+
+        # the HTTP request is required to discover the filename from the response header
+        session.get.assert_called_once()
+
+    assert existing.read_bytes() == b"original"
+    assert "Skipping" in capsys.readouterr().out
+
+
+def test_download_file_unzip_extracts_contents(tmp_path) -> None:
+    zip_target = tmp_path / "bundle.zip"
+    inner_name = "inside.txt"
+    inner_payload = b"hi-from-zip"
+
+    buf_path = tmp_path / "src.zip"
+    with zipfile.ZipFile(buf_path, "w") as zf:
+        zf.writestr(inner_name, inner_payload)
+    zip_bytes = buf_path.read_bytes()
+
+    with patch("ecoscope.io.utils.requests.Session") as MockSession:
+        session = MockSession.return_value
+        session.get.return_value = _fake_response(zip_bytes)
+
+        utils.download_file("https://example.com/bundle.zip", str(zip_target), unzip=True)
+
+    assert (tmp_path / inner_name).read_bytes() == inner_payload
+    assert os.path.exists(zip_target)

@@ -204,9 +204,15 @@ def classify_is_night(
     Returns:
         The input dataframe with a `is_night` column appended.
     """
+    from astropy.utils import iers  # type: ignore[import-untyped]
+
     from ecoscope.analysis.astronomy import is_night
 
-    relocations["is_night"] = is_night(relocations.geometry, relocations.fixtime)
+    # Don't download IERS Earth Orientation tables.
+    # Bundled IERS data is accurate to ~few-ms, well below
+    # the minute-scale precision needed here.
+    with iers.conf.set_temp("auto_download", False):
+        relocations["is_night"] = is_night(relocations.geometry, relocations.fixtime)
 
     return relocations
 

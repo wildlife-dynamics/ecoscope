@@ -437,7 +437,7 @@ class EcoMap(Map):
             # new
             bounds = rio.warp.transform_bounds(src.crs, "EPSG:4326", *src.bounds)
 
-            im: np.typing.ArrayLike
+            im: list | np.ndarray
             if cmap is None:
                 im = [rio.band(src, i + 1) for i in range(src.count)]
             else:

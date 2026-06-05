@@ -1,7 +1,7 @@
 import astropy.units as u  # type: ignore[import-untyped]
 import pytest
 
-from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
+from ecoscope.platform.tasks.transformation._unit import Unit, is_linear_unit_conversion, with_unit
 
 
 def test_apply_unit_conversion():
@@ -31,3 +31,21 @@ def test_apply_unit_no_conversion():
 def test_invalid_conversion():
     with pytest.raises(u.UnitConversionError):
         with_unit(1.0, Unit.METERS_PER_SECOND, Unit.METER)
+
+
+@pytest.mark.parametrize(
+    "original, new, expected",
+    [
+        (Unit.METER, Unit.KILOMETER, True),
+        (Unit.METERS_PER_SECOND, Unit.KILOMETERS_PER_HOUR, True),
+        (Unit.SECOND, Unit.HOUR, True),
+        # Cross-dimension is still "linear" from this helper's POV — astropy raises at conversion time.
+        (Unit.METER, Unit.SECOND, True),
+        # None on either side short-circuits to True (no conversion).
+        (None, Unit.METER, True),
+        (Unit.METER, None, True),
+        (None, None, True),
+    ],
+)
+def test_is_linear_unit_conversion_linear_cases(original, new, expected):
+    assert is_linear_unit_conversion(original, new) is expected
