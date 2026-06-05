@@ -38,7 +38,8 @@ class StraightTrackProperties:
         start_point = self.gdf["geometry"].iloc[0]
         geod = Geod(ellps="WGS84")
         geod_displacement = [geod.inv(start_point.x, start_point.y, geo.x, geo.y)[2] for geo in self.gdf["_geometry"]]
-        return [(x**2) / (1000 * 2) for x in geod_displacement]
+        # meters squared over 1M == km^2
+        return [(x**2) / (1000**2) for x in geod_displacement]
 
     @property
     def timespan_seconds(self):
