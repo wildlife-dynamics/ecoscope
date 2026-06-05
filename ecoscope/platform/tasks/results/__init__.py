@@ -15,7 +15,7 @@ from ._ecoplot import (
     draw_pie_chart,
     draw_time_series_bar_chart,
 )
-from ._map_utils import set_base_maps, set_layer_opacity
+from ._map_utils import persist_geoarrow_for_pydeck, set_base_maps, set_layer_opacity
 from ._output_files import OutputFiles, gather_output_files
 from ._pydeck import (
     create_geojson_layer,
@@ -29,6 +29,7 @@ from ._pydeck import (
     draw_map,
     merge_tile_layers,
     rewrite_file_urls_for_screenshots,
+    shift_radius_values,
     view_state_from_geodataframes,
     view_state_from_layers,
 )
@@ -78,9 +79,11 @@ __all__ = [
     "create_scatterplot_layer",
     "create_text_layer_pydeck",
     "create_tiled_bitmap_layer",
+    "shift_radius_values",
     "draw_map",
     "merge_tile_layers",
     "rewrite_file_urls_for_screenshots",
     "view_state_from_geodataframes",
     "view_state_from_layers",
+    "persist_geoarrow_for_pydeck",
 ]
