@@ -49,6 +49,12 @@ def all_keyed_iterables_are_skips(*args: tuple[Any, ...]) -> bool:
 
 
 @register()
+def any_keyed_iterables_are_skips(*args: tuple[Any, ...]) -> bool:
+    """Check if any items in the keyed iterable are SKIP_SENTINEL."""
+    return len([i for i in args for elem in i if elem[1] is SKIP_SENTINEL]) > 0
+
+
+@register()
 def any_dependency_is_none(*args: tuple[Any, ...]) -> bool:
     """Check if any arg is None."""
     return any(item is None for item in args)

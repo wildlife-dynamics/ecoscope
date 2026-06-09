@@ -5,6 +5,7 @@ from ._skip import (
     any_dependency_is_none,
     any_dependency_skipped,
     any_is_empty_df,
+    any_keyed_iterables_are_skips,
     never,
     skip_gdf_fallback_to_none,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "any_dependency_is_none",
     "any_dependency_skipped",
     "any_is_empty_df",
+    "any_keyed_iterables_are_skips",
     "never",
     "skip_gdf_fallback_to_none",
 ]
