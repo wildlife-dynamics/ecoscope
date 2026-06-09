@@ -631,7 +631,7 @@ class EarthRangerIO(ERClient):
                 if prop_name == choice_field:
                     for definition in prop.get("anyOf", {}):
                         try:
-                            schema = self._get(definition.get("$ref"))
+                            schema = self._get(definition.get("$ref"), params={"s_format": "oneOf"})
                             choices |= {choice.get("const"): choice.get("title") for choice in schema.get("oneOf")}
                         except:
                             continue
