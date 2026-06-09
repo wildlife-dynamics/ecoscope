@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 import pandas as pd
 import pydeck as pdk  # type: ignore[import-untyped, import-not-found]
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -34,12 +35,12 @@ class DeckJsonSpec(BaseModel):
 PYDECK_CUSTOM_LIBRARIES = [
     {
         "libraryName": "EcoscopeDeckglExtensions",
-        "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.0.8/dist/bundle.js",
+        "resourceUri": "https://cdn.jsdelivr.net/npm/@ecoscope/ecoscope-deckgl-extensions@0.1.0/dist/bundle.js",
     }
 ]
 
 # Marker for fields that pydeck must treat as literal strings rather than data
-# accessor expressions. _model_dump_with_pydeck_literals looks for this in the
+# accessor expressions. _model_dump_for_pydeck looks for this in the
 # Annotated metadata and wraps the dumped value in pdk.types.String.
 PydeckAnnotation = "pydeck_string"
 PydeckString = Annotated[str, PydeckAnnotation]
@@ -424,15 +425,40 @@ def _color_tuple_to_css(color: Tuple[int, int, int, int]) -> str:
     return f"rgba({color[0]}, {color[1]}, {color[2]}, {color[3] / 255})"
 
 
-def _model_dump_with_pydeck_literals(model: BaseModel) -> dict:
+def _is_hex_color(value: object) -> bool:
+    """True for strings shaped like ``#RGB``/``#RGBA``/``#RRGGBB``/``#RRGGBBAA``."""
+    if not isinstance(value, str) or not value.startswith("#"):
+        return False
+    hex_part = value[1:]
+    return len(hex_part) in (3, 4, 6, 8) and all(c in "0123456789abcdefABCDEF" for c in hex_part)
+
+
+def _is_pydeck_literal(field_info: FieldInfo) -> bool:
+    if PydeckAnnotation in field_info.metadata:
+        return True
+    return False
+
+
+def _model_dump_for_pydeck(model: BaseModel, layer_type: str | None = None) -> dict:
     """
-    Dump a model and wrap fields tagged with PydeckAnnotation in pdk.types.String,
-    so pydeck treats them as literal values rather than data-accessor expressions.
+    Dump a layer style for pydeck consumption, wrapping fields that must be
+    treated as literal strings (rather than ``@@=`` accessor expressions) in
+    ``pdk.types.String``.
+
+    If layer_type matches a GeoArrow layer, we always treat strings as literal
+    and drop the geometry accessor.
     """
+    is_geoarrow = layer_type is not None and layer_type.startswith("GeoArrow")
     dumped = model.model_dump(exclude_none=True)
     for field, field_info in model.__class__.model_fields.items():
-        if PydeckAnnotation in field_info.metadata and dumped.get(field):
-            dumped[field] = pdk.types.String(dumped[field])
+        value = dumped.get(field)
+        if not value:
+            continue
+        if _is_pydeck_literal(field_info) or _is_hex_color(value) or (is_geoarrow and isinstance(value, str)):
+            dumped[field] = pdk.types.String(value)
+    if is_geoarrow:
+        for accessor in ("get_position", "get_path", "get_polygon"):
+            dumped.pop(accessor, None)
     return dumped
 
 
@@ -652,24 +678,215 @@ def create_scatterplot_layer(
     Creates a scatterplot layer definition based on the provided configuration.
     """
     layer_style = layer_style if layer_style else ScatterplotLayerStyle()
-
-    if isinstance(layer_style.get_radius, str) and geodataframe is not None:
-        radius_series = geodataframe[layer_style.get_radius]
-
-        # Lift all values up such that the min == 1
-        if radius_series.min() < 0:
-            radius_series = radius_series + (0 - radius_series.min()) + 1
-
-        # set to 0, and lift everything else by 1 to distinguish NaN's and minimums
-        if radius_series.hasnans:
-            radius_series = radius_series + 1
-            radius_series = radius_series.fillna(1)
-
-        layer_style.get_radius = radius_series.values  # type: ignore[assignment]
-
     return PydeckLayerDefinition(
         layer_type="ScatterplotLayer",
         layer_style=layer_style,
+        legend=legend,
+        geodataframe=geodataframe,
+        data_url=data_url,
+        zoom=zoom,
+        tooltip_columns=tooltip_columns,
+    )
+
+
+@register()
+def shift_radius_values(
+    gdf: Annotated[
+        AnyGeoDataFrame,
+        Field(description="Source geodataframe.", exclude=True),
+    ],
+    radius_column: Annotated[
+        str,
+        Field(
+            description=(
+                "Column name whose values will be lifted/imputed for use as a " "scatterplot radius accessor."
+            ),
+        ),
+    ],
+) -> Annotated[AnyGeoDataFrame, Field()]:
+    """
+    Shifts the given radius column so that values are >= 1 and NaNs are replaced with 1.
+    Intended for use when displaying the given gdf as a scatterplot layer, where
+    the numeric values in radius_column determine the size of the scatterplot points.
+    """
+    series = gdf[radius_column]
+    # Lift all values up such that the min == 1
+    if series.min() < 0:
+        series = series + (0 - series.min()) + 1
+    # set nans to 1, and lift everything else by 1 to distinguish NaN's and minimums
+    if series.hasnans:
+        series = series + 1
+        series = series.fillna(1)
+    gdf[radius_column] = series
+    return gdf
+
+
+@register()
+def create_geoarrow_path_layer(
+    data_url: Annotated[
+        str,
+        Field(description="URL to a GeoParquet file with linestring/multilinestring geometry."),
+    ],
+    geodataframe: Annotated[
+        AnyGeoDataFrame | SkipJsonSchema[None],
+        Field(
+            description=(
+                "Optional source geodataframe used for legend lookups and view-state "
+                "computation; not used for rendering (data flows from data_url)."
+            ),
+            exclude=True,
+        ),
+    ] = None,
+    layer_style: Annotated[
+        PathLayerStyle | SkipJsonSchema[None],
+        AdvancedField(default=PathLayerStyle(), description="Style arguments for the layer."),
+    ] = None,
+    legend: Annotated[
+        LegendDefinition | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="If present, includes this layer in the map legend",
+        ),
+    ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
+) -> Annotated[PydeckLayerDefinition, Field()]:
+    """Creates a GeoArrow-backed path layer definition that renders a GeoParquet file."""
+    return PydeckLayerDefinition(
+        layer_type="GeoArrowPathLayer",
+        layer_style=layer_style or PathLayerStyle(),
+        legend=legend,
+        geodataframe=geodataframe,
+        data_url=data_url,
+        zoom=zoom,
+        tooltip_columns=tooltip_columns,
+    )
+
+
+@register()
+def create_geoarrow_scatterplot_layer(
+    data_url: Annotated[
+        str,
+        Field(description="URL to a GeoParquet file with point/multipoint geometry."),
+    ],
+    geodataframe: Annotated[
+        AnyGeoDataFrame | SkipJsonSchema[None],
+        Field(
+            description=(
+                "Optional source geodataframe used for legend lookups and view-state "
+                "computation; not used for rendering (data flows from data_url). "
+            ),
+            exclude=True,
+        ),
+    ] = None,
+    layer_style: Annotated[
+        ScatterplotLayerStyle | SkipJsonSchema[None],
+        AdvancedField(
+            default=ScatterplotLayerStyle(),
+            description="Style arguments for the layer.",
+        ),
+    ] = None,
+    legend: Annotated[
+        LegendDefinition | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="If present, includes this layer in the map legend",
+        ),
+    ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
+) -> Annotated[PydeckLayerDefinition, Field()]:
+    """Creates a GeoArrow-backed scatterplot layer definition that renders a GeoParquet file."""
+    return PydeckLayerDefinition(
+        layer_type="GeoArrowScatterplotLayer",
+        layer_style=layer_style or ScatterplotLayerStyle(),
+        legend=legend,
+        geodataframe=geodataframe,
+        data_url=data_url,
+        zoom=zoom,
+        tooltip_columns=tooltip_columns,
+    )
+
+
+@register()
+def create_geoarrow_polygon_layer(
+    data_url: Annotated[
+        str,
+        Field(description="URL to a GeoParquet file with polygon/multipolygon geometry."),
+    ],
+    geodataframe: Annotated[
+        AnyGeoDataFrame | SkipJsonSchema[None],
+        Field(
+            description=(
+                "Optional source geodataframe used for legend lookups and view-state "
+                "computation; not used for rendering (data flows from data_url)."
+            ),
+            exclude=True,
+        ),
+    ] = None,
+    layer_style: Annotated[
+        PolygonLayerStyle | SkipJsonSchema[None],
+        AdvancedField(default=PolygonLayerStyle(), description="Style arguments for the layer."),
+    ] = None,
+    legend: Annotated[
+        LegendDefinition | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="If present, includes this layer in the map legend",
+        ),
+    ] = None,
+    zoom: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="If true, the map will be zoomed to the bounds of this layer",
+            exclude=True,
+        ),
+    ] = False,
+    tooltip_columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description=(
+                "Restrict the on-hover tooltip to these column names. " "None (default) shows all properties."
+            ),
+        ),
+    ] = None,
+) -> Annotated[PydeckLayerDefinition, Field()]:
+    """Creates a GeoArrow-backed polygon layer definition that renders a GeoParquet file."""
+    return PydeckLayerDefinition(
+        layer_type="GeoArrowPolygonLayer",
+        layer_style=layer_style or PolygonLayerStyle(),
         legend=legend,
         geodataframe=geodataframe,
         data_url=data_url,
@@ -936,7 +1153,7 @@ def draw_map(
 
     for tile_layer in tile_layers:
         if isinstance(tile_layer, BitmapLayerDefinition):
-            dump = _model_dump_with_pydeck_literals(tile_layer)
+            dump = _model_dump_for_pydeck(tile_layer)
             dump.pop("legend", None)
             layer = pdk.Layer("BitmapLayer", **dump)
             map_layers.append(layer)
@@ -981,11 +1198,12 @@ def draw_map(
             data = gdf
 
         layer_id = f"{layer_def.layer_type}-{layer_index}"
+        style_dump = _model_dump_for_pydeck(layer_def.layer_style, layer_def.layer_type)
         layer = pdk.Layer(
             type=layer_def.layer_type,
             id=layer_id,
             data=data,
-            **_model_dump_with_pydeck_literals(layer_def.layer_style),
+            **style_dump,
         )
         map_layers.append(layer)
 
