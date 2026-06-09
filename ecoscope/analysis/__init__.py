@@ -1,5 +1,8 @@
 from ecoscope.analysis.trend_analysis import (
+    GAMMRegressor,
     GAMRegressor,
+    GLMRegressor,
+    LinearRegressionRegressor,
     get_forest_cover_trends,
     optimize_gam,
 )
