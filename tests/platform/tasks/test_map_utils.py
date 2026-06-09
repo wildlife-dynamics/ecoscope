@@ -165,6 +165,55 @@ def test_persist_geoarrow_for_pydeck_preserves_uniform_json(tmp_path) -> None:
     assert pa.types.is_struct(schema.field("payload").type)
 
 
+def test_persist_geoarrow_for_pydeck_stringifies_empty_dicts(tmp_path) -> None:
+    # Empty dicts infer as struct<> which pyarrow can construct but parquet
+    # can't write. They should be JSON-encoded like other unrepresentable cols.
+    gdf = gpd.GeoDataFrame(
+        {
+            "meta": [{}, {}, {}],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        crs="EPSG:4326",
+    )
+    dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="empty_dicts")
+    schema = pq.read_schema(dst)
+    assert schema.field("meta").type == pa.string()
+    gdf_read = gpd.read_parquet(dst)
+    assert gdf_read["meta"].tolist() == ["{}", "{}", "{}"]
+
+
+def test_persist_geoarrow_for_pydeck_stringifies_none_and_empty_dicts(tmp_path) -> None:
+    gdf = gpd.GeoDataFrame(
+        {
+            "meta": [None, {}, None],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        crs="EPSG:4326",
+    )
+    dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="none_empty_dicts")
+    schema = pq.read_schema(dst)
+    assert schema.field("meta").type == pa.string()
+    gdf_read = gpd.read_parquet(dst)
+    assert gdf_read["meta"].tolist() == [None, "{}", None]
+
+
+def test_persist_geoarrow_for_pydeck_stringifies_nested_empty_struct(tmp_path) -> None:
+    # list<struct<>> and struct<x: struct<>> both fail parquet write — the
+    # walker should catch the nested empty struct in either shape.
+    gdf = gpd.GeoDataFrame(
+        {
+            "list_of_empty": [[{}], [{}, {}], []],
+            "nested": [{"inner": {}}, {"inner": {}}, {"inner": {}}],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        crs="EPSG:4326",
+    )
+    dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="nested_empty")
+    schema = pq.read_schema(dst)
+    assert schema.field("list_of_empty").type == pa.string()
+    assert schema.field("nested").type == pa.string()
+
+
 def test_persist_geoarrow_for_pydeck_skips_non_color_object_columns(tmp_path) -> None:
     # Ragged tuples must not be coerced to a fixed-size color list.
     gdf = gpd.GeoDataFrame(

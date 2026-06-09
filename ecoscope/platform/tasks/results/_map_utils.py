@@ -245,17 +245,39 @@ def _pack_color_columns(df):
         df[col] = pd.arrays.ArrowExtensionArray(fsl)
 
 
+def _needs_stringify(series: pd.Series) -> bool:
+    """True if pyarrow can't faithfully represent this column for parquet —
+    either because type inference fails outright (e.g. int/str mixing under a
+    shared key) or because the inferred type contains a struct<> with no fields.
+    """
+
+    def _type_has_empty_struct(t: pa.DataType) -> bool:
+        if pa.types.is_struct(t):
+            if t.num_fields == 0:
+                return True
+            return any(_type_has_empty_struct(t.field(i).type) for i in range(t.num_fields))
+        if pa.types.is_list(t) or pa.types.is_large_list(t) or pa.types.is_fixed_size_list(t):
+            return _type_has_empty_struct(t.value_type)
+        if pa.types.is_map(t):
+            return _type_has_empty_struct(t.item_type)
+        return False
+
+    try:
+        arr = pa.array(series)
+    except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+        return True
+    return _type_has_empty_struct(arr.type)
+
+
 def _stringify_mixed_json(df):
-    """Object columns whose values pyarrow can't infer a unified type for
-    (int/str mixing on the same key, for example) are re-encoded as JSON strings.
+    """Object columns pyarrow can't represent for parquet are
+    re-encoded as JSON strings.
     """
 
     for col in df.columns:
         if df[col].dtype != "object":
             continue
-        try:
-            pa.array(df[col])
-        except (pa.ArrowInvalid, pa.ArrowTypeError, pa.ArrowNotImplementedError):
+        if _needs_stringify(df[col]):
             df[col] = df[col].map(lambda v: None if v is None else json.dumps(v, default=str))
 
 
