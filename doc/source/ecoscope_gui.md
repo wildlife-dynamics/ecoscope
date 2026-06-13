@@ -16,7 +16,7 @@ We will be replacing it with 2 new and improved ways of exporting your EarthRang
 
 **RECOMMENDED: Specialized Download workflows on Ecoscope Web**
 
-<u>Available by July 6th 2026 to _all_ users on Ecoscope Web</u> (if you don’t have an account, you can sign up [here](https://docs.google.com/forms/d/e/1FAIpQLSep4xDWIOWx_IXoK4wDaQJyPHGO_vNW5bjlh1f5DEo8S6QjNw/viewform)), 
+<u>Available by June 29 2026 to _all_ users on Ecoscope Web</u> (if you don’t have an account, you can sign up [here](https://docs.google.com/forms/d/e/1FAIpQLSep4xDWIOWx_IXoK4wDaQJyPHGO_vNW5bjlh1f5DEo8S6QjNw/viewform)), 
 these workflows will allow you to export events, observations and patrols data on the cloud in a secure, and performant
 manner.
 
