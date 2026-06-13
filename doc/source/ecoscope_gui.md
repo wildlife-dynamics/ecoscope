@@ -10,19 +10,35 @@ Ecoscope Downloader
 
 **Ecoscope Downloader will no longer be available to download after June 30, 2026.**
 
-Ecoscope Downloader is being replaced by Ecoscope Desktop, a new application rebuilt from the ground up to be faster,
-more reliable, and easier to improve. Windows, macOS, and Linux will continue to be supported.
+Ecoscope Downloader was built on an old and outdated code base with limited customizability that was showing its age.
 
-After June 30, 2026, the Ecoscope Downloader links on this page will be replaced with links to download Ecoscope
-Desktop. At that time, we recommend switching to Ecoscope Desktop.
+We will be replacing it with 2 new and improved ways of exporting your EarthRanger data:
 
-**Why we are making this change**
+**RECOMMENDED: Specialized Download workflows on Ecoscope Web**
 
-Ecoscope Desktop will provide a more polished and user-friendly experience while preserving all existing Downloader
-functionality for exporting your EarthRanger data. Ecoscope Desktop will also allow us to update workflow templates
-separately from the application itself, so we can deliver workflow bug fixes and improvements to you more quickly. You
-will also be able to run other Ecoscope workflows locally on your own computer, giving you more ways to analyze and work
-with your data.
+<u>Available by June 29 2026 to _all_ users on Ecoscope Web</u> (if you don’t have an account, you can sign up [here](https://docs.google.com/forms/d/e/1FAIpQLSep4xDWIOWx_IXoK4wDaQJyPHGO_vNW5bjlh1f5DEo8S6QjNw/viewform)), 
+these workflows will allow you to export events, observations and patrols data on the cloud in a secure, and performant
+manner.
+
+**ALTERNATIVE: Download workflows on Ecoscope Desktop**
+
+Ecoscope Desktop is a new desktop application rebuilt from the ground up to be faster, more reliable, and easier to improve. 
+Windows, macOS, and Linux will continue to be supported.
+
+It provides the same familiar and user-friendly experience as Ecoscope Web while preserving all existing Downloader functionality
+for exporting your EarthRanger data. Ecoscope Desktop will also allow us to update workflow templates separately from the application
+itself, so we can deliver workflow bug fixes and improvements to you more quickly. You will also be able to run other Ecoscope 
+workflows locally on your own computer, giving you more ways to analyze and work with your data.
+
+<u>Available by June 30th, the same specialized Download workflows will be available on Ecoscope Desktop</u> so you can run workflows 
+to export your data on your local machine.
+
+**We strongly recommend that you opt to use Ecoscope Web instead of Ecoscope Desktop. Exporting data on the Web is more secure, 
+more performant, and is not limited to the resources of your local machine or the speed of your network connection. 
+It also saves you the effort of installing the desktop application on your machine.**
+
+**If you are a current Ecoscope Downloader user, we strongly recommend migrating to using Ecoscope Web or Ecoscope Desktop after
+the dates noted above, keeping in mind our recommendation to prefer using Ecoscope Web.**
 
 :::
 
@@ -59,10 +75,6 @@ the [Downloads](#Downloads) section.
 
 ## Downloads
 
-**We are actively working on open-sourcing the Ecoscope Downloader code, but until then downloads are hosted on the
-EarthRanger team's Google Drive (links below).** Once the code has been open-sourced, releases will be provided via
-GitHub. More details will be provided on this page when that happens.
-
 :::{note}
 We do not collect any usage or other data about your use of the software. In addition, to ensure the safety of your
 EarthRanger account, your login credentials are never saved to disk in plaintext. Instead, we will ask you to re-enter
@@ -71,7 +83,7 @@ to confirm your identity every time you open the software.
 :::
 
 :::{tip}
-For security-conscious users, as long as we host the files on Google Drive, we will provide the SHA-256 download
+For security-conscious users, we have provided the SHA-256 download
 checksums below, so you can verify the integrity of the files you download.
 :::
 
