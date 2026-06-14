@@ -59,7 +59,9 @@ def _patrol_feature(leader_name, leader_uuid):
     return {
         "geometry": shapely.geometry.MultiLineString([line]),
         "uuid": "patrol-1",
-        "id": "leg-1",
+        "id": "MTri_0001",
+        "patrol_leg_uuid": "leg-1",
+        "patrol_leg_day_uuid": "legday-1",
         "patrol_mandate": "Anti-Poaching",
         "patrol_transport": "Foot",
         "patrol_leader_name": leader_name,
@@ -86,6 +88,56 @@ def test_process_patrols_gdf_collapses_member_roster():
     assert set(leaders) == {"Alice", "Bob"}
     assert set(out["patrol_leader_uuid"].iloc[0]) == {"u-a", "u-b"}
     # track attributes survive the collapse
-    assert (out["groupby_col"] == "leg-1").all()
+    assert (out["patrol_id"] == "patrol-1").all()
+    # the SMART patrol serial is persisted under the ER-aligned column name
+    assert (out["patrol_serial_number"] == "MTri_0001").all()
     assert (out["patrol_mandate"] == "Anti-Poaching").all()
     assert out["fixtime"].nunique() == 3
+
+
+def _feature(patrol_uuid, serial, leg_day_uuid, leader_name, leader_uuid, base_time):
+    # MultiLineString Z vertices are (lon, lat, timestamp_ms); offset the track per leg-day
+    line = shapely.geometry.LineString(
+        [
+            (34.000, -1.000, base_time),
+            (34.001, -1.001, base_time + 60_000),
+            (34.002, -1.002, base_time + 120_000),
+        ]
+    )
+    return {
+        "geometry": shapely.geometry.MultiLineString([line]),
+        "uuid": patrol_uuid,
+        "id": serial,
+        "patrol_leg_uuid": f"{leg_day_uuid}-leg",
+        "patrol_leg_day_uuid": leg_day_uuid,
+        "patrol_mandate": "Anti-Poaching",
+        "patrol_transport": "Foot",
+        "patrol_leader_name": leader_name,
+        "patrol_leader_uuid": leader_uuid,
+    }
+
+
+def test_one_trajectory_per_patrol_across_leg_days():
+    from ecoscope.relocations import Relocations
+
+    # Patrol A: 2 leg-days, each carried by 2 members (4 features); Patrol B: 1 leg-day, 1 member.
+    features = [
+        _feature("patrol-A", "MTri_A", "A-day1", "Alice", "u-a", 1_700_000_000_000),
+        _feature("patrol-A", "MTri_A", "A-day1", "Bob", "u-b", 1_700_000_000_000),
+        _feature("patrol-A", "MTri_A", "A-day2", "Alice", "u-a", 1_700_100_000_000),
+        _feature("patrol-A", "MTri_A", "A-day2", "Bob", "u-b", 1_700_100_000_000),
+        _feature("patrol-B", "MTri_B", "B-day1", "Carol", "u-c", 1_700_200_000_000),
+    ]
+    df = gpd.GeoDataFrame(features, crs="EPSG:4326")
+    smart = SmartIO.__new__(SmartIO)
+
+    out = smart.process_patrols_gdf(df)
+
+    # members collapsed per leg-day: A=2 leg-days x 3 fixes, B=1 leg-day x 3 fixes => 9 rows (not 15)
+    assert len(out) == 9
+
+    relocs = Relocations.from_gdf(out, groupby_col="patrol_id", uuid_col="patrol_id", time_col="fixtime")
+    # exactly one trajectory group per patrol; A's two leg-days (6 fixes) form a single group
+    assert relocs.gdf["groupby_col"].nunique() == 2
+    assert (relocs.gdf["groupby_col"] == "patrol-A").sum() == 6
+    assert (relocs.gdf["groupby_col"] == "patrol-B").sum() == 3

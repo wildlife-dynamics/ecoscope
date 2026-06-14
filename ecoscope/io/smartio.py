@@ -144,20 +144,27 @@ class SmartIO:
     @staticmethod
     def _collapse_patrol_members(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
-        SMART returns one feature per patrol member, each carrying the *full* patrol
+        SMART returns one feature per patrol member, each carrying the *full* leg-day
         track. Expanding every feature's coordinates therefore replicates each physical
         observation once per team member, inflating distance/duration totals by the team
         size. Collapse those duplicate observations back to a single row per physical fix,
         aggregating the team roster into list-valued leader columns so all members are
         preserved while the track is counted once.
+
+        De-duplication is keyed at the leg-day level (the unit at which SMART repeats the
+        track per member), not the patrol level, so that genuinely distinct fixes from
+        concurrent legs of the same patrol are not merged. Trajectories are later grouped
+        per patrol (``patrol_id``).
         """
         leader_cols = [c for c in ("patrol_leader_name", "patrol_leader_uuid") if c in gdf.columns]
         if not leader_cols or gdf.empty:
             return gdf
 
-        # A physical fix is uniquely identified by its patrol leg (groupby_col) and time;
-        # mandate/transport are included so genuinely distinct (non-roster) rows are kept.
-        key = [c for c in ("groupby_col", "fixtime", "patrol_mandate", "patrol_transport") if c in gdf.columns]
+        # Members of the same leg-day carry byte-identical tracks, so a physical fix is
+        # uniquely identified by its leg-day and time. Fall back to the patrol when leg-day
+        # ids are unavailable (e.g. legacy payloads).
+        fix_col = "patrol_leg_day_uuid" if "patrol_leg_day_uuid" in gdf.columns else "patrol_id"
+        key = [c for c in (fix_col, "fixtime") if c in gdf.columns]
         df = pd.DataFrame(gdf.drop(columns="geometry"))
         agg: dict = {c: "first" for c in df.columns if c not in key + leader_cols}
         for lc in leader_cols:
@@ -218,7 +225,7 @@ class SmartIO:
                 "uuid": "patrol_id",
                 "patrol_leg_day_start": "patrol_start_time",
                 "patrol_leg_day_end": "patrol_end_time",
-                "id": "groupby_col",
+                "id": "patrol_serial_number",
             }
         )
         result_df = self._collapse_patrol_members(result_df)
@@ -257,7 +264,7 @@ class SmartIO:
 
             patrols_relocs = Relocations.from_gdf(
                 patrols_df,
-                groupby_col="groupby_col",
+                groupby_col="patrol_id",
                 uuid_col="patrol_id",
                 time_col="fixtime",
             )
