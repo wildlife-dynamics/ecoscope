@@ -141,41 +141,36 @@ class SmartIO:
 
         return longitudes, latitudes, timestamps
 
-    @staticmethod
-    def _collapse_patrol_members(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def _collapse_patrol_members(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         SMART returns one feature per patrol member, each carrying the *full* leg-day
-        track. Expanding every feature's coordinates therefore replicates each physical
-        observation once per team member, inflating distance/duration totals by the team
-        size. Collapse those duplicate observations back to a single row per physical fix,
-        aggregating the team roster into list-valued leader columns so all members are
-        preserved while the track is counted once.
+        track. De-duplicate those features to a single feature per leg-day *before* the
+        tracks are expanded into per-vertex rows; otherwise every physical fix would be
+        replicated once per team member and inflate distance/duration totals by the team
+        size. The full team roster is folded into list-valued leader columns so all
+        members are preserved while the track is counted once.
 
         De-duplication is keyed at the leg-day level (the unit at which SMART repeats the
-        track per member), not the patrol level, so that genuinely distinct fixes from
-        concurrent legs of the same patrol are not merged. Trajectories are later grouped
-        per patrol (``patrol_id``).
+        track per member), not the patrol level, so that genuinely distinct legs of the
+        same patrol are not merged. Trajectories are later grouped per patrol
+        (``patrol_id``). Collapsing pre-expansion avoids creating the per-member
+        duplicate vertices at all.
         """
         leader_cols = [c for c in ("patrol_leader_name", "patrol_leader_uuid") if c in gdf.columns]
-        if not leader_cols or gdf.empty:
+        if gdf.empty or not leader_cols:
             return gdf
 
-        # Members of the same leg-day carry byte-identical tracks, so a physical fix is
-        # uniquely identified by its leg-day and time. Fall back to the patrol when leg-day
-        # ids are unavailable (e.g. legacy payloads).
-        fix_col = "patrol_leg_day_uuid" if "patrol_leg_day_uuid" in gdf.columns else "patrol_id"
-        key = [c for c in (fix_col, "fixtime") if c in gdf.columns]
-        df = pd.DataFrame(gdf.drop(columns="geometry"))
-        agg: dict = {c: "first" for c in df.columns if c not in key + leader_cols}
-        for lc in leader_cols:
-            agg[lc] = lambda s: list(pd.unique(s.dropna()))
+        # Members of the same leg-day carry byte-identical tracks. Fall back to the patrol
+        # uuid when leg-day ids are unavailable (e.g. legacy payloads).
+        key = "patrol_leg_day_uuid" if "patrol_leg_day_uuid" in gdf.columns else "uuid"
+        if key not in gdf.columns:
+            return gdf
 
-        collapsed = df.groupby(key, dropna=False, sort=False).agg(agg).reset_index()
-        return gpd.GeoDataFrame(
-            collapsed,
-            geometry=gpd.points_from_xy(x=collapsed["longitude"], y=collapsed["latitude"]),
-            crs=gdf.crs,
-        )
+        rosters = gdf.groupby(key, dropna=False, sort=False)[leader_cols].agg(lambda s: list(pd.unique(s.dropna())))
+        collapsed = gdf.drop_duplicates(subset=key, keep="first").copy()
+        for lc in leader_cols:
+            collapsed[lc] = collapsed[key].map(rosters[lc])
+        return collapsed.reset_index(drop=True)
 
     def process_patrols_gdf(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
@@ -207,7 +202,9 @@ class SmartIO:
 
             static_data = {col: row[col] for col in df.columns}
             for col, value in static_data.items():
-                coords_data[col] = value
+                # leader columns are list-valued (a folded roster); broadcast the same
+                # list onto every vertex row rather than letting pandas length-match it.
+                coords_data[col] = [value] * len(coords_data) if isinstance(value, list) else value
 
             all_coords.append(coords_data)
 
@@ -228,7 +225,6 @@ class SmartIO:
                 "id": "patrol_serial_number",
             }
         )
-        result_df = self._collapse_patrol_members(result_df)
         result_df["patrol_type__display"] = result_df["patrol_mandate"]
 
         return result_df
@@ -257,6 +253,8 @@ class SmartIO:
         )
 
         try:
+            # collapse the per-member duplicate features before expanding their tracks
+            patrols = self._collapse_patrol_members(patrols)
             patrols_df = self.process_patrols_gdf(patrols)
 
             if patrols_df.empty:

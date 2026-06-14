@@ -69,24 +69,40 @@ def _patrol_feature(leader_name, leader_uuid):
     }
 
 
-def test_process_patrols_gdf_collapses_member_roster():
-    # SMART returns the same track once per team member; expanding every feature would
-    # otherwise multiply each fix by the team size.
+def test_collapse_patrol_members_folds_roster_per_leg_day():
+    # SMART returns the same leg-day track once per team member; the duplicate features
+    # collapse to one per leg-day before expansion, folding the roster into lists.
     df = gpd.GeoDataFrame(
         [_patrol_feature("Alice", "u-a"), _patrol_feature("Bob", "u-b")],
         crs="EPSG:4326",
     )
     smart = SmartIO.__new__(SmartIO)  # bypass network login in __init__
 
-    out = smart.process_patrols_gdf(df)
+    out = smart._collapse_patrol_members(df)
 
-    # one row per physical fix (3 vertices), not 3 vertices x 2 members
-    assert len(out) == 3
-    # the full roster is preserved as a list on every fix
+    # two member features for one leg-day collapse to a single feature, track untouched
+    assert len(out) == 1
+    assert isinstance(out.geometry.iloc[0], shapely.geometry.MultiLineString)
+    # the full roster is preserved as a list
     leaders = out["patrol_leader_name"].iloc[0]
     assert isinstance(leaders, list)
     assert set(leaders) == {"Alice", "Bob"}
     assert set(out["patrol_leader_uuid"].iloc[0]) == {"u-a", "u-b"}
+
+
+def test_process_patrols_gdf_expands_collapsed_feature():
+    # After collapsing, expansion yields one row per physical fix with the roster intact.
+    df = gpd.GeoDataFrame(
+        [_patrol_feature("Alice", "u-a"), _patrol_feature("Bob", "u-b")],
+        crs="EPSG:4326",
+    )
+    smart = SmartIO.__new__(SmartIO)
+
+    out = smart.process_patrols_gdf(smart._collapse_patrol_members(df))
+
+    # one row per physical fix (3 vertices), not 3 vertices x 2 members
+    assert len(out) == 3
+    assert set(out["patrol_leader_name"].iloc[0]) == {"Alice", "Bob"}
     # track attributes survive the collapse
     assert (out["patrol_id"] == "patrol-1").all()
     # the SMART patrol serial is persisted under the ER-aligned column name
@@ -131,7 +147,7 @@ def test_one_trajectory_per_patrol_across_leg_days():
     df = gpd.GeoDataFrame(features, crs="EPSG:4326")
     smart = SmartIO.__new__(SmartIO)
 
-    out = smart.process_patrols_gdf(df)
+    out = smart.process_patrols_gdf(smart._collapse_patrol_members(df))
 
     # members collapsed per leg-day: A=2 leg-days x 3 fixes, B=1 leg-day x 3 fixes => 9 rows (not 15)
     assert len(out) == 9
