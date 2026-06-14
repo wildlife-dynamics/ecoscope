@@ -1,6 +1,9 @@
+import geopandas as gpd
 import pandas as pd
 import pytest
+import shapely
 
+from ecoscope.io.smartio import SmartIO
 from ecoscope.io.utils import TIME_COLS
 
 pytestmark = pytest.mark.smart_io
@@ -42,3 +45,47 @@ def test_smart_get_patrol_observations(smart_io):
     assert "groupby_col" in result.gdf
     assert "fixtime" in result.gdf
     check_time_is_parsed(result.gdf)
+
+
+def _patrol_feature(leader_name, leader_uuid):
+    # MultiLineString Z vertices are (lon, lat, timestamp_ms)
+    line = shapely.geometry.LineString(
+        [
+            (34.000, -1.000, 1_700_000_000_000),
+            (34.001, -1.001, 1_700_000_060_000),
+            (34.002, -1.002, 1_700_000_120_000),
+        ]
+    )
+    return {
+        "geometry": shapely.geometry.MultiLineString([line]),
+        "uuid": "patrol-1",
+        "id": "leg-1",
+        "patrol_mandate": "Anti-Poaching",
+        "patrol_transport": "Foot",
+        "patrol_leader_name": leader_name,
+        "patrol_leader_uuid": leader_uuid,
+    }
+
+
+def test_process_patrols_gdf_collapses_member_roster():
+    # SMART returns the same track once per team member; expanding every feature would
+    # otherwise multiply each fix by the team size.
+    df = gpd.GeoDataFrame(
+        [_patrol_feature("Alice", "u-a"), _patrol_feature("Bob", "u-b")],
+        crs="EPSG:4326",
+    )
+    smart = SmartIO.__new__(SmartIO)  # bypass network login in __init__
+
+    out = smart.process_patrols_gdf(df)
+
+    # one row per physical fix (3 vertices), not 3 vertices x 2 members
+    assert len(out) == 3
+    # the full roster is preserved as a list on every fix
+    leaders = out["patrol_leader_name"].iloc[0]
+    assert isinstance(leaders, list)
+    assert set(leaders) == {"Alice", "Bob"}
+    assert set(out["patrol_leader_uuid"].iloc[0]) == {"u-a", "u-b"}
+    # track attributes survive the collapse
+    assert (out["groupby_col"] == "leg-1").all()
+    assert (out["patrol_mandate"] == "Anti-Poaching").all()
+    assert out["fixtime"].nunique() == 3

@@ -141,6 +141,35 @@ class SmartIO:
 
         return longitudes, latitudes, timestamps
 
+    @staticmethod
+    def _collapse_patrol_members(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        SMART returns one feature per patrol member, each carrying the *full* patrol
+        track. Expanding every feature's coordinates therefore replicates each physical
+        observation once per team member, inflating distance/duration totals by the team
+        size. Collapse those duplicate observations back to a single row per physical fix,
+        aggregating the team roster into list-valued leader columns so all members are
+        preserved while the track is counted once.
+        """
+        leader_cols = [c for c in ("patrol_leader_name", "patrol_leader_uuid") if c in gdf.columns]
+        if not leader_cols or gdf.empty:
+            return gdf
+
+        # A physical fix is uniquely identified by its patrol leg (groupby_col) and time;
+        # mandate/transport are included so genuinely distinct (non-roster) rows are kept.
+        key = [c for c in ("groupby_col", "fixtime", "patrol_mandate", "patrol_transport") if c in gdf.columns]
+        df = pd.DataFrame(gdf.drop(columns="geometry"))
+        agg: dict = {c: "first" for c in df.columns if c not in key + leader_cols}
+        for lc in leader_cols:
+            agg[lc] = lambda s: list(pd.unique(s.dropna()))
+
+        collapsed = df.groupby(key, dropna=False, sort=False).agg(agg).reset_index()
+        return gpd.GeoDataFrame(
+            collapsed,
+            geometry=gpd.points_from_xy(x=collapsed["longitude"], y=collapsed["latitude"]),
+            crs=gdf.crs,
+        )
+
     def process_patrols_gdf(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         Process multiple geometries in a vectorized way.
@@ -192,6 +221,7 @@ class SmartIO:
                 "id": "groupby_col",
             }
         )
+        result_df = self._collapse_patrol_members(result_df)
         result_df["patrol_type__display"] = result_df["patrol_mandate"]
 
         return result_df
