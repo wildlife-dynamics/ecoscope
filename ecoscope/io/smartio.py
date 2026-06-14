@@ -12,6 +12,14 @@ from ecoscope.relocations import Relocations
 
 logger = logging.getLogger(__name__)
 
+# SMART patrol field names -> ecoscope patrol-observation/trajectory column names
+_PATROL_COLUMN_RENAMES = {
+    "uuid": "patrol_id",
+    "patrol_leg_day_start": "patrol_start_time",
+    "patrol_leg_day_end": "patrol_end_time",
+    "id": "patrol_serial_number",
+}
+
 
 class SmartIO:
     def __init__(self, **kwargs):
@@ -217,14 +225,7 @@ class SmartIO:
             geometry=gpd.points_from_xy(x=result["longitude"], y=result["latitude"]),
             crs="EPSG:4326",
         )
-        result_df = result_df.rename(
-            columns={
-                "uuid": "patrol_id",
-                "patrol_leg_day_start": "patrol_start_time",
-                "patrol_leg_day_end": "patrol_end_time",
-                "id": "patrol_serial_number",
-            }
-        )
+        result_df = result_df.rename(columns=_PATROL_COLUMN_RENAMES)
         result_df["patrol_type__display"] = result_df["patrol_mandate"]
 
         return result_df
@@ -275,6 +276,57 @@ class SmartIO:
             return patrols_relocs
         except Exception as e:
             logger.error(f"Error processing patrol data: {e}")
+            return None
+
+    def get_patrol_trajectory(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+        patrol_mandate: str | None = None,
+        patrol_transport: str | None = None,
+        station_uuid: str | None = None,
+    ):
+        """
+        Build one trajectory per patrol directly from the SMART leg-day tracks.
+
+        SMART hands us a continuous timestamped LineString per leg-day, so the trajectory
+        is generated straight from that geometry (no points round-trip). Segments are never
+        formed across leg-days, so a multi-day patrol is a single trajectory of disjoint
+        runs and its distance/duration are not over-counted.
+        """
+        from ecoscope.trajectory import Trajectory
+
+        start_dt = pd.to_datetime(start)
+        end_dt = pd.to_datetime(end)
+        patrols = self.get_patrols_list(
+            ca_uuid=ca_uuid,
+            language_uuid=language_uuid,
+            # SMART API throws error if the start/end time is not at 00:00:00
+            start=pd.Timestamp(start_dt.date()).isoformat(),
+            end=pd.Timestamp(end_dt.date()).isoformat(),
+            patrol_mandate=patrol_mandate,
+            patrol_transport=patrol_transport,
+            station_uuid=station_uuid,
+        )
+
+        try:
+            if patrols is None or patrols.empty:
+                return None
+            # one feature per leg-day track, roster folded into list columns
+            patrols = self._collapse_patrol_members(patrols)
+            patrols = patrols.rename(columns=_PATROL_COLUMN_RENAMES)
+            patrols["patrol_type__display"] = patrols["patrol_mandate"]
+
+            traj = Trajectory.from_track_geometry(patrols, groupby_col="patrol_id")
+            if traj.gdf.empty:
+                return None
+            traj.gdf.columns = [col.replace("extra__", "") for col in traj.gdf.columns]
+            traj.gdf = clean_time_cols(traj.gdf)
+            return traj
+        except Exception as e:
+            logger.error(f"Error processing patrol trajectory data: {e}")
             return None
 
     def get_events(

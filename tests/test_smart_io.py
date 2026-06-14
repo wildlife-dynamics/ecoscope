@@ -111,13 +111,13 @@ def test_process_patrols_gdf_expands_collapsed_feature():
     assert out["fixtime"].nunique() == 3
 
 
-def _feature(patrol_uuid, serial, leg_day_uuid, leader_name, leader_uuid, base_time):
+def _feature(patrol_uuid, serial, leg_day_uuid, leader_name, leader_uuid, base_time, lon0=34.000):
     # MultiLineString Z vertices are (lon, lat, timestamp_ms); offset the track per leg-day
     line = shapely.geometry.LineString(
         [
-            (34.000, -1.000, base_time),
-            (34.001, -1.001, base_time + 60_000),
-            (34.002, -1.002, base_time + 120_000),
+            (lon0 + 0.000, -1.000, base_time),
+            (lon0 + 0.001, -1.001, base_time + 60_000),
+            (lon0 + 0.002, -1.002, base_time + 120_000),
         ]
     )
     return {
@@ -157,3 +157,52 @@ def test_one_trajectory_per_patrol_across_leg_days():
     assert relocs.gdf["groupby_col"].nunique() == 2
     assert (relocs.gdf["groupby_col"] == "patrol-A").sum() == 6
     assert (relocs.gdf["groupby_col"] == "patrol-B").sum() == 3
+
+
+def test_from_track_geometry_no_cross_track_segments():
+    from ecoscope.trajectory import Trajectory
+
+    # two spatially distant single-LineString tracks under one trajectory id
+    line1 = shapely.geometry.LineString([(34.00, -1.0, 1_700_000_000_000), (34.01, -1.0, 1_700_000_060_000)])
+    line2 = shapely.geometry.LineString([(40.00, -1.0, 1_700_100_000_000), (40.01, -1.0, 1_700_100_060_000)])
+    gdf = gpd.GeoDataFrame(
+        {"pid": ["P", "P"]},
+        geometry=[shapely.geometry.MultiLineString([line1]), shapely.geometry.MultiLineString([line2])],
+        crs="EPSG:4326",
+    )
+
+    traj = Trajectory.from_track_geometry(gdf, groupby_col="pid")
+
+    # each track -> 1 segment; one group, NO bridging segment between the tracks => 2 (not 3)
+    assert len(traj.gdf) == 2
+    assert (traj.gdf["groupby_col"] == "P").all()
+    # the ~650km gap between tracks is never turned into a segment
+    assert traj.gdf["dist_meters"].max() < 10_000
+
+
+def test_get_patrol_trajectory_no_bridge_across_leg_days(monkeypatch):
+    from ecoscope.trajectory import Trajectory
+
+    # Patrol A: 2 spatially distant leg-days, each carried by 2 members (4 raw features)
+    features = [
+        _feature("patrol-A", "MTri_A", "A-day1", "Alice", "u-a", 1_700_000_000_000, lon0=34.0),
+        _feature("patrol-A", "MTri_A", "A-day1", "Bob", "u-b", 1_700_000_000_000, lon0=34.0),
+        _feature("patrol-A", "MTri_A", "A-day2", "Alice", "u-a", 1_700_100_000_000, lon0=40.0),
+        _feature("patrol-A", "MTri_A", "A-day2", "Bob", "u-b", 1_700_100_000_000, lon0=40.0),
+    ]
+    raw = gpd.GeoDataFrame(features, crs="EPSG:4326")
+    smart = SmartIO.__new__(SmartIO)
+    monkeypatch.setattr(smart, "get_patrols_list", lambda **kwargs: raw)
+
+    traj = smart.get_patrol_trajectory(ca_uuid="x", language_uuid="y", start="2026-04-01", end="2026-04-02")
+
+    assert isinstance(traj, Trajectory)
+    # 2 leg-days x (3 vertices -> 2 segments) = 4 segments; a bridge would make it 5
+    assert len(traj.gdf) == 4
+    # a single trajectory for the patrol
+    assert (traj.gdf["groupby_col"] == "patrol-A").all()
+    # no phantom segment spanning the gap between the two leg-days
+    assert traj.gdf["dist_meters"].max() < 10_000
+    # roster folded and serial persisted onto every segment
+    assert set(traj.gdf["patrol_leader_name"].iloc[0]) == {"Alice", "Bob"}
+    assert (traj.gdf["patrol_serial_number"] == "MTri_A").all()

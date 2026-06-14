@@ -153,3 +153,37 @@ def relocations_to_trajectory(
         raise ValueError("No Trajectory data left after applying segment filter")
 
     return traj.gdf
+
+
+@register()
+def apply_trajectory_segment_filter(
+    trajectory: TrajectoryGDF,
+    trajectory_segment_filter: Annotated[
+        TrajectorySegmentFilter | SkipJsonSchema[None],
+        AdvancedField(
+            default=TrajectorySegmentFilter(),
+            title=" ",
+            description=(
+                "Filter track data by setting limits on track segment length, duration, and speed."
+                " Segments outside these bounds are removed, reducing noise and to focus on"
+                " meaningful movement patterns."
+            ),
+        ),
+    ] = None,
+) -> TrajectoryGDF:
+    """Apply a segment-level filter (length/duration/speed) to an existing Trajectory."""
+    from ecoscope.trajectory import Trajectory, TrajSegFilter
+
+    if trajectory_segment_filter is None:
+        trajectory_segment_filter = TrajectorySegmentFilter()
+
+    traj = Trajectory(gdf=trajectory)
+    traj_seg_filter = TrajSegFilter(**trajectory_segment_filter.model_dump())
+
+    traj.apply_traj_filter(traj_seg_filter, inplace=True)
+    traj.remove_filtered(inplace=True)
+
+    if traj.gdf.empty:
+        raise ValueError("No Trajectory data left after applying segment filter")
+
+    return traj.gdf
