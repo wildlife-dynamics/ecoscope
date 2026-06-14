@@ -192,6 +192,9 @@ class Trajectory(EcoDataFrame):
         combined.sort_values(["groupby_col", "fixtime"], inplace=True)
 
         traj = combined.groupby("groupby_col")[combined.columns].apply(cls._create_trajsegments).droplevel(level=0)
+        # Duplicate-timestamp vertices yield zero-duration segments whose speed is undefined
+        # (NaN/inf); drop them so the trajectory carries only well-formed segments.
+        traj = traj[(traj["timespan_seconds"] > 0) & np.isfinite(traj["speed_kmhr"])]
         traj.sort_values("segment_start", inplace=True)
         return cls(gdf=traj)
 
