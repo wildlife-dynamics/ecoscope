@@ -28,7 +28,13 @@ def get_patrol_observations_from_smart(
         AdvancedField(default=None, description="Patrol Transport", title="Patrol Transport"),
     ] = None,
 ) -> PatrolObservationsGDF | EmptyDataFrame:
-    """Get observations for a patrol type from Smart."""
+    """Get observations for a patrol type from Smart.
+
+    Returns point relocations for point-level use (events, maps, filtering). Do not convert
+    this to a trajectory: relocations are grouped per patrol, so building a trajectory
+    bridges leg-day boundaries and over-counts multi-day patrol distance/duration. Use
+    ``get_patrol_trajectory_from_smart`` for patrol trajectories.
+    """
     from ecoscope.relocations import Relocations
 
     patrol_obs_relocs = client.get_patrol_observations(

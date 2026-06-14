@@ -126,6 +126,8 @@ def _feature(patrol_uuid, serial, leg_day_uuid, leader_name, leader_uuid, base_t
         "id": serial,
         "patrol_leg_uuid": f"{leg_day_uuid}-leg",
         "patrol_leg_day_uuid": leg_day_uuid,
+        "patrol_leg_day_start": pd.Timestamp(base_time, unit="ms", tz="UTC").isoformat(),
+        "patrol_leg_day_end": pd.Timestamp(base_time + 120_000, unit="ms", tz="UTC").isoformat(),
         "patrol_mandate": "Anti-Poaching",
         "patrol_transport": "Foot",
         "patrol_leader_name": leader_name,
@@ -206,3 +208,6 @@ def test_get_patrol_trajectory_no_bridge_across_leg_days(monkeypatch):
     # roster folded and serial persisted onto every segment
     assert set(traj.gdf["patrol_leader_name"].iloc[0]) == {"Alice", "Bob"}
     assert (traj.gdf["patrol_serial_number"] == "MTri_A").all()
+    # patrol start/end span both leg-days: earliest leg-day start, latest leg-day end
+    assert (traj.gdf["patrol_start_time"] == pd.Timestamp(1_700_000_000_000, unit="ms", tz="UTC")).all()
+    assert (traj.gdf["patrol_end_time"] == pd.Timestamp(1_700_100_000_000 + 120_000, unit="ms", tz="UTC")).all()

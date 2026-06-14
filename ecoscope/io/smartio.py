@@ -12,11 +12,12 @@ from ecoscope.relocations import Relocations
 
 logger = logging.getLogger(__name__)
 
-# SMART patrol field names -> ecoscope patrol-observation/trajectory column names
+# SMART patrol field names -> ecoscope patrol-observation/trajectory column names.
+# patrol_leg_day_start/end are intentionally NOT renamed here: a patrol spans several
+# leg-days, so the patrol start/end are derived as the earliest/latest leg-day bounds
+# (see _add_patrol_time_bounds) rather than a 1:1 rename of one leg-day's times.
 _PATROL_COLUMN_RENAMES = {
     "uuid": "patrol_id",
-    "patrol_leg_day_start": "patrol_start_time",
-    "patrol_leg_day_end": "patrol_end_time",
     "id": "patrol_serial_number",
 }
 
@@ -180,6 +181,22 @@ class SmartIO:
             collapsed[lc] = collapsed[key].map(rosters[lc])
         return collapsed.reset_index(drop=True)
 
+    def _add_patrol_time_bounds(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        Derive patrol-level start/end times. A patrol spans several leg-days, each with its
+        own ``patrol_leg_day_start``/``patrol_leg_day_end``; the patrol start is the earliest
+        leg-day start across the patrol and the patrol end is the latest leg-day end.
+        """
+        if "patrol_id" not in gdf.columns:
+            return gdf
+        if "patrol_leg_day_start" in gdf.columns:
+            starts = pd.to_datetime(gdf["patrol_leg_day_start"], utc=True, errors="coerce")
+            gdf["patrol_start_time"] = starts.groupby(gdf["patrol_id"]).transform("min")
+        if "patrol_leg_day_end" in gdf.columns:
+            ends = pd.to_datetime(gdf["patrol_leg_day_end"], utc=True, errors="coerce")
+            gdf["patrol_end_time"] = ends.groupby(gdf["patrol_id"]).transform("max")
+        return gdf
+
     def process_patrols_gdf(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         Process multiple geometries in a vectorized way.
@@ -226,6 +243,7 @@ class SmartIO:
             crs="EPSG:4326",
         )
         result_df = result_df.rename(columns=_PATROL_COLUMN_RENAMES)
+        result_df = self._add_patrol_time_bounds(result_df)
         result_df["patrol_type__display"] = result_df["patrol_mandate"]
 
         return result_df
@@ -240,6 +258,18 @@ class SmartIO:
         patrol_transport: str | None = None,
         station_uuid: str | None = None,
     ) -> Relocations | None:
+        """
+        Return patrol observations as point Relocations (one row per physical fix).
+
+        .. warning::
+            Do **not** build a trajectory from this output. Relocations are grouped per
+            patrol, so ``Trajectory.from_relocations`` connects consecutive fixes across
+            leg-day (and concurrent-leg) boundaries, inventing bridging segments that
+            over-count a multi-day patrol's distance and duration. Use
+            :meth:`get_patrol_trajectory`, which builds segments directly from the leg-day
+            tracks and never bridges across them. This method is for point-level uses
+            (events, maps, point filtering) only.
+        """
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
         patrols = self.get_patrols_list(
@@ -317,6 +347,7 @@ class SmartIO:
             # one feature per leg-day track, roster folded into list columns
             patrols = self._collapse_patrol_members(patrols)
             patrols = patrols.rename(columns=_PATROL_COLUMN_RENAMES)
+            patrols = self._add_patrol_time_bounds(patrols)
             patrols["patrol_type__display"] = patrols["patrol_mandate"]
 
             traj = Trajectory.from_track_geometry(patrols, groupby_col="patrol_id")
