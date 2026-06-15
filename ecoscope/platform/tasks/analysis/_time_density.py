@@ -256,9 +256,10 @@ def calculate_linear_time_density(
     )
 
     result = result.dissolve(
-        "percentiles",
+        "percentile",
         aggfunc={"density": "sum"},
+        as_index=False,
     )
     result["area_sqkm"] = result.area / 1000000.0
 
-    return cast(AnyGeoDataFrame, result)
+    return cast(DataFrame[TimeDensityReturnGDFSchema], result)
