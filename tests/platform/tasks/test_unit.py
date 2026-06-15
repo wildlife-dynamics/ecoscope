@@ -16,6 +16,12 @@ def test_apply_speed_conversion():
     assert data.unit == Unit.KILOMETERS_PER_HOUR
 
 
+def test_apply_area_conversion():
+    data = with_unit(1_000_000, Unit.SQUARE_METER, Unit.SQUARE_KILOMETER)
+    assert data.value == pytest.approx(1.0)
+    assert data.unit == Unit.SQUARE_KILOMETER
+
+
 def test_apply_unit_no_unit():
     data = with_unit(1)
     assert data.value == 1
