@@ -254,4 +254,11 @@ def calculate_linear_time_density(
         percentile_levels=percentiles,  # type: ignore[arg-type]
         input_column_name="density",
     )
+
+    result = result.dissolve(
+        "percentiles",
+        aggfunc={"density": "sum"},
+    )
+    result["area_sqkm"] = result.area / 1000000.0
+
     return cast(AnyGeoDataFrame, result)
