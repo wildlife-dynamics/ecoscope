@@ -24,6 +24,9 @@ class TimeDensityReturnGDFSchema(JsonSerializableDataFrameModel):
     area_sqkm: pa_typing.Series[float] = pa.Field()
 
 
+TimeDensityReturnGDF: TypeAlias = DataFrame[TimeDensityReturnGDFSchema]
+
+
 class AutoScaleGridCellSize(BaseModel):
     model_config = ConfigDict(json_schema_extra={"title": "Auto-scale"})
     auto_scale_or_custom: Annotated[
@@ -214,7 +217,7 @@ def calculate_elliptical_time_density(
 
     if raster_data is None or raster_data.data is None or raster_data.data.size == 0:
         logger.warning("No raster data was generated.")
-        return cast(DataFrame[TimeDensityReturnGDFSchema], result)
+        return cast(TimeDensityReturnGDF, result)
 
     result = get_percentile_area(
         percentile_levels=percentiles,  # type: ignore[arg-type]
@@ -223,7 +226,7 @@ def calculate_elliptical_time_density(
     result.drop(columns="subject_id", inplace=True)
     result["area_sqkm"] = result.area / 1000000.0
 
-    return cast(DataFrame[TimeDensityReturnGDFSchema], result)
+    return cast(TimeDensityReturnGDF, result)
 
 
 @register()
@@ -262,4 +265,4 @@ def calculate_linear_time_density(
     )
     result["area_sqkm"] = result.area / 1000000.0
 
-    return cast(DataFrame[TimeDensityReturnGDFSchema], result)
+    return cast(TimeDensityReturnGDF, result)
