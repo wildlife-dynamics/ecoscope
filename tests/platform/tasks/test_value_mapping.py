@@ -143,6 +143,19 @@ def test_map_values_with_unit_speed_conversion():
     assert result["speed_kmh"].tolist() == ["36.0 km/h", "0.0 km/h"]
 
 
+def test_map_values_with_unit_area_conversion():
+    df = pd.DataFrame({"area": [1_000_000.0, 500_000.0, 0.0]})
+    result = map_values_with_unit(
+        df,
+        input_column_name="area",
+        output_column_name="area_km2",
+        original_unit=Unit.SQUARE_METER,
+        new_unit=Unit.SQUARE_KILOMETER,
+        decimal_places=2,
+    )
+    assert result["area_km2"].tolist() == ["1.00 km²", "0.50 km²", "0.00 km²"]
+
+
 def test_fill_na_string():
     column_with_nans = pd.Series([np.nan, "Value", np.nan, "More Value"])
     column_with_nans_filled = pd.Series(["None", "Value", "None", "More Value"])
