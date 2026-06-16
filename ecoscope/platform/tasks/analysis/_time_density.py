@@ -162,7 +162,7 @@ def calculate_elliptical_time_density(
     max_speed_factor: MaxSpeedFactorAnnotation = 1.05,
     expansion_factor: ExpansionFactorAnnotation = 1.3,
     percentiles: EtdPercentileAnnotation = None,
-) -> DataFrame[TimeDensityReturnGDFSchema]:
+) -> TimeDensityReturnGDF:
     import geopandas as gpd  # type: ignore[import-untyped]
     import pandas as pd  # type: ignore[import-untyped]
 
@@ -234,7 +234,7 @@ def calculate_linear_time_density(
     trajectory_gdf: TrajectoryAnnotation,
     meshgrid: MeshGridAnnotation,
     percentiles: LtdPercentileAnnotation = None,
-) -> AnyGeoDataFrame:
+) -> TimeDensityReturnGDF:
     from ecoscope import Trajectory
     from ecoscope.analysis.classifier import (
         classify_percentile,
