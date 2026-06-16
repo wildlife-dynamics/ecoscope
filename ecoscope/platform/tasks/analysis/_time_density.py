@@ -252,13 +252,13 @@ def calculate_linear_time_density(
     )
 
     density_grid = calculate_ltd(traj=Trajectory(trajectory_gdf), grid=meshgrid)
-    result = classify_percentile(  # type: ignore[operator]
+    result = classify_percentile(
         df=density_grid,
         percentile_levels=percentiles,  # type: ignore[arg-type]
         input_column_name="density",
     )
 
-    result = result.dissolve(
+    result = result.dissolve(  # type: ignore[operator]
         "percentile",
         aggfunc={"density": "sum"},
         as_index=False,
