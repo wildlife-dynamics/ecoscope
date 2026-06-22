@@ -45,7 +45,7 @@ analysis = [
   "mapclassify",
   "matplotlib",
   "networkx",
-  "numba",
+  "numba>=2.61",
   "scipy",
   "scikit-image",
   "scikit-learn",
