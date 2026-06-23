@@ -6,5 +6,5 @@ set "SETUPTOOLS_SCM_PRETEND_VERSION=%PKG_VERSION%"
 %PYTHON% -m pip install . -vv --no-deps --no-build-isolation
 if errorlevel 1 exit 1
 
-%PYTHON% "%RECIPE_DIR%\strip_pyd_manifests.py" "%PREFIX%\Lib\site-packages"
+%PYTHON% "%RECIPE_DIR%\strip_pyd_manifests.py" "%PREFIX%\Lib\site-packages\astropy"
 if errorlevel 1 exit 1
