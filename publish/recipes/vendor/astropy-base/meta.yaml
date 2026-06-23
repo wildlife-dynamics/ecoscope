@@ -1,4 +1,4 @@
-{% set version = "8.0.0" %}
+{% set version = "7.2.0" %}
 
 package:
   name: astropy-base
@@ -6,7 +6,7 @@ package:
 
 source:
   url: https://pypi.org/packages/source/a/astropy/astropy-{{ version }}.tar.gz
-  sha256: 7f4de5db41f26f140433eddd78458abfc1c19b8037f9f8a89c33853cfba1fdc3
+  sha256: ae48bc26b1feaeb603cd94bd1fa1aa39137a115fe931b7f13787ab420e8c3070
 
 build:
   number: 0
@@ -37,11 +37,11 @@ requirements:
     - numpy
   run:
     - python
-    - numpy >=2.0
-    - pyerfa >=2.0.1.3
-    - astropy-iers-data >=0.2026.6.1.17.39.59
+    - numpy >=1.24
+    - pyerfa >=2.0.1.1
+    - astropy-iers-data >=0.2025.10.27.0.39.10
     - pyyaml >=6.0.0
-    - packaging >=25.0
+    - packaging >=22.0.0
 
 test:
   commands:
