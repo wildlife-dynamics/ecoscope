@@ -1,7 +1,9 @@
 from importlib.resources import files
 
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+from shapely.geometry import LineString
 
 from ecoscope.platform.mock_loaders import load_parquet
 from ecoscope.platform.tasks.analysis._summary import (
@@ -14,6 +16,23 @@ from ecoscope.platform.tasks.analysis._summary import (
 def sample_dataframe():
     data = {"A": [1, 2, 3, 4, 5], "B": [5, 4, 3, 2, 1], "C": [10, 20, 30, 40, 50]}
     return pd.DataFrame(data)
+
+
+@pytest.fixture
+def coverage_trajectories():
+    # Two rangers, each with two overlapping LineString segments near the equator.
+    return gpd.GeoDataFrame(
+        {
+            "ranger": ["A", "A", "B", "B"],
+            "geometry": [
+                LineString([(0.0, 0.0), (0.1, 0.0)]),
+                LineString([(0.05, 0.0), (0.15, 0.0)]),  # overlaps the first
+                LineString([(1.0, 1.0), (1.1, 1.0)]),
+                LineString([(1.1, 1.0), (1.2, 1.0)]),
+            ],
+        },
+        crs="EPSG:4326",
+    )
 
 
 @pytest.fixture
@@ -95,3 +114,39 @@ def test_summarize_df_night_day_ratio(trajectories):
     result = summarize_df(trajectories, summary_params)
     assert result.loc[0, "Total Dist Km"] == 2242.49
     assert result.loc[0, "Night Day Ratio"] == 1.02
+
+
+def test_summarize_df_coverage_merged_le_unmerged(coverage_trajectories):
+    summary_params = [
+        SummaryParam(display_name="Merged", aggregator="merged_coverage_area", decimal_places=6),
+        SummaryParam(display_name="Unmerged", aggregator="unmerged_coverage_area", decimal_places=6),
+    ]
+    result = summarize_df(coverage_trajectories, summary_params)
+    assert result.loc[0, "Merged"] > 0
+    assert result.loc[0, "Merged"] <= result.loc[0, "Unmerged"]
+
+
+def test_summarize_df_coverage_scales_with_swath(coverage_trajectories):
+    def unmerged(swath):
+        params = [
+            SummaryParam(
+                display_name="Unmerged",
+                aggregator="unmerged_coverage_area",
+                swath_width_meters=swath,
+                decimal_places=6,
+            )
+        ]
+        return summarize_df(coverage_trajectories, params).loc[0, "Unmerged"]
+
+    # Buffered-line area is dominated by length * width, so doubling the swath
+    # roughly doubles the covered area.
+    assert unmerged(1000.0) == pytest.approx(2 * unmerged(500.0), rel=0.05)
+
+
+def test_summarize_df_coverage_groupby(coverage_trajectories):
+    summary_params = [
+        SummaryParam(display_name="Merged", aggregator="merged_coverage_area", decimal_places=6),
+    ]
+    result = summarize_df(coverage_trajectories, summary_params, groupby_cols=["ranger"])
+    assert len(result) == 2  # one row per ranger
+    assert (result["Merged"] > 0).all()
