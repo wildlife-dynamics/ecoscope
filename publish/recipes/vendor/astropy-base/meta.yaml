@@ -10,7 +10,7 @@ source:
 
 build:
   number: 0
-  skip: true  # [not win]
+  skip: true  # [not win or py < 311]
   string: strip_manifest_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}
   entry_points:
     - fits2bitmap = astropy.visualization.scripts.fits2bitmap:main
