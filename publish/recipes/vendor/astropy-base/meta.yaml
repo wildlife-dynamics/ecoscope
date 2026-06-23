@@ -1,0 +1,77 @@
+{% set version = "8.0.0" %}
+
+package:
+  name: astropy-base
+  version: {{ version }}
+
+source:
+  url: https://pypi.org/packages/source/a/astropy/astropy-{{ version }}.tar.gz
+  sha256: 7f4de5db41f26f140433eddd78458abfc1c19b8037f9f8a89c33853cfba1fdc3
+
+build:
+  number: 0
+  skip: true  # [not win]
+  string: strip_manifest_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}
+  entry_points:
+    - fits2bitmap = astropy.visualization.scripts.fits2bitmap:main
+    - fitscheck = astropy.io.fits.scripts.fitscheck:main
+    - fitsdiff = astropy.io.fits.scripts.fitsdiff:main
+    - fitsheader = astropy.io.fits.scripts.fitsheader:main
+    - fitsinfo = astropy.io.fits.scripts.fitsinfo:main
+    - samp_hub = astropy.samp.hub_script:hub_script
+    - volint = astropy.io.votable.volint:main
+    - wcslint = astropy.wcs.wcslint:main
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ stdlib('c') }}
+  host:
+    - python
+    - pip
+    - setuptools >=77.0.0
+    - jinja2 >=3
+    - cython >=3.0.0,<4
+    - setuptools_scm >=8.0.0
+    - extension-helpers =1.4
+    - numpy
+  run:
+    - python
+    - numpy >=2.0
+    - pyerfa >=2.0.1.3
+    - astropy-iers-data >=0.2026.6.1.17.39.59
+    - pyyaml >=6.0.0
+    - packaging >=25.0
+
+test:
+  commands:
+    - fits2bitmap --help
+    - fitsinfo --help
+    - wcslint --help
+  imports:
+    - astropy
+    - astropy.io.ascii.cparser
+    - astropy.io.votable.tablewriter
+    - astropy.modeling.projections
+    - astropy.timeseries.periodograms.lombscargle.implementations.cython_impl
+    - astropy.table._column_mixins
+    - astropy.table._np_utils
+    - astropy.utils.xml._iterparser
+    - astropy.wcs._wcs
+
+about:
+  home: http://www.astropy.org/
+  license: BSD-3-Clause
+  license_file: LICENSE.rst
+  summary: Astropy core, with RT_MANIFEST stripped from .pyd files on Windows
+  description: |
+    A passthrough rebuild of the upstream astropy source. On Windows the
+    embedded side-by-side (SxS) activation manifest is stripped from every
+    .pyd after install, to work around long-path import failures in deeply
+    nested envs (e.g. pixi). On Linux and macOS the build is identical to
+    conda-forge's astropy-base.
+  dev_url: https://github.com/astropy/astropy
+
+extra:
+  recipe-maintainers:
+    - atmorling 
