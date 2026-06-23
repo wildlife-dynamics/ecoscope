@@ -13,6 +13,7 @@ from ._aggregation import (
 )
 from ._calculate_feature_density import calculate_feature_density
 from ._create_meshgrid import create_meshgrid
+from ._patrol_coverage import calculate_patrol_coverage
 from ._summary import aggregate_over_rows, summarize_df
 from ._time_density import (
     TimeDensityReturnGDF,
@@ -35,6 +36,7 @@ __all__ = [
     "get_night_day_ratio",
     "calculate_feature_density",
     "create_meshgrid",
+    "calculate_patrol_coverage",
     "aggregate_over_rows",
     "summarize_df",
     "TimeDensityReturnGDF",

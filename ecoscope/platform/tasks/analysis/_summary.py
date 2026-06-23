@@ -9,6 +9,7 @@ from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 from ecoscope.platform.tasks.analysis._aggregation import (
     get_night_day_ratio,
 )
+from ecoscope.platform.tasks.analysis._patrol_coverage import _coverage_area_km2
 from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 
 AggOperations = Literal[
@@ -21,7 +22,11 @@ AggOperations = Literal[
     "nunique",
     "median",
     "night_day_ratio",
+    "merged_coverage_area",
+    "unmerged_coverage_area",
 ]
+
+COVERAGE_AGGREGATORS = ("merged_coverage_area", "unmerged_coverage_area")
 
 
 class SummaryParam(BaseModel):
@@ -31,11 +36,12 @@ class SummaryParam(BaseModel):
     original_unit: Unit | SkipJsonSchema[None] = None
     new_unit: Unit | SkipJsonSchema[None] = None
     decimal_places: int | SkipJsonSchema[None] = 2
+    swath_width_meters: float | SkipJsonSchema[None] = None
 
     @model_validator(mode="after")
     def check_column_and_unit(self):
-        if self.aggregator != "night_day_ratio" and self.column is None:
-            raise ValueError("column cannot be None if aggregator is not night_day_ratio")
+        if self.aggregator not in ("night_day_ratio", *COVERAGE_AGGREGATORS) and self.column is None:
+            raise ValueError("column cannot be None unless aggregator is night_day_ratio or a coverage aggregator")
 
         if (self.original_unit is None) != (self.new_unit is None):
             raise ValueError("original_unit and new_unit must either both be None or both exist")
@@ -71,6 +77,13 @@ def summarize_df(
         result = 0
         if param.aggregator == "night_day_ratio":
             result = get_night_day_ratio(df)
+        elif param.aggregator in COVERAGE_AGGREGATORS:
+            result = _coverage_area_km2(
+                df,
+                param.swath_width_meters or 500.0,
+                merged=(param.aggregator == "merged_coverage_area"),
+                area_crs="EPSG:6933",
+            )
         else:
             result = df[param.column].agg(param.aggregator)
 
