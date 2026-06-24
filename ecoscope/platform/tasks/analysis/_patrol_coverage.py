@@ -23,7 +23,7 @@ def _coverage_area_km2(
     if gdf.empty:
         return 0.0
 
-    buffers = gdf.to_crs(area_crs).geometry.buffer(swath_width_meters / 2)
+    buffers = gdf.to_crs(area_crs).geometry.buffer(swath_width_meters / 2)  # type: ignore[operator]
 
     if merged:
         area_m2 = buffers.union_all().area
