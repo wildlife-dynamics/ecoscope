@@ -26,7 +26,7 @@ You now have two new and improved ways of exporting your EarthRanger data:
 **✅ Recommended: Specialized Download workflows on Ecoscope Web**
 
 <u>Available to _all_ users on Ecoscope Web</u> (if you don’t have an account, you can sign up [here](https://docs.google.com/forms/d/e/1FAIpQLSep4xDWIOWx_IXoK4wDaQJyPHGO_vNW5bjlh1f5DEo8S6QjNw/viewform)), 
-specialized download workflows allow you to export event, observation, and patrol data in the cloud, securely and efficiently.
+specialized download workflows allow you to export event, observation, and patrol data in the cloud, securely and efficiently. It also supports more in-depth analyses of your data and is improving fast.
 
 **↪️ Alternative: Download workflows on Ecoscope Desktop**
 
