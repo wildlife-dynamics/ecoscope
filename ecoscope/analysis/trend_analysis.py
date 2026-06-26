@@ -12,11 +12,9 @@ import numpy as np
 import pandas as pd
 
 try:
-    import rpy2.robjects as ro  # type: ignore[import-untyped]
+    import bambi as bmb  # type: ignore[import-not-found,import-untyped]
     import statsmodels.api as sm  # type: ignore[import-not-found,import-untyped]
     from joblib import Parallel, delayed  # type: ignore[import-not-found,import-untyped]
-    from rpy2.robjects import pandas2ri
-    from rpy2.robjects.packages import importr  # type: ignore[import-untyped]
     from scipy.spatial.distance import euclidean  # type: ignore[import-not-found,import-untyped]
     from sklearn.base import BaseEstimator, RegressorMixin  # type: ignore[import-not-found,import-untyped]
     from sklearn.model_selection import (  # type: ignore[import-not-found,import-untyped]
@@ -40,28 +38,75 @@ except ModuleNotFoundError:
 
 class GAMMRegressor(BaseEstimator, RegressorMixin):
     """
-    Generalized Additive Mixed Model (GAMM) Regressor using R's mgcv library.
+    Generalized Additive Mixed Model (GAMM) Regressor using Bambi.
 
-    Fits a GAM with site-level random effects across multiple sites simultaneously,
-    allowing the model to borrow strength across sites with shared trend structure.
+    Fits a GAM with site-level random effects using Bayesian inference.
+    Provides genuine posterior credible intervals rather than frequentist
+    confidence intervals.
 
     Parameters
     ----------
     k : int, default=10
-        Dimension of the spline basis.
+        Number of spline basis functions for the smooth term.
+    inference_method : str, default="mcmc"
+        Inference method. ``"mcmc"`` is the reliable default for spline
+        models with random effects. ``"laplace"`` is faster when it
+        converges but may fail for some model specifications.
+    draws : int, default=500
+        Number of posterior samples (``mcmc`` only).
+    tune : int, optional
+        Number of tuning steps for MCMC. Defaults to ``draws``.
+    chains : int, default=2
+        Number of MCMC chains (``mcmc`` only).
     family : str, default="gaussian"
-        Distribution family. Currently supports "gaussian".
+        Response distribution family. Supports "gaussian", "poisson",
+        "gamma", "bernoulli".
     """
 
-    def __init__(self, k: int = 10, family: str = "gaussian"):
+    def __init__(
+        self,
+        k: int = 10,
+        inference_method: str = "mcmc",
+        draws: int = 500,
+        tune: Optional[int] = None,
+        chains: int = 2,
+        family: str = "gaussian",
+    ):
         self.k = k
+        self.inference_method = inference_method
+        self.draws = draws
+        self.tune = tune
+        self.chains = chains
         self.family = family
 
     def fit(self, X, y, site_ids):
+        """
+        Fit the GAMM model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples,)
+            Training years (or other time index).
+        y : array-like of shape (n_samples,)
+            Target values.
+        site_ids : array-like of shape (n_samples,)
+            Site label for each observation.
+
+        Returns
+        -------
+        self : GAMMRegressor
+            Returns self for method chaining.
+        """
+        if self.inference_method not in ("laplace", "mcmc"):
+            raise ValueError(
+                f"Unsupported inference_method: {self.inference_method!r}. " 'Must be "laplace" or "mcmc".'
+            )
+
         X = np.asarray(X).ravel()
         y = np.asarray(y).ravel()
         site_ids = np.asarray(site_ids).ravel()
 
+        # Store normalization parameters
         self._X_min_ = float(X.min())
         self._y_mean_ = float(y.mean())
         self._y_std_ = float(y.std())
@@ -69,73 +114,183 @@ class GAMMRegressor(BaseEstimator, RegressorMixin):
         X_norm = X - self._X_min_
         y_norm = (y - self._y_mean_) / self._y_std_
 
-        df = pd.DataFrame(
+        # Build DataFrame for Bambi
+        self._df_ = pd.DataFrame(
             {
                 "year": X_norm,
                 "y": y_norm,
-                "site_id": pd.Categorical(site_ids),
+                "site_id": site_ids,
             }
         )
 
-        with ro.conversion.localconverter(ro.default_converter + pandas2ri.converter):
-            r_df = ro.conversion.py2rpy(df)
+        # Fit GAMM
+        self._model_ = bmb.Model(
+            f"y ~ bs(year, df={self.k}) + (1|site_id)",
+            self._df_,
+            family=self.family,
+        )
 
-        ro.globalenv["gamm_data"] = r_df
-        ro.globalenv["gamm_k"] = self.k
-
-        ro.r("""
-            library(mgcv)
-            gamm_data$site_id <- as.factor(gamm_data$site_id)
-            gamm_fit <- gam(
-                y ~ s(year, k=gamm_k) + s(year, site_id, bs="fs", k=5),
-                data   = gamm_data,
-                method = "REML"
+        if self.inference_method == "laplace":
+            self._idata_ = self._model_.fit(inference_method="laplace")
+        else:
+            tune = self.tune if self.tune is not None else self.draws
+            self._idata_ = self._model_.fit(
+                draws=self.draws,
+                tune=tune,
+                chains=self.chains,
             )
-        """)
 
-        self._r_model_ = ro.globalenv["gamm_fit"]
         return self
 
-    def _check_is_fitted(self):
-        if not hasattr(self, "_r_model_"):
+    def _check_is_fitted(self) -> None:
+        """Check if the model has been fitted."""
+        if not hasattr(self, "_idata_"):
             raise ValueError("Model has not been fitted. Call fit() before using this method.")
 
     def predict(self, X, site_ids=None):
+        """
+        Predict the mean trend.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples,)
+            Years (same scale as in ``fit``).
+        site_ids : array-like of shape (n_samples,), optional
+            Site label per row. When provided, predictions include each
+            site's random intercept (site-specific trend level). When
+            omitted, predictions use only the global ``bs(year)`` smooth —
+            the average trend across sites, with all site random effects
+            set to zero.
+
+        Returns
+        -------
+        y_pred : ndarray of shape (n_samples,)
+            Predicted values.
+
+        Raises
+        ------
+        ValueError
+            If the model has not been fitted.
+        """
+        self._check_is_fitted()
+        X = np.asarray(X).ravel()
+        X_norm = X - self._X_min_
+        include_group_specific = site_ids is not None
+
+        if site_ids is not None:
+            pred_df = pd.DataFrame(
+                {
+                    "year": X_norm,
+                    "site_id": np.asarray(site_ids).ravel(),
+                }
+            )
+        else:
+            pred_df = pd.DataFrame(
+                {
+                    "year": X_norm,
+                    "site_id": np.full(len(X), self._df_["site_id"].iloc[0]),
+                }
+            )
+
+        fitted = self._model_.predict(
+            self._idata_,
+            data=pred_df,
+            kind="response_params",
+            include_group_specific=include_group_specific,
+            inplace=False,
+        )
+        y_norm_pred = fitted.posterior["mu"].mean(dim=["chain", "draw"]).values
+        return y_norm_pred * self._y_std_ + self._y_mean_
+
+    def predict_with_ci(self, X, site_ids=None, credible_mass=0.95) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Predict with Bayesian credible intervals.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples,)
+            Years (same scale as in ``fit``).
+        site_ids : array-like of shape (n_samples,), optional
+            Same semantics as :meth:`predict`. Pass site labels for
+            site-specific intervals; omit for population-level intervals.
+        credible_mass : float, default=0.95
+            Width of the credible interval. 0.95 means there is a 95%
+            probability the true mean trend lies within the returned bounds.
+
+        Returns
+        -------
+        mean : ndarray
+            Predicted mean values.
+        ci_lower : ndarray
+            Lower bound of the credible interval.
+        ci_upper : ndarray
+            Upper bound of the credible interval.
+
+        Raises
+        ------
+        ValueError
+            If the model has not been fitted.
+        """
         self._check_is_fitted()
 
         X = np.asarray(X).ravel()
         X_norm = X - self._X_min_
+        include_group_specific = site_ids is not None
 
         if site_ids is not None:
-            site_ids = np.asarray(site_ids).ravel()
-            df = pd.DataFrame(
+            pred_df = pd.DataFrame(
                 {
                     "year": X_norm,
-                    "site_id": pd.Categorical(site_ids),
+                    "site_id": np.asarray(site_ids).ravel(),
                 }
             )
-            with ro.conversion.localconverter(ro.default_converter + pandas2ri.converter):
-                r_df = ro.conversion.py2rpy(df)
-            ro.globalenv["pred_data"] = r_df
-            ro.r("""
-                pred_data$site_id <- factor(pred_data$site_id,
-                    levels = levels(gamm_data$site_id))
-                pred_vals <- predict(gamm_fit, newdata=pred_data)
-            """)
         else:
-            df = pd.DataFrame({"year": X_norm})
-            with ro.conversion.localconverter(ro.default_converter + pandas2ri.converter):
-                r_df = ro.conversion.py2rpy(df)
-            ro.globalenv["pred_data"] = r_df
-            ro.r("""
-                pred_vals <- predict(gamm_fit, newdata=pred_data,
-                    exclude="s(year,site_id)")
-            """)
+            pred_df = pd.DataFrame(
+                {
+                    "year": X_norm,
+                    "site_id": np.full(len(X), self._df_["site_id"].iloc[0]),
+                }
+            )
 
-        y_norm_pred = np.array(ro.globalenv["pred_vals"])
-        return y_norm_pred * self._y_std_ + self._y_mean_
+        fitted = self._model_.predict(
+            self._idata_,
+            data=pred_df,
+            kind="response_params",
+            include_group_specific=include_group_specific,
+            inplace=False,
+        )
 
-    def r_squared(self, X, y, site_ids=None):
+        samples = fitted.posterior["mu"].values
+        samples_flat = samples.reshape(-1, samples.shape[-1])
+
+        mean = samples_flat.mean(axis=0)
+        lower = np.percentile(samples_flat, (1 - credible_mass) / 2 * 100, axis=0)
+        upper = np.percentile(samples_flat, (1 + credible_mass) / 2 * 100, axis=0)
+
+        return (
+            mean * self._y_std_ + self._y_mean_,
+            lower * self._y_std_ + self._y_mean_,
+            upper * self._y_std_ + self._y_mean_,
+        )
+
+    def r_squared(self, X, y, site_ids=None) -> float:
+        """
+        Return R-squared (coefficient of determination) on given data.
+
+        Parameters
+        ----------
+        X : array-like
+            Input years.
+        y : array-like
+            True target values.
+        site_ids : array-like, optional
+            Site labels per row; passed through to :meth:`predict`.
+
+        Returns
+        -------
+        float
+            R-squared value.
+        """
         self._check_is_fitted()
         y_pred = self.predict(X, site_ids=site_ids)
         y = np.asarray(y).ravel()
@@ -145,80 +300,28 @@ class GAMMRegressor(BaseEstimator, RegressorMixin):
             return 1.0 if ss_res == 0 else 0.0
         return float(1 - ss_res / ss_tot)
 
-    def mse(self, X, y, site_ids=None):
-        self._check_is_fitted()
-        y_pred = self.predict(X, site_ids=site_ids)
-        y = np.asarray(y).ravel()
-        return float(np.mean((y - y_pred) ** 2))
-
-    def predict_with_ci(
-        self,
-        X,
-        site_ids=None,
-        *,
-        confidence: float = 0.95,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def mse(self, X, y, site_ids=None) -> float:
         """
-        Predict with approximate confidence intervals from mgcv's Bayesian posterior covariance.
+        Return Mean Squared Error on given data.
 
         Parameters
         ----------
         X : array-like
-            Years (same scale as in ``fit``).
+            Input years.
+        y : array-like
+            True target values.
         site_ids : array-like, optional
-            Site label per row. Required for site-specific predictions (including the
-            factor-smooth term). If omitted, uses population-level ``s(year)`` only
-            (random site smooth excluded), matching ``predict(X, site_ids=None)``.
-        confidence : float, default 0.95
-            Nominal interval coverage (symmetric normal critical value on the linear predictor).
+            Site labels per row; passed through to :meth:`predict`.
+
+        Returns
+        -------
+        float
+            Mean squared error.
         """
-        from scipy import stats
-
         self._check_is_fitted()
-        z = float(stats.norm.ppf(0.5 + confidence / 2.0))
-
-        X = np.asarray(X).ravel()
-        X_norm = X - self._X_min_
-
-        if site_ids is not None:
-            site_ids = np.asarray(site_ids).ravel()
-            df = pd.DataFrame(
-                {
-                    "year": X_norm,
-                    "site_id": pd.Categorical(site_ids),
-                }
-            )
-            with ro.conversion.localconverter(ro.default_converter + pandas2ri.converter):
-                r_df = ro.conversion.py2rpy(df)
-            ro.globalenv["pred_data"] = r_df
-            ro.r("""
-                pred_data$site_id <- factor(pred_data$site_id,
-                    levels = levels(gamm_data$site_id))
-                pr <- predict(gamm_fit, newdata = pred_data, se.fit = TRUE)
-                pred_fit <- as.numeric(pr$fit)
-                pred_se <- as.numeric(pr$se.fit)
-            """)
-        else:
-            df = pd.DataFrame({"year": X_norm})
-            with ro.conversion.localconverter(ro.default_converter + pandas2ri.converter):
-                r_df = ro.conversion.py2rpy(df)
-            ro.globalenv["pred_data"] = r_df
-            ro.r("""
-                pr <- predict(gamm_fit, newdata = pred_data, se.fit = TRUE,
-                    exclude = "s(year,site_id)")
-                pred_fit <- as.numeric(pr$fit)
-                pred_se <- as.numeric(pr$se.fit)
-            """)
-
-        mean_norm = np.asarray(ro.globalenv["pred_fit"], dtype=float).ravel()
-        se_norm = np.asarray(ro.globalenv["pred_se"], dtype=float).ravel()
-        lo_norm = mean_norm - z * se_norm
-        hi_norm = mean_norm + z * se_norm
-
-        mean = mean_norm * self._y_std_ + self._y_mean_
-        ci_lower = lo_norm * self._y_std_ + self._y_mean_
-        ci_upper = hi_norm * self._y_std_ + self._y_mean_
-        return mean, ci_lower, ci_upper
+        y_pred = self.predict(X, site_ids=site_ids)
+        y = np.asarray(y).ravel()
+        return float(np.mean((y - y_pred) ** 2))
 
 
 class GAMRegressor(BaseEstimator, RegressorMixin):
