@@ -21,6 +21,7 @@ build:
     - cp html/android-chrome-512x512.png $READTHEDOCS_OUTPUT/html/android-chrome-512x512.png
     - cp html/apple-touch-icon.png $READTHEDOCS_OUTPUT/html/apple-touch-icon.png
     - cp -R html/backgrounds $READTHEDOCS_OUTPUT/html/backgrounds
+    - cp -R html/fonts $READTHEDOCS_OUTPUT/html/fonts
     # Build the existing Sphinx docs under /docs/ so the landing page owns the root.
     - cd doc/source/ && python -m sphinx -T -b html -d _build/doctrees -D language=en -D exclude_patterns=ecoscope_gui.md . $READTHEDOCS_OUTPUT/html/docs
     # Build the legacy Ecoscope Downloader page separately. Sphinx 8 writes

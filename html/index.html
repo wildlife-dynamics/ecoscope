@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ecoscope</title>
+<link rel="preload" href="fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -24,13 +25,13 @@
       </a>
 
       <div class="nav-links">
-        <a href="https://app.ecoscope.io/login">Web App</a>
-        <a href="https://app.ecoscope.io/download">Desktop App</a>
+        <a href="https://app.ecoscope.io/login" class="nav-link-button">Web App</a>
         <div class="nav-dropdown">
           <button type="button" class="nav-dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="develop-submenu">Develop</button>
           <div class="nav-submenu" id="develop-submenu" hidden>
             <a href="platform-sdk/" class="nav-submenu-link" target="_blank" rel="noopener noreferrer">SDK</a>
             <a href="docs/" class="nav-submenu-link" target="_blank" rel="noopener noreferrer">Core</a>
+            <a href="https://app.ecoscope.io/download" class="nav-submenu-link" target="_blank" rel="noopener noreferrer">Desktop App</a>
           </div>
         </div>
         <div class="nav-dropdown">
@@ -54,11 +55,11 @@
   <div class="mobile-overlay" id="mobile-overlay">
     <div class="mobile-menu-links">
       <a href="https://app.ecoscope.io/login">Web App</a>
-      <a href="https://app.ecoscope.io/download">Desktop App</a>
       <div class="mobile-menu-group">
         <span class="mobile-menu-label">Develop</span>
         <a href="platform-sdk/" class="mobile-submenu-link" target="_blank" rel="noopener noreferrer">SDK</a>
         <a href="docs/" class="mobile-submenu-link" target="_blank" rel="noopener noreferrer">Core</a>
+        <a href="https://app.ecoscope.io/download" class="mobile-submenu-link" target="_blank" rel="noopener noreferrer">Desktop App</a>
       </div>
       <div class="mobile-menu-group">
         <span class="mobile-menu-label">Help</span>
@@ -92,7 +93,7 @@
   <div class="container">
     <div class="insights-grid">
       <div class="insights-image">
-        <img src="backgrounds/patrol-outputs.png" alt="Patrol tracks, events, and analytics dashboard">
+        <img src="backgrounds/patrol-outputs.png" alt="Patrol tracks, events, and analytics dashboard" loading="lazy" decoding="async">
       </div>
       <div class="insights-text">
         <h2>Insights in minutes, not weeks</h2>
@@ -113,7 +114,7 @@
           <p>Run workflows in your browser, with nothing to install. Pull in raw data, run in-depth analyses, and generate visualizations that reveal patterns in minutes &mdash; so teams can monitor trends and spot risks at a glance.</p>
         </div>
         <div class="offering-card-image">
-          <img src="backgrounds/ecoscope-day-night.png" alt="Web app advanced analysis visualization">
+          <img src="backgrounds/ecoscope-day-night.webp" alt="Web app advanced analysis visualization" loading="lazy" decoding="async">
         </div>
       </a>
       <a href="https://app.ecoscope.io/download" class="offering-card">
@@ -122,7 +123,7 @@
           <p>Run Ecoscope locally, on your own hardware. Primarily intended for developers.</p>
         </div>
         <div class="offering-card-image">
-          <img src="backgrounds/Patrol dashboard.png" alt="Desktop app Patrols Dashboard with statistics and charts">
+          <img src="backgrounds/patrol-dashboard.webp" alt="Desktop app Patrols Dashboard with statistics and charts" loading="lazy" decoding="async">
         </div>
       </a>
     </div>
@@ -169,7 +170,7 @@
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSe6mMSvZH7JlIID2yjKUvPN4Cl4eddlZVZGrikHKvA21HdF1g/viewform" target="_blank" rel="noopener noreferrer" class="btn-green">Get in touch</a>
       </div>
       <div class="collaboration-image">
-        <img src="backgrounds/ER used in collaring 2019 credit adam bannister-p-1600.jpg" alt="EarthRanger used in elephant collaring operation">
+        <img src="backgrounds/ER used in collaring 2019 credit adam bannister-p-1600.jpg" alt="EarthRanger used in elephant collaring operation" loading="lazy" decoding="async">
       </div>
     </div>
   </div>
