@@ -125,6 +125,79 @@ class Trajectory(EcoDataFrame):
 
         return df.join(gdf, how="left")
 
+    @classmethod
+    def from_track_geometry(cls, gdf: gpd.GeoDataFrame, groupby_col: str | None = None, copy: bool = True):
+        """
+        Create a Trajectory directly from rows whose geometry is a (Multi)LineString with
+        Z = epoch-millisecond timestamps (one continuous track per LineString).
+
+        Each LineString is segmented into consecutive 2-point segments; segments are never
+        formed across a LineString or row boundary, so rows sharing ``groupby_col`` yield a
+        single trajectory made of disjoint runs (e.g. one patrol spanning several leg-days)
+        with no bridging segment between them. Row attributes are carried onto every segment.
+
+        Parameters
+        ----------
+        gdf : GeoDataFrame
+            Rows of timestamped (Multi)LineString tracks.
+        groupby_col : str, optional
+            Name of the column identifying each trajectory. Default is a single trajectory.
+        copy : bool, optional
+            Whether or not to copy the `gdf`. Defaults to `True`.
+        """
+        assert "geometry" in gdf
+
+        if copy:
+            gdf = gdf.copy()
+
+        if groupby_col is None:
+            gdf["groupby_col"] = 0
+        else:
+            gdf["groupby_col"] = gdf.loc[:, groupby_col]
+
+        crs = gdf.crs or 4326
+        attr_cols = [c for c in gdf.columns if c != "geometry"]
+        segments = []
+        for _, row in gdf.iterrows():
+            geom = row["geometry"]
+            if geom is None:
+                continue
+            lines = geom.geoms if geom.geom_type == "MultiLineString" else [geom]
+            attrs = {c: row[c] for c in attr_cols}
+            for line in lines:
+                coords = list(line.coords)
+                if len(coords) < 2:
+                    continue
+                starts, ends = coords[:-1], coords[1:]
+                sub = gpd.GeoDataFrame(
+                    {
+                        "fixtime": pd.to_datetime([c[2] for c in starts], unit="ms", utc=True),
+                        "_fixtime": pd.to_datetime([c[2] for c in ends], unit="ms", utc=True),
+                    },
+                    geometry=gpd.points_from_xy([c[0] for c in starts], [c[1] for c in starts]),
+                    crs=crs,
+                )
+                sub["_geometry"] = gpd.points_from_xy([c[0] for c in ends], [c[1] for c in ends])
+                for col, value in attrs.items():
+                    # list-valued columns (e.g. a folded patrol roster) must be broadcast
+                    sub[col] = [value] * len(sub) if isinstance(value, list) else value
+                segments.append(sub)
+
+        if not segments:
+            return cls(gdf=gpd.GeoDataFrame())
+
+        combined = gpd.GeoDataFrame(pd.concat(segments, ignore_index=True), geometry="geometry", crs=crs)
+        combined["junk_status"] = False
+        # sort by time within each trajectory so nsd is measured from the earliest fix
+        combined.sort_values(["groupby_col", "fixtime"], inplace=True)
+
+        traj = combined.groupby("groupby_col")[combined.columns].apply(cls._create_trajsegments).droplevel(level=0)
+        # Duplicate-timestamp vertices yield zero-duration segments whose speed is undefined
+        # (NaN/inf); drop them so the trajectory carries only well-formed segments.
+        traj = traj[(traj["timespan_seconds"] > 0) & np.isfinite(traj["speed_kmhr"])]
+        traj.sort_values("segment_start", inplace=True)
+        return cls(gdf=traj)
+
     def apply_traj_filter(self, traj_seg_filter: TrajSegFilter, inplace: bool = False):
         if not self.gdf["segment_start"].is_monotonic_increasing:
             self.gdf.sort_values("segment_start", inplace=True)
