@@ -212,7 +212,9 @@ def classify_is_night(
     # Bundled IERS data is accurate to ~few-ms, well below
     # the minute-scale precision needed here.
     with iers.conf.set_temp("auto_download", False):
-        relocations["is_night"] = is_night(relocations.geometry, relocations.fixtime)
+        with iers.conf.set_temp("auto_max_age", None):
+            with iers.conf.set_temp("iers_degraded_accuracy", "warn"):
+                relocations["is_night"] = is_night(relocations.geometry, relocations.fixtime)
 
     return relocations
 
