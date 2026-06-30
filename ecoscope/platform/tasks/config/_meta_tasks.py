@@ -19,7 +19,7 @@ from ecoscope.platform.tasks.analysis._time_density import (
     MaxSpeedFactorAnnotation,
     MeshGridAnnotation,
     NoDataAnnotation,
-    TimeDensityReturnGDFSchema,
+    TimeDensityReturnGDF,
     TrajectoryAnnotation,
     calculate_elliptical_time_density,
     calculate_linear_time_density,
@@ -115,7 +115,7 @@ def set_ltd_args_with_opacity(
 def call_etd_from_combined_params(
     trajectory_gdf: TrajectoryAnnotation,
     combined_params: EtdArgsWithOpacity,
-) -> DataFrame[TimeDensityReturnGDFSchema]:
+) -> TimeDensityReturnGDF:
     return (
         task(calculate_elliptical_time_density)
         .validate()
@@ -136,7 +136,7 @@ def call_ltd_from_combined_params(
     trajectory_gdf: TrajectoryAnnotation,
     meshgrid: MeshGridAnnotation,
     combined_params: LtdArgsWithOpacity,
-) -> AnyGeoDataFrame:
+) -> TimeDensityReturnGDF:
     return (
         task(calculate_linear_time_density)
         .validate()

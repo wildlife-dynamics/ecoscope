@@ -9,7 +9,7 @@ orphan: true
 :::{admonition} Current Ecoscope Downloader users
 :class: tip
 
-Ecoscope Downloader was built on an aging codebase with limited customizability.
+Ecoscope Downloader was built on an old and outdated code base with limited customizability that was showing its age.
 
 **If you are a current Ecoscope Downloader user, we strongly recommend migrating to Ecoscope Web.
 Ecoscope Web is more secure, more performant, and does not depend on your local hardware or network connection.**
@@ -34,6 +34,6 @@ Ecoscope Desktop lets you run the same specialized download workflows locally on
 
 Please make sure you are using Ecoscope Desktop `v1.0.0` or later. You can download a full installer
 from the [download](https://app.ecoscope.io/download) page or, if you are currently using `v0.3.0`, use the built-in
-patch upgrade flow.
+patch upgrade flow to update to the latest version of Ecoscope Desktop.
 
 Windows, macOS, and Linux will continue to be supported.

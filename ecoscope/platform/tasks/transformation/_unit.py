@@ -10,6 +10,8 @@ from wt_registry import register
 class Unit(Enum):
     METER = "m"
     KILOMETER = "km"
+    SQUARE_METER = "m²"
+    SQUARE_KILOMETER = "km²"
     SECOND = "s"
     HOUR = "h"
     DAY = "d"

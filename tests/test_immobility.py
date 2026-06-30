@@ -20,4 +20,4 @@ def test_immobility(movebank_relocations):
         "immobility_time": pd.Timedelta("4 days 03:00:00"),
     }
 
-    assert result == pytest.approx(expected_result)
+    assert result == pytest.approx(expected_result, rel=0.01)

@@ -133,4 +133,6 @@ def get_night_day_ratio(
 
     # See classify_is_night for rationale on disabling auto-download.
     with iers.conf.set_temp("auto_download", False):
-        return astronomy.get_nightday_ratio(df)
+        with iers.conf.set_temp("auto_max_age", None):
+            with iers.conf.set_temp("iers_degraded_accuracy", "warn"):
+                return astronomy.get_nightday_ratio(df)

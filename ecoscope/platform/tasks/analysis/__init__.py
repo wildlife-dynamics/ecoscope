@@ -15,6 +15,7 @@ from ._calculate_feature_density import calculate_feature_density
 from ._create_meshgrid import create_meshgrid
 from ._summary import aggregate_over_rows, summarize_df
 from ._time_density import (
+    TimeDensityReturnGDF,
     TimeDensityReturnGDFSchema,
     calculate_elliptical_time_density,
     calculate_linear_time_density,
@@ -36,6 +37,7 @@ __all__ = [
     "create_meshgrid",
     "aggregate_over_rows",
     "summarize_df",
+    "TimeDensityReturnGDF",
     "TimeDensityReturnGDFSchema",
     "calculate_elliptical_time_density",
     "calculate_linear_time_density",
