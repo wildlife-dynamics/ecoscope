@@ -3,6 +3,7 @@ from importlib.resources import files
 import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pytest
+from pydantic import TypeAdapter
 
 from ecoscope.platform.tasks.analysis import (
     calculate_elliptical_time_density,
@@ -14,6 +15,7 @@ from ecoscope.platform.tasks.analysis._create_meshgrid import (
 from ecoscope.platform.tasks.analysis._time_density import (
     AutoScaleGridCellSize,
     CustomGridCellSize,
+    TimeDensityReturnGDF,
 )
 
 
@@ -45,6 +47,8 @@ def test_calculate_elliptical_time_density_custom_cell_size():
             106.6875,
         ]
     )
+    ta = TypeAdapter(TimeDensityReturnGDF)
+    ta.validate_python(result)
 
 
 @pytest.mark.parametrize(
@@ -85,6 +89,8 @@ def test_calculate_elliptical_time_density_custom_auto_scale(percentiles):
     assert list(result["area_sqkm"]) == pytest.approx(
         [626.837667, 499.715083, 354.804824, 263.25759, 195.664425, 143.487245]
     )
+    ta = TypeAdapter(TimeDensityReturnGDF)
+    ta.validate_python(result)
 
 
 @pytest.mark.parametrize(
@@ -118,6 +124,8 @@ def test_calculate_linear_time_density_custom_auto_scale(percentiles):
     assert set(percentile_without_nans.unique()) == set(percentile_levels)
     # Density values should be normalized
     assert round(result.density.sum(), 1) == 1.0
+    ta = TypeAdapter(TimeDensityReturnGDF)
+    ta.validate_python(result)
 
 
 def test_calculate_elliptical_time_density_custom_auto_scale_raises_empty_percentiles():
