@@ -2,195 +2,38 @@
 orphan: true
 ---
 
-Ecoscope Downloader
-----
+# Ecoscope Downloader
 
-:::{admonition} Sunset notice
-:class: important
+**Ecoscope Downloader has been sunset and is no longer available to download.**
 
-**Ecoscope Downloader will no longer be available to download after June 30, 2026.**
+:::{admonition} Current Ecoscope Downloader users
+:class: tip
 
 Ecoscope Downloader was built on an old and outdated code base with limited customizability that was showing its age.
 
-We will be replacing it with 2 new and improved ways of exporting your EarthRanger data:
+**If you are a current Ecoscope Downloader user, we strongly recommend migrating to Ecoscope Web.
+Ecoscope Web is more secure, more performant, and does not depend on your local hardware or network connection.**
 
-**RECOMMENDED: Specialized Download workflows on Ecoscope Web**
+See the [Ecoscope migration guide](https://support.earthranger.com/en_US/ecoscope-getting-help/ecoscope-migration-guide) for step-by-step instructions on moving to Ecoscope Web or Ecoscope Desktop.
 
-<u>Available by June 29 2026 to _all_ users on Ecoscope Web</u> (if you don’t have an account, you can sign up [here](https://docs.google.com/forms/d/e/1FAIpQLSep4xDWIOWx_IXoK4wDaQJyPHGO_vNW5bjlh1f5DEo8S6QjNw/viewform)), 
-these workflows will allow you to export events, observations and patrols data on the cloud in a secure, and performant
-manner.
+Ecoscope Desktop is available as an alternative when cloud export is not the right fit.
+:::
 
-**ALTERNATIVE: Download workflows on Ecoscope Desktop**
+#### New export options
 
-Ecoscope Desktop is a new desktop application rebuilt from the ground up to be faster, more reliable, and easier to improve. 
+You now have two new and improved ways of exporting your EarthRanger data:
+
+**✅ Recommended: Specialized Download workflows on Ecoscope Web**
+
+<u>Available to _all_ users on Ecoscope Web</u> (if you don’t have an account, you can sign up [here](https://docs.google.com/forms/d/e/1FAIpQLSep4xDWIOWx_IXoK4wDaQJyPHGO_vNW5bjlh1f5DEo8S6QjNw/viewform)), 
+specialized download workflows allow you to export event, observation, and patrol data in the cloud, securely and efficiently. It also supports more in-depth analyses of your data and is improving fast.
+
+**↪️ Alternative: Download workflows on Ecoscope Desktop**
+
+Ecoscope Desktop lets you run the same specialized download workflows locally on your machine when cloud export is not the right fit.
+
+Please make sure you are using Ecoscope Desktop `v1.0.0` or later. You can download a full installer
+from the [download](https://app.ecoscope.io/download) page or, if you are currently using `v0.3.0`, use the built-in
+patch upgrade flow to update to the latest version of Ecoscope Desktop.
+
 Windows, macOS, and Linux will continue to be supported.
-
-It provides the same familiar and user-friendly experience as Ecoscope Web while preserving all existing Downloader functionality
-for exporting your EarthRanger data. Ecoscope Desktop will also allow us to update workflow templates separately from the application
-itself, so we can deliver workflow bug fixes and improvements to you more quickly. You will also be able to run other Ecoscope 
-workflows locally on your own computer, giving you more ways to analyze and work with your data.
-
-<u>Available by June 30th, the same specialized Download workflows will be available on Ecoscope Desktop</u> so you can run workflows 
-to export your data on your local machine.
-
-**We strongly recommend that you opt to use Ecoscope Web instead of Ecoscope Desktop. Exporting data on the Web is more secure, 
-more performant, and is not limited to the resources of your local machine or the speed of your network connection. 
-It also saves you the effort of installing the desktop application on your machine.**
-
-**If you are a current Ecoscope Downloader user, we strongly recommend migrating to using Ecoscope Web or Ecoscope Desktop after
-the dates noted above, keeping in mind our recommendation to prefer using Ecoscope Web.**
-
-:::
-
-## Features
-
-Ecoscope Downloader is an easy-to-use cross-platform app that allows you to:
-
-- choose events or subject group observations from your EarthRanger instance, optionally filtered by date ranges
-- download the data
-- export the resulting data as either a geopackage (`.gpkg`) or a CSV (`.csv`) file and save it to your machine.
-
-The app supports 3 user interface languages at the moment:
-
-- 🇬🇧 English
-- 🇫🇷 French
-- 🇪🇸 Spanish
-
-Screenshots can be found at [the bottom of the page](#Screenshots).
-
-Ecoscope Downloader uses `ecoscope` under the hood to filter, clean, and process the downloaded data. The interface is
-built with Python and the Qt graphical framework.
-
-## Requirements
-
-Please review the system requirements below that are needed to run the software before proceeding to
-the [Downloads](#Downloads) section.
-
-| OS      | CPU architecture       | Free Disk Space | Notes                                                                                       |
-|---------|------------------------|-----------------|---------------------------------------------------------------------------------------------|
-| Windows | 64-bit                 | at least 1.5 GB | We've tested the software on Windows 11                                                     |
-| MacOS   | Apple Silicon (64-bit) | at least 500 MB | We've tested the software on MacOS Monterey, MacOS Ventura, MacOS Sonoma, and MacOS Sequoia |
-| MacOS   | Intel (64-bit)         | at least 1.5 GB | We've tested the software on MacOS Monterey, MacOS Ventura, MacOS Sonoma, and MacOS Sequoia |
-| Linux   | 64-bit                 | at least 1.5 GB | We've tested the software on Ubuntu 22.04                                                   |
-
-## Downloads
-
-:::{note}
-We do not collect any usage or other data about your use of the software. In addition, to ensure the safety of your
-EarthRanger account, your login credentials are never saved to disk in plaintext. Instead, we will ask you to re-enter
-your password
-to confirm your identity every time you open the software.
-:::
-
-:::{tip}
-For security-conscious users, we have provided the SHA-256 download
-checksums below, so you can verify the integrity of the files you download.
-:::
-
------------
-
-### Windows
-
-:::{important}
-Please make sure to review the instructions **before starting your download**.
-:::
-
-#### Instructions
-
-1. Download the `.exe` file from the link below
-2. Right-click on the downloaded `.exe` file and choose `Run as Administrator`
-3. Follow the prompts until the installation succeeds
-4. You will now have shortcuts on your Windows desktop and in the Windows start menu to start the program or to
-   uninstall it
-
-| Link                                                                          | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
-|-------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| [Download](https://drive.google.com/file/d/1oHPaDz-AWQ2mqfpirkDDCg9OJLYgXNFb) | 200 MB                      | 930 MB                     | `34007b6bfe8ea69752f50f7ac0be2b0a6eb1b569946f7f891a76a7bbace0258f` |
-
------------
-
-### MacOS
-
-:::{important}
-Please make sure to review the instructions **before starting your download**.
-:::
-
-#### Instructions
-
-1. Download the `.zip` file from the link below
-2. Unzip the downloaded `.zip` file to get an `Ecoscope Downloader.app` file
-3. Open a command-prompt and type the following command:
-
-```
-xattr -dr com.apple.quarantine '/path/to/Ecoscope Downloader.app'
-```
-
-For example, if you downloaded the file to your `Downloads` folder, you would write
-
-```
-xattr -dr com.apple.quarantine '/Users/your_macos_username/Downloads/Ecoscope Downloader.app'
-```
-
-4. Double-click on the `Ecoscope Downloader.app` file in Finder to run it.
-
-| Link                                                                                              | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
-|---------------------------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| (**Apple Silicon**) [Download](https://drive.google.com/file/d/1ZIPmkHsc1ovFSgdJpFCyM7V-qxzi9SDq) | 170 MB                      | 470 MB                     | `c45ac1c3b120dbce56e9d93d20bd452d5b94b9b1a77dced403b308fd0322e4fd` |
-| (**Intel**) [Download](https://drive.google.com/file/d/1A7LMo8vO7dJYoccNNPWB9aczCj6ciVri)         | 410 MB                      | 1.35 GB                    | `eb630bc010087a8c9ac3ef535326d1211a694b16b11bafe9af08b2660a3c674d` |
-
-:::{attention}
-Step 3 above is mandatory. If you skip it, you will not be able to open the program by
-double-clicking `Ecoscope Downloader.app`. Instead, you will see the following error dialog that
-says `"Ecoscope Downloader.app" is damaged and can't be opened.`
-
-   ```{figure-md}
-   ![Downloader interface](_static/images/gui_interface_damaged_error.png){.bg-primary .mb-1 width=100px}
-
-   '"Ecoscope Downloader.app" is damaged and can't be opened' error.
-   ```
-
-If you see this error, do Step 3 and try double-clicking on `Ecoscope Downloader.app` again. You do not need to
-re-download the app.
-:::
-
-:::{note}
-We're working on improving this so that you don't have to do step 3.
-:::
------------
-
-### Linux
-
-:::{important}
-Please make sure to review the instructions **before starting your download**.
-:::
-
-#### Instructions
-
-1. Download the `.zip` file from the link below.
-2. Unzip the download `.zip` file to get an `Ecoscope Downloader` directory.
-3. Go into the `Ecoscope Downloader` directory.
-4. Double-click on the `Ecoscope Downloader` binary executable.
-
-| Link                                                                          | Download Size (approximate) | Install Size (approximate) | SHA-256 checksum                                                   |
-|-------------------------------------------------------------------------------|-----------------------------|----------------------------|--------------------------------------------------------------------|
-| [Download](https://drive.google.com/file/d/1vVqTi8su0vInFlYuL5dFtz1QZxZjPwLQ) | 566 MB                      | 1.7 GB                     | `a13197070e07df14a3d04e4a62b2bf89998cbdb2520d37ae1014120ce6847459` |
-
-## Screenshots
-
-:::{figure-md}
-![Downloader interface](_static/images/gui_interface_1.png){.bg-primary .mb-1 width=200px}
-
-Events download configuration screen (English)
-:::
-
-:::{figure-md}
-![Downloader interface](_static/images/gui_interface_2.png){.bg-primary .mb-1 width=200px}
-
-Subject group observations download configuration screen (French)
-:::
-
-:::{figure-md}
-![Downloader interface](_static/images/gui_interface_3.png){.bg-primary .mb-1 width=200px}
-
-Confirm your password on startup screen (Spanish)
-:::
