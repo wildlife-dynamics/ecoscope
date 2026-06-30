@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ecoscope</title>
+<link rel="preload" href="fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -11,7 +12,6 @@
 <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="prefetch" href="ecoscope_gui.html" as="document">
 <link rel="prefetch" href="platform-sdk/" as="document">
 <link rel="prefetch" href="docs/" as="document">
 </head>
@@ -25,17 +25,24 @@
       </a>
 
       <div class="nav-links">
-        <a href="https://app.ecoscope.io/login">Web App</a>
-        <a href="https://app.ecoscope.io/download">Desktop App</a>
-        <a href="ecoscope_gui.html">Ecoscope Downloader</a>
+        <a href="https://app.ecoscope.io/login" class="nav-link-button">Web App</a>
         <div class="nav-dropdown">
           <button type="button" class="nav-dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="develop-submenu">Develop</button>
           <div class="nav-submenu" id="develop-submenu" hidden>
-            <a href="platform-sdk/" class="nav-submenu-link">SDK</a>
-            <a href="docs/" class="nav-submenu-link">Core</a>
+            <a href="platform-sdk/" class="nav-submenu-link" target="_blank" rel="noopener noreferrer">SDK</a>
+            <a href="docs/" class="nav-submenu-link" target="_blank" rel="noopener noreferrer">Core</a>
+            <a href="https://app.ecoscope.io/download" class="nav-submenu-link" target="_blank" rel="noopener noreferrer">Desktop App</a>
           </div>
         </div>
-        <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope" target="_blank" rel="noopener noreferrer">Help Center</a>
+        <div class="nav-dropdown">
+          <button type="button" class="nav-dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-controls="help-submenu">Help</button>
+          <div class="nav-submenu" id="help-submenu" hidden>
+            <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope" target="_blank" rel="noopener noreferrer" class="nav-submenu-link">Help Center</a>
+            <a href="https://community.earthranger.com/c/ecoscope/" target="_blank" rel="noopener noreferrer" class="nav-submenu-link">Ecoscope Community</a>
+            <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope-release-notes" target="_blank" rel="noopener noreferrer" class="nav-submenu-link">Web Release Notes</a>
+            <a href="https://earthranger-support.helpjuice.com/ecoscope-desktop-release-notes" target="_blank" rel="noopener noreferrer" class="nav-submenu-link">Desktop Release Notes</a>
+          </div>
+        </div>
       </div>
 
       <button type="button" class="hamburger-btn" aria-label="Open menu">
@@ -48,14 +55,19 @@
   <div class="mobile-overlay" id="mobile-overlay">
     <div class="mobile-menu-links">
       <a href="https://app.ecoscope.io/login">Web App</a>
-      <a href="https://app.ecoscope.io/download">Desktop App</a>
-      <a href="ecoscope_gui.html">Ecoscope Downloader</a>
       <div class="mobile-menu-group">
         <span class="mobile-menu-label">Develop</span>
-        <a href="platform-sdk/" class="mobile-submenu-link">SDK</a>
-        <a href="docs/" class="mobile-submenu-link">Core</a>
+        <a href="platform-sdk/" class="mobile-submenu-link" target="_blank" rel="noopener noreferrer">SDK</a>
+        <a href="docs/" class="mobile-submenu-link" target="_blank" rel="noopener noreferrer">Core</a>
+        <a href="https://app.ecoscope.io/download" class="mobile-submenu-link" target="_blank" rel="noopener noreferrer">Desktop App</a>
       </div>
-      <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope" target="_blank" rel="noopener noreferrer">Help Center</a>
+      <div class="mobile-menu-group">
+        <span class="mobile-menu-label">Help</span>
+        <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope" target="_blank" rel="noopener noreferrer" class="mobile-submenu-link">Help Center</a>
+        <a href="https://community.earthranger.com/c/ecoscope/" target="_blank" rel="noopener noreferrer" class="mobile-submenu-link">Ecoscope Community</a>
+        <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope-release-notes" target="_blank" rel="noopener noreferrer" class="mobile-submenu-link">Web Release Notes</a>
+        <a href="https://earthranger-support.helpjuice.com/ecoscope-desktop-release-notes" target="_blank" rel="noopener noreferrer" class="mobile-submenu-link">Desktop Release Notes</a>
+      </div>
     </div>
   </div>
 </header>
@@ -68,7 +80,7 @@
       <p>A free and open-source data analytics and reporting platform designed to turn conservation data into action.</p>
       <div class="hero-ctas">
         <a href="https://app.ecoscope.io/login" class="btn-login-hero">Log in</a>
-        <a href="https://app.ecoscope.io/download" class="btn-download-hero">Download</a>
+        <a href="https://docs.google.com/forms/u/1/d/e/1FAIpQLSep4xDWIOWx_IXoK4wDaQJyPHGO_vNW5bjlh1f5DEo8S6QjNw/viewform?usp=send_form" class="btn-download-hero" target="_blank" rel="noopener noreferrer">Sign up</a>
       </div>
     </div>
     <div class="hero-image">
@@ -81,7 +93,7 @@
   <div class="container">
     <div class="insights-grid">
       <div class="insights-image">
-        <img src="backgrounds/patrol-outputs.png" alt="Patrol tracks, events, and analytics dashboard">
+        <img src="backgrounds/patrol-outputs.png" alt="Patrol tracks, events, and analytics dashboard" loading="lazy" decoding="async">
       </div>
       <div class="insights-text">
         <h2>Insights in minutes, not weeks</h2>
@@ -99,19 +111,19 @@
       <a href="https://app.ecoscope.io/login" class="offering-card">
         <div class="offering-card-body">
           <h3>Web App</h3>
-          <p>Automatically pull in raw data, run calculations, and generate visualizations that reveal patterns &mdash; so teams can monitor trends and spot risks at a glance.</p>
+          <p>Run workflows in your browser, with nothing to install. Pull in raw data, run in-depth analyses, and generate visualizations that reveal patterns in minutes &mdash; so teams can monitor trends and spot risks at a glance.</p>
         </div>
         <div class="offering-card-image">
-          <img src="backgrounds/advanced.jpg" alt="Web app advanced analysis visualization">
+          <img src="backgrounds/ecoscope-day-night.webp" alt="Web app advanced analysis visualization" loading="lazy" decoding="async">
         </div>
       </a>
       <a href="https://app.ecoscope.io/download" class="offering-card">
         <div class="offering-card-body">
           <h3>Desktop App</h3>
-          <p>The power of Ecoscope on your computer</p>
+          <p>Run Ecoscope locally, on your own hardware. Primarily intended for developers.</p>
         </div>
         <div class="offering-card-image">
-          <img src="backgrounds/patrol-dashboard.jpg" alt="Desktop app Patrols Dashboard with statistics and charts">
+          <img src="backgrounds/patrol-dashboard.webp" alt="Desktop app Patrols Dashboard with statistics and charts" loading="lazy" decoding="async">
         </div>
       </a>
     </div>
@@ -126,8 +138,22 @@
       <a href="platform-sdk/" class="offering-icon-card">
         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6z"/></svg>
         <div>
-          <h3>SDK</h3>
-          <p>Everything you need to build your own workflows.</p>
+          <h3>Build Your Own</h3>
+          <p>For advanced users: create and run custom analytical workflows from Ecoscope's pre-built components.</p>
+        </div>
+      </a>
+      <a href="https://community.earthranger.com/c/ecoscope/16" target="_blank" rel="noopener noreferrer" class="offering-icon-card">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 14H6l-2 2V4h16z"/></svg>
+        <div>
+          <h3>Community</h3>
+          <p>Join the conversation. Ask questions, share workflows, and connect with other Ecoscope users.</p>
+        </div>
+      </a>
+      <a href="https://support.earthranger.com/en_US/ecoscope-getting-help/ecoscope-migration-guide" target="_blank" rel="noopener noreferrer" class="offering-icon-card">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M9 3v2H5v14h14v-4h2v6H3V3zm9 0h3v3h-2V4.415l-8.293 8.292-1.414-1.414L17.585 3H16V1h5v5h-2V4.415z"/></svg>
+        <div>
+          <h3>Export Data</h3>
+          <p>Export EarthRanger data directly from Ecoscope Web or Desktop to start your analysis your own way.</p>
         </div>
       </a>
     </div>
@@ -144,7 +170,7 @@
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSe6mMSvZH7JlIID2yjKUvPN4Cl4eddlZVZGrikHKvA21HdF1g/viewform" target="_blank" rel="noopener noreferrer" class="btn-green">Get in touch</a>
       </div>
       <div class="collaboration-image">
-        <img src="backgrounds/ER used in collaring 2019 credit adam bannister-p-1600.jpg" alt="EarthRanger used in elephant collaring operation">
+        <img src="backgrounds/ER used in collaring 2019 credit adam bannister-p-1600.jpg" alt="EarthRanger used in elephant collaring operation" loading="lazy" decoding="async">
       </div>
     </div>
   </div>
