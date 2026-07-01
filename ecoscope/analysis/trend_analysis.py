@@ -1,11 +1,4 @@
 """
-Todo:
-- Outputs a dataframe representing the GAMM for a unique dataset as a benchmark
-- Extract forest cover as a task in Ecoscope. Workflow process
--
-"""
-
-"""
 Trend Analysis using Generalized Additive Models (GAMs).
 
 This module provides tools for fitting GAMs to time series data,
@@ -19,20 +12,316 @@ import numpy as np
 import pandas as pd
 
 try:
+    import bambi as bmb  # type: ignore[import-not-found,import-untyped]
+    import statsmodels.api as sm  # type: ignore[import-not-found,import-untyped]
     from joblib import Parallel, delayed  # type: ignore[import-not-found,import-untyped]
     from scipy.spatial.distance import euclidean  # type: ignore[import-not-found,import-untyped]
     from sklearn.base import BaseEstimator, RegressorMixin  # type: ignore[import-not-found,import-untyped]
     from sklearn.model_selection import (  # type: ignore[import-not-found,import-untyped]
         BaseCrossValidator,
-        KFold,
         LeaveOneOut,
+        TimeSeriesSplit,
     )
     from statsmodels.gam.api import BSplines, GLMGam  # type: ignore[import-not-found,import-untyped]
-    from statsmodels.genmod.families import Binomial, Gaussian, Poisson  # type: ignore[import-not-found,import-untyped]
+    from statsmodels.genmod.families import (  # type: ignore[import-not-found,import-untyped]
+        Binomial,
+        Gamma,
+        Gaussian,
+        Poisson,
+    )
+    from statsmodels.genmod.families.links import Log  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
         'Missing optional dependencies required by this module. Please run pip install ecoscope["analysis"]'
     )
+
+
+class GAMMRegressor(BaseEstimator, RegressorMixin):
+    """
+    Generalized Additive Mixed Model (GAMM) Regressor using Bambi.
+
+    Fits a GAM with site-level random effects using Bayesian inference.
+    Provides genuine posterior credible intervals rather than frequentist
+    confidence intervals.
+
+    Parameters
+    ----------
+    k : int, default=10
+        Number of spline basis functions for the smooth term.
+    inference_method : str, default="mcmc"
+        Inference method. ``"mcmc"`` is the reliable default for spline
+        models with random effects. ``"laplace"`` is faster when it
+        converges but may fail for some model specifications.
+    draws : int, default=500
+        Number of posterior samples (``mcmc`` only).
+    tune : int, optional
+        Number of tuning steps for MCMC. Defaults to ``draws``.
+    chains : int, default=2
+        Number of MCMC chains (``mcmc`` only).
+    family : str, default="gaussian"
+        Response distribution family. Supports "gaussian", "poisson",
+        "gamma", "bernoulli".
+    """
+
+    def __init__(
+        self,
+        k: int = 10,
+        inference_method: str = "mcmc",
+        draws: int = 500,
+        tune: Optional[int] = None,
+        chains: int = 2,
+        family: str = "gaussian",
+    ):
+        self.k = k
+        self.inference_method = inference_method
+        self.draws = draws
+        self.tune = tune
+        self.chains = chains
+        self.family = family
+
+    def fit(self, X, y, site_ids):
+        """
+        Fit the GAMM model.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples,)
+            Training years (or other time index).
+        y : array-like of shape (n_samples,)
+            Target values.
+        site_ids : array-like of shape (n_samples,)
+            Site label for each observation.
+
+        Returns
+        -------
+        self : GAMMRegressor
+            Returns self for method chaining.
+        """
+        if self.inference_method not in ("laplace", "mcmc"):
+            raise ValueError(
+                f"Unsupported inference_method: {self.inference_method!r}. " 'Must be "laplace" or "mcmc".'
+            )
+
+        X = np.asarray(X).ravel()
+        y = np.asarray(y).ravel()
+        site_ids = np.asarray(site_ids).ravel()
+
+        # Store normalization parameters
+        self._X_min_ = float(X.min())
+        self._y_mean_ = float(y.mean())
+        self._y_std_ = float(y.std())
+
+        X_norm = X - self._X_min_
+        y_norm = (y - self._y_mean_) / self._y_std_
+
+        # Build DataFrame for Bambi
+        self._df_ = pd.DataFrame(
+            {
+                "year": X_norm,
+                "y": y_norm,
+                "site_id": site_ids,
+            }
+        )
+
+        # Fit GAMM
+        self._model_ = bmb.Model(
+            f"y ~ bs(year, df={self.k}) + (1|site_id)",
+            self._df_,
+            family=self.family,
+        )
+
+        if self.inference_method == "laplace":
+            self._idata_ = self._model_.fit(inference_method="laplace")
+        else:
+            tune = self.tune if self.tune is not None else self.draws
+            self._idata_ = self._model_.fit(
+                draws=self.draws,
+                tune=tune,
+                chains=self.chains,
+            )
+
+        return self
+
+    def _check_is_fitted(self) -> None:
+        """Check if the model has been fitted."""
+        if not hasattr(self, "_idata_"):
+            raise ValueError("Model has not been fitted. Call fit() before using this method.")
+
+    def predict(self, X, site_ids=None):
+        """
+        Predict the mean trend.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples,)
+            Years (same scale as in ``fit``).
+        site_ids : array-like of shape (n_samples,), optional
+            Site label per row. When provided, predictions include each
+            site's random intercept (site-specific trend level). When
+            omitted, predictions use only the global ``bs(year)`` smooth —
+            the average trend across sites, with all site random effects
+            set to zero.
+
+        Returns
+        -------
+        y_pred : ndarray of shape (n_samples,)
+            Predicted values.
+
+        Raises
+        ------
+        ValueError
+            If the model has not been fitted.
+        """
+        self._check_is_fitted()
+        X = np.asarray(X).ravel()
+        X_norm = X - self._X_min_
+        include_group_specific = site_ids is not None
+
+        if site_ids is not None:
+            pred_df = pd.DataFrame(
+                {
+                    "year": X_norm,
+                    "site_id": np.asarray(site_ids).ravel(),
+                }
+            )
+        else:
+            pred_df = pd.DataFrame(
+                {
+                    "year": X_norm,
+                    "site_id": np.full(len(X), self._df_["site_id"].iloc[0]),
+                }
+            )
+
+        fitted = self._model_.predict(
+            self._idata_,
+            data=pred_df,
+            kind="response_params",
+            include_group_specific=include_group_specific,
+            inplace=False,
+        )
+        y_norm_pred = fitted.posterior["mu"].mean(dim=["chain", "draw"]).values
+        return y_norm_pred * self._y_std_ + self._y_mean_
+
+    def predict_with_ci(self, X, site_ids=None, credible_mass=0.95) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Predict with Bayesian credible intervals.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples,)
+            Years (same scale as in ``fit``).
+        site_ids : array-like of shape (n_samples,), optional
+            Same semantics as :meth:`predict`. Pass site labels for
+            site-specific intervals; omit for population-level intervals.
+        credible_mass : float, default=0.95
+            Width of the credible interval. 0.95 means there is a 95%
+            probability the true mean trend lies within the returned bounds.
+
+        Returns
+        -------
+        mean : ndarray
+            Predicted mean values.
+        ci_lower : ndarray
+            Lower bound of the credible interval.
+        ci_upper : ndarray
+            Upper bound of the credible interval.
+
+        Raises
+        ------
+        ValueError
+            If the model has not been fitted.
+        """
+        self._check_is_fitted()
+
+        X = np.asarray(X).ravel()
+        X_norm = X - self._X_min_
+        include_group_specific = site_ids is not None
+
+        if site_ids is not None:
+            pred_df = pd.DataFrame(
+                {
+                    "year": X_norm,
+                    "site_id": np.asarray(site_ids).ravel(),
+                }
+            )
+        else:
+            pred_df = pd.DataFrame(
+                {
+                    "year": X_norm,
+                    "site_id": np.full(len(X), self._df_["site_id"].iloc[0]),
+                }
+            )
+
+        fitted = self._model_.predict(
+            self._idata_,
+            data=pred_df,
+            kind="response_params",
+            include_group_specific=include_group_specific,
+            inplace=False,
+        )
+
+        samples = fitted.posterior["mu"].values
+        samples_flat = samples.reshape(-1, samples.shape[-1])
+
+        mean = samples_flat.mean(axis=0)
+        lower = np.percentile(samples_flat, (1 - credible_mass) / 2 * 100, axis=0)
+        upper = np.percentile(samples_flat, (1 + credible_mass) / 2 * 100, axis=0)
+
+        return (
+            mean * self._y_std_ + self._y_mean_,
+            lower * self._y_std_ + self._y_mean_,
+            upper * self._y_std_ + self._y_mean_,
+        )
+
+    def r_squared(self, X, y, site_ids=None) -> float:
+        """
+        Return R-squared (coefficient of determination) on given data.
+
+        Parameters
+        ----------
+        X : array-like
+            Input years.
+        y : array-like
+            True target values.
+        site_ids : array-like, optional
+            Site labels per row; passed through to :meth:`predict`.
+
+        Returns
+        -------
+        float
+            R-squared value.
+        """
+        self._check_is_fitted()
+        y_pred = self.predict(X, site_ids=site_ids)
+        y = np.asarray(y).ravel()
+        ss_res = np.sum((y - y_pred) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        if ss_tot == 0:
+            return 1.0 if ss_res == 0 else 0.0
+        return float(1 - ss_res / ss_tot)
+
+    def mse(self, X, y, site_ids=None) -> float:
+        """
+        Return Mean Squared Error on given data.
+
+        Parameters
+        ----------
+        X : array-like
+            Input years.
+        y : array-like
+            True target values.
+        site_ids : array-like, optional
+            Site labels per row; passed through to :meth:`predict`.
+
+        Returns
+        -------
+        float
+            Mean squared error.
+        """
+        self._check_is_fitted()
+        y_pred = self.predict(X, site_ids=site_ids)
+        y = np.asarray(y).ravel()
+        return float(np.mean((y - y_pred) ** 2))
 
 
 class GAMRegressor(BaseEstimator, RegressorMixin):
@@ -114,6 +403,15 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
             X = X[:, None]
         y = np.asarray(y).ravel()
 
+        # Store transform parameters
+        self._X_min_ = float(X.min())
+        self._y_mean_ = float(y.mean())
+        self._y_std_ = float(y.std())
+
+        # Normalize
+        X = X - self._X_min_
+        y = (y - self._y_mean_) / self._y_std_
+
         knot_kwds: list[dict[str, float]] = []
         if upper_bound is not None and lower_bound is not None:
             knot_kwds = [{"upper_bound": upper_bound, "lower_bound": lower_bound}]
@@ -158,8 +456,14 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
         if X.ndim == 1:
             X = X[:, None]
 
+        # Apply X normalization
+        X = X - self._X_min_
+
         exog = np.ones((len(X), 1))
-        return self._res_.predict(exog=exog, exog_smooth=X)
+        y_norm = self._res_.predict(exog=exog, exog_smooth=X)
+
+        # Invert y normalization
+        return y_norm * self._y_std_ + self._y_mean_
 
     def aic(self) -> float:
         """Return Akaike Information Criterion."""
@@ -246,13 +550,228 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
         if X.ndim == 1:
             X = X[:, None]
 
+        # Apply X normalization
+        X = X - self._X_min_
+
         exog = np.ones((len(X), 1))
-        summary_frame = self._res_.get_prediction(exog=exog, exog_smooth=X).summary_frame()
-        return (
-            summary_frame["mean"].to_numpy(),
-            summary_frame["mean_ci_lower"].to_numpy(),
-            summary_frame["mean_ci_upper"].to_numpy(),
-        )
+        sf = self._res_.get_prediction(exog=exog, exog_smooth=X).summary_frame()
+
+        # Invert all three arrays
+        mean = sf["mean"].to_numpy() * self._y_std_ + self._y_mean_
+        lower = sf["mean_ci_lower"].to_numpy() * self._y_std_ + self._y_mean_
+        upper = sf["mean_ci_upper"].to_numpy() * self._y_std_ + self._y_mean_
+
+        return mean, lower, upper
+
+
+class GLMRegressor(BaseEstimator, RegressorMixin):
+    """
+    Generalized Linear Model (GLM) Regressor.
+
+    Parameters
+    ----------
+    family : {"gaussian", "poisson", "binomial", "gamma"}, default="gaussian"
+        Distribution family for the GLM.
+    add_intercept : bool, default=True
+        Whether to include an intercept term in the model.
+    """
+
+    def __init__(
+        self,
+        family: Literal["gaussian", "poisson", "binomial", "gamma"] = "gaussian",
+        add_intercept: bool = True,
+    ):
+        self.add_intercept = add_intercept
+
+        if family == "gaussian":
+            self.family = Gaussian(link=Log())
+        elif family == "poisson":
+            self.family = Poisson()
+        elif family == "binomial":
+            self.family = Binomial()
+        elif family == "gamma":
+            self.family = Gamma()
+        else:
+            raise ValueError(f"Unsupported family: {family}. Must be 'gaussian', 'poisson', or 'binomial'")
+
+    def fit(self, X, y):
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+        y = np.asarray(y).ravel()
+
+        # Store and apply normalization
+        self._X_min_ = float(X.min())
+        self._y_mean_ = float(y.mean())
+        self._y_std_ = float(y.std())
+
+        X = X - self._X_min_
+        y = (y - self._y_mean_) / self._y_std_
+
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        self._res_ = sm.GLM(y, exog, family=self.family).fit()
+        return self
+
+    def _check_is_fitted(self) -> None:
+        if not hasattr(self, "_res_"):
+            raise ValueError("Model has not been fitted. Call fit() before using this method.")
+
+    def predict(self, X):
+        self._check_is_fitted()
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        X = X - self._X_min_
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        y_norm = self._res_.predict(exog=exog)
+        return y_norm * self._y_std_ + self._y_mean_
+
+    def aic(self) -> float:
+        self._check_is_fitted()
+        return float(self._res_.aic)
+
+    def bic(self) -> float:
+        self._check_is_fitted()
+        # statsmodels GLM uses bic (or bic_llf depending on version); prefer bic if available
+        bic = getattr(self._res_, "bic", None)
+        if bic is None:
+            return float(self._res_.bic_llf)
+        return float(bic)
+
+    def mse(self, X, y) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X)
+        y = np.asarray(y).ravel()
+        return float(np.mean((y - y_pred) ** 2))
+
+    def r_squared(self, X, y) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X)
+        y = np.asarray(y).ravel()
+        ss_res = np.sum((y - y_pred) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        if ss_tot == 0:
+            return 1.0 if ss_res == 0 else 0.0
+        return float(1 - ss_res / ss_tot)
+
+    def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self._check_is_fitted()
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        X = X - self._X_min_
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        sf = self._res_.get_prediction(exog=exog).summary_frame()
+        mean = sf["mean"].to_numpy() * self._y_std_ + self._y_mean_
+        lower = sf["mean_ci_lower"].to_numpy() * self._y_std_ + self._y_mean_
+        upper = sf["mean_ci_upper"].to_numpy() * self._y_std_ + self._y_mean_
+
+        return mean, lower, upper
+
+
+class LinearRegressionRegressor(BaseEstimator, RegressorMixin):
+    """
+    Standard Linear Regression (OLS) Regressor.
+
+    Parameters
+    ----------
+    add_intercept : bool, default=True
+        Whether to include an intercept term in the model.
+    """
+
+    def __init__(self, add_intercept: bool = True):
+        self.add_intercept = add_intercept
+
+    def fit(self, X, y):
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+        y = np.asarray(y).ravel()
+
+        self._X_min_ = float(X.min())
+        self._y_mean_ = float(y.mean())
+        self._y_std_ = float(y.std())
+
+        X = X - self._X_min_
+        y = (y - self._y_mean_) / self._y_std_
+
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        self._res_ = sm.OLS(y, exog).fit()
+        return self
+
+    def _check_is_fitted(self) -> None:
+        if not hasattr(self, "_res_"):
+            raise ValueError("Model has not been fitted. Call fit() before using this method.")
+
+    def predict(self, X):
+        self._check_is_fitted()
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        X = X - self._X_min_
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        y_norm = self._res_.predict(exog)
+        return y_norm * self._y_std_ + self._y_mean_
+
+    def aic(self) -> float:
+        self._check_is_fitted()
+        return float(self._res_.aic)
+
+    def bic(self) -> float:
+        self._check_is_fitted()
+        return float(self._res_.bic)
+
+    def mse(self, X, y) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X)
+        y = np.asarray(y).ravel()
+        return float(np.mean((y - y_pred) ** 2))
+
+    def r_squared(self, X, y) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X)
+        y = np.asarray(y).ravel()
+        ss_res = np.sum((y - y_pred) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        if ss_tot == 0:
+            return 1.0 if ss_res == 0 else 0.0
+        return float(1 - ss_res / ss_tot)
+
+    def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self._check_is_fitted()
+        X = np.asarray(X)
+        if X.ndim == 1:
+            X = X[:, None]
+
+        X = X - self._X_min_
+        exog = X
+        if self.add_intercept:
+            exog = sm.add_constant(exog, has_constant="add")
+
+        sf = self._res_.get_prediction(exog).summary_frame()
+        mean = sf["mean"].to_numpy() * self._y_std_ + self._y_mean_
+        lower = sf["mean_ci_lower"].to_numpy() * self._y_std_ + self._y_mean_
+        upper = sf["mean_ci_upper"].to_numpy() * self._y_std_ + self._y_mean_
+
+        return mean, lower, upper
 
 
 def choose_cross_validator(X: np.ndarray) -> BaseCrossValidator:
@@ -272,11 +791,13 @@ def choose_cross_validator(X: np.ndarray) -> BaseCrossValidator:
     if len(X) <= 10:
         return LeaveOneOut()
     else:
-        return KFold(n_splits=5)
+        return TimeSeriesSplit(n_splits=5)
 
 
 def _fit_and_score_ic(alpha, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family):
-    """Fit GAM and return alpha with its information criterion (aic, bic) score."""
+    """
+    Fit GAM and return alpha with its information criterion (aic, bic) score.
+    """
     gam = GAMRegressor(
         alpha=alpha,
         degree_of_freedom=degree_of_freedom,
@@ -293,7 +814,9 @@ def _fit_and_score_ic(alpha, X, y, metric, lower_bound, upper_bound, degree_of_f
 def _fit_and_score_cv(
     alpha, fold_idx, train_index, test_index, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family
 ):
-    """Fit GAM on fold of test/train data and return alpha, fold index, and score."""
+    """
+    Fit GAM on fold of test/train data and return alpha, fold index, and score.
+    """
     gam = GAMRegressor(
         alpha=alpha,
         degree_of_freedom=degree_of_freedom,
@@ -499,15 +1022,24 @@ def optimize_gam(
     >>> y = np.array([100, 95, 90, 85, 80])
     >>> alpha, gam = optimize_gam(X, y, metric="aic")
     """
-    data_range = float(np.max(X) - np.min(X))
+    X = np.asarray(X).ravel()
+    y = np.asarray(y).ravel()
+
+    X_min = float(np.min(X))
+    X_norm = X - X_min
+    data_range = float(np.max(X_norm))
     padding = bound_padding_ratio * data_range
 
     if lower_bound is None:
-        lower_bound = float(np.min(X)) - padding
+        lower_bound = 0.0 - padding
+    else:
+        lower_bound = float(lower_bound) - X_min
     if upper_bound is None:
-        upper_bound = float(np.max(X)) + padding
+        upper_bound = data_range + padding
+    else:
+        upper_bound = float(upper_bound) - X_min
     if alphas is None:
-        alphas = np.logspace(-4, 4, 100)
+        alphas = np.logspace(-6, 4, 100)
     if cross_validator is None:
         cross_validator = choose_cross_validator(X)
 
@@ -565,7 +1097,9 @@ def get_forest_cover_trends(
         aoi = aoi.to_crs(4326)
 
     feat_coll = ee.FeatureCollection(aoi.__geo_interface__)
-    gfc = ee.Image("UMD/hansen/global_forest_change_2023_v1_11")
+
+    # @see: https://developers.google.com/earth-engine/datasets/catalog/UMD_hansen_global_forest_change_2024_v1_12
+    gfc = ee.Image("UMD/hansen/global_forest_change_2024_v1_12")
 
     # Calculate forested area in 2000
     treecover2000 = gfc.select(["treecover2000"])

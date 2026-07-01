@@ -39,6 +39,7 @@ Tracker = "https://github.com/wildlife-dynamics/ecoscope/issues"
 
 [project.optional-dependencies]
 analysis = [
+  "bambi",
   "astroplan",
   "datashader",
   "igraph",
