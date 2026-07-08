@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, call, patch
 
@@ -8,9 +9,11 @@ import pytest
 from pydantic import SecretStr
 from wt_task import task
 
+from ecoscope.platform.annotations import AnyDataFrame  # type: ignore[import-untyped]
 from ecoscope.platform.connections import EarthRangerClientProtocol, EarthRangerConnection
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
+    download_grouped_event_attachments,
     get_analysis_field_from_event_details,
     get_analysis_field_label_from_event_details,
     get_analysis_field_unit_from_event_details,
@@ -30,6 +33,7 @@ from ecoscope.platform.tasks.io import (
     get_patrols_from_combined_params,
     get_spatial_features_group,
     get_subjectgroup_observations,
+    process_events_details,
     set_event_details_params,
     set_patrols_and_patrol_events_params,
     unpack_events_from_patrols_df,
@@ -38,8 +42,12 @@ from ecoscope.platform.tasks.io import (
 from ecoscope.platform.tasks.io._earthranger import (
     _EXCLUSION_FILTER_TO_INT,
     CombinedPatrolAndEventsParams,
+    _fetch_v2_schema,
     _make_warehouse_client_from_env,
+    _normalize_v1_schema,
+    _resolve_event_details,
 )
+from ecoscope.platform.tasks.io._persist_df_wrapper import _hash_grouper_key
 
 pytestmark = pytest.mark.io
 
@@ -1460,3 +1468,734 @@ def test_warehouse_disabled_falls_back_to_legacy_client():
 
     mock_legacy_client.get_subjectgroup_observations.assert_called_once()
     assert result.empty
+
+
+# ---------------------------------------------------------------------------
+# download_grouped_event_attachments tests
+# ---------------------------------------------------------------------------
+
+
+class DummyResponse:
+    def __init__(self, content: bytes):
+        self.content = content
+
+    def json(self):
+        import json
+
+        return json.loads(self.content.decode())
+
+
+class DummyEarthRangerClient:
+    def __init__(self, schemas: dict | None = None):
+        self.calls: list[tuple[str, bool]] = []
+        self.schemas = schemas or {}
+
+    def _get(self, url: str, return_response: bool = False):
+        self.calls.append((url, return_response))
+        if url.endswith("/files"):
+            return {
+                "results": [
+                    {"id": "file-1", "filename": "attachment.jpg"},
+                ]
+            }
+        if "/schema/eventtype/" in url:
+            event_type = url.split("/")[-1]
+            return self.schemas.get(event_type, {})
+
+        if return_response:
+            return DummyResponse(b"fake-bytes")
+        return {"results": []}
+
+
+@pytest.fixture()
+def dummy_er_client():
+    return DummyEarthRangerClient()
+
+
+@pytest.fixture()
+def output_dir(tmp_path):
+    return f"file://{tmp_path}"
+
+
+class TestDownloadGroupedEventAttachments:
+    """Tests for download_grouped_event_attachments."""
+
+    def _make_df(self, event_id):
+        return pd.DataFrame([{"serial_number": 1}], index=[event_id])
+
+    def test_filename_layout_keyhash_eventid_subfolder(self, dummy_er_client, output_dir, tmp_path):
+        event_id = "11111111-2222-3333-4444-555555555555"
+        key = (("event_type", "=", "wildlife_sighting"),)
+        expected_key_hash = _hash_grouper_key(key)
+
+        result = download_grouped_event_attachments(
+            client=dummy_er_client,
+            grouped_event_gdfs=[(key, self._make_df(event_id))],
+            output_dir=output_dir,
+        )
+
+        expected_dirname = f"{expected_key_hash}_{event_id}"
+        attachment_path = tmp_path / "attachments" / expected_dirname / "attachment.jpg"
+        assert attachment_path.exists()
+        assert result == [f"attachments/{expected_dirname}/attachment.jpg"]
+
+    def test_filename_unchanged_for_multi_dot_extension(self, output_dir, tmp_path):
+        # Regression: hash-as-suffix layout used to mangle "foo.tar.gz" → "foo.tar_<hash>.gz".
+        # Subfolder layout must leave the original filename (incl. multi-dot extensions) intact.
+        class TarGzClient(DummyEarthRangerClient):
+            def _get(self, url, return_response=False):
+                self.calls.append((url, return_response))
+                if url.endswith("/files"):
+                    return {"results": [{"id": "f1", "filename": "archive.tar.gz"}]}
+                if return_response:
+                    return DummyResponse(b"fake-bytes")
+                return {"results": []}
+
+        client = TarGzClient()
+        event_id = "evt-1"
+        key = (("event_type", "=", "carcass"),)
+        expected_key_hash = _hash_grouper_key(key)
+
+        result = download_grouped_event_attachments(
+            client=client,
+            grouped_event_gdfs=[(key, self._make_df(event_id))],
+            output_dir=output_dir,
+        )
+
+        expected_dirname = f"{expected_key_hash}_{event_id}"
+        attachment_path = tmp_path / "attachments" / expected_dirname / "archive.tar.gz"
+        assert attachment_path.exists()
+        assert result == [f"attachments/{expected_dirname}/archive.tar.gz"]
+
+    def test_each_group_written_to_distinct_subfolder(self, dummy_er_client, output_dir, tmp_path):
+        key_a = (("event_type", "=", "wildlife_sighting"),)
+        key_b = (("event_type", "=", "carcass"),)
+
+        result = download_grouped_event_attachments(
+            client=dummy_er_client,
+            grouped_event_gdfs=[
+                (key_a, self._make_df("evt-a")),
+                (key_b, self._make_df("evt-b")),
+            ],
+            output_dir=output_dir,
+        )
+
+        # Each event lands under its own `<key_hash>_<event_id>/` subfolder.
+        assert len(result) == 2
+        assert len(set(result)) == 2
+        assert result[0].startswith(f"attachments/{_hash_grouper_key(key_a)}_evt-a/")
+        assert result[1].startswith(f"attachments/{_hash_grouper_key(key_b)}_evt-b/")
+        for p in result:
+            assert (tmp_path / p).exists()
+
+    def test_custom_subdir_and_id_column(self, dummy_er_client, output_dir, tmp_path):
+        event_id = "00000000-aaaa-bbbb-cccc-111111111111"
+        df = pd.DataFrame(
+            [{"id": event_id, "serial_number": 1}],
+            index=["unused-index"],
+        )
+        key = (("event_type", "=", "carcass"),)
+        expected_key_hash = _hash_grouper_key(key)
+
+        result = download_grouped_event_attachments(
+            client=dummy_er_client,
+            grouped_event_gdfs=[(key, df)],
+            output_dir=output_dir,
+            attachments_subdir="custom",
+            use_index_as_id=False,
+        )
+
+        expected_dirname = f"{expected_key_hash}_{event_id}"
+        attachment_path = tmp_path / "custom" / expected_dirname / "attachment.jpg"
+        assert attachment_path.exists()
+        assert result == [f"custom/{expected_dirname}/attachment.jpg"]
+
+    def test_none_key_group_is_skipped(self, dummy_er_client, output_dir, tmp_path):
+        key = (("event_type", "=", "carcass"),)
+        result = download_grouped_event_attachments(
+            client=dummy_er_client,
+            grouped_event_gdfs=[
+                (None, self._make_df("skipped-evt")),
+                (key, self._make_df("kept-evt")),
+            ],
+            output_dir=output_dir,
+        )
+
+        assert len(result) == 1
+        assert "kept-evt" in result[0]
+        # No subfolder should contain the skipped event id.
+        for child in (tmp_path / "attachments").iterdir():
+            assert not child.name.endswith("_skipped-evt")
+
+    def test_empty_df_group_is_skipped(self, dummy_er_client, output_dir):
+        key_empty = (("event_type", "=", "empty"),)
+        key_kept = (("event_type", "=", "carcass"),)
+        result = download_grouped_event_attachments(
+            client=dummy_er_client,
+            grouped_event_gdfs=[
+                (key_empty, pd.DataFrame()),
+                (key_kept, self._make_df("kept-evt")),
+            ],
+            output_dir=output_dir,
+        )
+
+        assert len(result) == 1
+        assert _hash_grouper_key(key_kept) in result[0]
+
+    def test_empty_iterable_returns_empty_list(self, dummy_er_client, output_dir):
+        assert (
+            download_grouped_event_attachments(
+                client=dummy_er_client,
+                grouped_event_gdfs=[],
+                output_dir=output_dir,
+            )
+            == []
+        )
+
+    def test_skip_download_returns_empty_list(self, dummy_er_client, output_dir, tmp_path):
+        key = (("event_type", "=", "carcass"),)
+        result = download_grouped_event_attachments(
+            client=dummy_er_client,
+            grouped_event_gdfs=[(key, self._make_df("evt-1"))],
+            output_dir=output_dir,
+            skip_download=True,
+        )
+        assert result == []
+        assert not (tmp_path / "attachments").exists()
+        assert dummy_er_client.calls == []
+
+
+# ---------------------------------------------------------------------------
+# process_events_details tests (v2-first with v1 fallback)
+# ---------------------------------------------------------------------------
+
+
+def _make_events_details_mock_client(v2_schemas=None, v1_schemas=None):
+    """Create a mock client for process_events_details tests.
+
+    v2_schemas: dict mapping event_type -> v2 schema response (or None to raise ERClientNotFound)
+    v1_schemas: dict mapping event_type -> v1 schema response
+    """
+    from ecoscope.io.earthranger import ERClientNotFound  # type: ignore[import-untyped]
+
+    v2 = v2_schemas or {}
+    v1 = v1_schemas or {}
+    _in_v2 = False
+
+    mock = MagicMock()
+
+    @contextmanager
+    def use_v2_api():
+        nonlocal _in_v2
+        _in_v2 = True
+        try:
+            yield
+        finally:
+            _in_v2 = False
+
+    def get(url, **kwargs):
+        if _in_v2:
+            # V2 endpoint: activity/eventtypes/{event_type}/schema
+            for et, schema in v2.items():
+                if f"activity/eventtypes/{et}/schema" in url:
+                    if schema is None:
+                        raise ERClientNotFound(f"404: {url}")
+                    return schema
+            raise ERClientNotFound(f"404: {url}")
+        else:
+            # V1 endpoint: /activity/events/schema/eventtype/{event_type}
+            for et, schema in v1.items():
+                if f"activity/events/schema/eventtype/{et}" in url:
+                    return schema
+            raise ERClientNotFound(f"404: {url}")
+
+    mock._use_v2_api = use_v2_api
+    mock._get = get
+    return mock
+
+
+def test_process_events_details_v2_schema():
+    """process_events_details uses v2 schema to resolve titles."""
+    mock_client = _make_events_details_mock_client(
+        v2_schemas={
+            "elephant_sighting": {
+                "json": {
+                    "properties": {
+                        "count": {"title": "Elephant Count", "type": "number"},
+                        "location_name": {"title": "Location Name", "type": "string"},
+                    }
+                }
+            }
+        },
+    )
+
+    df = pd.DataFrame(
+        {
+            "event_type": ["elephant_sighting"],
+            "event_details": [{"count": 5, "location_name": "River"}],
+        }
+    )
+
+    result = process_events_details(df=df, client=mock_client, map_to_titles=True)
+    details = result["event_details"].iloc[0]
+    assert details == {"Elephant Count": 5, "Location Name": "River"}
+
+
+def test_process_events_details_v2_with_enum_resolution():
+    """process_events_details resolves v2 enum values via anyOf/$ref."""
+    v2_ref_url = "/activity/enums/herd_enum"
+    mock_client = _make_events_details_mock_client(
+        v2_schemas={
+            "elephant_sighting": {
+                "json": {
+                    "properties": {
+                        "herd_type": {
+                            "title": "Herd Type",
+                            "anyOf": [{"$ref": v2_ref_url}],
+                        },
+                    }
+                }
+            }
+        },
+    )
+    # Also need the $ref resolution to work — patch _get to handle ref calls
+    original_get = mock_client._get
+
+    def get_with_refs(url, **kwargs):
+        if url == v2_ref_url:
+            return {
+                "oneOf": [
+                    {"const": "bull_only", "title": "Bull Only"},
+                    {"const": "mix", "title": "Mix"},
+                ]
+            }
+        return original_get(url, **kwargs)
+
+    mock_client._get = get_with_refs
+
+    df = pd.DataFrame(
+        {
+            "event_type": ["elephant_sighting"],
+            "event_details": [{"herd_type": "bull_only"}],
+        }
+    )
+
+    result = process_events_details(df=df, client=mock_client, map_to_titles=True)
+    details = result["event_details"].iloc[0]
+    assert details == {"Herd Type": "Bull Only"}
+
+
+def test_process_events_details_v2_fallback_to_v1():
+    """process_events_details falls back to v1 when v2 returns 404."""
+    mock_client = _make_events_details_mock_client(
+        v2_schemas={"accident_rep": None},  # None -> raises ERClientNotFound
+        v1_schemas={
+            "accident_rep": {
+                "schema": {
+                    "properties": {
+                        "type_accident": {
+                            "type": "string",
+                            "title": "Type of accident",
+                        },
+                    }
+                },
+                "definition": [
+                    {
+                        "key": "type_accident",
+                        "titleMap": [
+                            {"value": "vehicle", "name": "Vehicle Accident"},
+                            {"value": "fire", "name": "Fire"},
+                        ],
+                    }
+                ],
+            }
+        },
+    )
+
+    df = pd.DataFrame(
+        {
+            "event_type": ["accident_rep"],
+            "event_details": [{"type_accident": "vehicle"}],
+        }
+    )
+
+    result = process_events_details(df=df, client=mock_client, map_to_titles=True)
+    details = result["event_details"].iloc[0]
+    assert details == {"Type of accident": "Vehicle Accident"}
+
+
+def test_process_events_details_both_fail():
+    """process_events_details returns raw details when both v2 and v1 fail."""
+    mock_client = _make_events_details_mock_client()  # no schemas -> both fail
+
+    df = pd.DataFrame(
+        {
+            "event_type": ["unknown_type"],
+            "event_details": [{"field": "value"}],
+        }
+    )
+
+    result = process_events_details(df=df, client=mock_client, map_to_titles=True)
+    details = result["event_details"].iloc[0]
+    assert details == {"field": "value"}
+
+
+# ---------------------------------------------------------------------------
+# Schema-resolution helper tests (_resolve_event_details / _normalize_v1_schema /
+# _fetch_v2_schema)
+# ---------------------------------------------------------------------------
+
+
+class MockV2Client:
+    """Mock client that supports _use_v2_api context manager."""
+
+    def __init__(self, get_responses: dict | None = None):
+        self.calls: list[tuple[str, bool]] = []
+        self._responses = get_responses or {}
+
+    @contextmanager
+    def _use_v2_api(self):
+        yield
+
+    def _get(self, url: str, return_response: bool = False, **kwargs):
+        self.calls.append((url, return_response))
+        if url in self._responses:
+            return self._responses[url]
+        from ecoscope.io.earthranger import (  # type: ignore[import-untyped]
+            ERClientNotFound,
+        )
+
+        raise ERClientNotFound(f"404: {url}")
+
+
+def get_event_details(
+    event: AnyDataFrame,
+    schema: dict,
+    map_to_titles: bool = True,
+    ordered: bool = True,
+) -> dict:
+    """
+    Extracts and processes event details, resolving enum values from the schema.
+    """
+    if event.empty or "event_details" not in event.columns:
+        return {}
+
+    return _resolve_event_details(
+        event.iloc[0]["event_details"],
+        schema,
+        map_to_titles=map_to_titles,
+        ordered=ordered,
+    )
+
+
+def test_get_event_details_with_enums():
+    schema = {
+        "properties": {
+            "status": {
+                "type": "string",
+                "title": "Status",
+                "enumNames": {
+                    "in_progress": "In Progress",
+                    "completed": "Completed",
+                },
+            },
+            "category": {
+                "type": "string",
+                "title": "Category",
+                "enumNames": {"cat1": "Category 1"},
+            },
+        },
+        "ordered_keys": ["status", "category"],
+    }
+
+    event_details = {"status": "in_progress", "category": "cat1", "unknown": "val"}
+    event_df = pd.DataFrame({"event_details": [event_details]})
+
+    details = get_event_details(event_df, schema)
+
+    assert list(details.keys()) == ["Status", "Category", "unknown"]
+    assert details["Status"] == "In Progress"
+    assert details["Category"] == "Category 1"
+    assert details["unknown"] == "val"
+
+
+def test_get_event_details_list_values():
+    schema = {
+        "properties": {
+            "tags": {
+                "type": "array",
+                "enumNames": {"t1": "Tag 1", "t2": "Tag 2"},
+            },
+        },
+        "ordered_keys": ["tags"],
+    }
+    event_df = pd.DataFrame({"event_details": [{"tags": ["t1", "t2"]}]})
+    details = get_event_details(event_df, schema)
+    assert details["tags"] == ["Tag 1", "Tag 2"]
+
+
+def test_resolve_event_details_ordered():
+    schema = {
+        "properties": {
+            "b": {"type": "string", "title": "B Title"},
+            "a": {"type": "string", "title": "A Title"},
+            "c": {"type": "string", "title": "C Title"},
+        },
+        "ordered_keys": ["a", "b"],
+    }
+    details = {"b": "val_b", "a": "val_a", "c": "val_c"}
+
+    # Ordered=True: should follow ordered_keys [a, b] then remaining [c]
+    resolved = _resolve_event_details(details, schema, ordered=True)
+    assert list(resolved.keys()) == ["A Title", "B Title", "C Title"]
+
+    # Ordered=False: should follow original details order [b, a, c]
+    resolved = _resolve_event_details(details, schema, ordered=False)
+    assert list(resolved.keys()) == ["B Title", "A Title", "C Title"]
+
+
+def test_resolve_event_details_nested_subform_enums():
+    schema = {
+        "properties": {
+            "my_list": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "status": {
+                            "type": "string",
+                            "title": "Status",
+                            "enumNames": {"ok": "Okay"},
+                        },
+                    },
+                },
+            }
+        },
+        "ordered_keys": ["my_list"],
+    }
+    details = {"my_list": [{"status": "ok"}]}
+
+    resolved = _resolve_event_details(details, schema)
+    assert resolved["my_list"] == [{"Status": "Okay"}]
+
+
+# ---------------------------------------------------------------------------
+# _normalize_v1_schema tests
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_v1_schema_basic():
+    """V1 schema with titleMap converts to canonical v2 format."""
+    v1_schema = {
+        "schema": {
+            "properties": {
+                "status": {"type": "string", "title": "Status"},
+                "category": {"type": "string", "title": "Category"},
+            }
+        },
+        "definition": [
+            {
+                "key": "status",
+                "titleMap": [
+                    {"value": "in_progress", "name": "In Progress"},
+                    {"value": "completed", "name": "Completed"},
+                ],
+            },
+            {"key": "category", "titleMap": [{"value": "cat1", "name": "Category 1"}]},
+        ],
+    }
+
+    result = _normalize_v1_schema(v1_schema)
+
+    assert result["ordered_keys"] == ["status", "category"]
+    assert result["properties"]["status"]["enumNames"] == {
+        "in_progress": "In Progress",
+        "completed": "Completed",
+    }
+    assert result["properties"]["category"]["enumNames"] == {"cat1": "Category 1"}
+    assert result["properties"]["status"]["title"] == "Status"
+
+
+def test_normalize_v1_schema_nested_sections():
+    """V1 schema with nested section definitions flattens correctly."""
+    v1_schema = {
+        "schema": {"properties": {"key": {"type": "string"}}},
+        "definition": [
+            {
+                "type": "section",
+                "items": [{"key": "key", "titleMap": [{"value": "v", "name": "Value"}]}],
+            }
+        ],
+    }
+
+    result = _normalize_v1_schema(v1_schema)
+
+    assert result["ordered_keys"] == ["key"]
+    assert result["properties"]["key"]["enumNames"] == {"v": "Value"}
+
+
+def test_normalize_v1_schema_title_from_definition():
+    """V1 definition title is applied to property when property lacks one."""
+    v1_schema = {
+        "schema": {"properties": {"field": {"type": "string"}}},
+        "definition": [{"key": "field", "title": "My Field"}],
+    }
+
+    result = _normalize_v1_schema(v1_schema)
+
+    assert result["properties"]["field"]["title"] == "My Field"
+
+
+def test_normalize_v1_schema_property_title_takes_precedence():
+    """When both property and definition have titles, property wins."""
+    v1_schema = {
+        "schema": {"properties": {"field": {"type": "string", "title": "Prop Title"}}},
+        "definition": [{"key": "field", "title": "Def Title"}],
+    }
+
+    result = _normalize_v1_schema(v1_schema)
+
+    assert result["properties"]["field"]["title"] == "Prop Title"
+
+
+def test_normalize_v1_schema_nested_subform():
+    """V1 schema with nested subform definitions merges titleMaps into nested properties."""
+    v1_schema = {
+        "schema": {
+            "properties": {
+                "my_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "status": {"type": "string", "title": "Status"},
+                        },
+                    },
+                }
+            }
+        },
+        "definition": [
+            {
+                "key": "my_list",
+                "items": [
+                    {
+                        "key": "status",
+                        "titleMap": [{"value": "ok", "name": "Okay"}],
+                    }
+                ],
+            }
+        ],
+    }
+
+    result = _normalize_v1_schema(v1_schema)
+
+    nested_props = result["properties"]["my_list"]["items"]["properties"]
+    assert nested_props["status"]["enumNames"] == {"ok": "Okay"}
+
+
+def test_normalize_v1_schema_empty():
+    """Empty V1 schema normalizes to empty canonical format."""
+    result = _normalize_v1_schema({})
+    assert result == {"properties": {}, "ordered_keys": []}
+
+
+# ---------------------------------------------------------------------------
+# _fetch_v2_schema tests
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_v2_schema_simple_properties():
+    """V2 schema with simple properties returns canonical format."""
+    mock_client = MockV2Client(
+        get_responses={
+            "activity/eventtypes/test_type/schema": {
+                "json": {
+                    "properties": {
+                        "count": {"title": "How many?", "type": "number"},
+                        "name": {"title": "Name", "type": "string"},
+                    }
+                }
+            },
+        }
+    )
+    result = _fetch_v2_schema(mock_client, "test_type")
+
+    assert result["properties"]["count"]["title"] == "How many?"
+    assert result["properties"]["name"]["title"] == "Name"
+    assert result["ordered_keys"] == ["count", "name"]
+
+
+def test_fetch_v2_schema_with_choices():
+    """V2 schema with anyOf/$ref choices resolves enumNames."""
+    mock_client = MockV2Client(
+        get_responses={
+            "activity/eventtypes/test_type/schema": {
+                "json": {
+                    "properties": {
+                        "herd_type": {
+                            "title": "Herd Type",
+                            "anyOf": [
+                                {"$ref": "/activity/enums/herd_type_enum"},
+                            ],
+                        },
+                    }
+                }
+            },
+            "/activity/enums/herd_type_enum": {
+                "oneOf": [
+                    {"const": "bull_only", "title": "Bull Only"},
+                    {"const": "female_only", "title": "Female Only"},
+                    {"const": "mix", "title": "Mix"},
+                ]
+            },
+        }
+    )
+    result = _fetch_v2_schema(mock_client, "test_type")
+
+    assert result["properties"]["herd_type"]["enumNames"] == {
+        "bull_only": "Bull Only",
+        "female_only": "Female Only",
+        "mix": "Mix",
+    }
+    assert result["ordered_keys"] == ["herd_type"]
+
+
+def test_fetch_v2_schema_ref_not_found():
+    """V2 schema with unresolvable $ref still returns properties without enumNames."""
+    mock_client = MockV2Client(
+        get_responses={
+            "activity/eventtypes/test_type/schema": {
+                "json": {
+                    "properties": {
+                        "broken_field": {
+                            "title": "Broken",
+                            "anyOf": [{"$ref": "/activity/enums/nonexistent"}],
+                        },
+                    }
+                }
+            },
+        }
+    )  # nonexistent ref -> raises ERClientNotFound
+    result = _fetch_v2_schema(mock_client, "test_type")
+
+    assert "enumNames" not in result["properties"]["broken_field"]
+    assert result["properties"]["broken_field"]["title"] == "Broken"
+
+
+def test_process_events_details_example_return_parquet():
+    """Validate the cached example-return.parquet is loadable and has expected structure."""
+    from importlib.resources import files
+
+    parquet_path = files("ecoscope.platform.tasks.io") / "process-events-details.example-return.parquet"
+    df = pd.read_parquet(parquet_path)
+
+    assert not df.empty
+    assert "event_type" in df.columns
+    assert "event_details" in df.columns
+
+    details = df["event_details"].iloc[0]
+    assert isinstance(details, dict)
+    # Titles should already be resolved in the cached file
+    assert "Name of collared elephant" in details
+    assert "Herd Type" in details
+    assert details["Herd Type"] == "Bull Only"

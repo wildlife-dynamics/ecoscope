@@ -6,6 +6,7 @@ from wt_task.skip import SKIP_SENTINEL
 from ecoscope.platform.indexes import CompositeFilter, IndexName, IndexValue
 from ecoscope.platform.tasks.groupby import (
     groupbykey,
+    groupbykey_passthrough_skip,
     merge_df,
     set_groupers,
     split_groups,
@@ -289,3 +290,128 @@ def test_drop_skip_sentinels_empty_iterables():
 
     result = _drop_skip_sentinels([])
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# groupbykey_passthrough_skip tests
+# ---------------------------------------------------------------------------
+
+BIRD = (("class", "=", "bird"),)
+MAMMAL = (("class", "=", "mammal"),)
+REPTILE = (("class", "=", "reptile"),)
+
+
+def test_groupbykey_passthrough_skip_all_real():
+    iterable_0 = [(BIRD, "falcon"), (MAMMAL, "lion")]
+    iterable_1 = [(BIRD, "parrot"), (MAMMAL, "monkey")]
+
+    output = groupbykey_passthrough_skip(iterables=[iterable_0, iterable_1])
+
+    assert output == [
+        (BIRD, ["falcon", "parrot"]),
+        (MAMMAL, ["lion", "monkey"]),
+    ]
+
+
+def test_groupbykey_passthrough_skip_all_skip_for_key_collapses_to_sentinel():
+    iterable_0 = [(BIRD, SKIP_SENTINEL), (MAMMAL, "lion")]
+    iterable_1 = [(BIRD, SKIP_SENTINEL), (MAMMAL, "monkey")]
+
+    output = groupbykey_passthrough_skip(iterables=[iterable_0, iterable_1])
+
+    assert output == [
+        (BIRD, SKIP_SENTINEL),
+        (MAMMAL, ["lion", "monkey"]),
+    ]
+
+
+def test_groupbykey_passthrough_skip_mixed_drops_skips():
+    iterable_0 = [(BIRD, "falcon"), (MAMMAL, SKIP_SENTINEL)]
+    iterable_1 = [(BIRD, SKIP_SENTINEL), (MAMMAL, "monkey")]
+
+    output = groupbykey_passthrough_skip(iterables=[iterable_0, iterable_1])
+
+    assert output == [
+        (BIRD, ["falcon"]),
+        (MAMMAL, ["monkey"]),
+    ]
+
+
+def test_groupbykey_passthrough_skip_every_key_all_skip():
+    iterable_0 = [(BIRD, SKIP_SENTINEL), (MAMMAL, SKIP_SENTINEL)]
+    iterable_1 = [(BIRD, SKIP_SENTINEL), (MAMMAL, SKIP_SENTINEL)]
+
+    output = groupbykey_passthrough_skip(iterables=[iterable_0, iterable_1])
+
+    assert output == [
+        (BIRD, SKIP_SENTINEL),
+        (MAMMAL, SKIP_SENTINEL),
+    ]
+
+
+def test_groupbykey_passthrough_skip_single_iterable():
+    iterable_0 = [(BIRD, "falcon"), (MAMMAL, "lion"), (REPTILE, SKIP_SENTINEL)]
+
+    output = groupbykey_passthrough_skip(iterables=[iterable_0])
+
+    assert output == [
+        (BIRD, ["falcon"]),
+        (MAMMAL, ["lion"]),
+        (REPTILE, SKIP_SENTINEL),
+    ]
+
+
+def test_groupbykey_passthrough_skip_empty_input():
+    assert groupbykey_passthrough_skip(iterables=[]) == []
+    assert groupbykey_passthrough_skip(iterables=[[]]) == []
+
+
+def test_groupbykey_passthrough_skip_disjoint_keys():
+    iterable_0 = [(BIRD, "falcon")]
+    iterable_1 = [(MAMMAL, "lion")]
+
+    output = groupbykey_passthrough_skip(iterables=[iterable_0, iterable_1])
+
+    assert output == [
+        (BIRD, ["falcon"]),
+        (MAMMAL, ["lion"]),
+    ]
+
+
+def test_groupbykey_passthrough_skip_drops_none_slots():
+    # Upstream may emit ``None`` for a per-element slot whose dependency was
+    # skipped without a key to preserve — those slots are dropped silently.
+    iterable_0 = [None, (BIRD, "falcon"), (MAMMAL, "lion")]
+    iterable_1 = [(BIRD, "parrot"), None]
+
+    output = groupbykey_passthrough_skip(iterables=[iterable_0, iterable_1])
+
+    assert output == [
+        (BIRD, ["falcon", "parrot"]),
+        (MAMMAL, ["lion"]),
+    ]
+
+
+def test_groupbykey_passthrough_skip_all_none_slots():
+    output = groupbykey_passthrough_skip(iterables=[[None, None], [None]])
+    assert output == []
+
+
+def test_groupbykey_passthrough_skip_drops_none_keys():
+    # Some upstreams emit ``(None, value)`` pairs (key missing instead of the
+    # whole slot) — those entries can't be merged into a group and are dropped.
+    iterable_0 = [(None, "ghost"), (BIRD, "falcon")]
+    iterable_1 = [(None, SKIP_SENTINEL), (BIRD, "parrot")]
+
+    output = groupbykey_passthrough_skip(iterables=[iterable_0, iterable_1])
+
+    assert output == [
+        (BIRD, ["falcon", "parrot"]),
+    ]
+
+
+def test_groupbykey_passthrough_skip_all_none_keys():
+    output = groupbykey_passthrough_skip(
+        iterables=[[(None, SKIP_SENTINEL)], [(None, SKIP_SENTINEL)]],
+    )
+    assert output == SKIP_SENTINEL

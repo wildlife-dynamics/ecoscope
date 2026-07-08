@@ -6,11 +6,14 @@ from typing import Annotated, Literal, cast
 import pandas as pd
 from pydantic import AfterValidator, Field, SecretStr
 from pydantic.json_schema import SkipJsonSchema
+from tqdm import tqdm
 from wt_registry import register
 from wt_task import task
+from wt_task.skip import SkippedDependencyFallback
 
-from ecoscope.platform.annotations import AdvancedField, EmptyDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, EmptyDataFrame
 from ecoscope.platform.connections import EarthRangerClient
+from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.schemas import (
     EventGDF,
     EventsWithDisplayNamesGDF,
@@ -20,7 +23,12 @@ from ecoscope.platform.schemas import (
     SpatialFeaturesGroup,
     SubjectGroupObservationsGDF,
 )
+from ecoscope.platform.serde import _persist_bytes
 from ecoscope.platform.tasks.filter._filter import TimeRange
+from ecoscope.platform.tasks.io._persist_df_wrapper import (
+    _fallback_to_empty_grouped,
+    _hash_grouper_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -959,3 +967,373 @@ def get_fields_from_event_type_schema(
 ) -> dict[str, str]:
     fields: dict[str, str] = client.get_fields_from_event_type_schema(event_type)
     return fields
+
+
+@register(tags=["io"])
+def download_grouped_event_attachments(
+    client: EarthRangerClient,
+    grouped_event_gdfs: Annotated[
+        list[tuple[CompositeFilter | None, AnyDataFrame]],
+        Field(
+            description=(
+                "A keyed iterable of (group key, dataframe) tuples as produced by "
+                "`split_groups`. Each event's attachments are downloaded into a "
+                "subfolder named `<key_hash>_<event_id>`, where `<key_hash>` is a "
+                "short sha256 hash of the encoded group key — so the FE can match "
+                "attachments to dashboard views."
+            ),
+        ),
+        SkippedDependencyFallback(_fallback_to_empty_grouped),
+    ],
+    output_dir: Annotated[str, Field(description="Directory to save attachments.")],
+    attachments_subdir: Annotated[
+        str,
+        AdvancedField(
+            description="Subdirectory inside the output directory to store attachments.",
+            default="attachments",
+            title="Attachments Subdirectory",
+        ),
+    ] = "attachments",
+    use_index_as_id: Annotated[
+        bool,
+        AdvancedField(
+            description="Use the dataframe index as the event id when True.",
+            default=True,
+        ),
+    ] = True,
+    skip_download: Annotated[
+        bool,
+        Field(description="If True, skip downloading attachments."),
+    ] = False,
+) -> list[str]:
+    """
+    Download EarthRanger event attachments for grouped event dataframes.
+
+    Group-aware task that fetches per-event files from EarthRanger. It takes a
+    keyed iterable of `(group key, dataframe)` tuples — typically the output of
+    `split_groups` — and writes each event's files to
+    `output_dir/<attachments_subdir>/<key_hash>_<event_id>/<filename>`.
+
+    `<key_hash>` is a short sha256 hash of the encoded group key, computed
+    by the same helper used by `persist_grouped_dfs_for_results_download`,
+    so the FE can match downloaded attachments to the dashboard view they
+    belong to. Groups with a `None` key (e.g. the SkippedDependencyFallback
+    sentinel) or an empty dataframe are skipped.
+
+    Args:
+        client: EarthRanger API client.
+        grouped_event_gdfs: Keyed iterable of `(CompositeFilter, DataFrame)`
+            tuples. Each DataFrame's index or `id` column supplies event IDs.
+        output_dir: Base directory where attachments are written (supports `file://`).
+        attachments_subdir: Folder name under `output_dir` for attachments.
+        use_index_as_id: When True, use the DataFrame index as the event ID;
+            otherwise use the `id` column.
+        skip_download: If True, no requests are made and an empty list is returned.
+
+    Returns:
+        A flat list of relative paths (under `output_dir`) to every saved
+        attachment across all groups.
+    """
+    from ecoscope.io.earthranger import ERClientNotFound  # type: ignore[import-untyped]
+
+    if skip_download:
+        return []
+    attachments_root = f"{output_dir.rstrip('/')}/{attachments_subdir}"
+
+    downloaded_paths: list[str] = []
+
+    for composite_filter, event_gdf in grouped_event_gdfs:
+        if composite_filter is None or event_gdf.empty:
+            continue
+        key_hash = _hash_grouper_key(composite_filter)
+
+        for idx, row in tqdm(
+            event_gdf.iterrows(),
+            total=len(event_gdf),
+            desc=f"Downloading attachments ({key_hash})",
+        ):
+            event_id = idx if use_index_as_id else row["id"]
+
+            url = f"/activity/event/{event_id}/files"
+            try:
+                results = client._get(url)["results"]  # type: ignore[attr-defined]
+            except ERClientNotFound:
+                results = []
+
+            if not results:
+                continue
+
+            event_dir_name = f"{key_hash}_{event_id}"
+            event_dir = f"{attachments_root}/{event_dir_name}"
+
+            for result in results:
+                file_id = result["id"]
+                filename = result["filename"]
+
+                response = client._get(  # type: ignore[attr-defined]
+                    f"activity/event/{event_id}/file/{file_id}/original/{filename}",
+                    return_response=True,
+                )
+
+                _persist_bytes(response.content, event_dir, filename)
+
+                downloaded_paths.append(f"{attachments_subdir}/{event_dir_name}/{filename}")
+
+    return downloaded_paths
+
+
+def _strip_v2_prefix(ref: str) -> str:
+    path = ref.lstrip("/")
+    if path.startswith("api/v2.0/"):
+        return path[len("api/v2.0/") :]
+    return ref
+
+
+def _fetch_v2_schema(client: EarthRangerClient, event_type: str) -> dict:
+    """Fetch a v2 event type schema and return in canonical format.
+
+    The canonical format uses resolved properties with enumNames and an
+    ordered_keys list derived from the property order.
+    """
+
+    def _fetch_enum_names(any_of: list) -> dict:
+        enum_names = {}
+        for definition in any_of:
+            ref = definition.get("$ref")
+            if not ref:
+                continue
+            try:
+                # Strip v2 prefix to avoid double-prefixing in client._get
+                ref_schema = client._get(_strip_v2_prefix(ref), params={"s_format": "oneOf"})  # type: ignore[attr-defined]
+                for choice in ref_schema.get("oneOf", []):
+                    const = choice.get("const")
+                    title = choice.get("title")
+                    if const is not None:
+                        enum_names[const] = title or const
+                # Fallback to parallel enum/enumNames lists
+                if not enum_names:
+                    for val, label in zip(ref_schema.get("enum", []), ref_schema.get("enumNames", [])):
+                        enum_names[val] = label
+            except Exception:
+                continue
+        return enum_names
+
+    with client._use_v2_api():  # type: ignore[attr-defined]
+        v2_schema = client._get(  # type: ignore[attr-defined]
+            f"activity/eventtypes/{event_type}/schema"
+        )
+        json_schema = v2_schema.get("json", {})
+        properties = json_schema.get("properties", {})
+
+        # Collect properties from allOf conditional blocks.
+        for condition in json_schema.get("allOf", []):
+            for key, prop in condition.get("then", {}).get("properties", {}).items():
+                if key not in properties:
+                    properties[key] = dict(prop)
+
+        # Resolve anyOf/$ref choice references into enumNames dicts
+        for prop in properties.values():
+            # Top-level anyOf — scalar enum fields
+            any_of = prop.get("anyOf")
+            if any_of:
+                enum_names = _fetch_enum_names(any_of)
+                if enum_names:
+                    prop["enumNames"] = enum_names
+
+            items_def = prop.get("items", {})
+
+            # items.anyOf — simple array enum field
+            items_any_of = items_def.get("anyOf")
+            if items_any_of:
+                enum_names = _fetch_enum_names(items_any_of)
+                if enum_names:
+                    items_def["enumNames"] = enum_names
+
+            # items.properties — array-of-objects (sub-forms)
+            for item_prop in items_def.get("properties", {}).values():
+                item_any_of = item_prop.get("anyOf")
+                if item_any_of:
+                    enum_names = _fetch_enum_names(item_any_of)
+                    if enum_names:
+                        item_prop["enumNames"] = enum_names
+                # Multi-select arrays within sub-form fields
+                nested_items_def = item_prop.get("items", {})
+                nested_any_of = nested_items_def.get("anyOf")
+                if nested_any_of:
+                    enum_names = _fetch_enum_names(nested_any_of)
+                    if enum_names:
+                        nested_items_def["enumNames"] = enum_names
+
+    return {
+        "properties": properties,
+        "ordered_keys": list(properties.keys()),
+    }
+
+
+def _normalize_v1_schema(v1_schema: dict) -> dict:
+    """Convert a v1 schema response to canonical v2 format.
+
+    Merges definition titleMap entries into enumNames on the corresponding
+    properties, and derives ordered_keys from the definition order.
+    """
+    properties = dict(v1_schema.get("schema", {}).get("properties", {}))
+    definitions = v1_schema.get("definition", [])
+
+    ordered_keys: list[str] = []
+
+    def _merge_title_map(key: str, item: dict, props: dict) -> None:
+        """Merge a definition item's titleMap/title into the target properties dict."""
+        if key not in props:
+            return
+        title_map = item.get("titleMap")
+        if title_map:
+            enum_names = {
+                entry["value"]: entry["name"]
+                for entry in title_map
+                if isinstance(entry, dict) and "value" in entry and "name" in entry
+            }
+            if enum_names:
+                props[key] = {**props[key], "enumNames": enum_names}
+        def_title = item.get("title")
+        if def_title and "title" not in props[key]:
+            props[key] = {**props[key], "title": def_title}
+
+    def walk_definitions(items: list, props: dict) -> None:
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            key = item.get("key")
+            if key:
+                ordered_keys.append(key)
+                _merge_title_map(key, item, props)
+                # Recurse into nested items (sub-forms) with nested properties
+                nested = item.get("items")
+                if isinstance(nested, list) and key in props:
+                    nested_props = props[key].get("items", {}).get("properties", {})
+                    walk_definitions(nested, nested_props)
+            else:
+                # Section without key — recurse with same properties context
+                nested = item.get("items")
+                if isinstance(nested, list):
+                    walk_definitions(nested, props)
+
+    walk_definitions(definitions, properties)
+
+    return {
+        "properties": properties,
+        "ordered_keys": ordered_keys,
+    }
+
+
+def _resolve_event_details(
+    details: dict, schema: dict | None, map_to_titles: bool = True, ordered: bool = True
+) -> dict:
+    """Process event details using a canonical v2 schema.
+
+    Resolves enum values via enumNames and optionally maps keys to titles.
+    """
+    if not details:
+        return {}
+
+    if not schema:
+        return details
+
+    properties = schema.get("properties", {})
+
+    if ordered:
+        ordered_keys = list(schema.get("ordered_keys", []))
+        # Append keys from details that are not in the schema ordering
+        for k in details.keys():
+            if k not in ordered_keys and k != "updates":
+                ordered_keys.append(k)
+    else:
+        ordered_keys = list(details.keys())
+
+    def resolve(value, prop_def):
+        enum_names = prop_def.get("enumNames") or prop_def.get("items", {}).get("enumNames")
+        if isinstance(enum_names, dict) and enum_names:
+            if isinstance(value, list):
+                return [enum_names.get(v, v) for v in value]
+            return enum_names.get(value, value)
+        return value
+
+    result = {}
+    for key in ordered_keys:
+        if key not in details:
+            continue
+        value = details[key]
+
+        prop_def = properties.get(key, {})
+        resolved_value = resolve(value, prop_def)
+
+        # Handle nested lists of objects (sub-forms)
+        if isinstance(resolved_value, list) and len(resolved_value) > 0 and isinstance(resolved_value[0], dict):
+            item_props = prop_def.get("items", {}).get("properties", {})
+            new_list = []
+            for item in resolved_value:
+                new_item = {}
+                for ik, iv in item.items():
+                    ip_def = item_props.get(ik, {})
+                    ititle = ip_def.get("title", ik) if map_to_titles else ik
+                    new_item[ititle] = resolve(iv, ip_def)
+                new_list.append(new_item)
+            resolved_value = new_list
+
+        new_key = prop_def.get("title", key) if map_to_titles else key
+        result[new_key] = resolved_value
+
+    return result
+
+
+@register(tags=["io"])
+def process_events_details(
+    df: AnyDataFrame,
+    client: EarthRangerClient,
+    map_to_titles: bool = True,
+    ordered: bool = True,
+) -> AnyDataFrame:
+    """
+    Extracts and processes event details for all events in the DataFrame,
+    resolving enum values from the schema for each event type and mapping keys to titles.
+    """
+    if df.empty or "event_details" not in df.columns or "event_type" not in df.columns:
+        return df
+
+    from ecoscope.io.earthranger import ERClientNotFound
+
+    # Cache schemas to avoid repeated API calls
+    schemas: dict = {}
+
+    def get_schema(event_type):
+        if event_type not in schemas:
+            try:
+                # Try v2 endpoint first → returns canonical format
+                schemas[event_type] = _fetch_v2_schema(client, event_type)
+            except ERClientNotFound:
+                # Fall back to v1 endpoint → normalize to canonical format
+                try:
+                    v1_schema = client._get(  # type: ignore[attr-defined]
+                        f"activity/events/schema/eventtype/{event_type}"
+                    )
+                    schemas[event_type] = _normalize_v1_schema(v1_schema)
+                except Exception:
+                    schemas[event_type] = {}
+            except Exception:
+                schemas[event_type] = {}
+        return schemas[event_type]
+
+    def process_row(row):
+        details = row.get("event_details")
+        if not isinstance(details, dict):
+            return details
+
+        event_type = row.get("event_type")
+        if not event_type:
+            return details
+
+        schema = get_schema(event_type)
+        return _resolve_event_details(details, schema, map_to_titles=map_to_titles, ordered=ordered)
+
+    # Use apply to process each row
+    df["event_details"] = df.apply(process_row, axis=1)
+    return df

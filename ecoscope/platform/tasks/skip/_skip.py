@@ -1,9 +1,10 @@
-from typing import Any
+from typing import Annotated, Any, cast
 
+from pydantic import Field
 from wt_registry import register
 from wt_task.skip import SKIP_SENTINEL, SkipSentinel
 
-from ecoscope.platform.annotations import AnyGeoDataFrame
+from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 
 
 def _is_df_duck(obj: Any) -> bool:
@@ -77,3 +78,18 @@ def skip_gdf_fallback_to_none(
 ) -> AnyGeoDataFrame | None:
     """Fallback function to convert SkipSentinel to None."""
     return None if isinstance(gdf, SkipSentinel) else gdf
+
+
+@register()
+def maybe_skip_df(
+    df: AnyDataFrame,
+    skip: Annotated[
+        bool,
+        Field(
+            description="Skip the following tasks if True, returning a sentinel value.",
+        ),
+    ] = False,
+) -> AnyDataFrame | SkipSentinel:
+    if skip:
+        return SKIP_SENTINEL
+    return cast(AnyDataFrame, df)

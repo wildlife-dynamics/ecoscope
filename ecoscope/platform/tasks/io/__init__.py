@@ -1,6 +1,7 @@
 from ._downloader import download_roi
 from ._earthengine import calculate_ndvi_range, determine_season_windows
 from ._earthranger import (
+    download_grouped_event_attachments,
     get_analysis_field_from_event_details,
     get_analysis_field_label_from_event_details,
     get_analysis_field_unit_from_event_details,
@@ -22,6 +23,7 @@ from ._earthranger import (
     get_patrols_from_combined_params,
     get_spatial_features_group,
     get_subjectgroup_observations,
+    process_events_details,
     set_event_details_params,
     set_patrol_status,
     set_patrol_types,
@@ -30,6 +32,10 @@ from ._earthranger import (
     unpack_events_from_patrols_df_and_combined_params,
 )
 from ._persist import persist_df, persist_json, persist_text
+from ._persist_df_wrapper import (
+    persist_df_wrapper,
+    persist_grouped_dfs_for_results_download,
+)
 from ._set_connection import set_er_connection, set_gee_connection, set_smart_connection
 from ._smart import get_events_from_smart, get_patrol_observations_from_smart
 from ._spatial_features import (
@@ -42,6 +48,7 @@ from ._spatial_features import (
 
 __all__ = [
     "download_roi",
+    "download_grouped_event_attachments",
     "calculate_ndvi_range",
     "determine_season_windows",
     "get_analysis_field_from_event_details",
@@ -72,9 +79,12 @@ __all__ = [
     "set_patrols_and_patrol_events_params",
     "unpack_events_from_patrols_df",
     "unpack_events_from_patrols_df_and_combined_params",
+    "process_events_details",
     "persist_df",
     "persist_json",
     "persist_text",
+    "persist_df_wrapper",
+    "persist_grouped_dfs_for_results_download",
     "set_er_connection",
     "set_gee_connection",
     "set_smart_connection",
