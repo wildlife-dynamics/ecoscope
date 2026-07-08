@@ -53,6 +53,7 @@ outputs:
         - statsmodels
         # - matplotlib  # duplicate with analysis
         # - mapclassify  # duplicate with analysis
+        - pandasql
     tests:
       - python:
           imports:
