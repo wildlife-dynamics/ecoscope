@@ -24,8 +24,8 @@ from ecoscope.platform.tasks.transformation._sanitize import (
 FileType = Literal["csv", "gpkg", "geoparquet", "parquet"]
 
 
-def _fallback_to_empty(df: AnyDataFrame | SkipSentinel) -> AnyDataFrame | None:
-    """Fallback function to convert SkipSentinel to None."""
+def _fallback_to_empty(df: AnyDataFrame | SkipSentinel) -> AnyDataFrame:
+    """Fallback function to convert SkipSentinel to an empty df."""
     return cast(AnyDataFrame, pd.DataFrame({"empty_event": []})) if isinstance(df, SkipSentinel) else df
 
 

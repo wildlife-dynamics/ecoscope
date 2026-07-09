@@ -1,6 +1,6 @@
 import json
 
-import geopandas as gpd
+import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 
