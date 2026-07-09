@@ -176,8 +176,10 @@ def apply_sql_query(
         result will also be a GeoDataFrame with the original CRS preserved.
     """
     import geopandas as gpd  # type: ignore[import-untyped]
+    from pyproj.crs import CRS
 
     is_geodataframe = isinstance(df, gpd.GeoDataFrame)
+    original_crs: CRS | None = None
 
     # Sanitize complex columns (list, dict, set, bytes) to JSON strings so
     # pandasql/SQLite accepts them. Done before the empty-query early-return so
@@ -199,9 +201,6 @@ def apply_sql_query(
 
     # Filter columns if specified
     query_df = df[columns] if columns is not None else df
-
-    # Handle GeoDataFrames: convert geometry to WKT for SQL compatibility
-    original_crs = None
 
     if is_geodataframe and "geometry" in query_df.columns:
         # Store the original CRS
