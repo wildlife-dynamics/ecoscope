@@ -31,10 +31,12 @@ from ._earthranger import (
     unpack_events_from_patrols_df,
     unpack_events_from_patrols_df_and_combined_params,
 )
-from ._persist import persist_df, persist_json, persist_text
-from ._persist_df_wrapper import (
+from ._persist import (
+    persist_df,
     persist_df_wrapper,
     persist_grouped_dfs_for_results_download,
+    persist_json,
+    persist_text,
 )
 from ._set_connection import set_er_connection, set_gee_connection, set_smart_connection
 from ._smart import get_events_from_smart, get_patrol_observations_from_smart

@@ -25,7 +25,7 @@ from ecoscope.platform.schemas import (
 )
 from ecoscope.platform.serde import _persist_bytes
 from ecoscope.platform.tasks.filter._filter import TimeRange
-from ecoscope.platform.tasks.io._persist_df_wrapper import (
+from ecoscope.platform.tasks.io._persist import (
     _fallback_to_empty_grouped,
     _hash_grouper_key,
 )

@@ -47,7 +47,7 @@ from ecoscope.platform.tasks.io._earthranger import (
     _normalize_v1_schema,
     _resolve_event_details,
 )
-from ecoscope.platform.tasks.io._persist_df_wrapper import _hash_grouper_key
+from ecoscope.platform.tasks.io._persist import _hash_grouper_key
 
 pytestmark = pytest.mark.io
 

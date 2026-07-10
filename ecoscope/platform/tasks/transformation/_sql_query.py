@@ -187,7 +187,7 @@ def apply_sql_query(
     if sanitize:
         if is_geodataframe:
             geom_name = df.geometry.name
-            original_crs = df.crs  # type: ignore[assignment] - mypy doesn't see this is a CRS
+            original_crs = df.crs  # type: ignore[assignment]
             attrs = sanitize_for_arrow(df.drop(columns=[geom_name]))
             # Preserve the geometry column; the WKT round-trip below handles it.
             df = gpd.GeoDataFrame(attrs.join(df[[geom_name]]), geometry=geom_name, crs=original_crs)
@@ -204,7 +204,7 @@ def apply_sql_query(
 
     if is_geodataframe and "geometry" in query_df.columns:
         # Store the original CRS
-        original_crs = df.crs  # type: ignore[assignment] - mypy doesn't see this is a CRS
+        original_crs = df.crs  # type: ignore[assignment]
         # Convert to regular DataFrame with WKT geometry for SQL processing
         query_df = query_df.copy()
         query_df["geometry"] = query_df["geometry"].apply(lambda geom: geom.wkt if geom else None)
