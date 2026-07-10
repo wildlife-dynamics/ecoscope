@@ -104,11 +104,11 @@ def test_get_subjectsource_no_observations(er_io):
 def test_get_subjectgroup_observations(er_io):
     relocations = er_io.get_subjectgroup_observations(
         subject_group_name=er_io.GROUP_NAME,
-        since="2008-03-01",
-        until="2008-04-01",
+        since="2008-12-01",
+        until="2008-12-31",
     )
     assert "groupby_col" in relocations.gdf
-    assert len(relocations.gdf["extra__subject_id"].unique()) == 2
+    assert relocations.gdf["extra__subject_id"].unique() == ["b8be28f7-8c20-46d9-85a5-fd817351bde5"]
 
 
 def test_get_events(er_events_io):
