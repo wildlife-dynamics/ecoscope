@@ -69,7 +69,7 @@ class EarthRangerIO(ERClient):
                 raise ERClientException("Authorization token is invalid or expired.")
 
     def _token_request(self, payload):
-        response = requests.post(self.token_url, data=payload)
+        response = requests.post(self.token_url, data=payload, timeout=30)
         if response.ok:
             self.auth = response.json()
             expires_in = int(self.auth["expires_in"]) - 5 * 60
