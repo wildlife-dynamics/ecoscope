@@ -37,11 +37,9 @@ def er_io():
     er_io = ecoscope.io.EarthRangerIO(server=ER_SERVER, username=ER_USERNAME, password=ER_PASSWORD)
 
     er_io.GROUP_NAME = "Elephants"
-    er_io.SUBJECT_IDS = er_io.get_subjects(subject_group_name=er_io.GROUP_NAME).id.tolist()
-    er_io.SUBJECTSOURCE_IDS, er_io.SOURCE_IDS = er_io.get_subjectsources(subjects=",".join(er_io.SUBJECT_IDS))[
-        ["id", "source"]
-    ].values.T.tolist()
-
+    er_io.SUBJECT_IDS = ["64444ed7-72ec-4531-a2b1-fb25c7197b2d", "b8be28f7-8c20-46d9-85a5-fd817351bde5"]
+    er_io.SUBJECTSOURCE_IDS = ["893d4255-51e1-4567-8ac1-028e7c532431", "59568b94-b1c8-4f19-89a7-3d08ae60e52b"]
+    er_io.SOURCE_IDS = ["64444ed7-72ec-4531-a2b1-fb25c7197b2d", "b8be28f7-8c20-46d9-85a5-fd817351bde5"]
     return er_io
 
 
