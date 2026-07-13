@@ -18,7 +18,7 @@ from ecoscope.platform.tasks.transformation._unit import Unit
 # SummaryParam fields.
 class PatrolCountMetric(BaseModel):
     model_config = ConfigDict(title="Patrol Count")
-    metric: Annotated[Literal["patrol_count"], Field(title="Metric")]
+    metric: Annotated[Literal["patrol_count"], Field(default="patrol_count", title="Metric")] = "patrol_count"
 
     def to_summary_param(self) -> TallySummaryParam:
         return TallySummaryParam(display_name="Patrol Count", aggregator="nunique", column="patrol_id")
@@ -26,7 +26,7 @@ class PatrolCountMetric(BaseModel):
 
 class PatrolDaysMetric(BaseModel):
     model_config = ConfigDict(title="Patrol Days")
-    metric: Annotated[Literal["patrol_days"], Field(title="Metric")]
+    metric: Annotated[Literal["patrol_days"], Field(default="patrol_days", title="Metric")] = "patrol_days"
 
     def to_summary_param(self) -> TallySummaryParam:
         return TallySummaryParam(display_name="Patrol Days", aggregator="nunique", column="segment_start_date")
@@ -34,7 +34,7 @@ class PatrolDaysMetric(BaseModel):
 
 class TotalDistanceMetric(BaseModel):
     model_config = ConfigDict(title="Total Distance")
-    metric: Annotated[Literal["total_distance"], Field(title="Metric")]
+    metric: Annotated[Literal["total_distance"], Field(default="total_distance", title="Metric")] = "total_distance"
     unit: Annotated[Literal["km", "m"], Field(default="km", title="Unit")] = "km"
 
     def to_summary_param(self) -> NumericSummaryParam:
@@ -50,7 +50,7 @@ class TotalDistanceMetric(BaseModel):
 
 class TotalDurationMetric(BaseModel):
     model_config = ConfigDict(title="Total Duration")
-    metric: Annotated[Literal["total_duration"], Field(title="Metric")]
+    metric: Annotated[Literal["total_duration"], Field(default="total_duration", title="Metric")] = "total_duration"
     unit: Annotated[Literal["h", "d"], Field(default="h", title="Unit")] = "h"
 
     def to_summary_param(self) -> NumericSummaryParam:
@@ -67,7 +67,7 @@ class TotalDurationMetric(BaseModel):
 
 class AreaCoveredMetric(BaseModel):
     model_config = ConfigDict(title="Area Covered")
-    metric: Annotated[Literal["area_covered"], Field(title="Metric")]
+    metric: Annotated[Literal["area_covered"], Field(default="area_covered", title="Metric")] = "area_covered"
     merged: Annotated[
         bool,
         Field(
@@ -94,7 +94,7 @@ class AreaCoveredMetric(BaseModel):
 
 class CustomMetric(BaseModel):
     model_config = ConfigDict(title="Custom")
-    metric: Annotated[Literal["custom"], Field(title="Metric")]
+    metric: Annotated[Literal["custom"], Field(default="custom", title="Metric")] = "custom"
     param: Annotated[SummaryParam, Field(title=" ", description="Full metric definition.")]
 
     def to_summary_param(self) -> SummaryParam:
