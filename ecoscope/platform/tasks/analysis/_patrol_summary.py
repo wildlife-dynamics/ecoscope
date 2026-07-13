@@ -19,6 +19,32 @@ from ecoscope.platform.tasks.analysis._summary import (
 )
 from ecoscope.platform.tasks.transformation._unit import Unit
 
+# Human-readable labels per unit value; oneOf const/title pairs render as a
+# labeled dropdown.
+_UNIT_LABELS: dict[str, str] = {
+    "m": "Meters (m)",
+    "km": "Kilometers (km)",
+    "m²": "Square Meters (m²)",
+    "km²": "Square Kilometers (km²)",
+    "s": "Seconds (s)",
+    "h": "Hours (h)",
+    "d": "Days (d)",
+    "m/s": "Meters per Second (m/s)",
+    "km/h": "Kilometers per Hour (km/h)",
+}
+
+_UNIT_OPTIONS: list[JsonValue] = [{"const": value, "title": title} for value, title in _UNIT_LABELS.items()]
+
+
+def _labeled_units(*values: str):
+    """Field-level json_schema_extra: swap a Literal's bare enum for labeled options."""
+
+    def apply(schema: dict) -> None:
+        schema.pop("enum", None)
+        schema["oneOf"] = [{"const": v, "title": _UNIT_LABELS[v]} for v in values]
+
+    return apply
+
 
 # Thin patrol-aware wrappers over SummaryParam: each preset knows its column,
 # statistic, and display name, so the form only asks for what varies (target
@@ -47,7 +73,10 @@ class PatrolDaysMetric(BaseModel):
 class TotalDistanceMetric(BaseModel):
     model_config = ConfigDict(title="Total Distance")
     metric: Annotated[Literal["total_distance"], Field(default="total_distance", title="Metric")] = "total_distance"
-    unit: Annotated[Literal["km", "m"], Field(default="km", title="Unit")] = "km"
+    unit: Annotated[
+        Literal["km", "m"],
+        Field(default="km", title="Unit", json_schema_extra=_labeled_units("km", "m")),
+    ] = "km"
 
     def to_summary_param(self) -> NumericSummaryParam:
         return NumericSummaryParam(
@@ -56,14 +85,17 @@ class TotalDistanceMetric(BaseModel):
             column="dist_meters",
             original_unit=Unit.METER,
             new_unit=Unit(self.unit),
-            decimal_places=1,
+            decimal_places=2,
         )
 
 
 class TotalDurationMetric(BaseModel):
     model_config = ConfigDict(title="Total Duration")
     metric: Annotated[Literal["total_duration"], Field(default="total_duration", title="Metric")] = "total_duration"
-    unit: Annotated[Literal["h", "d"], Field(default="h", title="Unit")] = "h"
+    unit: Annotated[
+        Literal["h", "d"],
+        Field(default="h", title="Unit", json_schema_extra=_labeled_units("h", "d")),
+    ] = "h"
 
     def to_summary_param(self) -> NumericSummaryParam:
         label = {"h": "hrs", "d": "days"}[self.unit]
@@ -73,7 +105,7 @@ class TotalDurationMetric(BaseModel):
             column="timespan_seconds",
             original_unit=Unit.SECOND,
             new_unit=Unit(self.unit),
-            decimal_places=1,
+            decimal_places=2,
         )
 
 
@@ -100,7 +132,7 @@ class MergedAreaCoveredMetric(BaseModel):
             aggregator="coverage_area",
             merged=True,
             swath_width_meters=self.swath_width_meters,
-            decimal_places=1,
+            decimal_places=2,
         )
 
 
@@ -127,34 +159,19 @@ class UnmergedAreaCoveredMetric(BaseModel):
             aggregator="coverage_area",
             merged=False,
             swath_width_meters=self.swath_width_meters,
-            decimal_places=1,
+            decimal_places=2,
         )
 
-
-# Labeled select options for the unit fields on the custom metric's
-# unit-conversion branch (oneOf const/title pairs render as a labeled dropdown).
-_UNIT_OPTIONS: list[JsonValue] = [
-    {"const": "m", "title": "Meters (m)"},
-    {"const": "km", "title": "Kilometers (km)"},
-    {"const": "m²", "title": "Square Meters (m²)"},
-    {"const": "km²", "title": "Square Kilometers (km²)"},
-    {"const": "s", "title": "Seconds (s)"},
-    {"const": "h", "title": "Hours (h)"},
-    {"const": "d", "title": "Days (d)"},
-    {"const": "m/s", "title": "Meters per Second (m/s)"},
-    {"const": "km/h", "title": "Kilometers per Hour (km/h)"},
-]
 
 CustomStatistic = Literal["count", "nunique", "sum", "min", "max", "mean", "median"]
 
 
+# The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
+# and re-introduced via the `dependencies` block in json_schema_extra, so the form
+# only shows them once "Convert Units" is checked. Units are ignored for
+# count/nunique. Note the docstring renders as the form's helper text.
 class CustomMetric(BaseModel):
-    """Free-form metric: any column + statistic, with optional unit conversion.
-
-    The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
-    and re-introduced via a schema `dependencies` block, so the form only shows
-    them once "Convert Units" is checked. Units are ignored for count/nunique.
-    """
+    """Define your own metric: pick a column and statistic, with optional unit conversion."""
 
     model_config = ConfigDict(
         title="Custom",
@@ -196,10 +213,10 @@ class CustomMetric(BaseModel):
     ]
     aggregator: Annotated[CustomStatistic, Field(title="Statistic")]
     column: Annotated[str, Field(title="Column", description="Column to aggregate.")]
+    decimal_places: Annotated[int, Field(default=2, title="Decimal Places")] = 2
     convert_units: Annotated[bool, Field(default=False, title="Convert Units")] = False
     original_unit: SkipJsonSchema[Unit | None] = None
     new_unit: SkipJsonSchema[Unit | None] = None
-    decimal_places: Annotated[int, Field(default=2, title="Decimal Places")] = 2
 
     @model_validator(mode="after")
     def check_units(self):

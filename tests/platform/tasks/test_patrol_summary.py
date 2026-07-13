@@ -133,6 +133,20 @@ def test_custom_metric_schema_hides_units_behind_dependency():
     assert {o["const"] for o in checked["original_unit"]["oneOf"]} == {u.value for u in Unit}
 
 
+def test_total_distance_metric_labeled_units_and_decimals():
+    schema = TotalDistanceMetric.model_json_schema()
+    unit = schema["properties"]["unit"]
+    assert "enum" not in unit
+    assert unit["oneOf"] == [
+        {"const": "km", "title": "Kilometers (km)"},
+        {"const": "m", "title": "Meters (m)"},
+    ]
+    # presets don't expose decimal places; always 2
+    assert "decimal_places" not in schema["properties"]
+    param = TotalDistanceMetric(metric="total_distance").to_summary_param()
+    assert param.decimal_places == 2
+
+
 def test_set_patrol_summary_metrics_accepts_dicts():
     params = set_patrol_summary_metrics([{"metric": "area_covered_unmerged", "swath_width_meters": 250.0}])
     assert params[0].display_name == "Unmerged Area Covered (km²)"
