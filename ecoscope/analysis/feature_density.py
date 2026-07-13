@@ -17,6 +17,8 @@ def calculate_feature_density(
     if sum_column:
         assert is_numeric_dtype(selection[sum_column])
 
+    line_lengths = selection.geometry.length if geometry_type == "line" else None
+
     def clip_density(cell):
         if geometry_type == "point":
             cell_mask = selection.geometry.within(cell)
@@ -28,6 +30,14 @@ def calculate_feature_density(
             return result.geometry[cell_mask].count()
         elif geometry_type == "line":
             result = selection.clip_by_rect(*cell.bounds)
+
+            if sum_column:
+                # apportion each feature's value across cells by the fraction
+                # of its length falling inside the cell (assumes the value
+                # accrues uniformly along the line, e.g. constant speed)
+                fraction = (result.length / line_lengths).fillna(0)
+                return (selection[sum_column] * fraction).sum()
+
             result = result[~result.is_empty]
             return result.geometry.length.sum()
         else:
