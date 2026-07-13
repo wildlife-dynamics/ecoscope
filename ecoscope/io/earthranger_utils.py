@@ -1,3 +1,5 @@
+from typing import Any
+
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 from shapely.geometry import shape
@@ -138,3 +140,129 @@ def unpack_events_from_patrols_df(
     events_df = clean_time_cols(events_df)
 
     return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
+
+
+def _synthesize_event_geojson(event: dict) -> dict:
+    """Build an ER-native ``geojson`` Feature for a nested warehouse patrol event.
+
+    Resurrects the logic removed from the io-core client (PR #24): builds
+    ``{"type": "Feature", "geometry": ..., "properties": {"datetime": ...}}`` from
+    the event's WKB ``geometry`` and ``event_time`` so ecoscope's
+    ``unpack_events_from_patrols_df`` (which reads ``event["geojson"]`` and
+    ``geojson["properties"]["datetime"]``) can consume it unchanged.
+
+    ``geometry`` is ``None`` when the event has none; ``datetime`` is a tz-aware
+    ISO string (or ``None``). ``event_time`` may be a (tz-aware) datetime/Timestamp
+    or raw int64 nanoseconds-since-epoch (UTC by schema contract) -- both handled.
+    """
+    import shapely.geometry
+    import shapely.wkb
+
+    geometry_wkb = event.get("geometry")
+    if geometry_wkb is not None:
+        geometry = shapely.geometry.mapping(shapely.wkb.loads(geometry_wkb))
+    else:
+        geometry = None
+
+    event_time = event.get("event_time")
+    if event_time is None or pd.isna(event_time):
+        datetime_str = None
+    elif hasattr(event_time, "isoformat"):
+        datetime_str = event_time.isoformat()
+    else:
+        datetime_str = pd.Timestamp(event_time, unit="ns", tz="UTC").isoformat()
+
+    return {
+        "type": "Feature",
+        "geometry": geometry,
+        "properties": {"datetime": datetime_str},
+    }
+
+
+def warehouse_patrols_table_to_patrols_df(table: Any) -> pd.DataFrame:
+    """Convert a warehouse nested-patrols ``pa.Table`` into the ER-native PatrolsDF.
+
+    Takes the ``PATROLS_WITH_EVENTS_NESTED_SCHEMA_V1`` table returned by
+    ``ERWarehouseClient.get_patrols`` (events nested under
+    ``patrol_segments[].events[]``, event geometry = WKB) and reshapes it into the
+    dict shape that ecoscope's ``unpack_events_from_patrols_df`` and
+    ``get_patrol_observations_from_patrols_df`` already consume, so both downstream
+    consumers work unchanged:
+
+    - each event gets a synthesized ``geojson`` (see ``_synthesize_event_geojson``);
+    - each segment gets ``time_range = {"start_time": <time_range_start>,
+      "end_time": <time_range_end>}`` (the warehouse serves flat
+      ``time_range_start``/``time_range_end`` fields);
+    - ``patrol_type`` is already a flat segment field and is left as-is;
+    - the warehouse serves only ``leader_id`` (no leader name), so
+      ``leader = {"id": <leader_id>, "name": None}`` and ``patrol_subject`` degrades
+      to ``None`` in ``unpack_events_from_patrols_df``.
+    """
+    records = table.to_pylist()
+    for patrol in records:
+        for segment in patrol.get("patrol_segments") or []:
+            segment["time_range"] = {
+                "start_time": segment.get("time_range_start"),
+                "end_time": segment.get("time_range_end"),
+            }
+            segment["leader"] = {"id": segment.get("leader_id"), "name": None}
+            for event in segment.get("events") or []:
+                event["geojson"] = _synthesize_event_geojson(event)
+    return pd.DataFrame(records)
+
+
+def append_event_type_display_names(
+    events_df: pd.DataFrame,
+    event_types_table: Any,
+    *,
+    append_category_names: str = "duplicates",
+) -> pd.DataFrame:
+    """Append an ``event_type_display`` column using a warehouse event-types table.
+
+    Mirrors ``EarthRangerIO.get_event_type_display_names_from_events`` but resolves
+    display names from a ``get_event_types()`` ``pa.Table`` (``EVENT_TYPES_SCHEMA_V1``:
+    ``value``, ``display``, ``category_value``) instead of the legacy API.
+
+    Builds ``value -> display`` and ``value -> category_value`` maps, appends
+    ``event_type_display``, and applies ``append_category_names`` semantics:
+
+    - ``"never"``: never append a category.
+    - ``"always"``: always append a category.
+    - ``"duplicates"`` (default): append only for event types whose display names
+      collide.
+
+    The warehouse serves no category *display* name, so the category slug
+    (``category_value``) is used as the category-display substitute (a known,
+    non-breaking degradation). Event types missing from the registry (orphans) fall
+    back to their raw ``event_type`` value as the display.
+    """
+    assert "event_type" in events_df.columns
+
+    event_types = (
+        event_types_table.to_pandas() if hasattr(event_types_table, "to_pandas") else pd.DataFrame(event_types_table)
+    )
+    display_lookup = dict(zip(event_types["value"], event_types["display"]))
+    events_df["event_type_display"] = events_df["event_type"].map(display_lookup).fillna(events_df["event_type"])
+
+    has_duplicates = len(events_df["event_type_display"].unique()) != len(events_df["event_type"].unique())
+    do_append = append_category_names == "always" or (append_category_names == "duplicates" and has_duplicates)
+    if not do_append:
+        return events_df
+
+    # The warehouse has no category display name; substitute the category slug.
+    # Orphan event types (absent from the registry) have no category_value, so fall
+    # back to the raw event_type value rather than letting a NaN propagate through
+    # the string concat and null the whole event_type_display (which StrictEventsGDFSchema rejects).
+    category_lookup = dict(zip(event_types["value"], event_types["category_value"]))
+    if append_category_names == "duplicates":
+        is_duplicate_display = events_df.groupby("event_type_display")["event_type"].transform("nunique") > 1
+        dup_event_types = events_df.loc[is_duplicate_display, "event_type"]
+        category_display = dup_event_types.map(category_lookup).fillna(dup_event_types)
+        events_df.loc[is_duplicate_display, "event_type_display"] = (
+            events_df.loc[is_duplicate_display, "event_type_display"] + " (" + category_display + ")"
+        )
+    else:
+        category_display = events_df["event_type"].map(category_lookup).fillna(events_df["event_type"])
+        events_df["event_type_display"] = events_df["event_type_display"] + " (" + category_display + ")"
+
+    return events_df
