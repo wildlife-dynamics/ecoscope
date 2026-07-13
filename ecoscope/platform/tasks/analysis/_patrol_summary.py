@@ -12,6 +12,7 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.tasks.analysis._summary import (
+    AggOperations,
     CoverageSummaryParam,
     NumericSummaryParam,
     SummaryParam,
@@ -163,9 +164,6 @@ class UnmergedAreaCoveredMetric(BaseModel):
         )
 
 
-CustomStatistic = Literal["count", "nunique", "sum", "min", "max", "mean", "median"]
-
-
 # The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
 # and re-introduced via the `dependencies` block in json_schema_extra, so the form
 # only shows them once "Convert Units" is checked. Units are ignored for
@@ -211,7 +209,7 @@ class CustomMetric(BaseModel):
             description="Column header shown in the summary table.",
         ),
     ]
-    aggregator: Annotated[CustomStatistic, Field(title="Statistic")]
+    aggregator: Annotated[AggOperations, Field(title="Statistic")]
     column: Annotated[str, Field(title="Column", description="Column to aggregate.")]
     decimal_places: Annotated[int, Field(default=2, title="Decimal Places")] = 2
     convert_units: Annotated[bool, Field(default=False, title="Convert Units")] = False

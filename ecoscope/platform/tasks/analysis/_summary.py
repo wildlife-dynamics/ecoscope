@@ -5,13 +5,15 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, AnyGeoDataFrame
 from ecoscope.platform.tasks.analysis._aggregation import (
     get_night_day_ratio,
 )
-from ecoscope.platform.tasks.analysis._patrol_coverage import _coverage_area_km2
 from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 
+# Plain pandas aggregations, applied via df.agg. The extra summarize_df-only
+# aggregators (night_day_ratio, coverage_area) live on their own SummaryParam
+# variants below.
 AggOperations = Literal[
     "sum",
     "count",
@@ -20,9 +22,34 @@ AggOperations = Literal[
     "mean",
     "nunique",
     "median",
-    "night_day_ratio",
-    "coverage_area",
 ]
+
+
+def _coverage_area_km2(
+    gdf: AnyGeoDataFrame,
+    swath_width_meters: float,
+    merged: bool,
+    area_crs: str = "EPSG:6933",
+) -> float:
+    """
+    Compute the ground area (km²) covered by buffering track segments.
+
+    Each segment is buffered by ``swath_width_meters / 2`` per side to form a
+    corridor of full width ``swath_width_meters``. When ``merged`` is True the
+    area of the union of all corridors is returned (overlaps counted once);
+    otherwise the per-segment corridor areas are summed.
+    """
+    if gdf.empty:
+        return 0.0
+
+    buffers = gdf.to_crs(area_crs).geometry.buffer(swath_width_meters / 2)  # type: ignore[operator]
+
+    if merged:
+        area_m2 = buffers.union_all().area
+    else:
+        area_m2 = buffers.area.sum()
+
+    return area_m2 / 1e6
 
 
 # `SummaryParam` is a discriminated union (on `aggregator`) so that each metric
@@ -72,7 +99,7 @@ class CoverageSummaryParam(_BaseSummaryParam):
         ),
     ] = True
     swath_width_meters: Annotated[
-        float | SkipJsonSchema[None],
+        float,
         Field(default=500.0, title="Swath Width (m)", description="Full corridor width in meters."),
     ] = 500.0
     decimal_places: int | SkipJsonSchema[None] = 2
@@ -126,12 +153,7 @@ def summarize_df(
         if param.aggregator == "night_day_ratio":
             result = get_night_day_ratio(df)
         elif param.aggregator == "coverage_area":
-            result = _coverage_area_km2(
-                df,
-                (getattr(param, "swath_width_meters", None) or 500.0),
-                merged=param.merged,
-                area_crs="EPSG:6933",
-            )
+            result = _coverage_area_km2(df, param.swath_width_meters, merged=param.merged)
         else:
             result = df[param.column].agg(param.aggregator)
 
