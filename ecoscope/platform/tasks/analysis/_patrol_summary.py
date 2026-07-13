@@ -5,6 +5,7 @@ from wt_registry import register
 
 from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
+    NightDayRatioSummaryParam,
     NumericSummaryParam,
     SummaryParam,
     TallySummaryParam,
@@ -92,10 +93,22 @@ class AreaCoveredMetric(BaseModel):
         )
 
 
+# Narrower union for the custom escape hatch: coverage is already covered by
+# the AreaCoveredMetric preset, so don't offer it again here.
+CustomSummaryParam = Annotated[
+    Union[
+        TallySummaryParam,
+        NumericSummaryParam,
+        NightDayRatioSummaryParam,
+    ],
+    Field(discriminator="aggregator"),
+]
+
+
 class CustomMetric(BaseModel):
     model_config = ConfigDict(title="Custom")
     metric: Annotated[Literal["custom"], Field(default="custom", title="Metric")] = "custom"
-    param: Annotated[SummaryParam, Field(title=" ", description="Full metric definition.")]
+    param: Annotated[CustomSummaryParam, Field(title=" ", description="Full metric definition.")]
 
     def to_summary_param(self) -> SummaryParam:
         return self.param
