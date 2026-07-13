@@ -4,7 +4,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    JsonValue,
     TypeAdapter,
     model_validator,
 )
@@ -18,33 +17,7 @@ from ecoscope.platform.tasks.analysis._summary import (
     SummaryParam,
     TallySummaryParam,
 )
-from ecoscope.platform.tasks.transformation._unit import Unit
-
-# Human-readable labels per unit value; oneOf const/title pairs render as a
-# labeled dropdown.
-_UNIT_LABELS: dict[str, str] = {
-    "m": "Meters (m)",
-    "km": "Kilometers (km)",
-    "m²": "Square Meters (m²)",
-    "km²": "Square Kilometers (km²)",
-    "s": "Seconds (s)",
-    "h": "Hours (h)",
-    "d": "Days (d)",
-    "m/s": "Meters per Second (m/s)",
-    "km/h": "Kilometers per Hour (km/h)",
-}
-
-_UNIT_OPTIONS: list[JsonValue] = [{"const": value, "title": title} for value, title in _UNIT_LABELS.items()]
-
-
-def _labeled_units(*values: str):
-    """Field-level json_schema_extra: swap a Literal's bare enum for labeled options."""
-
-    def apply(schema: dict) -> None:
-        schema.pop("enum", None)
-        schema["oneOf"] = [{"const": v, "title": _UNIT_LABELS[v]} for v in values]
-
-    return apply
+from ecoscope.platform.tasks.transformation._unit import UNIT_OPTIONS, Unit, labeled_units
 
 
 # Thin patrol-aware wrappers over SummaryParam: each preset knows its column,
@@ -76,7 +49,7 @@ class TotalDistanceMetric(BaseModel):
     metric: Annotated[Literal["total_distance"], Field(default="total_distance", title="Metric")] = "total_distance"
     unit: Annotated[
         Literal["km", "m"],
-        Field(default="km", title="Unit", json_schema_extra=_labeled_units("km", "m")),
+        Field(default="km", title="Unit", json_schema_extra=labeled_units(Unit.KILOMETER, Unit.METER)),
     ] = "km"
 
     def to_summary_param(self) -> NumericSummaryParam:
@@ -95,7 +68,7 @@ class TotalDurationMetric(BaseModel):
     metric: Annotated[Literal["total_duration"], Field(default="total_duration", title="Metric")] = "total_duration"
     unit: Annotated[
         Literal["h", "d"],
-        Field(default="h", title="Unit", json_schema_extra=_labeled_units("h", "d")),
+        Field(default="h", title="Unit", json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY)),
     ] = "h"
 
     def to_summary_param(self) -> NumericSummaryParam:
@@ -187,12 +160,12 @@ class CustomMetric(BaseModel):
                                 "original_unit": {
                                     "title": "Original Unit",
                                     "type": "string",
-                                    "oneOf": _UNIT_OPTIONS,
+                                    "oneOf": UNIT_OPTIONS,
                                 },
                                 "new_unit": {
                                     "title": "New Unit",
                                     "type": "string",
-                                    "oneOf": _UNIT_OPTIONS,
+                                    "oneOf": UNIT_OPTIONS,
                                 },
                             }
                         },
