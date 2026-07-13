@@ -163,7 +163,7 @@ def summarize_df(
             result = with_unit(result, original_unit, new_unit).value
 
         decimal_places = getattr(param, "decimal_places", None)
-        if decimal_places:
+        if decimal_places is not None:
             result = round(result, decimal_places)
 
         return result

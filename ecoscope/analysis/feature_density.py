@@ -34,7 +34,9 @@ def calculate_feature_density(
             if sum_column:
                 # apportion each feature's value across cells by the fraction
                 # of its length falling inside the cell (assumes the value
-                # accrues uniformly along the line, e.g. constant speed)
+                # accrues uniformly along the line, e.g. constant speed).
+                # NOTE: zero-length segments (start == end) contribute nothing
+                # (0/0 -> NaN -> 0), so e.g. time spent stationary is dropped.
                 fraction = (result.length / line_lengths).fillna(0)
                 return (selection[sum_column] * fraction).sum()
 

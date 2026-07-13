@@ -89,6 +89,13 @@ def test_summarize_df_with_units(sample_dataframe):
     assert result.loc[0, "Sum of A"] == 0.015
 
 
+def test_summarize_df_decimal_places_zero():
+    df = pd.DataFrame({"A": [1, 2, 2]})
+    summary_params = [NumericSummaryParam(display_name="Mean of A", aggregator="mean", column="A", decimal_places=0)]
+    result = summarize_df(df, summary_params)
+    assert result.loc[0, "Mean of A"] == 2.0
+
+
 def test_summarize_df_with_missing_column(sample_dataframe):
     with pytest.raises(ValueError):
         NumericSummaryParam(display_name="Sum of A", aggregator="sum")
