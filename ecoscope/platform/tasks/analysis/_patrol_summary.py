@@ -73,8 +73,11 @@ class AreaCoveredMetric(BaseModel):
         bool,
         Field(
             default=True,
-            title="Merged",
-            description="Merge overlapping swaths before measuring (union); otherwise sum per-segment areas.",
+            title="Count Overlapping Ground Once",
+            description=(
+                "On: report the actual footprint, so ground a patrol revisits is counted once. "
+                "Off: add up each segment's area separately, counting revisited ground multiple times."
+            ),
         ),
     ] = True
     swath_width_meters: Annotated[
