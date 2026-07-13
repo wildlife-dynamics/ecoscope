@@ -121,8 +121,8 @@ def test_summarize_df_night_day_ratio(trajectories):
 
 def test_summarize_df_coverage_merged_le_unmerged(coverage_trajectories):
     summary_params = [
-        CoverageSummaryParam(display_name="Merged", aggregator="merged_coverage_area", decimal_places=6),
-        CoverageSummaryParam(display_name="Unmerged", aggregator="unmerged_coverage_area", decimal_places=6),
+        CoverageSummaryParam(display_name="Merged", aggregator="coverage_area", merged=True, decimal_places=6),
+        CoverageSummaryParam(display_name="Unmerged", aggregator="coverage_area", merged=False, decimal_places=6),
     ]
     result = summarize_df(coverage_trajectories, summary_params)
     assert result.loc[0, "Merged"] > 0
@@ -134,7 +134,8 @@ def test_summarize_df_coverage_scales_with_swath(coverage_trajectories):
         params = [
             CoverageSummaryParam(
                 display_name="Unmerged",
-                aggregator="unmerged_coverage_area",
+                aggregator="coverage_area",
+                merged=False,
                 swath_width_meters=swath,
                 decimal_places=6,
             )
@@ -148,7 +149,7 @@ def test_summarize_df_coverage_scales_with_swath(coverage_trajectories):
 
 def test_summarize_df_coverage_groupby(coverage_trajectories):
     summary_params = [
-        CoverageSummaryParam(display_name="Merged", aggregator="merged_coverage_area", decimal_places=6),
+        CoverageSummaryParam(display_name="Merged", aggregator="coverage_area", merged=True, decimal_places=6),
     ]
     result = summarize_df(coverage_trajectories, summary_params, groupby_cols=["ranger"])
     assert len(result) == 2  # one row per ranger

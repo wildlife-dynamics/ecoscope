@@ -21,11 +21,8 @@ AggOperations = Literal[
     "nunique",
     "median",
     "night_day_ratio",
-    "merged_coverage_area",
-    "unmerged_coverage_area",
+    "coverage_area",
 ]
-
-COVERAGE_AGGREGATORS = ("merged_coverage_area", "unmerged_coverage_area")
 
 
 # `SummaryParam` is a discriminated union (on `aggregator`) so that each metric
@@ -65,7 +62,15 @@ class CoverageSummaryParam(_BaseSummaryParam):
     """Ground area (km²) covered by buffering track segments. Has no column."""
 
     model_config = ConfigDict(title="Area Covered Metric")
-    aggregator: Annotated[Literal["merged_coverage_area", "unmerged_coverage_area"], Field(title="Statistic")]
+    aggregator: Annotated[Literal["coverage_area"], Field(title="Statistic")]
+    merged: Annotated[
+        bool,
+        Field(
+            default=True,
+            title="Merged",
+            description="Merge overlapping swaths before measuring (union); otherwise sum per-segment areas.",
+        ),
+    ] = True
     swath_width_meters: Annotated[
         float | SkipJsonSchema[None],
         Field(default=500.0, title="Swath Width (m)", description="Full corridor width in meters."),
@@ -120,11 +125,11 @@ def summarize_df(
         result = 0
         if param.aggregator == "night_day_ratio":
             result = get_night_day_ratio(df)
-        elif param.aggregator in COVERAGE_AGGREGATORS:
+        elif param.aggregator == "coverage_area":
             result = _coverage_area_km2(
                 df,
                 (getattr(param, "swath_width_meters", None) or 500.0),
-                merged=(param.aggregator == "merged_coverage_area"),
+                merged=param.merged,
                 area_crs="EPSG:6933",
             )
         else:
