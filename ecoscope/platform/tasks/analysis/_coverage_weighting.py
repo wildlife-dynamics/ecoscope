@@ -9,13 +9,23 @@ CoverageWeighting: TypeAlias = Literal["timespan_seconds", "dist_meters"]
 
 WEIGHTING_DIVISORS = {"timespan_seconds": 3600.0, "dist_meters": 1000.0}
 WEIGHTING_UNITS = {"timespan_seconds": "hours", "dist_meters": "km"}
+WEIGHTING_LABELS = {"timespan_seconds": "Time", "dist_meters": "Distance"}
+
+
+def _labeled_weighting(schema: dict) -> None:
+    """Field-level json_schema_extra: swap the Literal's bare enum for labeled options."""
+    schema.pop("enum", None)
+    schema["oneOf"] = [{"const": v, "title": label} for v, label in WEIGHTING_LABELS.items()]
 
 
 @register()
 def set_coverage_weighting(
     sum_column: Annotated[
         CoverageWeighting,
-        Field(description="Weight each grid cell by total patrol time or distance travelled."),
+        Field(
+            description="Weight each grid cell by total patrol time or distance travelled.",
+            json_schema_extra=_labeled_weighting,
+        ),
     ] = "timespan_seconds",
 ) -> str:
     """

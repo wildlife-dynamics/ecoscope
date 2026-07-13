@@ -134,11 +134,11 @@ def set_density_grid_options(
         AdvancedField(
             title="Heatmap Layer Opacity",
             description="Set heatmap layer transparency from 1 (fully visible) to 0 (hidden).",
-            default=0.4,
+            default=0.7,
             ge=0,
             le=1,
         ),
-    ] = 0.4,
+    ] = 0.7,
     auto_scale_or_custom_cell_size: AutoScaleOrCustomAnnotation = None,
     crs: CrsAnnotation = "EPSG:3857",
     intersecting_only: IntersectingOnlyAnnotation = False,
