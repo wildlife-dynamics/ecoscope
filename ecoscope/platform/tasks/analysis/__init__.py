@@ -12,6 +12,11 @@ from ._aggregation import (
     get_night_day_ratio,
 )
 from ._calculate_feature_density import calculate_feature_density
+from ._coverage_weighting import (
+    get_coverage_legend_title,
+    normalize_coverage_density,
+    set_coverage_weighting,
+)
 from ._create_meshgrid import create_meshgrid
 from ._patrol_coverage import calculate_patrol_coverage
 from ._patrol_summary import set_patrol_summary_metrics
@@ -36,6 +41,9 @@ __all__ = [
     "dataframe_count",
     "get_night_day_ratio",
     "calculate_feature_density",
+    "get_coverage_legend_title",
+    "normalize_coverage_density",
+    "set_coverage_weighting",
     "create_meshgrid",
     "calculate_patrol_coverage",
     "aggregate_over_rows",
