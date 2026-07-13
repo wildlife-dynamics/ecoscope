@@ -66,31 +66,45 @@ class TotalDurationMetric(BaseModel):
         )
 
 
-class AreaCoveredMetric(BaseModel):
-    model_config = ConfigDict(title="Area Covered")
-    metric: Annotated[Literal["area_covered"], Field(default="area_covered", title="Metric")] = "area_covered"
-    merged: Annotated[
-        bool,
-        Field(
-            default=True,
-            title="Count Overlapping Ground Once",
-            description=(
-                "On: report the actual footprint, so ground a patrol revisits is counted once. "
-                "Off: add up each segment's area separately, counting revisited ground multiple times."
-            ),
-        ),
-    ] = True
+class MergedAreaCoveredMetric(BaseModel):
+    """Area covered with overlaps counted once — the distinct ground footprint."""
+
+    model_config = ConfigDict(title="Area Covered (Merged)")
+    metric: Annotated[Literal["area_covered_merged"], Field(default="area_covered_merged", title="Metric")] = (
+        "area_covered_merged"
+    )
     swath_width_meters: Annotated[
         float,
         Field(default=500.0, title="Swath Width (m)", description="Full corridor width in meters."),
     ] = 500.0
 
     def to_summary_param(self) -> CoverageSummaryParam:
-        prefix = "Merged" if self.merged else "Unmerged"
         return CoverageSummaryParam(
-            display_name=f"{prefix} Area Covered (km²)",
+            display_name="Merged Area Covered (km²)",
             aggregator="coverage_area",
-            merged=self.merged,
+            merged=True,
+            swath_width_meters=self.swath_width_meters,
+            decimal_places=1,
+        )
+
+
+class UnmergedAreaCoveredMetric(BaseModel):
+    """Area covered summed segment by segment — total patrol efforts."""
+
+    model_config = ConfigDict(title="Area Covered (Unmerged)")
+    metric: Annotated[Literal["area_covered_unmerged"], Field(default="area_covered_unmerged", title="Metric")] = (
+        "area_covered_unmerged"
+    )
+    swath_width_meters: Annotated[
+        float,
+        Field(default=500.0, title="Swath Width (m)", description="Full corridor width in meters."),
+    ] = 500.0
+
+    def to_summary_param(self) -> CoverageSummaryParam:
+        return CoverageSummaryParam(
+            display_name="Unmerged Area Covered (km²)",
+            aggregator="coverage_area",
+            merged=False,
             swath_width_meters=self.swath_width_meters,
             decimal_places=1,
         )
@@ -123,7 +137,8 @@ PatrolSummaryMetric = Annotated[
         PatrolDaysMetric,
         TotalDistanceMetric,
         TotalDurationMetric,
-        AreaCoveredMetric,
+        MergedAreaCoveredMetric,
+        UnmergedAreaCoveredMetric,
         CustomMetric,
     ],
     Field(discriminator="metric"),
@@ -136,8 +151,8 @@ _DEFAULT_PATROL_SUMMARY_METRICS: list = [
     {"metric": "total_distance", "unit": "km"},
     {"metric": "total_duration", "unit": "h"},
     {"metric": "patrol_days"},
-    {"metric": "area_covered", "merged": True, "swath_width_meters": 500.0},
-    {"metric": "area_covered", "merged": False, "swath_width_meters": 500.0},
+    {"metric": "area_covered_merged", "swath_width_meters": 500.0},
+    {"metric": "area_covered_unmerged", "swath_width_meters": 500.0},
 ]
 
 
