@@ -18,7 +18,6 @@ AggOperations = Literal[
     "min",
     "max",
     "mean",
-    "unique",
     "nunique",
     "median",
     "night_day_ratio",
@@ -38,10 +37,10 @@ class _BaseSummaryParam(BaseModel):
 
 
 class TallySummaryParam(_BaseSummaryParam):
-    """Count-style metric (count / nunique / unique) over a single column."""
+    """Count-style metric (count / nunique) over a single column."""
 
     model_config = ConfigDict(title="Count Metric")
-    aggregator: Literal["count", "nunique", "unique"]
+    aggregator: Annotated[Literal["count", "nunique"], Field(title="Statistic")]
     column: Annotated[str, Field(description="Column to aggregate.")]
 
 
@@ -49,7 +48,7 @@ class NumericSummaryParam(_BaseSummaryParam):
     """Numeric reduction (sum / min / max / mean / median) with optional unit conversion."""
 
     model_config = ConfigDict(title="Numeric Metric")
-    aggregator: Literal["sum", "min", "max", "mean", "median"]
+    aggregator: Annotated[Literal["sum", "min", "max", "mean", "median"], Field(title="Statistic")]
     column: Annotated[str, Field(description="Column to aggregate.")]
     original_unit: Unit | SkipJsonSchema[None] = None
     new_unit: Unit | SkipJsonSchema[None] = None
@@ -66,11 +65,11 @@ class CoverageSummaryParam(_BaseSummaryParam):
     """Ground area (km²) covered by buffering track segments. Has no column."""
 
     model_config = ConfigDict(title="Area Covered Metric")
-    aggregator: Literal["merged_coverage_area", "unmerged_coverage_area"]
+    aggregator: Annotated[Literal["merged_coverage_area", "unmerged_coverage_area"], Field(title="Statistic")]
     swath_width_meters: Annotated[
         float | SkipJsonSchema[None],
-        Field(default=None, description="Full corridor width in meters (defaults to 500)."),
-    ] = None
+        Field(default=500.0, title="Swath Width (m)", description="Full corridor width in meters."),
+    ] = 500.0
     decimal_places: int | SkipJsonSchema[None] = 2
 
 
@@ -78,7 +77,7 @@ class NightDayRatioSummaryParam(_BaseSummaryParam):
     """Ratio of night to day fixes. Has no column or units."""
 
     model_config = ConfigDict(title="Night/Day Ratio Metric")
-    aggregator: Literal["night_day_ratio"]
+    aggregator: Annotated[Literal["night_day_ratio"], Field(title="Statistic")]
     decimal_places: int | SkipJsonSchema[None] = 2
 
 
