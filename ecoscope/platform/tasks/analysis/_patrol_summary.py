@@ -1,11 +1,18 @@
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    TypeAdapter,
+    model_validator,
+)
+from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
-    NightDayRatioSummaryParam,
     NumericSummaryParam,
     SummaryParam,
     TallySummaryParam,
@@ -30,7 +37,11 @@ class PatrolDaysMetric(BaseModel):
     metric: Annotated[Literal["patrol_days"], Field(default="patrol_days", title="Metric")] = "patrol_days"
 
     def to_summary_param(self) -> TallySummaryParam:
-        return TallySummaryParam(display_name="Patrol Days", aggregator="nunique", column="segment_start_date")
+        return TallySummaryParam(
+            display_name="Patrol Days",
+            aggregator="nunique",
+            column="segment_start_date",
+        )
 
 
 class TotalDistanceMetric(BaseModel):
@@ -70,12 +81,17 @@ class MergedAreaCoveredMetric(BaseModel):
     """Area covered with overlaps counted once — the distinct ground footprint."""
 
     model_config = ConfigDict(title="Area Covered (Merged)")
-    metric: Annotated[Literal["area_covered_merged"], Field(default="area_covered_merged", title="Metric")] = (
-        "area_covered_merged"
-    )
+    metric: Annotated[
+        Literal["area_covered_merged"],
+        Field(default="area_covered_merged", title="Metric"),
+    ] = "area_covered_merged"
     swath_width_meters: Annotated[
         float,
-        Field(default=500.0, title="Swath Width (m)", description="Full corridor width in meters."),
+        Field(
+            default=500.0,
+            title="Swath Width (m)",
+            description="Full corridor width in meters.",
+        ),
     ] = 500.0
 
     def to_summary_param(self) -> CoverageSummaryParam:
@@ -92,12 +108,17 @@ class UnmergedAreaCoveredMetric(BaseModel):
     """Area covered summed segment by segment — total patrol efforts."""
 
     model_config = ConfigDict(title="Area Covered (Unmerged)")
-    metric: Annotated[Literal["area_covered_unmerged"], Field(default="area_covered_unmerged", title="Metric")] = (
-        "area_covered_unmerged"
-    )
+    metric: Annotated[
+        Literal["area_covered_unmerged"],
+        Field(default="area_covered_unmerged", title="Metric"),
+    ] = "area_covered_unmerged"
     swath_width_meters: Annotated[
         float,
-        Field(default=500.0, title="Swath Width (m)", description="Full corridor width in meters."),
+        Field(
+            default=500.0,
+            title="Swath Width (m)",
+            description="Full corridor width in meters.",
+        ),
     ] = 500.0
 
     def to_summary_param(self) -> CoverageSummaryParam:
@@ -110,25 +131,97 @@ class UnmergedAreaCoveredMetric(BaseModel):
         )
 
 
-# Narrower union for the custom escape hatch: coverage is already covered by
-# the AreaCoveredMetric preset, so don't offer it again here.
-CustomSummaryParam = Annotated[
-    Union[
-        TallySummaryParam,
-        NumericSummaryParam,
-        NightDayRatioSummaryParam,
-    ],
-    Field(discriminator="aggregator"),
+# Labeled select options for the unit fields on the custom metric's
+# unit-conversion branch (oneOf const/title pairs render as a labeled dropdown).
+_UNIT_OPTIONS: list[JsonValue] = [
+    {"const": "m", "title": "Meters (m)"},
+    {"const": "km", "title": "Kilometers (km)"},
+    {"const": "m²", "title": "Square Meters (m²)"},
+    {"const": "km²", "title": "Square Kilometers (km²)"},
+    {"const": "s", "title": "Seconds (s)"},
+    {"const": "h", "title": "Hours (h)"},
+    {"const": "d", "title": "Days (d)"},
+    {"const": "m/s", "title": "Meters per Second (m/s)"},
+    {"const": "km/h", "title": "Kilometers per Hour (km/h)"},
 ]
+
+CustomStatistic = Literal["count", "nunique", "sum", "min", "max", "mean", "median"]
 
 
 class CustomMetric(BaseModel):
-    model_config = ConfigDict(title="Custom")
+    """Free-form metric: any column + statistic, with optional unit conversion.
+
+    The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
+    and re-introduced via a schema `dependencies` block, so the form only shows
+    them once "Convert Units" is checked. Units are ignored for count/nunique.
+    """
+
+    model_config = ConfigDict(
+        title="Custom",
+        json_schema_extra={
+            "dependencies": {
+                "convert_units": {
+                    "oneOf": [
+                        {"properties": {"convert_units": {"const": False}}},
+                        {
+                            "properties": {
+                                "convert_units": {"const": True},
+                                # No `default` on these: a default on a dependency branch
+                                # gets seeded into formData even while unchecked, leaving
+                                # an orphaned value behind.
+                                "original_unit": {
+                                    "title": "Original Unit",
+                                    "type": "string",
+                                    "oneOf": _UNIT_OPTIONS,
+                                },
+                                "new_unit": {
+                                    "title": "New Unit",
+                                    "type": "string",
+                                    "oneOf": _UNIT_OPTIONS,
+                                },
+                            }
+                        },
+                    ]
+                }
+            }
+        },
+    )
     metric: Annotated[Literal["custom"], Field(default="custom", title="Metric")] = "custom"
-    param: Annotated[CustomSummaryParam, Field(title=" ", description="Full metric definition.")]
+    display_name: Annotated[
+        str,
+        Field(
+            title="Display Name",
+            description="Column header shown in the summary table.",
+        ),
+    ]
+    aggregator: Annotated[CustomStatistic, Field(title="Statistic")]
+    column: Annotated[str, Field(title="Column", description="Column to aggregate.")]
+    convert_units: Annotated[bool, Field(default=False, title="Convert Units")] = False
+    original_unit: SkipJsonSchema[Unit | None] = None
+    new_unit: SkipJsonSchema[Unit | None] = None
+    decimal_places: Annotated[int, Field(default=2, title="Decimal Places")] = 2
+
+    @model_validator(mode="after")
+    def check_units(self):
+        if self.convert_units and (self.original_unit is None or self.new_unit is None):
+            raise ValueError("select both an original and a new unit when unit conversion is enabled")
+        return self
 
     def to_summary_param(self) -> SummaryParam:
-        return self.param
+        if self.aggregator == "count" or self.aggregator == "nunique":
+            return TallySummaryParam(
+                display_name=self.display_name,
+                aggregator=self.aggregator,
+                column=self.column,
+            )
+        return NumericSummaryParam(
+            display_name=self.display_name,
+            aggregator=self.aggregator,
+            column=self.column,
+            original_unit=self.original_unit if self.convert_units else None,
+            new_unit=self.new_unit if self.convert_units else None,
+            decimal_places=self.decimal_places,
+        )
 
 
 PatrolSummaryMetric = Annotated[
