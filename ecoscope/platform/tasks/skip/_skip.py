@@ -93,3 +93,16 @@ def maybe_skip_df(
     if skip:
         return SKIP_SENTINEL
     return cast(AnyDataFrame, df)
+
+
+@register()
+def invert_bool(
+    value: Annotated[
+        bool,
+        Field(description="The boolean value to negate."),
+    ] = True,
+) -> bool:
+    """
+    Returns the logical negation of the input boolean.
+    """
+    return not value

@@ -6,6 +6,20 @@ from ._meta_tasks import (
     set_etd_args_with_opacity,
     set_ltd_args_with_opacity,
 )
+from ._set_download_params import (
+    get_gps_point_filename_prefix,
+    get_gps_point_filetypes,
+    get_skip_relocation_persist,
+    get_track_filename_prefix,
+    get_track_filetypes,
+    set_download_params,
+)
+from ._set_traj_filters import (
+    get_bounding_box,
+    get_filter_point_coords,
+    get_segment_filter,
+    set_traj_filters,
+)
 from ._set_vars import (
     concat_string_vars,
     default_if_string_is_empty,
@@ -37,4 +51,14 @@ __all__ = [
     "title_case_var",
     "WorkflowDetails",
     "set_workflow_details",
+    "set_download_params",
+    "get_track_filetypes",
+    "get_track_filename_prefix",
+    "get_gps_point_filetypes",
+    "get_gps_point_filename_prefix",
+    "get_skip_relocation_persist",
+    "set_traj_filters",
+    "get_bounding_box",
+    "get_filter_point_coords",
+    "get_segment_filter",
 ]
