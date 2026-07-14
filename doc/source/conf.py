@@ -103,8 +103,8 @@ html_theme_options = {
         "image_light": "_static/images/logo.svg",
         "image_dark": "_static/images/logo-grayscale.svg",
     },
-    "pygment_light_style": "rainbow_dash",
-    "pygment_dark_style": "dracula",
+    "pygments_light_style": "rainbow_dash",
+    "pygments_dark_style": "dracula",
 }
 
 commit_id = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("ascii")
