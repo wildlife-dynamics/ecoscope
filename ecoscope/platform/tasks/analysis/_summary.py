@@ -13,8 +13,8 @@ from ecoscope.platform.tasks.analysis._aggregation import (
 from ecoscope.platform.tasks.transformation._unit import UNIT_OPTIONS, Unit, with_unit
 
 # Plain pandas aggregations, applied via df.agg. The extra summarize_df-only
-# aggregators (night_day_ratio, coverage_area) live on their own SummaryParam
-# variants below.
+# aggregators (unique, night_day_ratio, coverage_area) live on their own
+# SummaryParam variants below.
 AggOperations = Literal[
     "sum",
     "count",
@@ -26,8 +26,8 @@ AggOperations = Literal[
 ]
 
 
-# `SummaryParam` is a discriminated union (on `aggregator`) with three shapes:
-# plain column statistics (StatSummaryParam), and the two summarize_df-only
+# `SummaryParam` is a discriminated union (on `aggregator`): plain column
+# statistics (StatSummaryParam), unique values of a column, and the two
 # aggregators that have no column — coverage area and night/day ratio.
 class _BaseSummaryParam(BaseModel):
     display_name: Annotated[str, Field(title="Display Name", description="Column header shown in the summary table.")]
@@ -129,9 +129,19 @@ class NightDayRatioSummaryParam(_BaseSummaryParam):
     decimal_places: int | SkipJsonSchema[None] = 2
 
 
+class UniqueSummaryParam(_BaseSummaryParam):
+    """The distinct values of a column, shown as a comma-separated list."""
+
+    model_config = ConfigDict(title="Unique Values")
+    aggregator: Annotated[Literal["unique"], Field(title="Statistic")]
+    column: Annotated[str, Field(title="Column", description="Column to aggregate.")]
+    decimal_places: SkipJsonSchema[None] = None
+
+
 SummaryParam = Annotated[
     Union[
         StatSummaryParam,
+        UniqueSummaryParam,
         CoverageSummaryParam,
         NightDayRatioSummaryParam,
     ],
@@ -169,6 +179,8 @@ def summarize_df(
             result = get_night_day_ratio(df)
         elif param.aggregator == "coverage_area":
             result = coverage_area_km2(df, param.swath_width_meters, merged=param.merged)
+        elif param.aggregator == "unique":
+            result = ", ".join(str(value) for value in df[param.column].unique())
         else:
             result = df[param.column].agg(param.aggregator)
 

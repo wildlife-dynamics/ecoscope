@@ -10,6 +10,7 @@ from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
     NightDayRatioSummaryParam,
     StatSummaryParam,
+    UniqueSummaryParam,
     summarize_df,
 )
 
@@ -86,6 +87,21 @@ def test_summarize_df_with_units(sample_dataframe):
     ]
     result = summarize_df(sample_dataframe, summary_params)
     assert result.loc[0, "Sum of A"] == 0.015
+
+
+def test_summarize_df_unique(sample_dataframe):
+    sample_dataframe["Group"] = ["X", "X", "Y", "Y", "Y"]
+    summary_params = [UniqueSummaryParam(display_name="Groups", aggregator="unique", column="Group")]
+    result = summarize_df(sample_dataframe, summary_params)
+    assert result.loc[0, "Groups"] == "X, Y"
+
+
+def test_summarize_df_unique_groupby(sample_dataframe):
+    sample_dataframe["Group"] = ["X", "X", "Y", "Y", "Y"]
+    summary_params = [UniqueSummaryParam(display_name="A Values", aggregator="unique", column="A")]
+    result = summarize_df(sample_dataframe, summary_params, groupby_cols=["Group"])
+    assert result.loc["X", "A Values"] == "1, 2"
+    assert result.loc["Y", "A Values"] == "3, 4, 5"
 
 
 def test_summarize_df_decimal_places_zero():
