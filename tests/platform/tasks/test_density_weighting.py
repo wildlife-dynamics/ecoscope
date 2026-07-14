@@ -9,6 +9,7 @@ from ecoscope.platform.tasks.analysis import (
     normalize_density_units,
     set_density_weighting,
 )
+from ecoscope.platform.tasks.analysis._density_weighting import _labeled_weighting
 
 
 def test_set_density_weighting():
@@ -43,3 +44,13 @@ def test_get_density_legend_title():
     assert get_density_legend_title(sum_column="timespan_seconds") == "Patrol Effort (hours)"
     assert get_density_legend_title(sum_column="dist_meters") == "Patrol Effort (km)"
     assert get_density_legend_title(sum_column="dist_meters", title_prefix="Ranger Effort") == "Ranger Effort (km)"
+
+
+def test_labeled_weighting_replaces_enum_with_labeled_options():
+    schema = {"enum": ["timespan_seconds", "dist_meters"]}
+    _labeled_weighting(schema)
+    assert "enum" not in schema
+    assert schema["oneOf"] == [
+        {"const": "timespan_seconds", "title": "Time"},
+        {"const": "dist_meters", "title": "Distance"},
+    ]
