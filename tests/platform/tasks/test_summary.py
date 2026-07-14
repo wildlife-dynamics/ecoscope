@@ -10,7 +10,6 @@ from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
     NightDayRatioSummaryParam,
     StatSummaryParam,
-    _coverage_area_km2,
     summarize_df,
 )
 
@@ -170,11 +169,6 @@ def test_summarize_df_coverage_scales_with_swath(coverage_trajectories):
     # Buffered-line area is dominated by length * width, so doubling the swath
     # roughly doubles the covered area.
     assert unmerged(1000.0) == pytest.approx(2 * unmerged(500.0), rel=0.05)
-
-
-def test_coverage_area_km2_empty():
-    empty = gpd.GeoDataFrame({"geometry": []}, crs="EPSG:4326")
-    assert _coverage_area_km2(empty, 500.0, merged=True) == 0.0
 
 
 def test_summarize_df_coverage_groupby(coverage_trajectories):

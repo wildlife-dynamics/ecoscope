@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, AnyGeoDataFrame
+from ecoscope.base.utils import coverage_area_km2
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 from ecoscope.platform.tasks.analysis._aggregation import (
     get_night_day_ratio,
 )
@@ -23,34 +24,6 @@ AggOperations = Literal[
     "nunique",
     "median",
 ]
-
-
-# todo: find a better place to hold the method or check if it already exists somewhere else in the codebase
-def _coverage_area_km2(
-    gdf: AnyGeoDataFrame,
-    swath_width_meters: float,
-    merged: bool,
-    area_crs: str = "EPSG:6933",
-) -> float:
-    """
-    Compute the ground area (km²) covered by buffering track segments.
-
-    Each segment is buffered by ``swath_width_meters / 2`` per side to form a
-    corridor of full width ``swath_width_meters``. When ``merged`` is True the
-    area of the union of all corridors is returned (overlaps counted once);
-    otherwise the per-segment corridor areas are summed.
-    """
-    if gdf.empty:
-        return 0.0
-
-    buffers = gdf.to_crs(area_crs).geometry.buffer(swath_width_meters / 2)  # type: ignore[operator]
-
-    if merged:
-        area_m2 = buffers.union_all().area
-    else:
-        area_m2 = buffers.area.sum()
-
-    return area_m2 / 1e6
 
 
 # `SummaryParam` is a discriminated union (on `aggregator`) with three shapes:
@@ -195,7 +168,7 @@ def summarize_df(
         if param.aggregator == "night_day_ratio":
             result = get_night_day_ratio(df)
         elif param.aggregator == "coverage_area":
-            result = _coverage_area_km2(df, param.swath_width_meters, merged=param.merged)
+            result = coverage_area_km2(df, param.swath_width_meters, merged=param.merged)
         else:
             result = df[param.column].agg(param.aggregator)
 

@@ -307,3 +307,8 @@ def test_trajectory_apply_spatial_classification_no_intersection(sample_trajecto
     spatial_regions = gpd.read_file("tests/sample_data/vector/AOI_sites.gpkg").to_crs(4326)
     result = sample_trajectory.apply_spatial_classification(spatial_regions)
     assert result.empty
+
+
+def test_coverage_area_km2_empty():
+    empty = gpd.GeoDataFrame({"geometry": []}, crs="EPSG:4326")
+    assert ecoscope.base.utils.coverage_area_km2(empty, 500.0, merged=True) == 0.0
