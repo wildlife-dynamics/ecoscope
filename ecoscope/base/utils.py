@@ -82,20 +82,21 @@ def coverage_area_km2(
     gdf: gpd.GeoDataFrame,
     swath_width_meters: float,
     merged: bool,
-    area_crs: str = "EPSG:6933",
 ) -> float:
     """
     Compute the ground area (km²) covered by buffering track segments.
 
     Each segment is buffered by ``swath_width_meters / 2`` per side to form a
-    corridor of full width ``swath_width_meters``. When ``merged`` is True the
-    area of the union of all corridors is returned (overlaps counted once);
-    otherwise the per-segment corridor areas are summed.
+    corridor of full width ``swath_width_meters``. Buffering and area are
+    computed in the data's local UTM zone (via ``estimate_utm_crs``) so the
+    swath width and area are metric and locally accurate. When ``merged`` is
+    True the area of the union of all corridors is returned (overlaps counted
+    once); otherwise the per-segment corridor areas are summed.
     """
     if gdf.empty:
         return 0.0
 
-    buffers = gdf.to_crs(area_crs).geometry.buffer(swath_width_meters / 2)
+    buffers = gdf.to_crs(gdf.estimate_utm_crs()).geometry.buffer(swath_width_meters / 2)
 
     if merged:
         area_m2 = buffers.union_all().area

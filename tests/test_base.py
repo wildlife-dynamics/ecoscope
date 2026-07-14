@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing
 import pytest
+from shapely.geometry import LineString
 
 import ecoscope
 
@@ -312,3 +313,31 @@ def test_trajectory_apply_spatial_classification_no_intersection(sample_trajecto
 def test_coverage_area_km2_empty():
     empty = gpd.GeoDataFrame({"geometry": []}, crs="EPSG:4326")
     assert ecoscope.base.utils.coverage_area_km2(empty, 500.0, merged=True) == 0.0
+
+
+def test_coverage_area_km2_single_segment():
+    # ~1 km east-west line near Nairobi; buffered in local UTM (zone 37S).
+    gdf = gpd.GeoDataFrame(geometry=[LineString([(36.800, -1.30), (36.809, -1.30)])], crs="EPSG:4326")
+
+    # ~1 km corridor of full width 500 m -> 1000 m x 500 m rectangle (0.5 km²)
+    # plus two semicircular end caps (pi * 250² ≈ 0.196 km²) ≈ 0.70 km².
+    area = ecoscope.base.utils.coverage_area_km2(gdf, 500.0, merged=True)
+    assert area == pytest.approx(0.697, abs=0.01)
+
+
+def test_coverage_area_km2_merged_vs_summed():
+    # Two overlapping parallel segments (~100 m apart) buffered by 250 m/side
+    # overlap heavily: summing double-counts the shared ground, the union
+    # counts it once, so merged < summed.
+    gdf = gpd.GeoDataFrame(
+        geometry=[
+            LineString([(36.800, -1.300), (36.809, -1.300)]),
+            LineString([(36.800, -1.301), (36.809, -1.301)]),
+        ],
+        crs="EPSG:4326",
+    )
+
+    merged = ecoscope.base.utils.coverage_area_km2(gdf, 500.0, merged=True)
+    summed = ecoscope.base.utils.coverage_area_km2(gdf, 500.0, merged=False)
+
+    assert merged < summed
