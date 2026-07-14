@@ -1,6 +1,6 @@
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
-import pyarrow as pa
+import pyarrow as pa  # type: ignore[import-untyped]
 import shapely.geometry
 import shapely.wkb
 from shapely.geometry import shape
