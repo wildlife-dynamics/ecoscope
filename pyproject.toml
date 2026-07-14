@@ -27,6 +27,7 @@ dependencies = [
   "geopandas>=1",
   "numpy>=2,<3", 
   "pandas<3",
+  "pyarrow>=20",
   "pyproj>=3.3",
   "rasterio>=1.3",
   "tqdm>=4",
@@ -56,7 +57,6 @@ mapping = [
   "lonboard @ git+https://github.com/wildlife-dynamics/lonboard@v0.0.8",
   "matplotlib",
   "mapclassify",
-  "pyarrow",
 ]
 plotting = ["plotly", "scikit-learn"]
 platform = [
@@ -66,7 +66,7 @@ platform = [
     "cloudpathlib[gs]",
     "wt-registry>=0.2.0,<0.3.0",
     "wt-task>=0.1.0,<0.2.0",
-    "ecoscope-earthranger-io-core @ git+https://github.com/wildlife-dynamics/ecoscope-earthranger-io-core.git@v0.0.16",
+    "ecoscope-earthranger-io-core @ git+https://github.com/wildlife-dynamics/ecoscope-earthranger-io-core.git@v0.0.20",
     "fastapi",  # required at import time by ecoscope-earthranger-io-core but not in its core dependencies
     "pyarrow>=20",
     "geoarrow-pyarrow>=0.2.0,<0.3",
