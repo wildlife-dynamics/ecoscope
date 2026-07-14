@@ -106,6 +106,22 @@ def test_summarize_df_with_missing_unit(sample_dataframe):
         StatSummaryParam(display_name="Sum of A", aggregator="sum", column="A", convert_units=True, original_unit="m")
 
 
+def test_units_without_convert_units_flag_still_convert():
+    # specs written before the Convert Units checkbox pass units directly
+    param = StatSummaryParam.model_validate(
+        {"display_name": "Sum of A", "aggregator": "sum", "column": "A", "original_unit": "m", "new_unit": "km"}
+    )
+    assert param.convert_units
+    assert param.original_unit is not None and param.new_unit is not None
+
+
+def test_single_unit_without_convert_units_flag_raises():
+    with pytest.raises(ValueError):
+        StatSummaryParam.model_validate(
+            {"display_name": "Sum of A", "aggregator": "sum", "column": "A", "original_unit": "m"}
+        )
+
+
 def test_summarize_df_night_day_ratio(trajectories):
     summary_params = [
         NightDayRatioSummaryParam(

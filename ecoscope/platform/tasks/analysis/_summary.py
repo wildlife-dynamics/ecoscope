@@ -104,6 +104,19 @@ class StatSummaryParam(_BaseSummaryParam):
     original_unit: SkipJsonSchema[Unit | None] = None
     new_unit: SkipJsonSchema[Unit | None] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def infer_convert_units(cls, data):
+        # Specs written before the Convert Units checkbox pass units directly;
+        # honor them unless the box is explicitly unchecked.
+        if (
+            isinstance(data, dict)
+            and "convert_units" not in data
+            and (data.get("original_unit") is not None or data.get("new_unit") is not None)
+        ):
+            data["convert_units"] = True
+        return data
+
     @model_validator(mode="after")
     def check_units(self):
         if self.convert_units and (self.original_unit is None or self.new_unit is None):
