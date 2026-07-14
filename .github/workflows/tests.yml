@@ -9,7 +9,7 @@ on:
       os:
         type: string
         required: true
-      python-version:    
+      python-version:
         type: string
         default: "3.12"
 
@@ -21,6 +21,9 @@ jobs:
         to_test: ["not platform", "ecoscope.platform"]
     name: ${{ inputs.os }}, ${{ inputs.io }}${{ matrix.to_test == 'ecoscope.platform' && ', ecoscope.platform' || '' }}
     runs-on: ${{ inputs.os }}
+    # Backstop against hung network calls (e.g. an unresponsive ER/SMART server).
+    # Normal runs finish well within this; a hang fails in minutes, not hours.
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash -leo pipefail {0}

@@ -36,7 +36,7 @@ def __etd__(_, a):
     return np.exp(-((s / el) ** k)) * s ** (k - 2) / np.sqrt(s**2 - m**2)
 
 
-_etd = scipy.LowLevelCallable(__etd__.ctypes)
+_etd = scipy.LowLevelCallable(__etd__.ctypes)  # type: ignore[call-overload]
 
 
 class WeibullPDF:
