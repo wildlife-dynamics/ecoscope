@@ -31,6 +31,9 @@ AggOperations = Literal[
 # aggregators that have no column — coverage area and night/day ratio.
 class _BaseSummaryParam(BaseModel):
     display_name: Annotated[str, Field(title="Display Name", description="Column header shown in the summary table.")]
+    # Read unconditionally in summarize_column to round results; every variant has it.
+    # Default rounds to 2 places; variants override to retitle, expose, or opt out (None).
+    decimal_places: int | SkipJsonSchema[None] = 2
 
 
 # The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
@@ -118,7 +121,6 @@ class CoverageSummaryParam(_BaseSummaryParam):
         float,
         Field(default=500.0, title="Swath Width (m)", description="Full corridor width in meters."),
     ] = 500.0
-    decimal_places: int | SkipJsonSchema[None] = 2
 
 
 class NightDayRatioSummaryParam(_BaseSummaryParam):
@@ -126,7 +128,6 @@ class NightDayRatioSummaryParam(_BaseSummaryParam):
 
     model_config = ConfigDict(title="Night/Day Ratio Metric")
     aggregator: Annotated[Literal["night_day_ratio"], Field(title="Statistic")]
-    decimal_places: int | SkipJsonSchema[None] = 2
 
 
 class UniqueSummaryParam(_BaseSummaryParam):
