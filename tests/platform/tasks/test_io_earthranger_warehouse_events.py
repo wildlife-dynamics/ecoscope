@@ -110,6 +110,7 @@ def _make_nested_patrols_arrow_table(event_times=("2015-02-01",), event_type="hw
         "patrol_type": "ecoscope_patrol",
         "patrol_type_display": "Ecoscope Patrol",
         "leader_id": "leader-1",
+        "leader_name": "eco_1",
         "time_range_start": "2015-02-01T00:00:00+00:00",
         "time_range_end": "2015-02-01T06:00:00+00:00",
         "scheduled_start": None,
@@ -144,6 +145,7 @@ def _make_event_types_arrow_table():
             "value": ["hwc_rep", "hwc_alt"],
             "display": ["Human Wildlife Conflict", "Human Wildlife Conflict"],
             "category_value": ["monitoring", "security"],
+            "category_display": ["Monitoring", "Security"],
             "is_active": [True, True],
             "is_collection": [False, False],
         },
@@ -454,8 +456,9 @@ def test_get_patrols_via_warehouse_client_synthesized_shape_feeds_unpack():
     assert segment["time_range"]["start_time"] == "2015-02-01T00:00:00+00:00"
     assert segment["time_range"]["end_time"] == "2015-02-01T06:00:00+00:00"
     assert segment["patrol_type"] == "ecoscope_patrol"
-    # leader name is unavailable from the warehouse -> patrol_subject degrades to None
-    assert segment["leader"]["name"] is None
+    # leader name is resolved server-side from leader_id -> patrol_subject populates
+    assert segment["leader"]["id"] == "leader-1"
+    assert segment["leader"]["name"] == "eco_1"
     event = segment["events"][0]
     assert event["geojson"]["type"] == "Feature"
     assert event["geojson"]["geometry"]["type"] == "Point"
@@ -464,7 +467,7 @@ def test_get_patrols_via_warehouse_client_synthesized_shape_feeds_unpack():
     events = unpack_events_from_patrols_df(patrols_df, event_type=[])
     assert "event_type" in events.columns
     assert "geometry" in events.columns
-    assert events["patrol_subject"].isna().all()
+    assert (events["patrol_subject"] == "eco_1").all()
     _assert_valid_events_gdf(events)
 
 
@@ -687,9 +690,8 @@ def test_append_event_type_display_names_value_to_display_and_orphan_fallback():
     assert result["event_type_display"].tolist() == ["Human Wildlife Conflict", "orphan_type"]
 
 
-def test_append_event_type_display_names_category_slug_substitution_on_duplicates():
-    """When display names collide, the category slug (category_value) is appended as
-    the category-display substitute (the warehouse serves no category display)."""
+def test_append_event_type_display_names_category_display_on_duplicates():
+    """When display names collide, the warehouse category_display is appended."""
     from ecoscope.io.earthranger_utils import append_event_type_display_names
 
     # hwc_rep and hwc_alt share the display "Human Wildlife Conflict"
@@ -697,6 +699,39 @@ def test_append_event_type_display_names_category_slug_substitution_on_duplicate
     result = append_event_type_display_names(
         events_df,
         _make_event_types_arrow_table(),
+        append_category_names="duplicates",
+    )
+    assert result["event_type_display"].tolist() == [
+        "Human Wildlife Conflict (Monitoring)",
+        "Human Wildlife Conflict (Security)",
+    ]
+
+
+def test_append_event_type_display_names_category_slug_fallback_when_display_absent():
+    """Backward-compat: when category_display is null (or an older API omits it), the
+    category slug (category_value) is used as the category-display substitute."""
+    import pyarrow as pa
+    from ecoscope_earthranger_io_core.arrow import EVENT_TYPES_SCHEMA_V1
+
+    from ecoscope.io.earthranger_utils import append_event_type_display_names
+
+    # category_display is null for both -> fall back to the category_value slug.
+    event_types = pa.table(
+        {
+            "id": ["id-1", "id-2"],
+            "value": ["hwc_rep", "hwc_alt"],
+            "display": ["Human Wildlife Conflict", "Human Wildlife Conflict"],
+            "category_value": ["monitoring", "security"],
+            "category_display": [None, None],
+            "is_active": [True, True],
+            "is_collection": [False, False],
+        },
+        schema=EVENT_TYPES_SCHEMA_V1,
+    )
+    events_df = pd.DataFrame({"event_type": ["hwc_rep", "hwc_alt"]})
+    result = append_event_type_display_names(
+        events_df,
+        event_types,
         append_category_names="duplicates",
     )
     assert result["event_type_display"].tolist() == [
@@ -721,7 +756,7 @@ def test_append_event_type_display_names_never_does_not_append_category():
 
 
 def test_append_event_type_display_names_orphan_category_falls_back_not_null():
-    """An orphan event type (absent from the registry) has no category_value; on the
+    """An orphan event type (absent from the registry) has no category; on the
     category-append path it must fall back to the raw event_type value rather than
     letting a NaN null the whole event_type_display (which StrictEventsGDFSchema rejects)."""
     from ecoscope.io.earthranger_utils import append_event_type_display_names
@@ -734,7 +769,7 @@ def test_append_event_type_display_names_orphan_category_falls_back_not_null():
     )
     assert result["event_type_display"].notna().all()
     assert result["event_type_display"].tolist() == [
-        "Human Wildlife Conflict (monitoring)",
+        "Human Wildlife Conflict (Monitoring)",
         "orphan_type (orphan_type)",
     ]
 

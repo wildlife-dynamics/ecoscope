@@ -194,9 +194,10 @@ def warehouse_patrols_table_to_patrols_df(table: Any) -> pd.DataFrame:
       "end_time": <time_range_end>}`` (the warehouse serves flat
       ``time_range_start``/``time_range_end`` fields);
     - ``patrol_type`` is already a flat segment field and is left as-is;
-    - the warehouse serves only ``leader_id`` (no leader name), so
-      ``leader = {"id": <leader_id>, "name": None}`` and ``patrol_subject`` degrades
-      to ``None`` in ``unpack_events_from_patrols_df``.
+    - the warehouse serves the leader's ``leader_id`` and resolved ``leader_name``, so
+      ``leader = {"id": <leader_id>, "name": <leader_name>}`` and ``patrol_subject``
+      populates in ``unpack_events_from_patrols_df`` (``name`` is ``None`` when the
+      leader is absent or unresolved).
     """
     records = table.to_pylist()
     for patrol in records:
@@ -205,7 +206,7 @@ def warehouse_patrols_table_to_patrols_df(table: Any) -> pd.DataFrame:
                 "start_time": segment.get("time_range_start"),
                 "end_time": segment.get("time_range_end"),
             }
-            segment["leader"] = {"id": segment.get("leader_id"), "name": None}
+            segment["leader"] = {"id": segment.get("leader_id"), "name": segment.get("leader_name")}
             for event in segment.get("events") or []:
                 event["geojson"] = _synthesize_event_geojson(event)
     return pd.DataFrame(records)
@@ -221,9 +222,10 @@ def append_event_type_display_names(
 
     Mirrors ``EarthRangerIO.get_event_type_display_names_from_events`` but resolves
     display names from a ``get_event_types()`` ``pa.Table`` (``EVENT_TYPES_SCHEMA_V1``:
-    ``value``, ``display``, ``category_value``) instead of the legacy API.
+    ``value``, ``display``, ``category_value``, ``category_display``) instead of the
+    legacy API.
 
-    Builds ``value -> display`` and ``value -> category_value`` maps, appends
+    Builds ``value -> display`` and ``value -> category`` maps, appends
     ``event_type_display``, and applies ``append_category_names`` semantics:
 
     - ``"never"``: never append a category.
@@ -231,10 +233,10 @@ def append_event_type_display_names(
     - ``"duplicates"`` (default): append only for event types whose display names
       collide.
 
-    The warehouse serves no category *display* name, so the category slug
-    (``category_value``) is used as the category-display substitute (a known,
-    non-breaking degradation). Event types missing from the registry (orphans) fall
-    back to their raw ``event_type`` value as the display.
+    The category name uses the warehouse ``category_display``, falling back to the
+    category slug (``category_value``) when the display is null or an older API omits
+    the column. Event types missing from the registry (orphans) fall back to their raw
+    ``event_type`` value as the display.
     """
     assert "event_type" in events_df.columns
 
@@ -249,11 +251,16 @@ def append_event_type_display_names(
     if not do_append:
         return events_df
 
-    # The warehouse has no category display name; substitute the category slug.
-    # Orphan event types (absent from the registry) have no category_value, so fall
+    # Prefer the warehouse category_display; fall back to the category slug when the
+    # display is null (or an older API omits the column).
+    # Orphan event types (absent from the registry) have no category, so fall
     # back to the raw event_type value rather than letting a NaN propagate through
     # the string concat and null the whole event_type_display (which StrictEventsGDFSchema rejects).
-    category_lookup = dict(zip(event_types["value"], event_types["category_value"]))
+    if "category_display" in event_types.columns:
+        category = event_types["category_display"].fillna(event_types["category_value"])
+    else:
+        category = event_types["category_value"]
+    category_lookup = dict(zip(event_types["value"], category))
     if append_category_names == "duplicates":
         is_duplicate_display = events_df.groupby("event_type_display")["event_type"].transform("nunique") > 1
         dup_event_types = events_df.loc[is_duplicate_display, "event_type"]
