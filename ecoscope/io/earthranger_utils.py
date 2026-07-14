@@ -1,7 +1,8 @@
-from typing import Any
-
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
+import pyarrow as pa
+import shapely.geometry
+import shapely.wkb
 from shapely.geometry import shape
 
 from ecoscope.io.utils import clean_time_cols
@@ -155,9 +156,6 @@ def _synthesize_event_geojson(event: dict) -> dict:
     ISO string (or ``None``). ``event_time`` may be a (tz-aware) datetime/Timestamp
     or raw int64 nanoseconds-since-epoch (UTC by schema contract) -- both handled.
     """
-    import shapely.geometry
-    import shapely.wkb
-
     geometry_wkb = event.get("geometry")
     if geometry_wkb is not None:
         geometry = shapely.geometry.mapping(shapely.wkb.loads(geometry_wkb))
@@ -179,7 +177,7 @@ def _synthesize_event_geojson(event: dict) -> dict:
     }
 
 
-def warehouse_patrols_table_to_patrols_df(table: Any) -> pd.DataFrame:
+def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
     """Convert a warehouse nested-patrols ``pa.Table`` into the ER-native PatrolsDF.
 
     Takes the ``PATROLS_WITH_EVENTS_NESTED_SCHEMA_V1`` table returned by
@@ -214,7 +212,7 @@ def warehouse_patrols_table_to_patrols_df(table: Any) -> pd.DataFrame:
 
 def append_event_type_display_names(
     events_df: pd.DataFrame,
-    event_types_table: Any,
+    event_types_table: pa.Table,
     *,
     append_category_names: str = "duplicates",
 ) -> pd.DataFrame:
@@ -240,9 +238,7 @@ def append_event_type_display_names(
     """
     assert "event_type" in events_df.columns
 
-    event_types = (
-        event_types_table.to_pandas() if hasattr(event_types_table, "to_pandas") else pd.DataFrame(event_types_table)
-    )
+    event_types = event_types_table.to_pandas()
     display_lookup = dict(zip(event_types["value"], event_types["display"]))
     events_df["event_type_display"] = events_df["event_type"].map(display_lookup).fillna(events_df["event_type"])
 
