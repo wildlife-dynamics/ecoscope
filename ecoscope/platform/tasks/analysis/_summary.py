@@ -9,7 +9,7 @@ from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, AnyGeoDat
 from ecoscope.platform.tasks.analysis._aggregation import (
     get_night_day_ratio,
 )
-from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
+from ecoscope.platform.tasks.transformation._unit import UNIT_OPTIONS, Unit, with_unit
 
 # Plain pandas aggregations, applied via df.agg. The extra summarize_df-only
 # aggregators (night_day_ratio, coverage_area) live on their own SummaryParam
@@ -25,6 +25,7 @@ AggOperations = Literal[
 ]
 
 
+# todo: find a better place to hold the method or check if it already exists somewhere else in the codebase
 def _coverage_area_km2(
     gdf: AnyGeoDataFrame,
     swath_width_meters: float,
@@ -52,36 +53,65 @@ def _coverage_area_km2(
     return area_m2 / 1e6
 
 
-# `SummaryParam` is a discriminated union (on `aggregator`) so that each metric
-# type exposes only the fields that apply to it: count-style metrics need just a
-# column; numeric metrics add unit conversion + rounding; coverage metrics take a
-# swath width and have no column; the night/day ratio has neither column nor units.
+# `SummaryParam` is a discriminated union (on `aggregator`) with three shapes:
+# plain column statistics (StatSummaryParam), and the two summarize_df-only
+# aggregators that have no column — coverage area and night/day ratio.
 class _BaseSummaryParam(BaseModel):
-    display_name: Annotated[str, Field(description="Column header shown in the summary table.")]
+    display_name: Annotated[str, Field(title="Display Name", description="Column header shown in the summary table.")]
 
 
-class TallySummaryParam(_BaseSummaryParam):
-    """Count-style metric (count / nunique) over a single column."""
+# The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
+# and re-introduced via the `dependencies` block in json_schema_extra, so the form
+# only shows them once "Convert Units" is checked. Note the docstring renders as
+# the form's helper text.
+class StatSummaryParam(_BaseSummaryParam):
+    """Pick a column and statistic, with optional unit conversion."""
 
-    model_config = ConfigDict(title="Count Metric")
-    aggregator: Annotated[Literal["count", "nunique"], Field(title="Statistic")]
-    column: Annotated[str, Field(description="Column to aggregate.")]
-
-
-class NumericSummaryParam(_BaseSummaryParam):
-    """Numeric reduction (sum / min / max / mean / median) with optional unit conversion."""
-
-    model_config = ConfigDict(title="Numeric Metric")
-    aggregator: Annotated[Literal["sum", "min", "max", "mean", "median"], Field(title="Statistic")]
-    column: Annotated[str, Field(description="Column to aggregate.")]
-    original_unit: Unit | SkipJsonSchema[None] = None
-    new_unit: Unit | SkipJsonSchema[None] = None
-    decimal_places: int | SkipJsonSchema[None] = 2
+    model_config = ConfigDict(
+        title="Statistic",
+        json_schema_extra={
+            "dependencies": {
+                "convert_units": {
+                    "oneOf": [
+                        {"properties": {"convert_units": {"const": False}}},
+                        {
+                            "properties": {
+                                "convert_units": {"const": True},
+                                # No `default` on these: a default on a dependency branch
+                                # gets seeded into formData even while unchecked, leaving
+                                # an orphaned value behind.
+                                "original_unit": {
+                                    "title": "Original Unit",
+                                    "type": "string",
+                                    "oneOf": UNIT_OPTIONS,
+                                },
+                                "new_unit": {
+                                    "title": "New Unit",
+                                    "type": "string",
+                                    "oneOf": UNIT_OPTIONS,
+                                },
+                            }
+                        },
+                    ]
+                }
+            }
+        },
+    )
+    aggregator: Annotated[AggOperations, Field(title="Statistic")]
+    column: Annotated[str, Field(title="Column", description="Column to aggregate.")]
+    decimal_places: Annotated[int, Field(default=2, title="Decimal Places")] = 2
+    convert_units: Annotated[bool, Field(default=False, title="Convert Units")] = False
+    original_unit: SkipJsonSchema[Unit | None] = None
+    new_unit: SkipJsonSchema[Unit | None] = None
 
     @model_validator(mode="after")
-    def check_unit(self):
-        if (self.original_unit is None) != (self.new_unit is None):
-            raise ValueError("original_unit and new_unit must either both be None or both exist")
+    def check_units(self):
+        if self.convert_units and (self.original_unit is None or self.new_unit is None):
+            raise ValueError("select both an original and a new unit when unit conversion is enabled")
+        if not self.convert_units:
+            # units left behind by unchecking "Convert Units" in the form are ignored
+            self.original_unit = None
+            self.new_unit = None
         return self
 
 
@@ -115,8 +145,7 @@ class NightDayRatioSummaryParam(_BaseSummaryParam):
 
 SummaryParam = Annotated[
     Union[
-        TallySummaryParam,
-        NumericSummaryParam,
+        StatSummaryParam,
         CoverageSummaryParam,
         NightDayRatioSummaryParam,
     ],
@@ -157,14 +186,11 @@ def summarize_df(
         else:
             result = df[param.column].agg(param.aggregator)
 
-        original_unit = getattr(param, "original_unit", None)
-        new_unit = getattr(param, "new_unit", None)
-        if original_unit and new_unit:
-            result = with_unit(result, original_unit, new_unit).value
+        if isinstance(param, StatSummaryParam) and param.original_unit and param.new_unit:
+            result = with_unit(result, param.original_unit, param.new_unit).value
 
-        decimal_places = getattr(param, "decimal_places", None)
-        if decimal_places is not None:
-            result = round(result, decimal_places)
+        if param.decimal_places is not None:
+            result = round(result, param.decimal_places)
 
         return result
 

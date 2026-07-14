@@ -5,19 +5,15 @@ from pydantic import (
     ConfigDict,
     Field,
     TypeAdapter,
-    model_validator,
 )
-from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.tasks.analysis._summary import (
-    AggOperations,
     CoverageSummaryParam,
-    NumericSummaryParam,
+    StatSummaryParam,
     SummaryParam,
-    TallySummaryParam,
 )
-from ecoscope.platform.tasks.transformation._unit import UNIT_OPTIONS, Unit, labeled_units
+from ecoscope.platform.tasks.transformation._unit import Unit, labeled_units
 
 
 # Thin patrol-aware wrappers over SummaryParam: each preset knows its column,
@@ -28,16 +24,16 @@ class PatrolCountMetric(BaseModel):
     model_config = ConfigDict(title="Patrol Count")
     metric: Annotated[Literal["patrol_count"], Field(default="patrol_count", title="Metric")] = "patrol_count"
 
-    def to_summary_param(self) -> TallySummaryParam:
-        return TallySummaryParam(display_name="Patrol Count", aggregator="nunique", column="patrol_id")
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(display_name="Patrol Count", aggregator="nunique", column="patrol_id")
 
 
 class PatrolDaysMetric(BaseModel):
     model_config = ConfigDict(title="Patrol Days")
     metric: Annotated[Literal["patrol_days"], Field(default="patrol_days", title="Metric")] = "patrol_days"
 
-    def to_summary_param(self) -> TallySummaryParam:
-        return TallySummaryParam(
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(
             display_name="Patrol Days",
             aggregator="nunique",
             column="segment_start_date",
@@ -52,11 +48,12 @@ class TotalDistanceMetric(BaseModel):
         Field(default="km", title="Unit", json_schema_extra=labeled_units(Unit.KILOMETER, Unit.METER)),
     ] = "km"
 
-    def to_summary_param(self) -> NumericSummaryParam:
-        return NumericSummaryParam(
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(
             display_name=f"Total Distance ({self.unit})",
             aggregator="sum",
             column="dist_meters",
+            convert_units=True,
             original_unit=Unit.METER,
             new_unit=Unit(self.unit),
             decimal_places=2,
@@ -71,12 +68,13 @@ class TotalDurationMetric(BaseModel):
         Field(default="h", title="Unit", json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY)),
     ] = "h"
 
-    def to_summary_param(self) -> NumericSummaryParam:
+    def to_summary_param(self) -> StatSummaryParam:
         label = {"h": "hrs", "d": "days"}[self.unit]
-        return NumericSummaryParam(
+        return StatSummaryParam(
             display_name=f"Total Duration ({label})",
             aggregator="sum",
             column="timespan_seconds",
+            convert_units=True,
             original_unit=Unit.SECOND,
             new_unit=Unit(self.unit),
             decimal_places=2,
@@ -137,79 +135,17 @@ class UnmergedAreaCoveredMetric(BaseModel):
         )
 
 
-# The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
-# and re-introduced via the `dependencies` block in json_schema_extra, so the form
-# only shows them once "Convert Units" is checked. Units are ignored for
-# count/nunique. Note the docstring renders as the form's helper text.
-class CustomMetric(BaseModel):
+# Inherits the full statistic form (column, statistic, units-behind-a-checkbox
+# `dependencies` block) from StatSummaryParam; only adds the `metric`
+# discriminator for the patrol preset union.
+class CustomMetric(StatSummaryParam):
     """Define your own metric: pick a column and statistic, with optional unit conversion."""
 
-    model_config = ConfigDict(
-        title="Custom",
-        json_schema_extra={
-            "dependencies": {
-                "convert_units": {
-                    "oneOf": [
-                        {"properties": {"convert_units": {"const": False}}},
-                        {
-                            "properties": {
-                                "convert_units": {"const": True},
-                                # No `default` on these: a default on a dependency branch
-                                # gets seeded into formData even while unchecked, leaving
-                                # an orphaned value behind.
-                                "original_unit": {
-                                    "title": "Original Unit",
-                                    "type": "string",
-                                    "oneOf": UNIT_OPTIONS,
-                                },
-                                "new_unit": {
-                                    "title": "New Unit",
-                                    "type": "string",
-                                    "oneOf": UNIT_OPTIONS,
-                                },
-                            }
-                        },
-                    ]
-                }
-            }
-        },
-    )
+    model_config = ConfigDict(title="Custom")
     metric: Annotated[Literal["custom"], Field(default="custom", title="Metric")] = "custom"
-    display_name: Annotated[
-        str,
-        Field(
-            title="Display Name",
-            description="Column header shown in the summary table.",
-        ),
-    ]
-    aggregator: Annotated[AggOperations, Field(title="Statistic")]
-    column: Annotated[str, Field(title="Column", description="Column to aggregate.")]
-    decimal_places: Annotated[int, Field(default=2, title="Decimal Places")] = 2
-    convert_units: Annotated[bool, Field(default=False, title="Convert Units")] = False
-    original_unit: SkipJsonSchema[Unit | None] = None
-    new_unit: SkipJsonSchema[Unit | None] = None
 
-    @model_validator(mode="after")
-    def check_units(self):
-        if self.convert_units and (self.original_unit is None or self.new_unit is None):
-            raise ValueError("select both an original and a new unit when unit conversion is enabled")
-        return self
-
-    def to_summary_param(self) -> SummaryParam:
-        if self.aggregator == "count" or self.aggregator == "nunique":
-            return TallySummaryParam(
-                display_name=self.display_name,
-                aggregator=self.aggregator,
-                column=self.column,
-            )
-        return NumericSummaryParam(
-            display_name=self.display_name,
-            aggregator=self.aggregator,
-            column=self.column,
-            original_unit=self.original_unit if self.convert_units else None,
-            new_unit=self.new_unit if self.convert_units else None,
-            decimal_places=self.decimal_places,
-        )
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(**self.model_dump(exclude={"metric"}))
 
 
 PatrolSummaryMetric = Annotated[

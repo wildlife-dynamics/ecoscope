@@ -9,8 +9,7 @@ from ecoscope.platform.mock_loaders import load_parquet
 from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
     NightDayRatioSummaryParam,
-    NumericSummaryParam,
-    TallySummaryParam,
+    StatSummaryParam,
     _coverage_area_km2,
     summarize_df,
 )
@@ -48,13 +47,13 @@ def trajectories():
 
 def test_summarize_df_sum(sample_dataframe):
     summary_params = [
-        NumericSummaryParam(display_name="Sum of A", aggregator="sum", column="A"),
-        NumericSummaryParam(display_name="Min of A", aggregator="min", column="A"),
-        NumericSummaryParam(display_name="Max of A", aggregator="max", column="A"),
-        NumericSummaryParam(display_name="Mean of A", aggregator="mean", column="A"),
-        NumericSummaryParam(display_name="Median of A", aggregator="median", column="A"),
-        TallySummaryParam(display_name="Count of A", aggregator="count", column="A"),
-        NumericSummaryParam(display_name="Sum of B", aggregator="sum", column="B"),
+        StatSummaryParam(display_name="Sum of A", aggregator="sum", column="A"),
+        StatSummaryParam(display_name="Min of A", aggregator="min", column="A"),
+        StatSummaryParam(display_name="Max of A", aggregator="max", column="A"),
+        StatSummaryParam(display_name="Mean of A", aggregator="mean", column="A"),
+        StatSummaryParam(display_name="Median of A", aggregator="median", column="A"),
+        StatSummaryParam(display_name="Count of A", aggregator="count", column="A"),
+        StatSummaryParam(display_name="Sum of B", aggregator="sum", column="B"),
     ]
     result = summarize_df(sample_dataframe, summary_params)
     assert result.loc[0, "Sum of A"] == 15
@@ -68,7 +67,7 @@ def test_summarize_df_sum(sample_dataframe):
 
 def test_summarize_df_groupby(sample_dataframe):
     sample_dataframe["Group"] = ["X", "X", "Y", "Y", "Y"]
-    summary_params = [NumericSummaryParam(display_name="Sum of A", aggregator="sum", column="A")]
+    summary_params = [StatSummaryParam(display_name="Sum of A", aggregator="sum", column="A")]
     result = summarize_df(sample_dataframe, summary_params, groupby_cols=["Group"])
     assert result.loc["X", "Sum of A"] == 3
     assert result.loc["Y", "Sum of A"] == 12
@@ -76,10 +75,11 @@ def test_summarize_df_groupby(sample_dataframe):
 
 def test_summarize_df_with_units(sample_dataframe):
     summary_params = [
-        NumericSummaryParam(
+        StatSummaryParam(
             display_name="Sum of A",
             aggregator="sum",
             column="A",
+            convert_units=True,
             original_unit="m",
             new_unit="km",
             decimal_places=3,
@@ -91,19 +91,19 @@ def test_summarize_df_with_units(sample_dataframe):
 
 def test_summarize_df_decimal_places_zero():
     df = pd.DataFrame({"A": [1, 2, 2]})
-    summary_params = [NumericSummaryParam(display_name="Mean of A", aggregator="mean", column="A", decimal_places=0)]
+    summary_params = [StatSummaryParam(display_name="Mean of A", aggregator="mean", column="A", decimal_places=0)]
     result = summarize_df(df, summary_params)
     assert result.loc[0, "Mean of A"] == 2.0
 
 
 def test_summarize_df_with_missing_column(sample_dataframe):
     with pytest.raises(ValueError):
-        NumericSummaryParam(display_name="Sum of A", aggregator="sum")
+        StatSummaryParam(display_name="Sum of A", aggregator="sum")
 
 
 def test_summarize_df_with_missing_unit(sample_dataframe):
     with pytest.raises(ValueError):
-        NumericSummaryParam(display_name="Sum of A", aggregator="sum", column="A", original_unit="m")
+        StatSummaryParam(display_name="Sum of A", aggregator="sum", column="A", convert_units=True, original_unit="m")
 
 
 def test_summarize_df_night_day_ratio(trajectories):
@@ -113,10 +113,11 @@ def test_summarize_df_night_day_ratio(trajectories):
             aggregator="night_day_ratio",
             decimal_places=2,
         ),
-        NumericSummaryParam(
+        StatSummaryParam(
             display_name="Total Dist Km",
             aggregator="sum",
             column="dist_meters",
+            convert_units=True,
             original_unit="m",
             new_unit="km",
             decimal_places=2,

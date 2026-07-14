@@ -8,10 +8,7 @@ from ecoscope.platform.tasks.analysis._patrol_summary import (
     TotalDurationMetric,
     set_patrol_summary_metrics,
 )
-from ecoscope.platform.tasks.analysis._summary import (
-    NumericSummaryParam,
-    TallySummaryParam,
-)
+from ecoscope.platform.tasks.analysis._summary import StatSummaryParam
 from ecoscope.platform.tasks.transformation._unit import Unit
 
 
@@ -55,7 +52,7 @@ def test_set_patrol_summary_metrics_custom_numeric():
             }
         ]
     )
-    assert isinstance(param, NumericSummaryParam)
+    assert isinstance(param, StatSummaryParam)
     assert param.display_name == "Max Speed"
     assert param.aggregator == "max"
     assert param.column == "speed_kmhr"
@@ -74,7 +71,7 @@ def test_set_patrol_summary_metrics_custom_tally():
             }
         ]
     )
-    assert isinstance(param, TallySummaryParam)
+    assert isinstance(param, StatSummaryParam)
     assert param.aggregator == "nunique"
     assert param.column == "patrol_subject"
 
