@@ -12,9 +12,6 @@ from ecoscope.platform.tasks.analysis._aggregation import (
 )
 from ecoscope.platform.tasks.transformation._unit import UNIT_OPTIONS, Unit, with_unit
 
-# Plain pandas aggregations, applied via df.agg. The extra summarize_df-only
-# aggregators (unique, night_day_ratio, coverage_area) live on their own
-# SummaryParam variants below.
 AggOperations = Literal[
     "sum",
     "count",
@@ -26,13 +23,9 @@ AggOperations = Literal[
 ]
 
 
-# `SummaryParam` is a discriminated union (on `aggregator`): plain column
-# statistics (StatSummaryParam), unique values of a column, and the two
-# aggregators that have no column — coverage area and night/day ratio.
 class _BaseSummaryParam(BaseModel):
     display_name: Annotated[str, Field(title="Display Name", description="Column header shown in the summary table.")]
     # Read unconditionally in summarize_column to round results; every variant has it.
-    # Default rounds to 2 places; variants override to retitle, expose, or opt out (None).
     decimal_places: int | SkipJsonSchema[None] = 2
 
 
