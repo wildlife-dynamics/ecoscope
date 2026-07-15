@@ -103,6 +103,14 @@ class LegendDefinition:
     colors: list[str] | SkipJsonSchema[None] = None
     sort: Annotated[Literal["ascending", "descending"] | None, AdvancedField(default=None)] = None
     label_suffix: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    title: Annotated[
+        str | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="If set, this layer's entries render in their own legend box with this title, "
+            "instead of being merged into the map's single legend.",
+        ),
+    ] = None
 
 
 @dataclass
@@ -401,8 +409,10 @@ def draw_ecomap(
     if legend_style is None:
         legend_style = LegendStyle()
 
-    legend_labels: list = []
-    legend_colors: list = []
+    # Ordered map of legend title -> {"labels": [...], "colors": [...]}.
+    # The None key holds entries with no per-layer title; they merge into a
+    # single legend using legend_style (the historical behaviour).
+    legend_groups: dict = {}
     zoom_layers: list = []
 
     m = EcoMap(static=static, default_widgets=False)
@@ -462,6 +472,8 @@ def draw_ecomap(
                 )
 
         if layer_def.legend:
+            layer_labels: list = []
+            layer_colors: list = []
             if layer_def.legend.label_column and layer_def.legend.color_column:
                 lookup = layer_def.geodataframe.drop_duplicates(subset=layer_def.legend.label_column)
                 if layer_def.legend.sort:
@@ -473,24 +485,39 @@ def draw_ecomap(
                         key=lambda col: pd.to_numeric(col, errors="ignore"),  # type: ignore[call-overload]
                     )
                 for _, row in lookup.iterrows():
-                    legend_labels.append(row[layer_def.legend.label_column])
-                    legend_colors.append(row[layer_def.legend.color_column])
+                    layer_labels.append(row[layer_def.legend.label_column])
+                    layer_colors.append(row[layer_def.legend.color_column])
             elif layer_def.legend.labels and layer_def.legend.colors:
-                legend_labels.extend(layer_def.legend.labels)
-                legend_colors.extend(layer_def.legend.colors)
-            if legend_labels and layer_def.legend.label_suffix:
-                legend_labels = [label + layer_def.legend.label_suffix for label in legend_labels]
+                layer_labels.extend(layer_def.legend.labels)
+                layer_colors.extend(layer_def.legend.colors)
+            if layer_labels and layer_def.legend.label_suffix:
+                layer_labels = [label + layer_def.legend.label_suffix for label in layer_labels]
+
+            group = legend_groups.setdefault(layer_def.legend.title, {"labels": [], "colors": []})
+            group["labels"].extend(layer_labels)
+            group["colors"].extend(layer_colors)
 
         if layer_def.zoom:
             zoom_layers.append(layer)
 
         m.add_layer(layer)
 
-    if len(legend_labels) > 0:
+    # Emit one legend per title group, preserving layer order. Untitled entries
+    # (None key) use the map-level legend_style title; titled groups each render
+    # as their own legend box and deck.gl stacks them at the shared placement.
+    for group_title, group in legend_groups.items():
+        if not group["labels"]:
+            continue
+        if group_title is None:
+            display_title = legend_style.display_name
+        elif legend_style.format_title:
+            display_title = group_title.replace("_", " ").title()
+        else:
+            display_title = group_title
         m.add_legend(
-            labels=[str(ll) for ll in legend_labels],
-            colors=legend_colors,
-            title=legend_style.display_name,
+            labels=[str(ll) for ll in group["labels"]],
+            colors=group["colors"],
+            title=display_title,
             placement=legend_style.placement,
         )
 

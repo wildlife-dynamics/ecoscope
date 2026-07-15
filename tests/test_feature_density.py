@@ -94,3 +94,38 @@ def test_feature_density_line():
         out_dir="tests/test_output",
         raster_name="line_density.tif",
     )
+
+
+def test_feature_density_line_sum_values():
+    AOI = gpd.read_file(os.path.join("tests/sample_data/vector", "landscape_grid.gpkg"), layer="AOI")
+
+    grid = gpd.GeoDataFrame(
+        geometry=ecoscope.base.utils.create_meshgrid(
+            AOI.union_all(), in_crs=AOI.crs, out_crs="EPSG:3857", xlen=5000, ylen=5000, return_intersecting_only=False
+        )
+    )
+
+    lines = gpd.GeoDataFrame(
+        data={"timespan_seconds": [3600.0, 600.0]},
+        geometry=[
+            LineString([(3906043.099, -143047.752), (3957465.506, -178334.298)]),
+            LineString([(3957936.393, -178331.41), (3957465.506, -178334.298)]),
+        ],
+        crs="EPSG:3857",
+    )
+
+    density_grid = calculate_feature_density(lines, grid, geometry_type="line", sum_column="timespan_seconds")
+
+    # every fragment of both lines lies within the grid, so the apportioned
+    # values must add back up to the column total
+    assert math.isclose(density_grid["density"].sum(), 4200.0)
+
+    # a cell fully containing the short line but only part of the long one
+    # gets 600s plus the long line's length-fraction share
+    lengths = lines.geometry.length
+    cell = density_grid.loc[density_grid["density"].idxmax()].geometry
+    expected_max = sum(
+        lines.loc[i, "timespan_seconds"] * lines.geometry.clip_by_rect(*cell.bounds).length[i] / lengths[i]
+        for i in lines.index
+    )
+    assert math.isclose(density_grid["density"].max(), expected_max)

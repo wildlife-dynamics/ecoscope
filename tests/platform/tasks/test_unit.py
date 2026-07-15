@@ -55,3 +55,9 @@ def test_invalid_conversion():
 )
 def test_is_linear_unit_conversion_linear_cases(original, new, expected):
     assert is_linear_unit_conversion(original, new) is expected
+
+
+def test_unit_labels_cover_every_unit():
+    from ecoscope.platform.tasks.transformation._unit import UNIT_LABELS
+
+    assert set(UNIT_LABELS) == set(Unit)
