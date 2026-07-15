@@ -13,7 +13,7 @@ from ._aggregation import (
 )
 from ._calculate_feature_density import calculate_feature_density
 from ._create_meshgrid import create_meshgrid
-from ._density_weighting import (
+from ._patrol_density import (
     get_density_legend_title,
     normalize_density_units,
     set_density_weighting,
