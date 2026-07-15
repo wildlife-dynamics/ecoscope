@@ -17,8 +17,8 @@ PatrolDensityWeighting: TypeAlias = Literal["timespan_seconds", "dist_meters"]
 # Single source of truth per patrol weighting column; supporting a new
 # weighting is one entry here (plus the Literal above).
 PATROL_WEIGHTING_SPECS: dict[str, WeightingSpec] = {
-    "timespan_seconds": WeightingSpec(Unit.SECOND, Unit.HOUR, "Time", "hours"),
-    "dist_meters": WeightingSpec(Unit.METER, Unit.KILOMETER, "Distance", "km"),
+    "timespan_seconds": WeightingSpec(Unit.SECOND, Unit.HOUR, "Time"),
+    "dist_meters": WeightingSpec(Unit.METER, Unit.KILOMETER, "Distance"),
 }
 
 

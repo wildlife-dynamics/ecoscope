@@ -8,9 +8,8 @@ from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 @dataclass(frozen=True)
 class WeightingSpec:
     original_unit: Unit  # unit of the raw summed column
-    display_unit: Unit  # unit shown on the map
+    display_unit: Unit  # unit shown on the map and in the legend title
     option_label: str  # form dropdown label
-    unit_word: str  # spelled-out unit for the legend title
 
 
 def labeled_weighting(specs: dict[str, WeightingSpec]) -> Callable[[dict], None]:
@@ -31,4 +30,4 @@ def normalize_density(df: AnyGeoDataFrame, spec: WeightingSpec) -> AnyGeoDataFra
 
 def density_legend_title(spec: WeightingSpec, title_prefix: str) -> str:
     """Legend title for a density map, including the display unit."""
-    return f"{title_prefix} ({spec.unit_word})"
+    return f"{title_prefix} ({spec.display_unit.value})"

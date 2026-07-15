@@ -42,7 +42,7 @@ def test_normalize_density_units_distance():
 
 
 def test_get_density_legend_title():
-    assert get_density_legend_title(density_sum_column="timespan_seconds") == "Patrol Effort (hours)"
+    assert get_density_legend_title(density_sum_column="timespan_seconds") == "Patrol Effort (h)"
     assert get_density_legend_title(density_sum_column="dist_meters") == "Patrol Effort (km)"
     assert (
         get_density_legend_title(density_sum_column="dist_meters", title_prefix="Ranger Effort") == "Ranger Effort (km)"
