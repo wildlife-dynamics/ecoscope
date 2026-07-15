@@ -13,11 +13,12 @@ from ._aggregation import (
 )
 from ._calculate_feature_density import calculate_feature_density
 from ._create_meshgrid import create_meshgrid
-from ._patrol_density import (
+from ._density_weighting import (
     get_density_legend_title,
+    get_weighting_column,
     normalize_density_units,
-    set_density_weighting,
 )
+from ._patrol_density import set_patrol_weighting_spec
 from ._patrol_summary import set_patrol_summary_metrics
 from ._summary import aggregate_over_rows, summarize_df
 from ._time_density import (
@@ -42,9 +43,10 @@ __all__ = [
     "calculate_feature_density",
     "create_meshgrid",
     "get_density_legend_title",
+    "get_weighting_column",
     "normalize_density_units",
-    "set_density_weighting",
     "aggregate_over_rows",
+    "set_patrol_weighting_spec",
     "set_patrol_summary_metrics",
     "summarize_df",
     "TimeDensityReturnGDF",

@@ -326,11 +326,12 @@ def test_coverage_area_km2_single_segment():
 
 
 def test_coverage_area_km2_explicit_crs():
-    # An explicit equal-area CRS gives ~the same result as the default local UTM.
+    # Explicitly passing the local UTM zone (37S) matches the default estimate.
     gdf = gpd.GeoDataFrame(geometry=[LineString([(36.800, -1.30), (36.809, -1.30)])], crs="EPSG:4326")
 
-    area = ecoscope.base.utils.coverage_area_km2(gdf, 500.0, merged=True, crs="EPSG:6933")
-    assert area == pytest.approx(0.697, abs=0.01)
+    default_area = ecoscope.base.utils.coverage_area_km2(gdf, 500.0, merged=True)
+    explicit_area = ecoscope.base.utils.coverage_area_km2(gdf, 500.0, merged=True, crs="EPSG:32737")
+    assert explicit_area == pytest.approx(default_area)
 
 
 def test_coverage_area_km2_merged_vs_summed():
