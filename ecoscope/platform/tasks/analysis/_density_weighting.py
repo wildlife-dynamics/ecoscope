@@ -11,7 +11,7 @@ from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 
 @dataclass(frozen=True)
 class WeightingSpec:
-    column: str  # gdf column the density is summed from
+    density_sum_column: str  # gdf column the density is summed from
     original_unit: Unit  # unit of the raw summed column
     display_unit: Unit  # unit shown on the map and in the legend title
     option_label: str  # form dropdown label and default legend title prefix
@@ -71,4 +71,4 @@ def get_weighting_column(
     """
     The gdf column the density is summed from.
     """
-    return weighting_spec.column
+    return weighting_spec.density_sum_column
