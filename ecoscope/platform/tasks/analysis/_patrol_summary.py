@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Annotated, Literal, Union
 
 from pydantic import (
@@ -163,20 +164,20 @@ PatrolSummaryMetric = Annotated[
 
 _PatrolSummaryMetricAdapter: TypeAdapter = TypeAdapter(PatrolSummaryMetric)
 
-_DEFAULT_PATROL_SUMMARY_METRICS: list = [
+_DEFAULT_PATROL_SUMMARY_METRICS: tuple = (
     {"metric": "patrol_count"},
     {"metric": "total_distance", "unit": "km"},
     {"metric": "total_duration", "unit": "h"},
     {"metric": "patrol_days"},
     {"metric": "area_covered_merged", "swath_width_meters": 500.0},
     {"metric": "area_covered_unmerged", "swath_width_meters": 500.0},
-]
+)
 
 
 @register()
 def set_patrol_summary_metrics(
     metrics: Annotated[
-        list[PatrolSummaryMetric],
+        Sequence[PatrolSummaryMetric],
         Field(
             default=_DEFAULT_PATROL_SUMMARY_METRICS,
             description="Metrics shown as columns in the patrol summary table. Add or remove rows to customize.",
