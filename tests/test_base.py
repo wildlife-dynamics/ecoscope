@@ -325,6 +325,14 @@ def test_coverage_area_km2_single_segment():
     assert area == pytest.approx(0.697, abs=0.01)
 
 
+def test_coverage_area_km2_explicit_crs():
+    # An explicit equal-area CRS gives ~the same result as the default local UTM.
+    gdf = gpd.GeoDataFrame(geometry=[LineString([(36.800, -1.30), (36.809, -1.30)])], crs="EPSG:4326")
+
+    area = ecoscope.base.utils.coverage_area_km2(gdf, 500.0, merged=True, crs="EPSG:6933")
+    assert area == pytest.approx(0.697, abs=0.01)
+
+
 def test_coverage_area_km2_merged_vs_summed():
     # Two overlapping parallel segments (~100 m apart) buffered by 250 m/side
     # overlap heavily: summing double-counts the shared ground, the union
