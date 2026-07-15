@@ -50,11 +50,8 @@ def test_normalize_density_units_distance():
 
 
 def test_get_density_legend_title():
-    time_spec = PATROL_WEIGHTING_SPECS["timespan_seconds"]
-    dist_spec = PATROL_WEIGHTING_SPECS["dist_meters"]
-    assert get_density_legend_title(weighting_spec=time_spec) == "Time (h)"
-    assert get_density_legend_title(weighting_spec=dist_spec) == "Distance (km)"
-    assert get_density_legend_title(weighting_spec=dist_spec, title_prefix="Patrol Effort") == "Patrol Effort (km)"
+    assert get_density_legend_title(weighting_spec=PATROL_WEIGHTING_SPECS["timespan_seconds"]) == "Time (h)"
+    assert get_density_legend_title(weighting_spec=PATROL_WEIGHTING_SPECS["dist_meters"]) == "Distance (km)"
 
 
 def test_labeled_weighting_replaces_enum_with_labeled_options():

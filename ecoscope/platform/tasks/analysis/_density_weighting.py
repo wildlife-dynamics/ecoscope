@@ -49,17 +49,16 @@ def normalize_density_units(
 def get_density_legend_title(
     weighting_spec: Annotated[
         WeightingSpec,
-        Field(description="The weighting the density was summed from; determines the display unit.", exclude=True),
+        Field(
+            description="The weighting the density was summed from; determines the label and display unit.",
+            exclude=True,
+        ),
     ],
-    title_prefix: Annotated[
-        str | None,
-        Field(description="Legend title text preceding the display unit; defaults to the weighting's label."),
-    ] = None,
 ) -> str:
     """
-    Legend title for the density map, including the display unit.
+    Legend title for the density map: the weighting's label and display unit.
     """
-    return f"{title_prefix or weighting_spec.option_label} ({weighting_spec.display_unit.value})"
+    return f"{weighting_spec.option_label} ({weighting_spec.display_unit.value})"
 
 
 @register()
