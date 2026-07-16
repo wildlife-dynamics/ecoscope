@@ -24,6 +24,12 @@ from ecoscope.platform.tasks.filter._filter import TimeRange
 
 logger = logging.getLogger(__name__)
 
+# Temporary kill switch (ERDW-233): when False, event-related tasks bypass the
+# DWH/warehouse client and read event data from the EarthRanger API directly.
+# Observation/patrol tasks are unaffected. Flip to True (or remove the guards)
+# to re-enable DWH-backed event data.
+DWH_EVENTS_ENABLED = False
+
 
 def _make_warehouse_client_from_env(er_site_url: str, er_api_token: SecretStr | None):
     """Create an ERWarehouseClient if warehouse env vars are configured.
@@ -551,9 +557,14 @@ def get_patrol_events(
     if status is None:
         status = ["done"]
 
-    if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server,
-        er_api_token=SecretStr(client.token) if client.token else None,
+    # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
+    # is disabled, and the ER-API fallback path references warehouse_client.
+    warehouse_client = None
+    if DWH_EVENTS_ENABLED and (
+        warehouse_client := _make_warehouse_client_from_env(
+            er_site_url=client.server,
+            er_api_token=SecretStr(client.token) if client.token else None,
+        )
     ):
         from ecoscope.io.earthranger_utils import (
             unpack_events_from_patrols_df,
@@ -626,9 +637,14 @@ def get_events(
     force_point_geometry: ForcePointGeometryAnnotation = True,
 ) -> EventGDF | EventsWithDisplayNamesGDF | EmptyDataFrame:
     """Get events."""
-    if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server,
-        er_api_token=SecretStr(client.token) if client.token else None,
+    # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
+    # is disabled, and the ER-API fallback path references warehouse_client.
+    warehouse_client = None
+    if DWH_EVENTS_ENABLED and (
+        warehouse_client := _make_warehouse_client_from_env(
+            er_site_url=client.server,
+            er_api_token=SecretStr(client.token) if client.token else None,
+        )
     ):
         import geopandas as gpd  # type: ignore[import-untyped]
 
@@ -908,9 +924,14 @@ def get_event_type_display_names_from_events(
     events_gdf: EventGDF,
     append_category_names: AppendCategorySelectionAnnotation = "duplicates",
 ) -> EventsWithDisplayNamesGDF:
-    if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server,
-        er_api_token=SecretStr(client.token) if client.token else None,
+    # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
+    # is disabled, and the ER-API fallback path references warehouse_client.
+    warehouse_client = None
+    if DWH_EVENTS_ENABLED and (
+        warehouse_client := _make_warehouse_client_from_env(
+            er_site_url=client.server,
+            er_api_token=SecretStr(client.token) if client.token else None,
+        )
     ):
         # The warehouse client's get_event_type_display_names_from_events is a
         # NotImplementedError stub; resolve display names locally instead.
