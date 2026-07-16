@@ -40,7 +40,6 @@ Tracker = "https://github.com/wildlife-dynamics/ecoscope/issues"
 
 [project.optional-dependencies]
 analysis = [
-  "bambi",
   "astroplan",
   "datashader",
   "igraph",
@@ -52,6 +51,9 @@ analysis = [
   "scikit-image",
   "scikit-learn",
   "statsmodels",
+]
+gamm = [
+  "bambi",
 ]
 mapping = [
   "duckdb",

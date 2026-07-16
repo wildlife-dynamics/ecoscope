@@ -41,7 +41,7 @@ def fitted_gamm(gamm_sample_data):
     pytest.importorskip("bambi")
     X, y, sites = gamm_sample_data
     gamm = trend_analysis.GAMMRegressor(
-        k=5,
+        degree_of_freedom=5,
         inference_method="mcmc",
         draws=100,
         tune=100,
@@ -62,7 +62,7 @@ def test_gamm_regressor_fit_predict(fitted_gamm):
 def test_gamm_regressor_predict_without_fit():
     """Test that predict raises error if GAMM model not fitted."""
     pytest.importorskip("bambi")
-    gamm = trend_analysis.GAMMRegressor(k=5)
+    gamm = trend_analysis.GAMMRegressor(degree_of_freedom=5)
     X = np.array([2000, 2001, 2002])
     with pytest.raises(ValueError, match="Model has not been fitted"):
         gamm.predict(X)
@@ -103,6 +103,21 @@ def test_gamm_regressor_r_squared_and_mse(fitted_gamm):
     assert r2 <= 1.0
 
 
+def test_gamm_regressor_aic_bic_raise(fitted_gamm):
+    """GAMM has no frequentist AIC/BIC — point callers at waic/loo."""
+    gamm, *_ = fitted_gamm
+    with pytest.raises(NotImplementedError, match="waic"):
+        gamm.aic()
+    with pytest.raises(NotImplementedError, match="loo"):
+        gamm.bic()
+
+
+def test_gamm_regressor_invalid_inference_method():
+    """inference_method is validated at init."""
+    with pytest.raises(ValueError, match="inference_method"):
+        trend_analysis.GAMMRegressor(inference_method="nuts")
+
+
 def test_gam_regressor_fit_predict(sample_data):
     """Test GAMRegressor fit and predict."""
     X, y = sample_data
@@ -111,6 +126,34 @@ def test_gam_regressor_fit_predict(sample_data):
     predictions = gam.predict(X)
     assert len(predictions) == len(y)
     assert all(np.isfinite(predictions))
+
+
+def test_linear_regression_fit_predict(sample_data):
+    """Test LinearRegressionRegressor fit and predict."""
+    X, y = sample_data
+    model = trend_analysis.LinearRegressionRegressor().fit(X, y)
+    predictions = model.predict(X)
+    assert len(predictions) == len(y)
+    assert all(np.isfinite(predictions))
+
+
+@pytest.mark.parametrize("family", ["gaussian", "poisson", "gamma", "binomial"])
+def test_glm_regressor_fit_predict_per_family(family, sample_data):
+    """Basic GLM fit/predict coverage per family."""
+    X, y = sample_data
+    if family == "binomial":
+        y = np.linspace(0.9, 0.1, len(X))
+    else:
+        y = np.clip(y, 1.0, None)
+
+    model = trend_analysis.GLMRegressor(family=family).fit(X, y)
+    predictions = model.predict(X)
+    assert len(predictions) == len(y)
+    assert all(np.isfinite(predictions))
+    if family != "binomial":
+        assert all(predictions >= 0)
+    if family in ("gaussian", "poisson", "gamma"):
+        assert predictions.min() < float(y.mean())
 
 
 def test_gam_regressor_predict_without_fit():
@@ -239,6 +282,8 @@ def test_gam_regressor_poisson_family():
     gam.fit(X, y)
     predictions = gam.predict(X)
     assert len(predictions) == len(y)
+    assert all(np.isfinite(predictions))
+    assert all(predictions >= 0)
 
 
 def test_gam_regressor_invalid_family():

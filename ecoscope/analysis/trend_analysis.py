@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 
 try:
-    import bambi as bmb  # type: ignore[import-not-found,import-untyped]
     import statsmodels.api as sm  # type: ignore[import-not-found,import-untyped]
     from joblib import Parallel, delayed  # type: ignore[import-not-found,import-untyped]
     from scipy.spatial.distance import euclidean  # type: ignore[import-not-found,import-untyped]
@@ -36,7 +35,59 @@ except ModuleNotFoundError:
     )
 
 
-class GAMMRegressor(BaseEstimator, RegressorMixin):
+def _normalize_domain(X, y, *, standardize_y: bool = True, x_offset: Optional[float] = None):
+    """
+    Prepare X and y for fitting.
+
+    - X: subtract min (or x_offset if given) so years start at 0.
+    - y: if standardize_y, center and scale to mean 0 / std 1; otherwise leave as-is.
+
+    Returns X_norm, y_norm, and the values needed to undo the transforms later.
+    """
+    X = np.asarray(X, dtype=float)
+    if X.ndim == 1:
+        X = X[:, None]
+    y = np.asarray(y, dtype=float).ravel()
+
+    X_min = float(x_offset) if x_offset is not None else float(X.min())
+    X_norm = X - X_min
+
+    if standardize_y:
+        y_mean = float(y.mean())
+        y_std = float(y.std()) or 1.0
+        y_norm = (y - y_mean) / y_std
+    else:
+        # No y scaling: store 0/1 so predict can still do y * std + mean
+        y_mean, y_std, y_norm = 0.0, 1.0, y
+
+    return X_norm, y_norm, X_min, y_mean, y_std
+
+
+class _TrendRegressorBase(BaseEstimator, RegressorMixin):
+    """Shared r_squared / mse / fitted check for trend regressors."""
+
+    def _check_is_fitted(self) -> None:
+        if not hasattr(self, "_res_") and not hasattr(self, "_idata_"):
+            raise ValueError("Model has not been fitted. Call fit() before using this method.")
+
+    def r_squared(self, X, y, **predict_kwargs) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X, **predict_kwargs)
+        y = np.asarray(y).ravel()
+        ss_res = np.sum((y - y_pred) ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        if ss_tot == 0:
+            return 1.0 if ss_res == 0 else 0.0
+        return float(1 - ss_res / ss_tot)
+
+    def mse(self, X, y, **predict_kwargs) -> float:
+        self._check_is_fitted()
+        y_pred = self.predict(X, **predict_kwargs)
+        y = np.asarray(y).ravel()
+        return float(np.mean((y - y_pred) ** 2))
+
+
+class GAMMRegressor(_TrendRegressorBase):
     """
     Generalized Additive Mixed Model (GAMM) Regressor using Bambi.
 
@@ -46,9 +97,9 @@ class GAMMRegressor(BaseEstimator, RegressorMixin):
 
     Parameters
     ----------
-    k : int, default=10
-        Number of spline basis functions for the smooth term.
-    inference_method : str, default="mcmc"
+    degree_of_freedom : int, default=10
+        Degrees of freedom for the spline basis
+    inference_method : {"mcmc", "laplace"}, default="mcmc"
         Inference method. ``"mcmc"`` is the reliable default for spline
         models with random effects. ``"laplace"`` is faster when it
         converges but may fail for some model specifications.
@@ -65,14 +116,16 @@ class GAMMRegressor(BaseEstimator, RegressorMixin):
 
     def __init__(
         self,
-        k: int = 10,
-        inference_method: str = "mcmc",
+        degree_of_freedom: int = 10,
+        inference_method: Literal["mcmc", "laplace"] = "mcmc",
         draws: int = 500,
         tune: Optional[int] = None,
         chains: int = 2,
         family: str = "gaussian",
     ):
-        self.k = k
+        if inference_method not in ("mcmc", "laplace"):
+            raise ValueError(f"Unsupported inference_method: {inference_method!r}. " 'Must be "mcmc" or "laplace".')
+        self.degree_of_freedom = degree_of_freedom
         self.inference_method = inference_method
         self.draws = draws
         self.tune = tune
@@ -97,22 +150,20 @@ class GAMMRegressor(BaseEstimator, RegressorMixin):
         self : GAMMRegressor
             Returns self for method chaining.
         """
-        if self.inference_method not in ("laplace", "mcmc"):
-            raise ValueError(
-                f"Unsupported inference_method: {self.inference_method!r}. " 'Must be "laplace" or "mcmc".'
-            )
+        try:
+            import bambi as bmb  # type: ignore[import-not-found,import-untyped]
+        except ModuleNotFoundError as err:
+            raise ModuleNotFoundError(
+                "Missing optional dependency bambi required by GAMMRegressor. "
+                'Please run pip install ecoscope["gamm"]'
+            ) from err
 
-        X = np.asarray(X).ravel()
-        y = np.asarray(y).ravel()
         site_ids = np.asarray(site_ids).ravel()
-
-        # Store normalization parameters
-        self._X_min_ = float(X.min())
-        self._y_mean_ = float(y.mean())
-        self._y_std_ = float(y.std())
-
-        X_norm = X - self._X_min_
-        y_norm = (y - self._y_mean_) / self._y_std_
+        # Scale y only for gaussian (poisson etc. need non-negative y)
+        X_norm, y_norm, self._X_min_, self._y_mean_, self._y_std_ = _normalize_domain(
+            X, y, standardize_y=self.family == "gaussian"
+        )
+        X_norm = X_norm.ravel()
 
         # Build DataFrame for Bambi
         self._df_ = pd.DataFrame(
@@ -125,7 +176,7 @@ class GAMMRegressor(BaseEstimator, RegressorMixin):
 
         # Fit GAMM
         self._model_ = bmb.Model(
-            f"y ~ bs(year, df={self.k}) + (1|site_id)",
+            f"y ~ bs(year, df={self.degree_of_freedom}) + (1|site_id)",
             self._df_,
             family=self.family,
         )
@@ -141,11 +192,6 @@ class GAMMRegressor(BaseEstimator, RegressorMixin):
             )
 
         return self
-
-    def _check_is_fitted(self) -> None:
-        """Check if the model has been fitted."""
-        if not hasattr(self, "_idata_"):
-            raise ValueError("Model has not been fitted. Call fit() before using this method.")
 
     def predict(self, X, site_ids=None):
         """
@@ -273,58 +319,28 @@ class GAMMRegressor(BaseEstimator, RegressorMixin):
             upper * self._y_std_ + self._y_mean_,
         )
 
-    def r_squared(self, X, y, site_ids=None) -> float:
-        """
-        Return R-squared (coefficient of determination) on given data.
+    def aic(self) -> float:
+        raise NotImplementedError("GAMM is Bayesian; use waic() or loo() instead of aic().")
 
-        Parameters
-        ----------
-        X : array-like
-            Input years.
-        y : array-like
-            True target values.
-        site_ids : array-like, optional
-            Site labels per row; passed through to :meth:`predict`.
+    def bic(self) -> float:
+        raise NotImplementedError("GAMM is Bayesian; use waic() or loo() instead of bic().")
 
-        Returns
-        -------
-        float
-            R-squared value.
-        """
+    def waic(self):
+        """Return ArviZ WAIC (Watanabe–Akaike information criterion)."""
         self._check_is_fitted()
-        y_pred = self.predict(X, site_ids=site_ids)
-        y = np.asarray(y).ravel()
-        ss_res = np.sum((y - y_pred) ** 2)
-        ss_tot = np.sum((y - np.mean(y)) ** 2)
-        if ss_tot == 0:
-            return 1.0 if ss_res == 0 else 0.0
-        return float(1 - ss_res / ss_tot)
+        import arviz as az  # type: ignore[import-not-found,import-untyped]
 
-    def mse(self, X, y, site_ids=None) -> float:
-        """
-        Return Mean Squared Error on given data.
+        return az.waic(self._idata_)
 
-        Parameters
-        ----------
-        X : array-like
-            Input years.
-        y : array-like
-            True target values.
-        site_ids : array-like, optional
-            Site labels per row; passed through to :meth:`predict`.
-
-        Returns
-        -------
-        float
-            Mean squared error.
-        """
+    def loo(self):
+        """Return ArviZ LOO (leave-one-out cross-validation)."""
         self._check_is_fitted()
-        y_pred = self.predict(X, site_ids=site_ids)
-        y = np.asarray(y).ravel()
-        return float(np.mean((y - y_pred) ** 2))
+        import arviz as az  # type: ignore[import-not-found,import-untyped]
+
+        return az.loo(self._idata_)
 
 
-class GAMRegressor(BaseEstimator, RegressorMixin):
+class GAMRegressor(_TrendRegressorBase):
     """
     Generalized Additive Model (GAM) Regressor using B-Splines.
 
@@ -378,6 +394,7 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
         y,
         upper_bound: Optional[float] = None,
         lower_bound: Optional[float] = None,
+        x_offset: Optional[float] = None,
     ):
         """
         Fit the GAM model.
@@ -392,25 +409,21 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
             Upper bound for spline knots. If None, uses max(X).
         lower_bound : float, optional
             Lower bound for spline knots. If None, uses min(X).
+        x_offset : float, optional
+            Value subtracted from X. Use the same value across CV folds.
 
         Returns
         -------
         self : GAMRegressor
             Returns self for method chaining.
         """
-        X = np.asarray(X)
-        if X.ndim == 1:
-            X = X[:, None]
-        y = np.asarray(y).ravel()
-
-        # Store transform parameters
-        self._X_min_ = float(X.min())
-        self._y_mean_ = float(y.mean())
-        self._y_std_ = float(y.std())
-
-        # Normalize
-        X = X - self._X_min_
-        y = (y - self._y_mean_) / self._y_std_
+        # Scale y only for gaussian (poisson/binomial need non-negative y)
+        X, y, self._X_min_, self._y_mean_, self._y_std_ = _normalize_domain(
+            X,
+            y,
+            standardize_y=isinstance(self.family, Gaussian),
+            x_offset=x_offset,
+        )
 
         knot_kwds: list[dict[str, float]] = []
         if upper_bound is not None and lower_bound is not None:
@@ -426,11 +439,6 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
         self._res_ = GLMGam(y, exog=exog, smoother=self._spline_, alpha=self.alpha, family=self.family).fit()
 
         return self
-
-    def _check_is_fitted(self) -> None:
-        """Check if the model has been fitted."""
-        if not hasattr(self, "_res_"):
-            raise ValueError("Model has not been fitted. Call fit() before using this method.")
 
     def predict(self, X):
         """
@@ -475,53 +483,6 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
         self._check_is_fitted()
         return self._res_.bic_llf
 
-    def mse(self, X, y) -> float:
-        """
-        Return Mean Squared Error on given data.
-
-        Parameters
-        ----------
-        X : array-like
-            Input data.
-        y : array-like
-            True target values.
-
-        Returns
-        -------
-        float
-            Mean squared error.
-        """
-        self._check_is_fitted()
-        y_pred = self.predict(X)
-        y = np.asarray(y).ravel()
-        return float(np.mean((y - y_pred) ** 2))
-
-    def r_squared(self, X, y) -> float:
-        """
-        Return R-squared (coefficient of determination) on given data.
-
-        Parameters
-        ----------
-        X : array-like
-            Input data.
-        y : array-like
-            True target values.
-
-        Returns
-        -------
-        float
-            R-squared value. 1.0 indicates perfect fit, 0.0 indicates
-            model performs same as predicting the mean.
-        """
-        self._check_is_fitted()
-        y_pred = self.predict(X)
-        y = np.asarray(y).ravel()
-        ss_res = np.sum((y - y_pred) ** 2)
-        ss_tot = np.sum((y - np.mean(y)) ** 2)
-        if ss_tot == 0:
-            return 1.0 if ss_res == 0 else 0.0
-        return float(1 - ss_res / ss_tot)
-
     def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:  # custom confidence interval calculation
         """
         Predict with confidence intervals.
@@ -564,7 +525,7 @@ class GAMRegressor(BaseEstimator, RegressorMixin):
         return mean, lower, upper
 
 
-class GLMRegressor(BaseEstimator, RegressorMixin):
+class GLMRegressor(_TrendRegressorBase):
     """
     Generalized Linear Model (GLM) Regressor.
 
@@ -592,21 +553,14 @@ class GLMRegressor(BaseEstimator, RegressorMixin):
         elif family == "gamma":
             self.family = Gamma()
         else:
-            raise ValueError(f"Unsupported family: {family}. Must be 'gaussian', 'poisson', or 'binomial'")
+            raise ValueError(f"Unsupported family: {family}. Must be 'gaussian', 'poisson', 'binomial', or 'gamma'")
 
     def fit(self, X, y):
-        X = np.asarray(X)
-        if X.ndim == 1:
-            X = X[:, None]
-        y = np.asarray(y).ravel()
-
-        # Store and apply normalization
-        self._X_min_ = float(X.min())
-        self._y_mean_ = float(y.mean())
-        self._y_std_ = float(y.std())
-
-        X = X - self._X_min_
-        y = (y - self._y_mean_) / self._y_std_
+        # Shift X only; keep y as-is (log/poisson/gamma can't use negative y)
+        X, _, self._X_min_, _, _ = _normalize_domain(X, y)
+        y = np.asarray(y, dtype=float).ravel()
+        self._y_mean_ = 0.0
+        self._y_std_ = 1.0
 
         exog = X
         if self.add_intercept:
@@ -614,10 +568,6 @@ class GLMRegressor(BaseEstimator, RegressorMixin):
 
         self._res_ = sm.GLM(y, exog, family=self.family).fit()
         return self
-
-    def _check_is_fitted(self) -> None:
-        if not hasattr(self, "_res_"):
-            raise ValueError("Model has not been fitted. Call fit() before using this method.")
 
     def predict(self, X):
         self._check_is_fitted()
@@ -645,22 +595,6 @@ class GLMRegressor(BaseEstimator, RegressorMixin):
             return float(self._res_.bic_llf)
         return float(bic)
 
-    def mse(self, X, y) -> float:
-        self._check_is_fitted()
-        y_pred = self.predict(X)
-        y = np.asarray(y).ravel()
-        return float(np.mean((y - y_pred) ** 2))
-
-    def r_squared(self, X, y) -> float:
-        self._check_is_fitted()
-        y_pred = self.predict(X)
-        y = np.asarray(y).ravel()
-        ss_res = np.sum((y - y_pred) ** 2)
-        ss_tot = np.sum((y - np.mean(y)) ** 2)
-        if ss_tot == 0:
-            return 1.0 if ss_res == 0 else 0.0
-        return float(1 - ss_res / ss_tot)
-
     def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         self._check_is_fitted()
         X = np.asarray(X)
@@ -680,7 +614,7 @@ class GLMRegressor(BaseEstimator, RegressorMixin):
         return mean, lower, upper
 
 
-class LinearRegressionRegressor(BaseEstimator, RegressorMixin):
+class LinearRegressionRegressor(_TrendRegressorBase):
     """
     Standard Linear Regression (OLS) Regressor.
 
@@ -694,17 +628,7 @@ class LinearRegressionRegressor(BaseEstimator, RegressorMixin):
         self.add_intercept = add_intercept
 
     def fit(self, X, y):
-        X = np.asarray(X)
-        if X.ndim == 1:
-            X = X[:, None]
-        y = np.asarray(y).ravel()
-
-        self._X_min_ = float(X.min())
-        self._y_mean_ = float(y.mean())
-        self._y_std_ = float(y.std())
-
-        X = X - self._X_min_
-        y = (y - self._y_mean_) / self._y_std_
+        X, y, self._X_min_, self._y_mean_, self._y_std_ = _normalize_domain(X, y)
 
         exog = X
         if self.add_intercept:
@@ -712,10 +636,6 @@ class LinearRegressionRegressor(BaseEstimator, RegressorMixin):
 
         self._res_ = sm.OLS(y, exog).fit()
         return self
-
-    def _check_is_fitted(self) -> None:
-        if not hasattr(self, "_res_"):
-            raise ValueError("Model has not been fitted. Call fit() before using this method.")
 
     def predict(self, X):
         self._check_is_fitted()
@@ -738,22 +658,6 @@ class LinearRegressionRegressor(BaseEstimator, RegressorMixin):
     def bic(self) -> float:
         self._check_is_fitted()
         return float(self._res_.bic)
-
-    def mse(self, X, y) -> float:
-        self._check_is_fitted()
-        y_pred = self.predict(X)
-        y = np.asarray(y).ravel()
-        return float(np.mean((y - y_pred) ** 2))
-
-    def r_squared(self, X, y) -> float:
-        self._check_is_fitted()
-        y_pred = self.predict(X)
-        y = np.asarray(y).ravel()
-        ss_res = np.sum((y - y_pred) ** 2)
-        ss_tot = np.sum((y - np.mean(y)) ** 2)
-        if ss_tot == 0:
-            return 1.0 if ss_res == 0 else 0.0
-        return float(1 - ss_res / ss_tot)
 
     def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         self._check_is_fitted()
@@ -794,7 +698,7 @@ def choose_cross_validator(X: np.ndarray) -> BaseCrossValidator:
         return TimeSeriesSplit(n_splits=5)
 
 
-def _fit_and_score_ic(alpha, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family):
+def _fit_and_score_ic(alpha, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family, x_offset):
     """
     Fit GAM and return alpha with its information criterion (aic, bic) score.
     """
@@ -803,7 +707,7 @@ def _fit_and_score_ic(alpha, X, y, metric, lower_bound, upper_bound, degree_of_f
         degree_of_freedom=degree_of_freedom,
         degree=degree,
         family=family,
-    ).fit(X, y, lower_bound=lower_bound, upper_bound=upper_bound)
+    ).fit(X, y, lower_bound=lower_bound, upper_bound=upper_bound, x_offset=x_offset)
     if metric == "aic":
         score = gam.aic()
     else:
@@ -812,7 +716,19 @@ def _fit_and_score_ic(alpha, X, y, metric, lower_bound, upper_bound, degree_of_f
 
 
 def _fit_and_score_cv(
-    alpha, fold_idx, train_index, test_index, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family
+    alpha,
+    fold_idx,
+    train_index,
+    test_index,
+    X,
+    y,
+    metric,
+    lower_bound,
+    upper_bound,
+    degree_of_freedom,
+    degree,
+    family,
+    x_offset,
 ):
     """
     Fit GAM on fold of test/train data and return alpha, fold index, and score.
@@ -822,7 +738,13 @@ def _fit_and_score_cv(
         degree_of_freedom=degree_of_freedom,
         degree=degree,
         family=family,
-    ).fit(X[train_index], y[train_index], lower_bound=lower_bound, upper_bound=upper_bound)
+    ).fit(
+        X[train_index],
+        y[train_index],
+        lower_bound=lower_bound,
+        upper_bound=upper_bound,
+        x_offset=x_offset,
+    )
     y_pred = gam.predict(X[test_index])
     y_test = y[test_index]
 
@@ -854,6 +776,7 @@ def optimize_gam_cv(
     degree_of_freedom: int = 20,
     degree: int = 3,
     family: Literal["gaussian", "poisson", "binomial"] = "gaussian",
+    x_offset: Optional[float] = None,
 ) -> Tuple[float, GAMRegressor]:
     """
     Optimize GAM smoothing parameter using cross-validation.
@@ -881,6 +804,8 @@ def optimize_gam_cv(
         Degree of the B-spline basis (cubic splines by default).
     family : {"gaussian", "poisson", "binomial"}, default="gaussian"
         Distribution family for the GLM.
+    x_offset : float, optional
+        Value subtracted from X. Use the same value across CV folds.
 
     Returns
     -------
@@ -894,7 +819,7 @@ def optimize_gam_cv(
         tasks = []
         for alpha in alphas:
             task = delayed(_fit_and_score_ic)(
-                alpha, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family
+                alpha, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family, x_offset
             )
             tasks.append(task)
 
@@ -932,6 +857,7 @@ def optimize_gam_cv(
                     degree_of_freedom,
                     degree,
                     family,
+                    x_offset,
                 )
                 tasks.append(task)
 
@@ -957,7 +883,7 @@ def optimize_gam_cv(
         degree_of_freedom=degree_of_freedom,
         degree=degree,
         family=family,
-    ).fit(X, y, lower_bound=lower_bound, upper_bound=upper_bound)
+    ).fit(X, y, lower_bound=lower_bound, upper_bound=upper_bound, x_offset=x_offset)
 
     return best_alpha, best_gam
 
@@ -1054,6 +980,7 @@ def optimize_gam(
         degree_of_freedom=degree_of_freedom,
         degree=degree,
         family=family,
+        x_offset=X_min,
     )
 
     return best_alpha, best_gam

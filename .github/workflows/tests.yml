@@ -38,7 +38,7 @@ jobs:
       - name: Install our package
         run: |
           python -m ensurepip --upgrade
-          python -m pip install ".[analysis,mapping,plotting]" --group test
+          python -m pip install ".[analysis,gamm,mapping,plotting]" --group test
 
       - name: Test
         if: matrix.to_test == 'not platform'
