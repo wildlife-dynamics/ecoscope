@@ -1,9 +1,10 @@
 from dataclasses import dataclass
+from typing import Annotated
 
 from wt_registry import register
 from wt_task import task
 
-from ecoscope.platform.annotations import AnyGeoDataFrame, DataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame, DataFrame
 from ecoscope.platform.tasks.analysis._create_meshgrid import (
     AoiAnnotation,
     IntersectingOnlyAnnotation,
@@ -111,6 +112,48 @@ def set_ltd_args_with_opacity(
     )
 
 
+@dataclass
+class DensityGridOptions:
+    opacity: float
+    auto_scale_or_custom_cell_size: AutoScaleOrCustomAnnotation
+    crs: CrsAnnotation
+    intersecting_only: IntersectingOnlyAnnotation
+
+    def get_meshgrid_params(self):
+        return {
+            "auto_scale_or_custom_cell_size": self.auto_scale_or_custom_cell_size,
+            "crs": self.crs,
+            "intersecting_only": self.intersecting_only,
+        }
+
+
+@register()
+def set_density_grid_options(
+    opacity: Annotated[
+        float,
+        AdvancedField(
+            title="Heatmap Layer Opacity",
+            description="Set heatmap layer transparency from 1 (fully visible) to 0 (hidden).",
+            default=0.7,
+            ge=0,
+            le=1,
+        ),
+    ] = 0.7,
+    auto_scale_or_custom_cell_size: AutoScaleOrCustomAnnotation = None,
+    crs: CrsAnnotation = "EPSG:3857",
+    intersecting_only: IntersectingOnlyAnnotation = False,
+) -> DensityGridOptions:
+    """
+    Grid and styling options shared by gridded density heatmaps.
+    """
+    return DensityGridOptions(
+        opacity=opacity,
+        auto_scale_or_custom_cell_size=auto_scale_or_custom_cell_size,
+        crs=crs,
+        intersecting_only=intersecting_only,
+    )
+
+
 @register()
 def call_etd_from_combined_params(
     trajectory_gdf: TrajectoryAnnotation,
@@ -126,7 +169,7 @@ def call_etd_from_combined_params(
 @register()
 def call_meshgrid_from_combined_params(
     aoi: AoiAnnotation,
-    combined_params: LtdArgsWithOpacity,
+    combined_params: LtdArgsWithOpacity | DensityGridOptions,
 ) -> AnyGeoDataFrame:
     return task(create_meshgrid).validate().call(aoi=aoi, **combined_params.get_meshgrid_params())
 
@@ -150,6 +193,6 @@ def call_ltd_from_combined_params(
 
 @register()
 def get_opacity_from_combined_params(
-    combined_params: EtdArgsWithOpacity | LtdArgsWithOpacity,
+    combined_params: EtdArgsWithOpacity | LtdArgsWithOpacity | DensityGridOptions,
 ) -> float:
     return combined_params.opacity

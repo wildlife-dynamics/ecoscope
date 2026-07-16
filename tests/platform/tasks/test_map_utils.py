@@ -93,8 +93,15 @@ def test_persist_geoarrow_for_pydeck_roundtrip(tmp_path) -> None:
     assert dst.endswith("demo.parquet")
     schema = pq.read_schema(dst)
     # GeoArrow stores points as a struct<x, y> tagged with the geoarrow.point extension.
+    # Depending on whether the geoarrow extension types are registered with pyarrow
+    # (e.g. because another test imported geoarrow.pyarrow earlier in the process), the
+    # tag surfaces either as a proper extension type or as raw field metadata.
     geom_field = schema.field("geometry")
-    assert geom_field.metadata[b"ARROW:extension:name"] == b"geoarrow.point"
+    ext_name = (
+        getattr(geom_field.type, "extension_name", None)
+        or (geom_field.metadata or {}).get(b"ARROW:extension:name", b"").decode()
+    )
+    assert ext_name == "geoarrow.point"
     gdf_read = gpd.read_parquet(dst)
     assert list(gdf_read["val"]) == [1, 2, 3]
     assert gdf_read.crs == gdf.crs

@@ -158,6 +158,124 @@ def test_draw_ecomap_with_legend_multiple_layers(relocations, trajectories_color
     assert isinstance(map_html, str)
 
 
+def test_draw_ecomap_per_layer_legend_titles(monkeypatch, relocations, trajectories_colored):
+    """Layers with a legend title each render as their own titled legend, in layer order."""
+    relocations["labels"] = ["old", "new"] * (len(relocations) // 2) + ["old"] * (len(relocations) % 2)
+    relocations["colors"] = relocations["labels"].apply(lambda x: (255, 0, 0, 255) if x == "new" else (0, 0, 255, 255))
+    tracks = create_polyline_layer(
+        geodataframe=trajectories_colored,
+        layer_style=PolylineLayerStyle(get_width=20, color_column="colors"),
+        legend=LegendDefinition(label_column="speed_bins", color_column="colors", title="Tracks"),
+    )
+    events = create_point_layer(
+        geodataframe=relocations,
+        layer_style=PointLayerStyle(get_radius=15, fill_color_column="colors"),
+        legend=LegendDefinition(label_column="labels", color_column="colors", title="Events"),
+    )
+
+    calls = []
+    from ecoscope.mapping import EcoMap
+
+    original = EcoMap.add_legend
+    monkeypatch.setattr(
+        EcoMap,
+        "add_legend",
+        lambda self, labels, colors, **kw: calls.append((kw.get("title"), list(labels)))
+        or original(self, labels, colors, **kw),
+    )
+
+    draw_ecomap(geo_layers=[tracks, events])
+
+    # One legend per title, in layer order
+    assert [title for title, _ in calls] == ["Tracks", "Events"]
+    assert set(calls[0][1]) == {"Fast", "Slow"}
+    assert set(calls[1][1]) == {"new", "old"}
+
+
+def test_draw_ecomap_untitled_legends_merge_into_one(monkeypatch, relocations, trajectories_colored):
+    """Backward compat: layers without a legend title merge into a single map-level legend."""
+    relocations["labels"] = ["old", "new"] * (len(relocations) // 2) + ["old"] * (len(relocations) % 2)
+    relocations["colors"] = relocations["labels"].apply(lambda x: (255, 0, 0, 255) if x == "new" else (0, 0, 255, 255))
+    tracks = create_polyline_layer(
+        geodataframe=trajectories_colored,
+        layer_style=PolylineLayerStyle(get_width=20, color_column="colors"),
+        legend=LegendDefinition(label_column="speed_bins", color_column="colors"),
+    )
+    events = create_point_layer(
+        geodataframe=relocations,
+        layer_style=PointLayerStyle(get_radius=15, fill_color_column="colors"),
+        legend=LegendDefinition(label_column="labels", color_column="colors"),
+    )
+
+    calls = []
+    from ecoscope.mapping import EcoMap
+
+    original = EcoMap.add_legend
+    monkeypatch.setattr(
+        EcoMap,
+        "add_legend",
+        lambda self, labels, colors, **kw: calls.append((kw.get("title"), list(labels)))
+        or original(self, labels, colors, **kw),
+    )
+
+    draw_ecomap(geo_layers=[tracks, events], legend_style=LegendStyle(title="Combined"))
+
+    assert len(calls) == 1
+    assert calls[0][0] == "Combined"
+    assert set(calls[0][1]) == {"Fast", "Slow", "new", "old"}
+
+
+def test_draw_ecomap_legend_explicit_labels_with_suffix(monkeypatch, trajectories_colored):
+    """Static legend entries pass through, with label_suffix appended to each label."""
+    geo_layer = create_polyline_layer(
+        geodataframe=trajectories_colored,
+        layer_style=PolylineLayerStyle(get_width=20),
+        legend=LegendDefinition(labels=["Fast", "Slow"], colors=["#ff0000", "#0000ff"], label_suffix=" km/h"),
+    )
+
+    calls = []
+    from ecoscope.mapping import EcoMap
+
+    original = EcoMap.add_legend
+    monkeypatch.setattr(
+        EcoMap,
+        "add_legend",
+        lambda self, labels, colors, **kw: calls.append(list(labels)) or original(self, labels, colors, **kw),
+    )
+
+    draw_ecomap(geo_layers=[geo_layer])
+
+    assert calls == [["Fast km/h", "Slow km/h"]]
+
+
+def test_draw_ecomap_legend_title_formatting_and_empty_groups(monkeypatch, trajectories_colored):
+    """format_title prettifies per-layer titles; a legend that resolves no entries is skipped."""
+    tracks = create_polyline_layer(
+        geodataframe=trajectories_colored,
+        layer_style=PolylineLayerStyle(get_width=20, color_column="colors"),
+        legend=LegendDefinition(label_column="speed_bins", color_column="colors", title="patrol_tracks"),
+    )
+    empty = create_polyline_layer(
+        geodataframe=trajectories_colored,
+        layer_style=PolylineLayerStyle(get_width=20),
+        legend=LegendDefinition(title="unused"),
+    )
+
+    calls = []
+    from ecoscope.mapping import EcoMap
+
+    original = EcoMap.add_legend
+    monkeypatch.setattr(
+        EcoMap,
+        "add_legend",
+        lambda self, labels, colors, **kw: calls.append(kw.get("title")) or original(self, labels, colors, **kw),
+    )
+
+    draw_ecomap(geo_layers=[tracks, empty], legend_style=LegendStyle(format_title=True))
+
+    assert calls == ["Patrol Tracks"]
+
+
 def test_draw_ecomap_widget_styles(trajectories_colored):
     geo_layer = create_polyline_layer(
         geodataframe=trajectories_colored,

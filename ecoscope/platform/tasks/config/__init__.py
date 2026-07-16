@@ -3,6 +3,7 @@ from ._meta_tasks import (
     call_ltd_from_combined_params,
     call_meshgrid_from_combined_params,
     get_opacity_from_combined_params,
+    set_density_grid_options,
     set_etd_args_with_opacity,
     set_ltd_args_with_opacity,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "call_ltd_from_combined_params",
     "call_meshgrid_from_combined_params",
     "get_opacity_from_combined_params",
+    "set_density_grid_options",
     "set_etd_args_with_opacity",
     "set_ltd_args_with_opacity",
     "concat_string_vars",

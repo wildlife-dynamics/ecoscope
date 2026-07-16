@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import Field, JsonValue
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -20,6 +20,33 @@ class Unit(Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+# Human-readable labels per unit; oneOf const/title pairs render as a labeled
+# dropdown.
+UNIT_LABELS: dict[Unit, str] = {
+    Unit.METER: "Meters (m)",
+    Unit.KILOMETER: "Kilometers (km)",
+    Unit.SQUARE_METER: "Square Meters (m²)",
+    Unit.SQUARE_KILOMETER: "Square Kilometers (km²)",
+    Unit.SECOND: "Seconds (s)",
+    Unit.HOUR: "Hours (h)",
+    Unit.DAY: "Days (d)",
+    Unit.METERS_PER_SECOND: "Meters per Second (m/s)",
+    Unit.KILOMETERS_PER_HOUR: "Kilometers per Hour (km/h)",
+}
+
+UNIT_OPTIONS: list[JsonValue] = [{"const": unit.value, "title": title} for unit, title in UNIT_LABELS.items()]
+
+
+def labeled_units(*units: Unit):
+    """Field-level json_schema_extra: swap a Literal's bare enum for labeled options."""
+
+    def apply(schema: dict) -> None:
+        schema.pop("enum", None)
+        schema["oneOf"] = [{"const": u.value, "title": UNIT_LABELS[u]} for u in units]
+
+    return apply
 
 
 def is_linear_unit_conversion(original_unit: "Unit | None", new_unit: "Unit | None") -> bool:

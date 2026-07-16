@@ -559,16 +559,42 @@ def get_patrol_events(
     if status is None:
         status = ["done"]
 
-    events = client.get_patrol_events(
-        since=time_range.since.isoformat(),
-        until=time_range.until.isoformat(),
-        patrol_type_value=patrol_types,
-        event_type=event_types,
-        status=status,
-        drop_null_geometry=not include_null_geometry,
-        sub_page_size=sub_page_size,
-        patrols_overlap_daterange=patrols_overlap_daterange,
-    )
+    if warehouse_client := _make_warehouse_client_from_env(
+        er_site_url=client.server,
+        er_api_token=SecretStr(client.token) if client.token else None,
+    ):
+        from ecoscope.io.earthranger_utils import (
+            unpack_events_from_patrols_df,
+            warehouse_patrols_table_to_patrols_df,
+        )
+
+        # Derive events from patrols (as the workflow does) rather than rerouting to
+        # the warehouse get_patrol_events, which would bypass get_patrols.
+        table = warehouse_client.get_patrols(
+            since=time_range.since.isoformat(),
+            until=time_range.until.isoformat(),
+            patrol_type_value=patrol_types,
+            status=status,
+            sub_page_size=sub_page_size,
+            patrols_overlap_daterange=patrols_overlap_daterange,
+        )
+        patrols_df = warehouse_patrols_table_to_patrols_df(table)
+        events = unpack_events_from_patrols_df(
+            patrols_df=patrols_df,
+            event_type=event_types,
+            drop_null_geometry=not include_null_geometry,
+        )
+    else:
+        events = client.get_patrol_events(
+            since=time_range.since.isoformat(),
+            until=time_range.until.isoformat(),
+            patrol_type_value=patrol_types,
+            event_type=event_types,
+            status=status,
+            drop_null_geometry=not include_null_geometry,
+            sub_page_size=sub_page_size,
+            patrols_overlap_daterange=patrols_overlap_daterange,
+        )
 
     if raise_on_empty and events.empty:
         raise ValueError("No data returned from EarthRanger for get_patrol_events")
@@ -579,7 +605,16 @@ def get_patrol_events(
         ]
 
     if not events.empty and include_display_values:
-        events = client.get_event_type_display_names_from_events(events, append_category_names="duplicates")
+        if warehouse_client is not None:
+            from ecoscope.io.earthranger_utils import append_event_type_display_names
+
+            events = append_event_type_display_names(
+                events,
+                warehouse_client.get_event_types(),
+                append_category_names="duplicates",
+            )
+        else:
+            events = client.get_event_type_display_names_from_events(events, append_category_names="duplicates")
 
     return cast(EventGDF | EventsWithDisplayNamesGDF, events)
 
@@ -599,45 +634,115 @@ def get_events(
     force_point_geometry: ForcePointGeometryAnnotation = True,
 ) -> EventGDF | EventsWithDisplayNamesGDF | EmptyDataFrame:
     """Get events."""
-    event_type_ids: list[str] = []
-    no_ids_found = False
-    # Resolve event_type ids from the values input in event_types
-    # If none are resolved we flag this explicitly in `no_ids_found`
-    # as we need to treat this case separately from empty input
-    if len(event_types) > 0:
-        all_event_types = pd.DataFrame(client.get_event_types())
-        event_type_ids = all_event_types[all_event_types["value"].isin(event_types)]["id"].to_list()
-        no_ids_found = not event_type_ids
+    if warehouse_client := _make_warehouse_client_from_env(
+        er_site_url=client.server,
+        er_api_token=SecretStr(client.token) if client.token else None,
+    ):
+        import geopandas as gpd  # type: ignore[import-untyped]
 
-    events_df = (
-        pd.DataFrame()
-        if no_ids_found
-        else client.get_events(
+        # The warehouse get_events accepts event type slugs directly, so pass the
+        # values straight through — no value->id round-trip via get_event_types.
+        table = warehouse_client.get_events(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
-            event_type=event_type_ids,
+            event_type=event_types,
             drop_null_geometry=not include_null_geometry,
             include_details=include_details,
             include_updates=include_updates,
             include_related_events=include_related_events,
-            force_point_geometry=force_point_geometry,
         )
-    )
+        events_df = gpd.GeoDataFrame.from_arrow(table).rename(
+            columns={
+                "event_type_value": "event_type",
+                "event_category_value": "event_category",
+                "event_time": "time",
+            }
+        )
+        # Parity with the legacy path (geometry_from_event_geojson): when
+        # force_point_geometry is set, reduce geometry to its centroid so downstream
+        # point layers / gridding / .geometry.x|y keep working. Done per-geometry on
+        # the shapely objects (as the legacy path does) to preserve null geometry and
+        # avoid the GeoSeries geographic-CRS centroid warning.
+        if force_point_geometry and not events_df.empty:
+            events_df["geometry"] = gpd.GeoSeries(
+                [None if g is None else g.centroid for g in events_df["geometry"]],
+                crs=events_df.crs,
+                index=events_df.index,
+            )
+        # Parity with the legacy path, which returns events sorted ascending by time
+        # (the warehouse serves them event_time DESC).
+        if not events_df.empty:
+            events_df = events_df.sort_values("time")
+        # Synthesize the ER-native `location` JSON ({"latitude", "longitude"}) from
+        # geometry so workflows that read it keep working — e.g. the event-details
+        # workflow's extract_value_from_json_column steps that build lat/lon columns.
+        # The warehouse serves the point as `geometry`, not a location dict; use the
+        # centroid so polygon events resolve to a representative point too.
+        events_df["location"] = [
+            None if g is None else {"latitude": g.centroid.y, "longitude": g.centroid.x} for g in events_df["geometry"]
+        ]
+        # The warehouse serves fewer columns than the full EventColumns vocabulary.
+        # Fail with a clear error (rather than a bare KeyError from the subset below)
+        # if a selection names a column the warehouse cannot provide.
+        if event_columns is not None:
+            missing = [c for c in event_columns if c not in events_df.columns]
+            if missing:
+                raise ValueError(
+                    f"event_columns {missing} are not served by the EarthRanger Data Warehouse. "
+                    f"Available columns: {sorted(events_df.columns)}."
+                )
+    else:
+        event_type_ids: list[str] = []
+        no_ids_found = False
+        # Resolve event_type ids from the values input in event_types
+        # If none are resolved we flag this explicitly in `no_ids_found`
+        # as we need to treat this case separately from empty input
+        if len(event_types) > 0:
+            all_event_types = pd.DataFrame(client.get_event_types())
+            event_type_ids = all_event_types[all_event_types["value"].isin(event_types)]["id"].to_list()
+            no_ids_found = not event_type_ids
+
+        events_df = (
+            pd.DataFrame()
+            if no_ids_found
+            else client.get_events(
+                since=time_range.since.isoformat(),
+                until=time_range.until.isoformat(),
+                event_type=event_type_ids,
+                drop_null_geometry=not include_null_geometry,
+                include_details=include_details,
+                include_updates=include_updates,
+                include_related_events=include_related_events,
+                force_point_geometry=force_point_geometry,
+            )
+        )
 
     if raise_on_empty and events_df.empty:
         raise ValueError("No data returned from EarthRanger for get_events")
 
     if not events_df.empty:
-        events_df = events_df.reset_index()
+        # EarthRangerIO returns events indexed by id, which reset_index() promotes
+        # to a column. from_arrow already has id as a column with a clean
+        # RangeIndex, so drop the index there to avoid injecting a spurious column.
+        events_df = events_df.reset_index(drop=warehouse_client is not None)
 
         if event_columns is not None:
             events_df = events_df[event_columns]  # type: ignore[assignment]
 
         if include_display_values:
-            events_df = client.get_event_type_display_names_from_events(
-                events_df,
-                append_category_names="duplicates",
-            )
+            if warehouse_client is not None:
+                from ecoscope.io.earthranger_utils import append_event_type_display_names
+
+                events_df = append_event_type_display_names(
+                    events_df,
+                    warehouse_client.get_event_types(),
+                    append_category_names="duplicates",
+                )
+            else:
+                events_df = client.get_event_type_display_names_from_events(
+                    events_df,
+                    append_category_names="duplicates",
+                )
 
     return cast(
         EventGDF | EventsWithDisplayNamesGDF,
@@ -706,14 +811,30 @@ def get_patrols(
     if status is None:
         status = ["done"]
 
-    patrols = client.get_patrols(
-        since=time_range.since.isoformat(),
-        until=time_range.until.isoformat(),
-        patrol_type_value=patrol_types,
-        status=status,
-        sub_page_size=sub_page_size,
-        patrols_overlap_daterange=patrols_overlap_daterange,
-    )
+    if warehouse_client := _make_warehouse_client_from_env(
+        er_site_url=client.server,
+        er_api_token=SecretStr(client.token) if client.token else None,
+    ):
+        from ecoscope.io.earthranger_utils import warehouse_patrols_table_to_patrols_df
+
+        table = warehouse_client.get_patrols(
+            since=time_range.since.isoformat(),
+            until=time_range.until.isoformat(),
+            patrol_type_value=patrol_types,
+            status=status,
+            sub_page_size=sub_page_size,
+            patrols_overlap_daterange=patrols_overlap_daterange,
+        )
+        patrols = warehouse_patrols_table_to_patrols_df(table)
+    else:
+        patrols = client.get_patrols(
+            since=time_range.since.isoformat(),
+            until=time_range.until.isoformat(),
+            patrol_type_value=patrol_types,
+            status=status,
+            sub_page_size=sub_page_size,
+            patrols_overlap_daterange=patrols_overlap_daterange,
+        )
 
     if raise_on_empty and patrols.empty:
         raise ValueError("No data returned from EarthRanger for get_patrols")
@@ -795,10 +916,24 @@ def get_event_type_display_names_from_events(
     events_gdf: EventGDF,
     append_category_names: AppendCategorySelectionAnnotation = "duplicates",
 ) -> EventsWithDisplayNamesGDF:
-    events_gdf = client.get_event_type_display_names_from_events(  # type: ignore[assignment]
-        events_gdf=events_gdf,
-        append_category_names=append_category_names,
-    )
+    if warehouse_client := _make_warehouse_client_from_env(
+        er_site_url=client.server,
+        er_api_token=SecretStr(client.token) if client.token else None,
+    ):
+        # The warehouse client's get_event_type_display_names_from_events is a
+        # NotImplementedError stub; resolve display names locally instead.
+        from ecoscope.io.earthranger_utils import append_event_type_display_names
+
+        events_gdf = append_event_type_display_names(  # type: ignore[assignment]
+            events_gdf,
+            warehouse_client.get_event_types(),
+            append_category_names=append_category_names,
+        )
+    else:
+        events_gdf = client.get_event_type_display_names_from_events(  # type: ignore[assignment]
+            events_gdf=events_gdf,
+            append_category_names=append_category_names,
+        )
     return cast(EventsWithDisplayNamesGDF, events_gdf)
 
 
