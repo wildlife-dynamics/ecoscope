@@ -1,12 +1,3 @@
-from ecoscope.analysis.trend_analysis import (
-    GAMMRegressor,
-    GAMRegressor,
-    GLMRegressor,
-    LinearRegressionRegressor,
-    get_forest_cover_trends,
-    optimize_gam,
-)
-
 __all__ = [
     "ecograph",
     "UD",
@@ -18,6 +9,7 @@ __all__ = [
     "percentile",
     "seasons",
     "smoothing",
+    "trend_analysis",
     "apply_classification",
     "apply_colormap",
     "apply_smoothing",

@@ -1,11 +1,12 @@
 """
 Trend Analysis using Generalized Additive Models (GAMs).
 
-This module provides tools for fitting GAMs to time series data,
-particularly useful for analyzing environmental trends from remote sensing data.
+This module provides tools for fitting four regression patterns: linear regression,
+generalized linear model (GLM), generalized additive model (GAM), and generalized
+additive mixed model (GAMM) to time series data, particularly useful for analyzing
+environmental trends from remote sensing data.
 """
 
-import logging
 from typing import Literal, Optional, Tuple
 
 import numpy as np
@@ -13,7 +14,6 @@ import pandas as pd
 
 try:
     import statsmodels.api as sm  # type: ignore[import-not-found,import-untyped]
-    from joblib import Parallel, delayed  # type: ignore[import-not-found,import-untyped]
     from scipy.spatial.distance import euclidean  # type: ignore[import-not-found,import-untyped]
     from sklearn.base import BaseEstimator, RegressorMixin  # type: ignore[import-not-found,import-untyped]
     from sklearn.model_selection import (  # type: ignore[import-not-found,import-untyped]
@@ -49,7 +49,10 @@ def _normalize_domain(X, y, *, standardize_y: bool = True, x_offset: Optional[fl
         X = X[:, None]
     y = np.asarray(y, dtype=float).ravel()
 
-    X_min = float(x_offset) if x_offset is not None else float(X.min())
+    if x_offset is not None:
+        X_min = float(x_offset)
+    else:
+        X_min = float(X.min())
     X_norm = X - X_min
 
     if standardize_y:
@@ -64,7 +67,7 @@ def _normalize_domain(X, y, *, standardize_y: bool = True, x_offset: Optional[fl
 
 
 class _TrendRegressorBase(BaseEstimator, RegressorMixin):
-    """Shared r_squared / mse / fitted check for trend regressors."""
+    """Shared metrics for trend regressors."""
 
     def _check_is_fitted(self) -> None:
         if not hasattr(self, "_res_") and not hasattr(self, "_idata_"):
@@ -77,7 +80,9 @@ class _TrendRegressorBase(BaseEstimator, RegressorMixin):
         ss_res = np.sum((y - y_pred) ** 2)
         ss_tot = np.sum((y - np.mean(y)) ** 2)
         if ss_tot == 0:
-            return 1.0 if ss_res == 0 else 0.0
+            if ss_res == 0:
+                return 1.0
+            return 0.0
         return float(1 - ss_res / ss_tot)
 
     def mse(self, X, y, **predict_kwargs) -> float:
@@ -85,6 +90,20 @@ class _TrendRegressorBase(BaseEstimator, RegressorMixin):
         y_pred = self.predict(X, **predict_kwargs)
         y = np.asarray(y).ravel()
         return float(np.mean((y - y_pred) ** 2))
+
+    def aic(self) -> float:
+        """Return Akaike Information Criterion."""
+        self._check_is_fitted()
+        return float(self._res_.aic)
+
+    def bic(self) -> float:
+        """Return Bayesian Information Criterion."""
+        self._check_is_fitted()
+
+        bic_llf = getattr(self._res_, "bic_llf", None)
+        if bic_llf is not None:
+            return float(bic_llf)
+        return float(self._res_.bic)
 
 
 class GAMMRegressor(_TrendRegressorBase):
@@ -184,7 +203,10 @@ class GAMMRegressor(_TrendRegressorBase):
         if self.inference_method == "laplace":
             self._idata_ = self._model_.fit(inference_method="laplace")
         else:
-            tune = self.tune if self.tune is not None else self.draws
+            if self.tune is not None:
+                tune = self.tune
+            else:
+                tune = self.draws
             self._idata_ = self._model_.fit(
                 draws=self.draws,
                 tune=tune,
@@ -200,7 +222,7 @@ class GAMMRegressor(_TrendRegressorBase):
         Parameters
         ----------
         X : array-like of shape (n_samples,)
-            Years (same scale as in ``fit``).
+            Years (same scale as in fit).
         site_ids : array-like of shape (n_samples,), optional
             Site label per row. When provided, predictions include each
             site's random intercept (site-specific trend level). When
@@ -349,8 +371,9 @@ class GAMRegressor(_TrendRegressorBase):
 
     Parameters
     ----------
-    alpha : float, default=0.1
-        Smoothing parameter. Higher values result in smoother curves (more linear).
+    alpha : float or None, default=None
+        Smoothing parameter. If None, alpha is selected automatically via
+        cross-validation during fit(). Higher values result in smoother curves.
     degree_of_freedom : int, default=20
         Degrees of freedom for the spline basis.
     degree : int, default=3
@@ -362,15 +385,15 @@ class GAMRegressor(_TrendRegressorBase):
     --------
     >>> from ecoscope.analysis.trend_analysis import GAMRegressor
     >>> import numpy as np
-    >>> X = np.array([2000, 2001, 2002, 2003, 2004]).reshape(-1, 1)
-    >>> y = np.array([100, 95, 90, 85, 80])
-    >>> gam = GAMRegressor(alpha=0.1).fit(X, y)
+    >>> X = np.array([2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009])
+    >>> y = np.array([100, 95, 90, 85, 80, 75, 70, 65, 60, 55])
+    >>> gam = GAMRegressor().fit(X, y)
     >>> predictions = gam.predict(X)
     """
 
     def __init__(
         self,
-        alpha: float = 0.1,
+        alpha: Optional[float] = None,
         degree_of_freedom: int = 20,
         degree: int = 3,
         family: Literal["gaussian", "poisson", "binomial"] = "gaussian",
@@ -378,6 +401,7 @@ class GAMRegressor(_TrendRegressorBase):
         self.alpha = alpha
         self.degree_of_freedom = degree_of_freedom
         self.degree = degree
+        self._family_name = family
 
         if family == "gaussian":
             self.family = Gaussian()
@@ -394,10 +418,17 @@ class GAMRegressor(_TrendRegressorBase):
         y,
         upper_bound: Optional[float] = None,
         lower_bound: Optional[float] = None,
+        bound_padding_ratio: float = 0.1,
+        metric: Literal["aic", "bic", "euclidean", "mse", "r_squared"] = "aic",
+        alphas: Optional[np.ndarray] = None,
+        cross_validator: Optional["BaseCrossValidator"] = None,
         x_offset: Optional[float] = None,
     ):
         """
         Fit the GAM model.
+
+        When alpha is None (the default), the optimal smoothing parameter is
+        selected automatically via cross-validation before fitting.
 
         Parameters
         ----------
@@ -406,39 +437,115 @@ class GAMRegressor(_TrendRegressorBase):
         y : array-like of shape (n_samples,)
             Target values.
         upper_bound : float, optional
-            Upper bound for spline knots. If None, uses max(X).
+            Upper bound for spline knots. If None, computed from data range.
         lower_bound : float, optional
-            Lower bound for spline knots. If None, uses min(X).
+            Lower bound for spline knots. If None, computed from data range.
+        bound_padding_ratio : float, default=0.1
+            Fraction of the data range added as padding when computing default bounds.
+        metric : {"aic", "bic", "euclidean", "mse", "r_squared"}, default="aic"
+            Metric used to select alpha. Only used when alpha=None.
+        alphas : ndarray, optional
+            Alpha values to search over. Defaults to logspace(-6, 4, 100).
+        cross_validator : BaseCrossValidator, optional
+            Cross-validation strategy. Chosen automatically if None.
         x_offset : float, optional
-            Value subtracted from X. Use the same value across CV folds.
+            Internal. Value subtracted from X; bounds are assumed to already
+            be in the shifted coordinate space when this is set.
 
         Returns
         -------
         self : GAMRegressor
-            Returns self for method chaining.
         """
-        # Scale y only for gaussian (poisson/binomial need non-negative y)
-        X, y, self._X_min_, self._y_mean_, self._y_std_ = _normalize_domain(
-            X,
-            y,
-            standardize_y=isinstance(self.family, Gaussian),
-            x_offset=x_offset,
-        )
+        X_arr = np.asarray(X).ravel()
+        y_arr = np.asarray(y).ravel()
 
-        knot_kwds: list[dict[str, float]] = []
-        if upper_bound is not None and lower_bound is not None:
-            knot_kwds = [{"upper_bound": upper_bound, "lower_bound": lower_bound}]
-
-        if knot_kwds:
-            self._spline_ = BSplines(X, df=[self.degree_of_freedom], degree=[self.degree], knot_kwds=knot_kwds)
+        if x_offset is not None:
+            X_min = float(x_offset)
         else:
-            self._spline_ = BSplines(X, df=[self.degree_of_freedom], degree=[self.degree])
+            X_min = float(X_arr.min())
+        data_range = float(np.max(X_arr - X_min))
+        padding = bound_padding_ratio * data_range
 
-        exog = np.ones((len(X), 1))
+        if x_offset is not None:
+            if lower_bound is not None:
+                lb = lower_bound
+            else:
+                lb = -padding
+            if upper_bound is not None:
+                ub = upper_bound
+            else:
+                ub = data_range + padding
+        else:
+            if lower_bound is not None:
+                lb = float(lower_bound) - X_min
+            else:
+                lb = -padding
+            if upper_bound is not None:
+                ub = float(upper_bound) - X_min
+            else:
+                ub = data_range + padding
 
-        self._res_ = GLMGam(y, exog=exog, smoother=self._spline_, alpha=self.alpha, family=self.family).fit()
+        if self.alpha is None:
+            if alphas is None:
+                alphas = np.logspace(-6, 4, 100)
+            if cross_validator is None:
+                # Small series: LOO. Larger: time-ordered splits
+                if len(X_arr) <= 10:
+                    cross_validator = LeaveOneOut()
+                else:
+                    cross_validator = TimeSeriesSplit(n_splits=5)
+            self.alpha_ = self._find_best_alpha(X_arr, y_arr, lb, ub, X_min, metric, alphas, cross_validator)
+        else:
+            self.alpha_ = float(self.alpha)
+
+        X_norm, y_norm, self._X_min_, self._y_mean_, self._y_std_ = _normalize_domain(
+            X_arr, y_arr, standardize_y=isinstance(self.family, Gaussian), x_offset=X_min
+        )
+        knot_kwds: list[dict[str, float]] = [{"upper_bound": ub, "lower_bound": lb}]
+        self._spline_ = BSplines(X_norm, df=[self.degree_of_freedom], degree=[self.degree], knot_kwds=knot_kwds)
+        exog = np.ones((len(X_norm), 1))
+        self._res_ = GLMGam(y_norm, exog=exog, smoother=self._spline_, alpha=self.alpha_, family=self.family).fit()
 
         return self
+
+    def _find_best_alpha(self, X, y, lb, ub, X_min, metric, alphas, cross_validator) -> float:
+        """Grid search for the optimal smoothing parameter."""
+
+        def _score_ic(a):
+            gam = GAMRegressor(
+                alpha=a, degree_of_freedom=self.degree_of_freedom, degree=self.degree, family=self._family_name
+            )
+            gam.fit(X, y, lower_bound=lb, upper_bound=ub, x_offset=X_min)
+            if metric == "aic":
+                return gam.aic()
+            return gam.bic()
+
+        def _score_cv(a, train_idx, test_idx):
+            gam = GAMRegressor(
+                alpha=a, degree_of_freedom=self.degree_of_freedom, degree=self.degree, family=self._family_name
+            )
+            gam.fit(X[train_idx], y[train_idx], lower_bound=lb, upper_bound=ub, x_offset=X_min)
+            X_test, y_test = X[test_idx], y[test_idx]
+            if metric == "euclidean":
+                return euclidean(y_test, gam.predict(X_test))
+            elif metric == "mse":
+                return gam.mse(X_test, y_test)
+            else:  # r_squared
+                return gam.r_squared(X_test, y_test)
+
+        if metric in ("aic", "bic"):
+            scores = [_score_ic(a) for a in alphas]
+            return float(alphas[np.argmin(scores)])
+
+        folds = list(cross_validator.split(X))
+        gridsearch = np.zeros((len(alphas), len(folds)))
+        for i, a in enumerate(alphas):
+            for fi, (ti, vi) in enumerate(folds):
+                gridsearch[i, fi] = _score_cv(a, ti, vi)
+        mean_scores = np.mean(gridsearch, axis=1)
+        if metric == "r_squared":
+            return float(alphas[np.argmax(mean_scores)])
+        return float(alphas[np.argmin(mean_scores)])
 
     def predict(self, X):
         """
@@ -472,16 +579,6 @@ class GAMRegressor(_TrendRegressorBase):
 
         # Invert y normalization
         return y_norm * self._y_std_ + self._y_mean_
-
-    def aic(self) -> float:
-        """Return Akaike Information Criterion."""
-        self._check_is_fitted()
-        return self._res_.aic
-
-    def bic(self) -> float:
-        """Return Bayesian Information Criterion."""
-        self._check_is_fitted()
-        return self._res_.bic_llf
 
     def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:  # custom confidence interval calculation
         """
@@ -583,18 +680,6 @@ class GLMRegressor(_TrendRegressorBase):
         y_norm = self._res_.predict(exog=exog)
         return y_norm * self._y_std_ + self._y_mean_
 
-    def aic(self) -> float:
-        self._check_is_fitted()
-        return float(self._res_.aic)
-
-    def bic(self) -> float:
-        self._check_is_fitted()
-        # statsmodels GLM uses bic (or bic_llf depending on version); prefer bic if available
-        bic = getattr(self._res_, "bic", None)
-        if bic is None:
-            return float(self._res_.bic_llf)
-        return float(bic)
-
     def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         self._check_is_fitted()
         X = np.asarray(X)
@@ -651,14 +736,6 @@ class LinearRegressionRegressor(_TrendRegressorBase):
         y_norm = self._res_.predict(exog)
         return y_norm * self._y_std_ + self._y_mean_
 
-    def aic(self) -> float:
-        self._check_is_fitted()
-        return float(self._res_.aic)
-
-    def bic(self) -> float:
-        self._check_is_fitted()
-        return float(self._res_.bic)
-
     def predict_with_ci(self, X) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         self._check_is_fitted()
         X = np.asarray(X)
@@ -676,386 +753,3 @@ class LinearRegressionRegressor(_TrendRegressorBase):
         upper = sf["mean_ci_upper"].to_numpy() * self._y_std_ + self._y_mean_
 
         return mean, lower, upper
-
-
-def choose_cross_validator(X: np.ndarray) -> BaseCrossValidator:
-    """
-    Choose appropriate cross-validator based on sample size.
-
-    Parameters
-    ----------
-    X : ndarray
-        Input data.
-
-    Returns
-    -------
-    BaseCrossValidator
-        Cross-validation strategy.
-    """
-    if len(X) <= 10:
-        return LeaveOneOut()
-    else:
-        return TimeSeriesSplit(n_splits=5)
-
-
-def _fit_and_score_ic(alpha, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family, x_offset):
-    """
-    Fit GAM and return alpha with its information criterion (aic, bic) score.
-    """
-    gam = GAMRegressor(
-        alpha=alpha,
-        degree_of_freedom=degree_of_freedom,
-        degree=degree,
-        family=family,
-    ).fit(X, y, lower_bound=lower_bound, upper_bound=upper_bound, x_offset=x_offset)
-    if metric == "aic":
-        score = gam.aic()
-    else:
-        score = gam.bic()
-    return alpha, score
-
-
-def _fit_and_score_cv(
-    alpha,
-    fold_idx,
-    train_index,
-    test_index,
-    X,
-    y,
-    metric,
-    lower_bound,
-    upper_bound,
-    degree_of_freedom,
-    degree,
-    family,
-    x_offset,
-):
-    """
-    Fit GAM on fold of test/train data and return alpha, fold index, and score.
-    """
-    gam = GAMRegressor(
-        alpha=alpha,
-        degree_of_freedom=degree_of_freedom,
-        degree=degree,
-        family=family,
-    ).fit(
-        X[train_index],
-        y[train_index],
-        lower_bound=lower_bound,
-        upper_bound=upper_bound,
-        x_offset=x_offset,
-    )
-    y_pred = gam.predict(X[test_index])
-    y_test = y[test_index]
-
-    if metric == "euclidean":
-        score = euclidean(y_test, y_pred)
-    elif metric == "mse":
-        score = float(np.mean((y_test - y_pred) ** 2))
-    elif metric == "r_squared":
-        ss_res = np.sum((y_test - y_pred) ** 2)
-        ss_tot = np.sum((y_test - np.mean(y_test)) ** 2)
-        if ss_tot == 0:
-            if ss_res == 0:
-                score = 1.0
-            else:
-                score = 0.0
-        else:
-            score = 1 - ss_res / ss_tot
-    return alpha, fold_idx, score
-
-
-def optimize_gam_cv(
-    X: np.ndarray,
-    y: np.ndarray,
-    alphas: np.ndarray,
-    cross_validator: BaseCrossValidator,
-    metric: Literal["aic", "bic", "euclidean", "mse", "r_squared"] = "aic",
-    lower_bound: Optional[float] = None,
-    upper_bound: Optional[float] = None,
-    degree_of_freedom: int = 20,
-    degree: int = 3,
-    family: Literal["gaussian", "poisson", "binomial"] = "gaussian",
-    x_offset: Optional[float] = None,
-) -> Tuple[float, GAMRegressor]:
-    """
-    Optimize GAM smoothing parameter using cross-validation.
-
-    Parameters
-    ----------
-    X : ndarray
-        Training data.
-    y : ndarray
-        Target values.
-    alphas : ndarray
-        Array of alpha values to search.
-    cross_validator : BaseCrossValidator
-        Cross-validation strategy.
-    metric : {"aic", "bic", "euclidean", "mse", "r_squared"}, default="aic"
-        Metric to optimize. AIC/BIC are computed on full data, others use
-        cross-validation. Note: r_squared is maximized, others are minimized.
-    lower_bound : float, optional
-        Lower bound for spline knots.
-    upper_bound : float, optional
-        Upper bound for spline knots.
-    degree_of_freedom : int, default=20
-        Degrees of freedom for the spline basis.
-    degree : int, default=3
-        Degree of the B-spline basis (cubic splines by default).
-    family : {"gaussian", "poisson", "binomial"}, default="gaussian"
-        Distribution family for the GLM.
-    x_offset : float, optional
-        Value subtracted from X. Use the same value across CV folds.
-
-    Returns
-    -------
-    best_alpha : float
-        Optimal alpha value.
-    best_gam : GAMRegressor
-        Fitted GAM with optimal alpha.
-    """
-    if metric in ("aic", "bic"):
-        # AIC/BIC computed on full dataset - parallelize across alphas
-        tasks = []
-        for alpha in alphas:
-            task = delayed(_fit_and_score_ic)(
-                alpha, X, y, metric, lower_bound, upper_bound, degree_of_freedom, degree, family, x_offset
-            )
-            tasks.append(task)
-
-        results = Parallel(n_jobs=-1)(tasks)
-
-        # Build scores array maintaining alpha order
-        alpha_to_score = {}
-        for alpha, score in results:
-            alpha_to_score[alpha] = score
-
-        scores = np.zeros(len(alphas))
-        for i, alpha in enumerate(alphas):
-            scores[i] = alpha_to_score[alpha]
-
-        best_alpha = alphas[np.argmin(scores)]
-
-    else:
-        # CV metrics - parallelize across all (alpha, fold) combinations
-        folds = list(cross_validator.split(X))
-        n_folds = len(folds)
-
-        tasks = []
-        for alpha in alphas:
-            for fold_idx, (train_idx, test_idx) in enumerate(folds):
-                task = delayed(_fit_and_score_cv)(
-                    alpha,
-                    fold_idx,
-                    train_idx,
-                    test_idx,
-                    X,
-                    y,
-                    metric,
-                    lower_bound,
-                    upper_bound,
-                    degree_of_freedom,
-                    degree,
-                    family,
-                    x_offset,
-                )
-                tasks.append(task)
-
-        results = Parallel(n_jobs=-1)(tasks)
-
-        # Reconstruct gridsearch matrix
-        gridsearch_matrix = np.zeros((len(alphas), n_folds))
-        alpha_to_idx = {}
-        for i, alpha in enumerate(alphas):
-            alpha_to_idx[alpha] = i
-
-        for alpha, fold_idx, score in results:
-            gridsearch_matrix[alpha_to_idx[alpha]][fold_idx] = score
-
-        mean_score = np.mean(gridsearch_matrix, axis=1)
-        if metric == "r_squared":
-            best_alpha = alphas[np.argmax(mean_score)]
-        else:
-            best_alpha = alphas[np.argmin(mean_score)]
-
-    best_gam = GAMRegressor(
-        alpha=best_alpha,
-        degree_of_freedom=degree_of_freedom,
-        degree=degree,
-        family=family,
-    ).fit(X, y, lower_bound=lower_bound, upper_bound=upper_bound, x_offset=x_offset)
-
-    return best_alpha, best_gam
-
-
-def optimize_gam(
-    X: np.ndarray,
-    y: np.ndarray,
-    cross_validator: Optional[BaseCrossValidator] = None,
-    alphas: Optional[np.ndarray] = None,
-    lower_bound: Optional[float] = None,
-    upper_bound: Optional[float] = None,
-    bound_padding_ratio: float = 0.1,
-    metric: Literal["aic", "bic", "euclidean", "mse", "r_squared"] = "aic",
-    degree_of_freedom: int = 20,
-    degree: int = 3,
-    family: Literal["gaussian", "poisson", "binomial"] = "gaussian",
-) -> Tuple[float, GAMRegressor]:
-    """
-    Optimize GAM smoothing parameter with automatic defaults.
-
-    Parameters
-    ----------
-    X : ndarray
-        Training data.
-    y : ndarray
-        Target values.
-    cross_validator : BaseCrossValidator, optional
-        Cross-validation strategy. If None, chosen automatically.
-    alphas : ndarray, optional
-        Array of alpha values to search. Defaults to logspace(-4, 4, 100).
-    lower_bound : float, optional
-        Lower bound for spline knots. If None, computed as min(X) minus
-        padding based on bound_padding_ratio.
-    upper_bound : float, optional
-        Upper bound for spline knots. If None, computed as max(X) plus
-        padding based on bound_padding_ratio.
-    bound_padding_ratio : float, default=0.1
-        Fraction of the data range to use as padding when computing default
-        bounds. For example, 0.1 adds 10% of (max(X) - min(X)) as padding.
-    metric : {"aic", "bic", "euclidean", "mse", "r_squared"}, default="aic"
-        Metric to optimize. AIC/BIC are computed on full data, others use
-        cross-validation. Note: r_squared is maximized, others are minimized.
-    degree_of_freedom : int, default=20
-        Degrees of freedom for the spline basis.
-    degree : int, default=3
-        Degree of the B-spline basis (cubic splines by default).
-    family : {"gaussian", "poisson", "binomial"}, default="gaussian"
-        Distribution family for the GLM.
-
-    Returns
-    -------
-    best_alpha : float
-        Optimal alpha value.
-    best_gam : GAMRegressor
-        Fitted GAM with optimal alpha.
-
-    Examples
-    --------
-    >>> from ecoscope.analysis.trend_analysis import optimize_gam
-    >>> import numpy as np
-    >>> X = np.array([2000, 2001, 2002, 2003, 2004])
-    >>> y = np.array([100, 95, 90, 85, 80])
-    >>> alpha, gam = optimize_gam(X, y, metric="aic")
-    """
-    X = np.asarray(X).ravel()
-    y = np.asarray(y).ravel()
-
-    X_min = float(np.min(X))
-    X_norm = X - X_min
-    data_range = float(np.max(X_norm))
-    padding = bound_padding_ratio * data_range
-
-    if lower_bound is None:
-        lower_bound = 0.0 - padding
-    else:
-        lower_bound = float(lower_bound) - X_min
-    if upper_bound is None:
-        upper_bound = data_range + padding
-    else:
-        upper_bound = float(upper_bound) - X_min
-    if alphas is None:
-        alphas = np.logspace(-6, 4, 100)
-    if cross_validator is None:
-        cross_validator = choose_cross_validator(X)
-
-    best_alpha, best_gam = optimize_gam_cv(
-        X,
-        y,
-        alphas=alphas,
-        cross_validator=cross_validator,
-        metric=metric,
-        lower_bound=lower_bound,
-        upper_bound=upper_bound,
-        degree_of_freedom=degree_of_freedom,
-        degree=degree,
-        family=family,
-        x_offset=X_min,
-    )
-
-    return best_alpha, best_gam
-
-
-def get_forest_cover_trends(
-    aoi,
-    tree_cover_threshold: float = 60.0,
-    scale: int = 30,
-    max_pixels: float = 1e9,
-) -> pd.DataFrame:
-    """
-    Extract forest cover trends from Google Earth Engine dataset.
-
-    Parameters
-    ----------
-    aoi : gpd.GeoDataFrame
-        Area of interest geometry (must have CRS set).
-    tree_cover_threshold : float, default=60.0
-        Minimum tree cover percentage to consider as forest (0-100).
-    scale : int, default=30
-        Pixel scale in meters for reduction.
-    max_pixels : int, default=1e9
-        Maximum pixels for reduction.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with columns:
-        - year: Year of observation
-        - loss_area: Forest loss area in acres for that year
-        - cumsum_loss_area: Cumulative loss area in acres
-        - survival_area: Remaining forest area in acres
-    """
-    import ee
-
-    if aoi.crs is None:
-        logging.warning("AOI CRS not set. Assuming WGS84.")
-        aoi = aoi.set_crs(4326)
-    elif aoi.crs.to_epsg() != 4326:
-        aoi = aoi.to_crs(4326)
-
-    feat_coll = ee.FeatureCollection(aoi.__geo_interface__)
-
-    # @see: https://developers.google.com/earth-engine/datasets/catalog/UMD_hansen_global_forest_change_2024_v1_12
-    gfc = ee.Image("UMD/hansen/global_forest_change_2024_v1_12")
-
-    # Calculate forested area in 2000
-    treecover2000 = gfc.select(["treecover2000"])
-    treecover2000_mask = treecover2000.gte(tree_cover_threshold)
-    treecover2000 = treecover2000.unmask().updateMask(treecover2000_mask)
-    treecover2000 = treecover2000.And(treecover2000)  # Convert pixel values to 1's
-    treecover2000_area_img = treecover2000.multiply(ee.Image.pixelArea())
-    treecover2000_area = treecover2000_area_img.reduceRegion(
-        reducer=ee.Reducer.sum(), geometry=feat_coll, scale=scale, maxPixels=max_pixels
-    )
-
-    forested_area = treecover2000_area.getInfo()["treecover2000"]
-    forested_area = forested_area * 0.000247105  # Convert sq.meters to acres
-
-    # Calculate forest loss by year
-    loss_img = gfc.select(["loss"])
-    loss_img = loss_img.updateMask(treecover2000_mask)
-    loss_area_img = loss_img.multiply(ee.Image.pixelArea())
-    loss_year = gfc.select(["lossyear"])
-
-    loss_by_year = loss_area_img.addBands(loss_year).reduceRegion(
-        reducer=ee.Reducer.sum().group(groupField=1), geometry=feat_coll, scale=scale, maxPixels=max_pixels
-    )
-
-    forest_survival = pd.DataFrame([x for x in loss_by_year.getInfo()["groups"]])
-    forest_survival.rename(columns={"group": "year", "sum": "loss_area"}, inplace=True)
-    forest_survival["year"] = forest_survival["year"] + 2000
-    forest_survival["loss_area"] = forest_survival["loss_area"] * 0.000247105  # Convert sq.meters to acres
-    forest_survival["cumsum_loss_area"] = forest_survival["loss_area"].cumsum()
-    forest_survival["survival_area"] = forested_area - forest_survival["cumsum_loss_area"]
-
-    return forest_survival
