@@ -21,6 +21,14 @@ from ecoscope.platform.tasks.io import (
     get_patrol_events,
     get_patrols,
 )
+from ecoscope.platform.tasks.io._earthranger import DWH_EVENTS_ENABLED
+
+# ERDW-233: tests that exercise the warehouse (DWH) events path are skipped while
+# DWH_EVENTS_ENABLED is False; they auto-re-enable when the flag is flipped back.
+requires_dwh_events = pytest.mark.skipif(
+    not DWH_EVENTS_ENABLED,
+    reason="ERDW-233: DWH client disabled for events (DWH_EVENTS_ENABLED=False)",
+)
 
 
 def _make_events_arrow_table(
@@ -173,6 +181,7 @@ _EVENT_TIME_RANGE = TimeRange(
 )
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client():
     """Warehouse branch: rename event_type_value/event_category_value/event_time,
     tz-aware time, geometry preserved, and the frame satisfies the strict schema."""
@@ -206,6 +215,7 @@ def test_get_events_via_warehouse_client():
     _assert_valid_events_gdf(result)
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client_passes_slugs_no_id_round_trip():
     """The warehouse get_events takes slugs directly, so event_types are forwarded
     verbatim and no value->id lookup via get_event_types happens."""
@@ -232,6 +242,7 @@ def test_get_events_via_warehouse_client_passes_slugs_no_id_round_trip():
     mock_legacy_client.get_event_types.assert_not_called()
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client_synthesizes_location_from_geometry():
     """The warehouse serves no `location` column; the task synthesizes an ER-native
     location dict ({"latitude","longitude"}) from geometry so the event-details
@@ -261,6 +272,7 @@ def test_get_events_via_warehouse_client_synthesizes_location_from_geometry():
     assert location.get("longitude") == 36.8
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client_unavailable_column_raises_clear_error():
     """Selecting an event column the warehouse doesn't serve raises a clear error
     naming the missing column(s) and the available ones, not a bare KeyError."""
@@ -282,6 +294,7 @@ def test_get_events_via_warehouse_client_unavailable_column_raises_clear_error()
             )
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client_sorts_ascending_by_time():
     """Parity with the legacy path, which sorts events ascending by time. The
     warehouse serves event_time DESC, so the task must re-sort."""
@@ -314,6 +327,7 @@ def test_get_events_via_warehouse_client_sorts_ascending_by_time():
     _assert_valid_events_gdf(result)
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client_force_point_geometry_reduces_to_centroid():
     """Parity with the legacy path: a polygon event geometry is reduced to its
     centroid when force_point_geometry=True (the default), and preserved when False."""
@@ -353,6 +367,7 @@ def test_get_events_via_warehouse_client_force_point_geometry_reduces_to_centroi
     assert preserved["geometry"].iloc[0].geom_type == "Polygon"
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client_event_columns_subset():
     """event_columns slicing works on the renamed warehouse frame."""
     mock_legacy_client = MagicMock()
@@ -375,6 +390,7 @@ def test_get_events_via_warehouse_client_event_columns_subset():
     _assert_valid_events_gdf(result)
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client_empty():
     """Empty warehouse table: raise_on_empty raises, else returns an empty frame."""
     mock_legacy_client = MagicMock()
@@ -402,6 +418,7 @@ def test_get_events_via_warehouse_client_empty():
     mock_warehouse_client.get_event_types.assert_not_called()
 
 
+@requires_dwh_events
 def test_get_events_via_warehouse_client_display_values():
     """include_display_values on the warehouse path uses the local helper (not the
     stubbed client method) and populates event_type_display."""
@@ -498,6 +515,7 @@ def test_get_patrols_via_warehouse_client_empty():
     assert result.empty
 
 
+@requires_dwh_events
 def test_get_patrol_events_via_warehouse_client():
     """Warehouse get_patrol_events derives events from get_patrols + unpack (does not
     call the warehouse get_patrol_events, honoring the no-DAG-change constraint)."""
@@ -527,6 +545,7 @@ def test_get_patrol_events_via_warehouse_client():
     _assert_valid_events_gdf(result)
 
 
+@requires_dwh_events
 def test_get_patrol_events_via_warehouse_client_truncates_to_time_range():
     """truncate_to_time_range drops events outside the requested window."""
     mock_legacy_client = MagicMock()
@@ -555,6 +574,7 @@ def test_get_patrol_events_via_warehouse_client_truncates_to_time_range():
     _assert_valid_events_gdf(result)
 
 
+@requires_dwh_events
 def test_get_patrol_events_via_warehouse_client_display_values():
     mock_legacy_client = MagicMock()
     mock_warehouse_client = MagicMock()
@@ -581,6 +601,7 @@ def test_get_patrol_events_via_warehouse_client_display_values():
     assert result["event_type_display"].tolist() == ["Human Wildlife Conflict"]
 
 
+@requires_dwh_events
 def test_get_event_type_display_names_from_events_via_warehouse_client():
     """The wrapper task resolves display names via the local helper on the warehouse
     path (the client method is a NotImplementedError stub)."""
