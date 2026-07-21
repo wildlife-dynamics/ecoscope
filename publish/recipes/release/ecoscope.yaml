@@ -51,6 +51,7 @@ outputs:
         - lonboard==0.0.8
         - pyarrow
         - statsmodels
+        - bambi
         # - matplotlib  # duplicate with analysis
         # - mapclassify  # duplicate with analysis
     tests:

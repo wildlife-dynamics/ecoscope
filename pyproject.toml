@@ -50,6 +50,10 @@ analysis = [
   "scipy",
   "scikit-image",
   "scikit-learn",
+]
+trends = [
+  "ecoscope[analysis]",
+  "bambi",
   "statsmodels",
 ]
 mapping = [
