@@ -50,10 +50,11 @@ analysis = [
   "scipy",
   "scikit-image",
   "scikit-learn",
-  "statsmodels",
 ]
-gamm = [
+trends = [
+  "ecoscope[analysis]",
   "bambi",
+  "statsmodels",
 ]
 mapping = [
   "duckdb",

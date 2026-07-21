@@ -31,7 +31,7 @@ try:
     from statsmodels.genmod.families.links import Log  # type: ignore[import-untyped]
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
-        'Missing optional dependencies required by this module. Please run pip install ecoscope["analysis"]'
+        'Missing optional dependencies required by this module. Please run pip install ecoscope["trends"]'
     )
 
 
@@ -174,7 +174,7 @@ class GAMMRegressor(_TrendRegressorBase):
         except ModuleNotFoundError as err:
             raise ModuleNotFoundError(
                 "Missing optional dependency bambi required by GAMMRegressor. "
-                'Please run pip install ecoscope["gamm"]'
+                'Please run pip install ecoscope["trends"]'
             ) from err
 
         site_ids = np.asarray(site_ids).ravel()
