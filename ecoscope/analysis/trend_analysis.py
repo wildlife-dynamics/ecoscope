@@ -625,6 +625,7 @@ class GAMRegressor(_TrendRegressorBase):
 class GLMRegressor(_TrendRegressorBase):
     """
     Generalized Linear Model (GLM) Regressor.
+    Baseline for model comparison only — not recommended for analysis.
 
     Parameters
     ----------
