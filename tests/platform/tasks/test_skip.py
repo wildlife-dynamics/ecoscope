@@ -18,6 +18,8 @@ from ecoscope.platform.tasks.skip import (
     any_dependency_skipped,
     any_is_empty_df,
     any_keyed_iterables_are_skips,
+    invert_bool,
+    maybe_skip_df,
 )
 
 
@@ -139,3 +141,20 @@ def test_any_dependency_is_none() -> None:
 def test_any_dependency_is_empty_string() -> None:
     assert any_dependency_is_empty_string("a", "", "b") is True
     assert any_dependency_is_empty_string("a", "b") is False
+
+
+def test_maybe_skip_df() -> None:
+    df = pd.DataFrame({"a": [1, 2]})
+
+    # Test not skip
+    result = maybe_skip_df(df, skip=False)
+    pd.testing.assert_frame_equal(result, df)
+
+    # Test skip
+    result = maybe_skip_df(df, skip=True)
+    assert result == SKIP_SENTINEL
+
+
+def test_invert_bool() -> None:
+    assert invert_bool(True) is False
+    assert invert_bool(False) is True

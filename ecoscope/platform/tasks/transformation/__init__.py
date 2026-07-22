@@ -4,6 +4,7 @@ from ._classification import (
     classify_is_night,
     classify_seasons,
 )
+from ._column_cleanup import drop_column_prefix, drop_duplicate_columns
 from ._conversion import (
     convert_column_values_to_numeric,
     convert_column_values_to_string,
@@ -41,6 +42,7 @@ from ._mapping import (
 )
 from ._normalize import normalize_json_column, normalize_numeric_column
 from ._sorting import sort_values
+from ._sql_query import apply_sql_query
 from ._subjects import assign_subject_colors
 from ._transpose import transpose
 from ._unit import with_unit
@@ -54,6 +56,8 @@ __all__ = [
     "convert_column_values_to_string",
     "convert_crs",
     "convert_values_to_timezone",
+    "drop_column_prefix",
+    "drop_duplicate_columns",
     "explode",
     "extract_column_as_type",
     "extract_value_from_json_column",
@@ -81,6 +85,7 @@ __all__ = [
     "normalize_json_column",
     "normalize_numeric_column",
     "sort_values",
+    "apply_sql_query",
     "assign_subject_colors",
     "transpose",
     "with_unit",

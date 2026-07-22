@@ -1,6 +1,7 @@
 from ._groupby import (
     UserDefinedGroupers,
     groupbykey,
+    groupbykey_passthrough_skip,
     merge_df,
     set_groupers,
     split_groups,
@@ -8,6 +9,7 @@ from ._groupby import (
 
 __all__ = [
     "groupbykey",
+    "groupbykey_passthrough_skip",
     "merge_df",
     "set_groupers",
     "split_groups",
