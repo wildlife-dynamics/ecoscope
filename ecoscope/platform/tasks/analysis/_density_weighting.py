@@ -1,11 +1,11 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
 from pydantic import Field
 from wt_registry import register
 
-from ecoscope.platform.annotations import AnyGeoDataFrame
+from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 
 
@@ -102,9 +102,11 @@ def _classified_sum_density(
         apply_classification,
     )
 
+    # copy: calculate_feature_density writes into the grid it is given, and the
+    # same meshgrid object is shared across mapvalues groups
     result = calculate_feature_density(
         geodataframe=geodataframe,
-        meshgrid=meshgrid,
+        meshgrid=meshgrid.copy(),
         geometry_type="line",
         sum_column=weighting_spec.density_sum_column,
     )
@@ -114,12 +116,15 @@ def _classified_sum_density(
     if result.empty:
         return _empty_density_result(meshgrid)
 
-    return apply_classification(
-        df=result,
-        input_column_name="density",
-        output_column_name="density_bins",
-        label_options=DefaultLabels(label_ranges=True, label_decimals=1),
-        classification_options=SharedArgs(scheme="equal_interval", k=10),
+    return cast(
+        AnyGeoDataFrame,
+        apply_classification(
+            df=cast(AnyDataFrame, result),
+            input_column_name="density",
+            output_column_name="density_bins",
+            label_options=DefaultLabels(label_ranges=True, label_decimals=1),
+            classification_options=SharedArgs(scheme="equal_interval", k=10),
+        ),
     )
 
 
@@ -138,10 +143,10 @@ def _classified_ltd_density(
 
     result = classify_percentile(
         df=density_grid,
-        percentile_levels=[float(p) for p in LTD_DEFAULT_PERCENTILES],
+        percentile_levels=[float(p) for p in LTD_DEFAULT_PERCENTILES],  # type: ignore[arg-type,misc]
         input_column_name="density",
     )
-    result = result.dissolve(
+    result = result.dissolve(  # type: ignore[operator]
         "percentile",
         aggfunc={"density": "sum"},
         as_index=False,
