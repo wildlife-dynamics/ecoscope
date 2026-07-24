@@ -28,40 +28,41 @@ class _BaseSummaryParam(BaseModel):
 
 
 # The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
-# and re-introduced via the `dependencies` block in json_schema_extra, so the form
-# only shows them once "Convert Units" is checked. Note the docstring renders as
-# the form's helper text.
+# and re-introduced via the allOf/if/then block in json_schema_extra, so the form
+# only shows them once "Convert Units" is checked. if/then (not the legacy
+# `dependencies` keyword) is understood by BOTH the RJSF renderer and JSON Schema
+# 2020-12 validators (ecoscope-server validates submitted formdata with
+# Draft202012Validator, which silently ignores `dependencies`). See
+# wildlife-dynamics/wt-download-subject-tracks#31 for the full dialect story.
+# Note the docstring renders as the form's helper text.
 class StatSummaryParam(_BaseSummaryParam):
     """Pick a column and statistic, with optional unit conversion."""
 
     model_config = ConfigDict(
         title="Statistic",
         json_schema_extra={
-            "dependencies": {
-                "convert_units": {
-                    "oneOf": [
-                        {"properties": {"convert_units": {"const": False}}},
-                        {
-                            "properties": {
-                                "convert_units": {"const": True},
-                                # No `default` on these: a default on a dependency branch
-                                # gets seeded into formData even while unchecked, leaving
-                                # an orphaned value behind.
-                                "original_unit": {
-                                    "title": "Original Unit",
-                                    "type": "string",
-                                    "oneOf": UNIT_OPTIONS,
-                                },
-                                "new_unit": {
-                                    "title": "New Unit",
-                                    "type": "string",
-                                    "oneOf": UNIT_OPTIONS,
-                                },
-                            }
-                        },
-                    ]
+            "allOf": [
+                {
+                    "if": {"properties": {"convert_units": {"const": True}}},
+                    "then": {
+                        "properties": {
+                            # No `default` on these: a default on a conditional branch
+                            # gets seeded into formData even while unchecked, leaving
+                            # an orphaned value behind.
+                            "original_unit": {
+                                "title": "Original Unit",
+                                "type": "string",
+                                "oneOf": UNIT_OPTIONS,
+                            },
+                            "new_unit": {
+                                "title": "New Unit",
+                                "type": "string",
+                                "oneOf": UNIT_OPTIONS,
+                            },
+                        }
+                    },
                 }
-            }
+            ]
         },
     )
     aggregator: Annotated[AggOperations, Field(title="Statistic")]
