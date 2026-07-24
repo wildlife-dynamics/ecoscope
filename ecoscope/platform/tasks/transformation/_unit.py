@@ -17,6 +17,8 @@ class Unit(Enum):
     DAY = "d"
     METERS_PER_SECOND = "m/s"
     KILOMETERS_PER_HOUR = "km/h"
+    # Display-only label; never routed through astropy conversion.
+    PERCENT = "%"
 
     def __str__(self) -> str:
         return self.value
@@ -34,6 +36,7 @@ UNIT_LABELS: dict[Unit, str] = {
     Unit.DAY: "Days (d)",
     Unit.METERS_PER_SECOND: "Meters per Second (m/s)",
     Unit.KILOMETERS_PER_HOUR: "Kilometers per Hour (km/h)",
+    Unit.PERCENT: "Percent (%)",
 }
 
 UNIT_OPTIONS: list[JsonValue] = [{"const": unit.value, "title": title} for unit, title in UNIT_LABELS.items()]
