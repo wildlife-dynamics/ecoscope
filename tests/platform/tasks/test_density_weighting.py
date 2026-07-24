@@ -53,6 +53,14 @@ def test_set_patrol_weighting_spec():
     assert set_patrol_weighting_spec(density_sum_column="normalised_ltd") is PATROL_WEIGHTING_SPECS["normalised_ltd"]
 
 
+def test_set_patrol_weighting_spec_custom_percentiles():
+    spec = set_patrol_weighting_spec(density_sum_column="normalised_ltd", percentiles=[50.0, 90.0, 100.0])
+    assert spec.percentiles == (50.0, 90.0, 100.0)
+    assert spec.mode == "ltd"
+    # the shared static spec stays untouched
+    assert PATROL_WEIGHTING_SPECS["normalised_ltd"].percentiles is None
+
+
 def test_sum_specs_unchanged():
     time_spec = PATROL_WEIGHTING_SPECS["timespan_seconds"]
     assert (time_spec.density_sum_column, time_spec.original_unit, time_spec.display_unit) == (
@@ -173,6 +181,25 @@ def test_classified_track_density_ltd_matches_linear_time_density(trajectory_gdf
     assert list(result["density_bins"]) == [f"{p} %" for p in result["density"]]
     expected_geoms = expected.sort_values("percentile").geometry
     assert all(a.equals(b) for a, b in zip(result.geometry, expected_geoms))
+
+
+def test_classified_track_density_ltd_custom_percentiles(trajectory_gdf, meshgrid):
+    spec = set_patrol_weighting_spec(density_sum_column="normalised_ltd", percentiles=[50.0, 90.0, 100.0])
+    result = calculate_classified_track_density(
+        geodataframe=trajectory_gdf,
+        meshgrid=meshgrid,
+        weighting_spec=spec,
+    )
+
+    expected = calculate_linear_time_density(
+        trajectory_gdf=trajectory_gdf,
+        meshgrid=meshgrid.copy(),
+        percentiles=[50.0, 90.0, 100.0],
+    )
+
+    assert set(result["density"]) <= {50.0, 90.0, 100.0}
+    assert len(result) == len(expected)
+    assert list(result["density"]) == sorted(expected["percentile"])
 
 
 @pytest.mark.parametrize("weighting", ["timespan_seconds", "dist_meters", "normalised_ltd"])

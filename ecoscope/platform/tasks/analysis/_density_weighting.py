@@ -19,6 +19,7 @@ class WeightingSpec:
     # "ltd": linear time density, percentile bins.
     mode: Literal["sum", "ltd"] = "sum"
     legend_label: str | None = None  # legend title prefix when it differs from option_label
+    percentiles: tuple[float, ...] | None = None  # "ltd" percentile bins; None -> LTD defaults
 
 
 def labeled_weighting(specs: dict[str, WeightingSpec]) -> Callable[[dict], None]:
@@ -131,6 +132,7 @@ def _classified_sum_density(
 def _classified_ltd_density(
     geodataframe: AnyGeoDataFrame,
     meshgrid: AnyGeoDataFrame,
+    weighting_spec: WeightingSpec,
 ) -> AnyGeoDataFrame:
     from ecoscope import Trajectory
     from ecoscope.analysis.classifier import classify_percentile
@@ -141,9 +143,10 @@ def _classified_ltd_density(
     if density_grid["density"].isna().all():
         return _empty_density_result(meshgrid)
 
+    percentiles = weighting_spec.percentiles or tuple(float(p) for p in LTD_DEFAULT_PERCENTILES)  # type: ignore[arg-type]
     result = classify_percentile(
         df=density_grid,
-        percentile_levels=[float(p) for p in LTD_DEFAULT_PERCENTILES],  # type: ignore[arg-type,misc]
+        percentile_levels=sorted(set(percentiles)),  # type: ignore[arg-type,misc]
         input_column_name="density",
     )
     result = result.dissolve(  # type: ignore[operator]
@@ -187,5 +190,5 @@ def calculate_classified_track_density(
         return _empty_density_result(meshgrid)
 
     if weighting_spec.mode == "ltd":
-        return _classified_ltd_density(geodataframe, meshgrid)
+        return _classified_ltd_density(geodataframe, meshgrid, weighting_spec)
     return _classified_sum_density(geodataframe, meshgrid, weighting_spec)

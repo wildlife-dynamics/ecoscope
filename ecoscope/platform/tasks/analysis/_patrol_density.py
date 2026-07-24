@@ -1,9 +1,11 @@
+from dataclasses import replace
 from typing import Annotated, Literal, TypeAlias
 
 from pydantic import Field
 from wt_registry import register
 
 from ecoscope.platform.tasks.analysis._density_weighting import WeightingSpec, labeled_weighting
+from ecoscope.platform.tasks.analysis._time_density import LtdPercentileAnnotation
 from ecoscope.platform.tasks.transformation._unit import Unit
 
 PatrolDensityWeighting: TypeAlias = Literal["timespan_seconds", "dist_meters", "normalised_ltd"]
@@ -38,8 +40,16 @@ def set_patrol_weighting_spec(
             json_schema_extra=labeled_weighting(PATROL_WEIGHTING_SPECS),
         ),
     ] = "timespan_seconds",
+    percentiles: LtdPercentileAnnotation = None,
 ) -> WeightingSpec:
     """
     Select the weighting used for the patrol density grid.
+
+    `percentiles` only applies to the "ltd" weighting (the percentile bins to
+    display, as in the patrols workflow's Time Density Map); None keeps the
+    LTD defaults. Sum weightings ignore it.
     """
-    return PATROL_WEIGHTING_SPECS[density_sum_column]
+    spec = PATROL_WEIGHTING_SPECS[density_sum_column]
+    if percentiles:
+        spec = replace(spec, percentiles=tuple(float(p) for p in percentiles))
+    return spec
