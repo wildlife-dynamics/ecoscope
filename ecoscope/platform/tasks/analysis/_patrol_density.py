@@ -31,7 +31,10 @@ def set_patrol_weighting_spec(
     density_sum_column: Annotated[
         PatrolDensityWeighting,
         Field(
-            description="Weight each grid cell by total patrol time or distance travelled.",
+            description=(
+                "Weight each grid cell by total patrol time or distance travelled,"
+                " or by time normalised as a percentage of the total (LTD)."
+            ),
             json_schema_extra=labeled_weighting(PATROL_WEIGHTING_SPECS),
         ),
     ] = "timespan_seconds",
