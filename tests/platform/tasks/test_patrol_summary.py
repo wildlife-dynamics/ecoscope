@@ -120,14 +120,15 @@ def test_custom_metric_requires_both_units_when_checked():
         )
 
 
-def test_custom_metric_schema_hides_units_behind_dependency():
+def test_custom_metric_schema_hides_units_behind_conditional():
     schema = CustomMetric.model_json_schema()
     assert "original_unit" not in schema["properties"]
     assert "new_unit" not in schema["properties"]
-    branches = schema["dependencies"]["convert_units"]["oneOf"]
-    checked = branches[1]["properties"]
-    assert checked["convert_units"]["const"] is True
-    assert {o["const"] for o in checked["original_unit"]["oneOf"]} == {u.value for u in Unit}
+    conditional = schema["allOf"][0]
+    assert conditional["if"]["properties"]["convert_units"]["const"] is True
+    revealed = conditional["then"]["properties"]
+    assert {o["const"] for o in revealed["original_unit"]["oneOf"]} == {u.value for u in Unit}
+    assert {o["const"] for o in revealed["new_unit"]["oneOf"]} == {u.value for u in Unit}
 
 
 def test_total_distance_metric_labeled_units_and_decimals():
