@@ -18,6 +18,11 @@ from ._density_weighting import (
     get_weighting_column,
     normalize_density_units,
 )
+from ._mcp import (
+    McpReturnGDF,
+    McpReturnGDFSchema,
+    calculate_minimum_convex_polygon,
+)
 from ._patrol_density import set_patrol_weighting_spec
 from ._patrol_summary import set_patrol_summary_metrics
 from ._summary import aggregate_over_rows, summarize_df
@@ -45,6 +50,9 @@ __all__ = [
     "get_density_legend_title",
     "get_weighting_column",
     "normalize_density_units",
+    "McpReturnGDF",
+    "McpReturnGDFSchema",
+    "calculate_minimum_convex_polygon",
     "aggregate_over_rows",
     "set_patrol_weighting_spec",
     "set_patrol_summary_metrics",

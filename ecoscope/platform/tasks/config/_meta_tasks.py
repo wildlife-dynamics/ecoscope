@@ -10,6 +10,13 @@ from ecoscope.platform.tasks.analysis._create_meshgrid import (
     IntersectingOnlyAnnotation,
     create_meshgrid,
 )
+from ecoscope.platform.tasks.analysis._mcp import (
+    McpCrsAnnotation,
+    McpPercentileAnnotation,
+    McpReturnGDF,
+    RelocationsAnnotation,
+    calculate_minimum_convex_polygon,
+)
 from ecoscope.platform.tasks.analysis._time_density import (
     AutoScaleOrCustomAnnotation,
     BandCountAnnotation,
@@ -113,6 +120,28 @@ def set_ltd_args_with_opacity(
 
 
 @dataclass
+class McpArgsWithOpacity:
+    opacity: OpacityAnnotation
+    crs: McpCrsAnnotation
+    percentiles: McpPercentileAnnotation
+
+    def get_mcp_params(self):
+        return {
+            "crs": self.crs,
+            "percentiles": self.percentiles,
+        }
+
+
+@register()
+def set_mcp_args_with_opacity(
+    opacity: OpacityAnnotation,
+    crs: McpCrsAnnotation = "ESRI:102022",
+    percentiles: McpPercentileAnnotation = None,
+) -> McpArgsWithOpacity:
+    return McpArgsWithOpacity(opacity=opacity, crs=crs, percentiles=percentiles)
+
+
+@dataclass
 class DensityGridOptions:
     opacity: float
     auto_scale_or_custom_cell_size: AutoScaleOrCustomAnnotation
@@ -192,7 +221,19 @@ def call_ltd_from_combined_params(
 
 
 @register()
+def call_mcp_from_combined_params(
+    relocations_gdf: RelocationsAnnotation,
+    combined_params: McpArgsWithOpacity,
+) -> McpReturnGDF:
+    return (
+        task(calculate_minimum_convex_polygon)
+        .validate()
+        .call(relocations_gdf=relocations_gdf, **combined_params.get_mcp_params())
+    )
+
+
+@register()
 def get_opacity_from_combined_params(
-    combined_params: EtdArgsWithOpacity | LtdArgsWithOpacity | DensityGridOptions,
+    combined_params: EtdArgsWithOpacity | LtdArgsWithOpacity | DensityGridOptions | McpArgsWithOpacity,
 ) -> float:
     return combined_params.opacity
