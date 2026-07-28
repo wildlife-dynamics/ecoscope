@@ -1,5 +1,6 @@
 from typing import Annotated, Literal
 
+import pandas as pd
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
@@ -36,13 +37,7 @@ def calculate_feature_density(
 ) -> AnyGeoDataFrame:
     """
     Count features or sum column values per grid cell.
-
-    Sum mode is optional: when `sum_column` is None or an empty string, rows are
-    counted. Sum-column values are coerced to numeric (non-castable values become
-    NaN and are ignored by the per-cell sum).
     """
-    import pandas as pd
-
     from ecoscope.analysis.feature_density import (
         calculate_feature_density,
     )
