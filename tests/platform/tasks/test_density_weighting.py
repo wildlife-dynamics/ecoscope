@@ -66,9 +66,9 @@ def test_weighting_selection_schema_shape():
     ltd_branch = branches[-1]["properties"]
     assert ltd_branch["density_sum_column"]["const"] == "normalised_ltd"
     percentiles = ltd_branch["percentiles"]
-    # no default/minItems on a dependency-branch field: RJSF would seed the
-    # value into formData even while another option is selected
-    assert "default" not in percentiles
+    # pre-filled like the patrols workflow's Time Density Map; the seeded
+    # orphan for non-LTD selections is cleared by clear_orphaned_percentiles
+    assert percentiles["default"] == ["50", "60", "70", "80", "90", "100"]
     assert "minItems" not in percentiles
     assert percentiles["uniqueItems"] is True
 

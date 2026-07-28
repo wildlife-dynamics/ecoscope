@@ -6,7 +6,7 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.tasks.analysis._density_weighting import WeightingSpec, labeled_weighting
-from ecoscope.platform.tasks.analysis._time_density import UDPercentiles
+from ecoscope.platform.tasks.analysis._time_density import LTD_DEFAULT_PERCENTILES, UDPercentiles
 from ecoscope.platform.tasks.transformation._unit import Unit
 
 PatrolDensityWeighting: TypeAlias = Literal["timespan_seconds", "dist_meters", "normalised_ltd"]
@@ -30,8 +30,6 @@ PATROL_WEIGHTING_SPECS: dict[str, WeightingSpec] = {
 
 
 class PatrolWeightingSelection(BaseModel):
-    """Density calculation choice; selecting Normalised (LTD) reveals its percentile levels."""
-
     model_config = ConfigDict(
         title="",
         json_schema_extra={
@@ -46,15 +44,18 @@ class PatrolWeightingSelection(BaseModel):
                         {
                             "properties": {
                                 "density_sum_column": {"const": "normalised_ltd"},
-                                # No `default` or `minItems` here: a default on a
-                                # dependency branch gets seeded into formData even
-                                # while another option is selected, leaving an
-                                # orphaned value behind; the task falls back to the
-                                # LTD default percentiles when omitted or empty.
+                                # The default pre-fills the picker like the patrols
+                                # workflow's Time Density Map. RJSF may seed it into
+                                # formData even while another option is selected;
+                                # that orphan is harmless here — nothing in this
+                                # lenient schema rejects it (no minItems /
+                                # additionalProperties) and clear_orphaned_percentiles
+                                # discards it for non-LTD selections.
                                 "percentiles": {
                                     "title": "Percentile Levels",
                                     "description": "Choose the time density percentile bins to display.",
                                     "type": "array",
+                                    "default": list(LTD_DEFAULT_PERCENTILES),
                                     "uniqueItems": True,
                                     "items": {"type": "string", "enum": list(get_args(UDPercentiles))},
                                 },
