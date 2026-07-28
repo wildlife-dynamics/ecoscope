@@ -66,11 +66,24 @@ def test_weighting_selection_schema_shape():
     ltd_branch = branches[-1]["properties"]
     assert ltd_branch["density_sum_column"]["const"] == "normalised_ltd"
     percentiles = ltd_branch["percentiles"]
-    # pre-filled like the patrols workflow's Time Density Map; the seeded
-    # orphan for non-LTD selections is cleared by clear_orphaned_percentiles
-    assert percentiles["default"] == ["50", "60", "70", "80", "90", "100"]
+    # no default on the branch — RJSF never copies dependency-branch defaults
+    # into formData; the pre-fill rides on the param-level object default
+    assert "default" not in percentiles
     assert "minItems" not in percentiles
     assert percentiles["uniqueItems"] is True
+
+
+def test_weighting_param_default_seeds_ltd_percentiles():
+    from wt_registry.jsonschema import jsonschema_from_task_func
+
+    schema = jsonschema_from_task_func(set_patrol_weighting_spec)
+    # pre-filled like the patrols workflow's Time Density Map; while another
+    # option is selected the seeded value sits hidden in formData and
+    # clear_orphaned_percentiles discards it server-side
+    assert schema["properties"]["weighting"]["default"] == {
+        "density_sum_column": "timespan_seconds",
+        "percentiles": ["50", "60", "70", "80", "90", "100"],
+    }
 
 
 def test_weighting_selection_clears_orphaned_percentiles():

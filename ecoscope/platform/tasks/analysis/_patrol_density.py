@@ -44,18 +44,16 @@ class PatrolWeightingSelection(BaseModel):
                         {
                             "properties": {
                                 "density_sum_column": {"const": "normalised_ltd"},
-                                # The default pre-fills the picker like the patrols
-                                # workflow's Time Density Map. RJSF may seed it into
-                                # formData even while another option is selected;
-                                # that orphan is harmless here — nothing in this
-                                # lenient schema rejects it (no minItems /
-                                # additionalProperties) and clear_orphaned_percentiles
-                                # discards it for non-LTD selections.
+                                # No `default` here: RJSF resolves dependency
+                                # branches when rendering but never copies their
+                                # defaults into formData, so a branch default
+                                # would show an empty picker. The pre-fill
+                                # instead rides on set_patrol_weighting_spec's
+                                # param-level object default.
                                 "percentiles": {
                                     "title": "Percentile Levels",
                                     "description": "Choose the time density percentile bins to display.",
                                     "type": "array",
-                                    "default": list(LTD_DEFAULT_PERCENTILES),
                                     "uniqueItems": True,
                                     "items": {"type": "string", "enum": list(get_args(UDPercentiles))},
                                 },
@@ -94,7 +92,16 @@ def set_patrol_weighting_spec(
         Field(
             default=None,
             title="",
-            json_schema_extra={"default": {"density_sum_column": "timespan_seconds"}},
+            # percentiles seeded here (the patrols Time Density Map defaults)
+            # so the picker comes pre-filled when Normalised (LTD) is selected;
+            # while another option is selected it sits hidden in formData and
+            # clear_orphaned_percentiles discards it server-side.
+            json_schema_extra={
+                "default": {
+                    "density_sum_column": "timespan_seconds",
+                    "percentiles": list(LTD_DEFAULT_PERCENTILES),
+                }
+            },
         ),
     ] = None,
 ) -> WeightingSpec:
