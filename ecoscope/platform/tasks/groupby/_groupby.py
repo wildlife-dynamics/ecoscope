@@ -4,7 +4,7 @@ import pandas as pd
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
-from wt_task.skip import SkippedDependencyFallback, SkipSentinel
+from wt_task.skip import SKIP_SENTINEL, SkippedDependencyFallback, SkipSentinel
 
 from ecoscope.platform.annotations import AnyDataFrame
 from ecoscope.platform.indexes import (
@@ -207,3 +207,80 @@ def merge_df(
         AnyDataFrame,
         result_df,
     )
+
+
+# Permissive variant of ``KeyedIterableOfAny``: each slot may be a full
+# ``(key, value)`` pair, a bare ``None`` (no pair at all), or a pair whose key
+# itself is ``None``. Both ``None`` shapes show up when upstream tasks emit
+# placeholders for per-element dependencies that were skipped — there's no
+# usable key to preserve, so we drop them inside the function.
+KeyedIterableWithNullSlots = list[tuple[CompositeFilter | None, Any] | None]
+
+
+@register()
+def groupbykey_passthrough_skip(
+    iterables: Annotated[
+        list[KeyedIterableWithNullSlots],
+        Field(...),
+    ],
+) -> Annotated[list[tuple[CompositeFilter, list[Any] | SkipSentinel]] | SkipSentinel, ...]:
+    """Combine multiple keyed iterables, preserving keys whose values were all skipped.
+
+    Behaves like ``ecoscope.platform.tasks.groupby.groupbykey`` — flattens a list of
+    keyed iterables and combines values that share a key — with one difference in
+    how ``SkipSentinel`` values are handled:
+
+    - All-real values for a key  → ``(key, [v1, v2, ...])`` (same as upstream).
+    - Mixed real + skip values    → ``(key, [v1, v2, ...])`` with skips dropped
+      (same net result as upstream, which strips skips via its
+      ``_drop_skip_sentinels`` fallback before the function body runs).
+    - All-skip values for a key   → ``(key, SKIP_SENTINEL)``. Upstream's fallback
+      drops the entry entirely, losing the key; this task keeps the key and
+      collapses its values to a single sentinel so downstream ``.map`` can still
+      unpack ``(view, SKIP)`` and let the consuming task's per-arg fallback fire.
+    - All ``(None, value)`` pairs   → ``SKIP_SENTINEL`` (the whole result). When
+      every pair has a null key there's no group to preserve, so collapse the
+      output to a single sentinel for downstream short-circuiting.
+
+    Use this variant when downstream needs the full set of group keys to survive
+    even if every value for some (or all) of them was skipped — e.g. so a grouped
+    dashboard can render null cells per view instead of collapsing to an
+    ungrouped output.
+    """
+    seen = set()
+    out: dict[CompositeFilter, list] = {}
+    saw_none_key = False
+    for i in iterables:
+        for elem in i:
+            if elem is None:
+                # Null slot from an upstream that emitted ``None`` instead of a
+                # ``(key, value)`` pair. Nothing to combine.
+                continue
+            key, value = elem
+            if key is None:
+                # Pair with a null key — no group to merge into.
+                saw_none_key = True
+                continue
+            if key in seen:
+                out[key].append(value)
+            else:
+                seen.add(key)
+                out[key] = [value]
+
+    if not out and saw_none_key:
+        # No real-keyed entries and at least one ``(None, value)`` pair — collapse
+        # to a single sentinel so downstream can short-circuit.
+        return SKIP_SENTINEL
+
+    result: list[tuple[CompositeFilter, list | SkipSentinel]] = []
+    for k, values in out.items():
+        non_skip = [v for v in values if not isinstance(v, SkipSentinel)]
+        if not non_skip:
+            # every value for this key was a SkipSentinel — collapse to a single
+            # sentinel so downstream `.map` unpacks (view, SKIP) and the consuming
+            # task's per-arg fallback can fire.
+            result.append((k, SKIP_SENTINEL))
+        else:
+            # mixed or all-real: drop any skips, keep the real values
+            result.append((k, non_skip))
+    return result
