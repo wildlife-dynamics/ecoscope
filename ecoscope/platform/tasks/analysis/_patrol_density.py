@@ -1,5 +1,5 @@
 from dataclasses import replace
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, Any, Literal, TypeAlias
 
 from pydantic import Field
 from wt_registry import register
@@ -28,6 +28,28 @@ PATROL_WEIGHTING_SPECS: dict[str, WeightingSpec] = {
 }
 
 
+def _reveal_ltd_config_only_for_ltd(schema: dict[str, Any]) -> None:
+    """Move LTD-only fields behind an allOf/if/then keyed on the weighting choice.
+
+    Forms then only reveal Percentile Levels when "Normalised (LTD)" is
+    selected. The lenient shape is deliberate: no `additionalProperties`, and
+    no `default`/`minItems` on the conditional field — RJSF seeds hidden array
+    fields from the first render, so a default or minItems would leak values
+    or 422 submits in the non-LTD modes; the task falls back to the LTD
+    default percentiles when the value is omitted or empty.
+    """
+    percentiles = schema["properties"].pop("percentiles")
+    for key in ("default", "minItems", "ecoscope:advanced"):
+        percentiles.pop(key, None)
+    schema.pop("additionalProperties", None)
+    schema["allOf"] = [
+        {
+            "if": {"properties": {"density_sum_column": {"const": "normalised_ltd"}}},
+            "then": {"properties": {"percentiles": percentiles}},
+        }
+    ]
+
+
 @register()
 def set_patrol_weighting_spec(
     density_sum_column: Annotated[
@@ -53,3 +75,12 @@ def set_patrol_weighting_spec(
     if percentiles:
         spec = replace(spec, percentiles=tuple(float(p) for p in percentiles))
     return spec
+
+
+# Task-level schema hook (wt-registry >= the version adding
+# @register(json_schema_extra=...)). Set as an attribute rather than a
+# decorator kwarg so older wt-registry versions simply ignore it (the form
+# then shows percentiles unconditionally) instead of failing at import.
+set_patrol_weighting_spec.__wt_json_schema_extra__ = (  # type: ignore[attr-defined]
+    _reveal_ltd_config_only_for_ltd
+)

@@ -53,6 +53,28 @@ def test_set_patrol_weighting_spec():
     assert set_patrol_weighting_spec(density_sum_column="normalised_ltd") is PATROL_WEIGHTING_SPECS["normalised_ltd"]
 
 
+def test_reveal_ltd_config_only_for_ltd_schema_shape():
+    from wt_registry.jsonschema import jsonschema_from_task_func
+
+    from ecoscope.platform.tasks.analysis._patrol_density import _reveal_ltd_config_only_for_ltd
+
+    schema = jsonschema_from_task_func(set_patrol_weighting_spec)
+    if "allOf" not in schema:  # wt-registry without the task-level hook
+        _reveal_ltd_config_only_for_ltd(schema)
+
+    # base properties: only the dropdown; percentiles lives in the then-branch
+    assert list(schema["properties"]) == ["density_sum_column"]
+    assert "additionalProperties" not in schema
+    (conditional,) = schema["allOf"]
+    assert conditional["if"]["properties"]["density_sum_column"]["const"] == "normalised_ltd"
+    percentiles = conditional["then"]["properties"]["percentiles"]
+    # lenient conditional-field shape: no default/minItems (RJSF seeds hidden
+    # arrays from first render; the task falls back to LTD defaults)
+    assert "default" not in percentiles
+    assert "minItems" not in percentiles
+    assert percentiles["uniqueItems"] is True
+
+
 def test_set_patrol_weighting_spec_custom_percentiles():
     spec = set_patrol_weighting_spec(density_sum_column="normalised_ltd", percentiles=[50.0, 90.0, 100.0])
     assert spec.percentiles == (50.0, 90.0, 100.0)
