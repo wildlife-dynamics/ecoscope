@@ -1,11 +1,12 @@
 from dataclasses import replace
-from typing import Annotated, Any, Literal, TypeAlias
+from typing import Annotated, Literal, TypeAlias, get_args
 
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.tasks.analysis._density_weighting import WeightingSpec, labeled_weighting
-from ecoscope.platform.tasks.analysis._time_density import LtdPercentileAnnotation
+from ecoscope.platform.tasks.analysis._time_density import UDPercentiles
 from ecoscope.platform.tasks.transformation._unit import Unit
 
 PatrolDensityWeighting: TypeAlias = Literal["timespan_seconds", "dist_meters", "normalised_ltd"]
@@ -28,59 +29,84 @@ PATROL_WEIGHTING_SPECS: dict[str, WeightingSpec] = {
 }
 
 
-def _reveal_ltd_config_only_for_ltd(schema: dict[str, Any]) -> None:
-    """Move LTD-only fields behind an allOf/if/then keyed on the weighting choice.
+class PatrolWeightingSelection(BaseModel):
+    """Density calculation choice; selecting Normalised (LTD) reveals its percentile levels."""
 
-    Forms then only reveal Percentile Levels when "Normalised (LTD)" is
-    selected. The lenient shape is deliberate: no `additionalProperties`, and
-    no `default`/`minItems` on the conditional field — RJSF seeds hidden array
-    fields from the first render, so a default or minItems would leak values
-    or 422 submits in the non-LTD modes; the task falls back to the LTD
-    default percentiles when the value is omitted or empty.
-    """
-    percentiles = schema["properties"].pop("percentiles")
-    for key in ("default", "minItems", "ecoscope:advanced"):
-        percentiles.pop(key, None)
-    schema.pop("additionalProperties", None)
-    schema["allOf"] = [
-        {
-            "if": {"properties": {"density_sum_column": {"const": "normalised_ltd"}}},
-            "then": {"properties": {"percentiles": percentiles}},
-        }
-    ]
-
-
-@register()
-def set_patrol_weighting_spec(
+    model_config = ConfigDict(
+        title="",
+        json_schema_extra={
+            "dependencies": {
+                "density_sum_column": {
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "density_sum_column": {"enum": ["timespan_seconds", "dist_meters"]},
+                            }
+                        },
+                        {
+                            "properties": {
+                                "density_sum_column": {"const": "normalised_ltd"},
+                                # No `default` or `minItems` here: a default on a
+                                # dependency branch gets seeded into formData even
+                                # while another option is selected, leaving an
+                                # orphaned value behind; the task falls back to the
+                                # LTD default percentiles when omitted or empty.
+                                "percentiles": {
+                                    "title": "Percentile Levels",
+                                    "description": "Choose the time density percentile bins to display.",
+                                    "type": "array",
+                                    "uniqueItems": True,
+                                    "items": {"type": "string", "enum": list(get_args(UDPercentiles))},
+                                },
+                            }
+                        },
+                    ]
+                }
+            }
+        },
+    )
     density_sum_column: Annotated[
         PatrolDensityWeighting,
         Field(
+            title="Density Calculation",
             description=(
                 "Weight each grid cell by total patrol time or distance travelled,"
                 " or by time normalised as a percentage of the total (LTD)."
             ),
             json_schema_extra=labeled_weighting(PATROL_WEIGHTING_SPECS),
         ),
-    ] = "timespan_seconds",
-    percentiles: LtdPercentileAnnotation = None,
+    ] = "timespan_seconds"
+    percentiles: SkipJsonSchema[list[float] | None] = None
+
+    @model_validator(mode="after")
+    def clear_orphaned_percentiles(self):
+        # percentiles left behind by switching away from LTD in the form are ignored
+        if self.density_sum_column != "normalised_ltd":
+            self.percentiles = None
+        return self
+
+
+@register()
+def set_patrol_weighting_spec(
+    weighting: Annotated[
+        PatrolWeightingSelection | SkipJsonSchema[None],
+        Field(
+            default=None,
+            title="",
+            json_schema_extra={"default": {"density_sum_column": "timespan_seconds"}},
+        ),
+    ] = None,
 ) -> WeightingSpec:
     """
     Select the weighting used for the patrol density grid.
 
-    `percentiles` only applies to the "ltd" weighting (the percentile bins to
-    display, as in the patrols workflow's Time Density Map); None keeps the
-    LTD defaults. Sum weightings ignore it.
+    Percentile levels only apply to the "ltd" weighting (the percentile bins
+    to display, as in the patrols workflow's Time Density Map); None keeps the
+    LTD defaults. Sum weightings ignore them.
     """
-    spec = PATROL_WEIGHTING_SPECS[density_sum_column]
-    if percentiles:
-        spec = replace(spec, percentiles=tuple(float(p) for p in percentiles))
+    if weighting is None:
+        weighting = PatrolWeightingSelection()
+    spec = PATROL_WEIGHTING_SPECS[weighting.density_sum_column]
+    if weighting.percentiles:
+        spec = replace(spec, percentiles=tuple(weighting.percentiles))
     return spec
-
-
-# Task-level schema hook (wt-registry >= the version adding
-# @register(json_schema_extra=...)). Set as an attribute rather than a
-# decorator kwarg so older wt-registry versions simply ignore it (the form
-# then shows percentiles unconditionally) instead of failing at import.
-set_patrol_weighting_spec.__wt_json_schema_extra__ = (  # type: ignore[attr-defined]
-    _reveal_ltd_config_only_for_ltd
-)

@@ -17,7 +17,10 @@ from ecoscope.platform.tasks.analysis import (
 )
 from ecoscope.platform.tasks.analysis._create_meshgrid import create_meshgrid
 from ecoscope.platform.tasks.analysis._density_weighting import labeled_weighting
-from ecoscope.platform.tasks.analysis._patrol_density import PATROL_WEIGHTING_SPECS
+from ecoscope.platform.tasks.analysis._patrol_density import (
+    PATROL_WEIGHTING_SPECS,
+    PatrolWeightingSelection,
+)
 from ecoscope.platform.tasks.analysis._time_density import AutoScaleGridCellSize
 from ecoscope.platform.tasks.transformation._classification import (
     DefaultLabels,
@@ -46,37 +49,38 @@ def meshgrid(trajectory_gdf):
 
 
 def test_set_patrol_weighting_spec():
-    assert (
-        set_patrol_weighting_spec(density_sum_column="timespan_seconds") is PATROL_WEIGHTING_SPECS["timespan_seconds"]
-    )
-    assert set_patrol_weighting_spec(density_sum_column="dist_meters") is PATROL_WEIGHTING_SPECS["dist_meters"]
-    assert set_patrol_weighting_spec(density_sum_column="normalised_ltd") is PATROL_WEIGHTING_SPECS["normalised_ltd"]
+    assert set_patrol_weighting_spec() is PATROL_WEIGHTING_SPECS["timespan_seconds"]
+    for choice in ("timespan_seconds", "dist_meters", "normalised_ltd"):
+        weighting = PatrolWeightingSelection(density_sum_column=choice)
+        assert set_patrol_weighting_spec(weighting=weighting) is PATROL_WEIGHTING_SPECS[choice]
 
 
-def test_reveal_ltd_config_only_for_ltd_schema_shape():
-    from wt_registry.jsonschema import jsonschema_from_task_func
-
-    from ecoscope.platform.tasks.analysis._patrol_density import _reveal_ltd_config_only_for_ltd
-
-    schema = jsonschema_from_task_func(set_patrol_weighting_spec)
-    if "allOf" not in schema:  # wt-registry without the task-level hook
-        _reveal_ltd_config_only_for_ltd(schema)
-
-    # base properties: only the dropdown; percentiles lives in the then-branch
+def test_weighting_selection_schema_shape():
+    # percentiles is hidden from base properties (SkipJsonSchema) and only
+    # revealed by the dependency branch for the Normalised (LTD) selection —
+    # the StatSummaryParam convert_units pattern.
+    schema = PatrolWeightingSelection.model_json_schema()
     assert list(schema["properties"]) == ["density_sum_column"]
     assert "additionalProperties" not in schema
-    (conditional,) = schema["allOf"]
-    assert conditional["if"]["properties"]["density_sum_column"]["const"] == "normalised_ltd"
-    percentiles = conditional["then"]["properties"]["percentiles"]
-    # lenient conditional-field shape: no default/minItems (RJSF seeds hidden
-    # arrays from first render; the task falls back to LTD defaults)
+    branches = schema["dependencies"]["density_sum_column"]["oneOf"]
+    ltd_branch = branches[-1]["properties"]
+    assert ltd_branch["density_sum_column"]["const"] == "normalised_ltd"
+    percentiles = ltd_branch["percentiles"]
+    # no default/minItems on a dependency-branch field: RJSF would seed the
+    # value into formData even while another option is selected
     assert "default" not in percentiles
     assert "minItems" not in percentiles
     assert percentiles["uniqueItems"] is True
 
 
+def test_weighting_selection_clears_orphaned_percentiles():
+    weighting = PatrolWeightingSelection(density_sum_column="timespan_seconds", percentiles=["50", "90"])
+    assert weighting.percentiles is None
+
+
 def test_set_patrol_weighting_spec_custom_percentiles():
-    spec = set_patrol_weighting_spec(density_sum_column="normalised_ltd", percentiles=[50.0, 90.0, 100.0])
+    weighting = PatrolWeightingSelection(density_sum_column="normalised_ltd", percentiles=["50", "90", "100"])
+    spec = set_patrol_weighting_spec(weighting=weighting)
     assert spec.percentiles == (50.0, 90.0, 100.0)
     assert spec.mode == "ltd"
     # the shared static spec stays untouched
@@ -206,7 +210,9 @@ def test_classified_track_density_ltd_matches_linear_time_density(trajectory_gdf
 
 
 def test_classified_track_density_ltd_custom_percentiles(trajectory_gdf, meshgrid):
-    spec = set_patrol_weighting_spec(density_sum_column="normalised_ltd", percentiles=[50.0, 90.0, 100.0])
+    spec = set_patrol_weighting_spec(
+        weighting=PatrolWeightingSelection(density_sum_column="normalised_ltd", percentiles=[50.0, 90.0, 100.0])
+    )
     result = calculate_classified_track_density(
         geodataframe=trajectory_gdf,
         meshgrid=meshgrid,
