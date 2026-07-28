@@ -26,6 +26,7 @@ AggOperations = Literal[
 class _BaseSummaryParam(BaseModel):
     display_name: Annotated[str, Field(title="Display Name", description="Column header shown in the summary table.")]
 
+
 class StatSummaryParam(_BaseSummaryParam):
     """Pick a column and statistic, with optional unit conversion."""
 
