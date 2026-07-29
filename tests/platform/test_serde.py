@@ -60,3 +60,23 @@ def test_persist_bytes_failure_when_target_is_dir(tmp_path) -> None:
 def test_get_path_unsupported_scheme_raises() -> None:
     with pytest.raises(ValueError, match="Unsupported scheme"):
         _get_path("s3://bucket/path", "x.txt")
+
+
+def test_persist_text_nested_filename(tmp_path) -> None:
+    text = "<div>map</div>"
+    root_path = str(tmp_path / "out")
+    filename = "subdir/nested/map.html"
+    dst = _persist_text(text, root_path, filename)
+    with open(dst) as f:
+        assert f.read() == text
+    assert dst == os.path.join(root_path, filename)
+
+
+def test_persist_bytes_nested_filename(tmp_path) -> None:
+    data = b"binary-payload"
+    root_path = str(tmp_path / "out")
+    filename = "uuid/image_fileuploads/2026/7/28/uuid/photo.jpg"
+    dst = _persist_bytes(data, root_path, filename)
+    with open(dst, "rb") as f:
+        assert f.read() == data
+    assert dst == os.path.join(root_path, filename)
