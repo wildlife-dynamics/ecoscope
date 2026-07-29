@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from pathlib import Path
 from typing import Literal
@@ -275,10 +276,14 @@ def test_view_state_calc():
     )
     gs = gs.set_crs("EPSG:4326")
 
+    # 6 is pydeck's raw bbox_to_zoom_level result (assumes a 256px viewport); +log2(1200/256)
+    # corrects for draw_map's actual full-window (~1200px assumed) rendered canvas size.
+    expected_zoom = 6 + math.log2(1200 / 256)
+
     vs = view_state_from_geodataframes(geodataframes=[gpd.GeoDataFrame(geometry=gs)])
     assert vs.longitude == (x1 + x2) / 2
     assert vs.latitude == (y1 + y2) / 2
-    assert vs.zoom == 6
+    assert vs.zoom == pytest.approx(expected_zoom)
 
     vs = view_state_from_geodataframes(geodataframes=[gpd.GeoDataFrame(geometry=gs)], max_zoom=2)
     assert vs.longitude == (x1 + x2) / 2

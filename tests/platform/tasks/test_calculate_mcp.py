@@ -4,7 +4,8 @@ import pytest
 from pydantic import TypeAdapter
 from shapely.geometry import Point
 
-from ecoscope.platform.tasks.analysis import McpReturnGDF, calculate_minimum_convex_polygon
+from ecoscope.platform.tasks.analysis import calculate_minimum_convex_polygon
+from ecoscope.platform.tasks.analysis._time_density import TimeDensityReturnGDF
 
 
 @pytest.fixture
@@ -21,11 +22,13 @@ def test_calculate_minimum_convex_polygon_default_percentiles(relocations_gdf):
     result = calculate_minimum_convex_polygon(relocations_gdf, crs="ESRI:102022")
 
     assert list(result["percentile"]) == [99.999, 95.0, 90.0, 80.0, 70.0, 60.0, 50.0]
-    expected_columns = ["percentile", "actual_percentile", "geometry", "area_sqkm"]
+    expected_columns = ["percentile", "geometry", "area_sqkm"]
     assert all(column in result for column in expected_columns)
-    # subject_id is dropped at the task layer, matching calculate_elliptical_time_density's own convention
+    # subject_id/actual_percentile are dropped at the task layer, so MCP's output shares
+    # TimeDensityReturnGDF's exact schema with calculate_elliptical_time_density/LTD.
     assert "subject_id" not in result
-    ta = TypeAdapter(McpReturnGDF)
+    assert "actual_percentile" not in result
+    ta = TypeAdapter(TimeDensityReturnGDF)
     ta.validate_python(result)
 
 
@@ -35,7 +38,7 @@ def test_calculate_minimum_convex_polygon_custom_percentiles(relocations_gdf):
     assert list(result["percentile"]) == [100.0, 90.0, 50.0]
     areas = result.set_index("percentile")["area_sqkm"]
     assert areas.loc[50.0] < areas.loc[90.0] < areas.loc[100.0]
-    ta = TypeAdapter(McpReturnGDF)
+    ta = TypeAdapter(TimeDensityReturnGDF)
     ta.validate_python(result)
 
 

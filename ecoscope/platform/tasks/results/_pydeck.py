@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal, Tuple, TypeAlias, Union
 
@@ -381,6 +382,15 @@ class LegendStyle(BaseModel):
         return title.replace("_", " ").title() if self.format_title else title
 
 
+# pydeck's bbox_to_zoom_level fits the data's bounding box into a single 256px tile,
+# but draw_map's actual rendered canvas is full-window (100vw/100vh) - typically
+# 800-1600px+. Uncorrected, the computed zoom is systematically too far zoomed-out
+# (the data appears as a small blob surrounded by empty basemap). We can't know the
+# real render size at compile time, so this assumes a typical viewport width instead.
+_ASSUMED_VIEWPORT_WIDTH_PX = 1200
+_TILE_WIDTH_PX = 256
+
+
 @register()
 def view_state_from_geodataframes(
     geodataframes: list[AnyGeoDataFrame],
@@ -395,6 +405,7 @@ def view_state_from_geodataframes(
         [bounds[2], bounds[3]],  # Southeast corner
     ]
     computed_zoom = pdk.data_utils.viewport_helpers.bbox_to_zoom_level(bbox)
+    computed_zoom += math.log2(_ASSUMED_VIEWPORT_WIDTH_PX / _TILE_WIDTH_PX)
     center_lon = (bounds[0] + bounds[2]) / 2
     center_lat = (bounds[1] + bounds[3]) / 2
 

@@ -1,29 +1,16 @@
-from typing import Annotated, Any, TypeAlias, cast
+from typing import Annotated, TypeAlias, cast
 
-import pandera.pandas as pa
-import pandera.typing as pa_typing
 from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import (
-    AdvancedField,
-    AnyGeoDataFrame,
-    DataFrame,
-    JsonSerializableDataFrameModel,
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.tasks.analysis._time_density import (
+    TimeDensityReturnGDF,
+    UDPercentiles,
+    _coerce_percentile_strings_to_floats,
 )
-from ecoscope.platform.tasks.analysis._time_density import UDPercentiles, _coerce_percentile_strings_to_floats
-
-
-class McpReturnGDFSchema(JsonSerializableDataFrameModel):
-    percentile: pa_typing.Series[float] = pa.Field()
-    actual_percentile: pa_typing.Series[float] = pa.Field()
-    geometry: pa_typing.Series[Any] = pa.Field()  # see note in annotations.py
-    area_sqkm: pa_typing.Series[float] = pa.Field()
-
-
-McpReturnGDF: TypeAlias = DataFrame[McpReturnGDFSchema]
 
 MCP_DEFAULT_PERCENTILES = ["50", "60", "70", "80", "90", "95", "99.999"]
 
@@ -59,7 +46,7 @@ def calculate_minimum_convex_polygon(
     relocations_gdf: RelocationsAnnotation,
     crs: McpCrsAnnotation = "ESRI:102022",
     percentiles: McpPercentileAnnotation = None,
-) -> McpReturnGDF:
+) -> TimeDensityReturnGDF:
     from ecoscope.analysis.UD import calculate_mcp_range
 
     if percentiles is not None and len(percentiles) == 0:
@@ -75,7 +62,10 @@ def calculate_minimum_convex_polygon(
         percentile_levels=percentiles,  # type: ignore[arg-type]
         crs=crs,
     )
-    result.drop(columns="subject_id", inplace=True)
+    # subject_id/actual_percentile are dropped here so MCP's task-level output shares
+    # TimeDensityReturnGDF's exact schema (percentile, geometry, area_sqkm) with ETD/LTD -
+    # both are still available from calculate_mcp_range directly for callers who want them.
+    result.drop(columns=["subject_id", "actual_percentile"], inplace=True)
     result["area_sqkm"] = result.area / 1000000.0
 
-    return cast(McpReturnGDF, result)
+    return cast(TimeDensityReturnGDF, result)
