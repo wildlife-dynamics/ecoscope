@@ -2,10 +2,22 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Annotated, Literal, cast
 
+import geopandas as gpd  # type: ignore[import-untyped]
+import pandas as pd
 from pydantic import Field
 from wt_registry import register
 
+from ecoscope import Trajectory
+from ecoscope.analysis.classifier import classify_percentile
+from ecoscope.analysis.linear_time_density import calculate_ltd
 from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
+from ecoscope.platform.tasks.analysis._calculate_feature_density import calculate_feature_density
+from ecoscope.platform.tasks.analysis._time_density import LTD_DEFAULT_PERCENTILES
+from ecoscope.platform.tasks.transformation._classification import (
+    DefaultLabels,
+    SharedArgs,
+    apply_classification,
+)
 from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 
 
@@ -81,9 +93,6 @@ def get_weighting_column(
 
 
 def _empty_density_result(meshgrid: AnyGeoDataFrame) -> AnyGeoDataFrame:
-    import geopandas as gpd  # type: ignore[import-untyped]
-    import pandas as pd
-
     return gpd.GeoDataFrame(
         {"density": pd.Series(dtype="float64"), "density_bins": pd.Series(dtype="object")},
         geometry=gpd.GeoSeries(dtype="geometry"),
@@ -96,15 +105,6 @@ def _classified_sum_density(
     meshgrid: AnyGeoDataFrame,
     weighting_spec: WeightingSpec,
 ) -> AnyGeoDataFrame:
-    from ecoscope.platform.tasks.analysis._calculate_feature_density import calculate_feature_density
-    from ecoscope.platform.tasks.transformation._classification import (
-        DefaultLabels,
-        SharedArgs,
-        apply_classification,
-    )
-
-    # copy: calculate_feature_density writes into the grid it is given, and the
-    # same meshgrid object is shared across mapvalues groups
     result = calculate_feature_density(
         geodataframe=geodataframe,
         meshgrid=meshgrid.copy(),
@@ -134,11 +134,6 @@ def _classified_ltd_density(
     meshgrid: AnyGeoDataFrame,
     weighting_spec: WeightingSpec,
 ) -> AnyGeoDataFrame:
-    from ecoscope import Trajectory
-    from ecoscope.analysis.classifier import classify_percentile
-    from ecoscope.analysis.linear_time_density import calculate_ltd
-    from ecoscope.platform.tasks.analysis._time_density import LTD_DEFAULT_PERCENTILES
-
     density_grid = calculate_ltd(traj=Trajectory(geodataframe), grid=meshgrid.copy())
     if density_grid["density"].isna().all():
         return _empty_density_result(meshgrid)
