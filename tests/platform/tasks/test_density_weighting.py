@@ -16,7 +16,11 @@ from ecoscope.platform.tasks.analysis import (
     set_patrol_weighting_spec,
 )
 from ecoscope.platform.tasks.analysis._create_meshgrid import create_meshgrid
-from ecoscope.platform.tasks.analysis._density_weighting import labeled_weighting
+from ecoscope.platform.tasks.analysis._density_weighting import (
+    SumWeightingSpec,
+    UDWeightingSpec,
+    labeled_weighting,
+)
 from ecoscope.platform.tasks.analysis._patrol_density import (
     PATROL_WEIGHTING_SPECS,
     PatrolWeightingSelection,
@@ -94,40 +98,42 @@ def test_weighting_selection_clears_orphaned_percentiles():
 def test_set_patrol_weighting_spec_custom_percentiles():
     weighting = PatrolWeightingSelection(density_sum_column="normalised_ltd", percentiles=["50", "90", "100"])
     spec = set_patrol_weighting_spec(weighting=weighting)
+    assert isinstance(spec, UDWeightingSpec)
     assert spec.percentiles == (50.0, 90.0, 100.0)
-    assert spec.mode == "ltd"
     # the shared static spec stays untouched
     assert PATROL_WEIGHTING_SPECS["normalised_ltd"].percentiles is None
 
 
 def test_sum_specs_unchanged():
     time_spec = PATROL_WEIGHTING_SPECS["timespan_seconds"]
+    assert isinstance(time_spec, SumWeightingSpec)
     assert (time_spec.density_sum_column, time_spec.original_unit, time_spec.display_unit) == (
         "timespan_seconds",
         Unit.SECOND,
         Unit.HOUR,
     )
-    assert (time_spec.option_label, time_spec.mode) == ("Time", "sum")
+    assert time_spec.option_label == "Time"
     dist_spec = PATROL_WEIGHTING_SPECS["dist_meters"]
+    assert isinstance(dist_spec, SumWeightingSpec)
     assert (dist_spec.density_sum_column, dist_spec.original_unit, dist_spec.display_unit) == (
         "dist_meters",
         Unit.METER,
         Unit.KILOMETER,
     )
-    assert (dist_spec.option_label, dist_spec.mode) == ("Distance", "sum")
+    assert dist_spec.option_label == "Distance"
 
 
-def test_ltd_spec():
-    ltd_spec = PATROL_WEIGHTING_SPECS["normalised_ltd"]
-    assert ltd_spec.density_sum_column == "timespan_seconds"
-    assert (ltd_spec.original_unit, ltd_spec.display_unit) == (Unit.SECOND, Unit.PERCENT)
-    assert (ltd_spec.option_label, ltd_spec.mode) == ("Normalised (LTD)", "ltd")
+def test_ud_spec():
+    ud_spec = PATROL_WEIGHTING_SPECS["normalised_ltd"]
+    assert isinstance(ud_spec, UDWeightingSpec)
+    assert (ud_spec.option_label, ud_spec.legend_label) == ("Normalised (LTD)", "Time Spent")
+    assert ud_spec.display_unit == Unit.PERCENT
+    assert ud_spec.percentiles is None
 
 
 def test_get_weighting_column():
     assert get_weighting_column(weighting_spec=PATROL_WEIGHTING_SPECS["timespan_seconds"]) == "timespan_seconds"
     assert get_weighting_column(weighting_spec=PATROL_WEIGHTING_SPECS["dist_meters"]) == "dist_meters"
-    assert get_weighting_column(weighting_spec=PATROL_WEIGHTING_SPECS["normalised_ltd"]) == "timespan_seconds"
 
 
 def test_normalize_density_units_time():
