@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, Literal, cast
 
 import pandas as pd
@@ -1225,15 +1226,16 @@ def download_grouped_event_attachments(
             for result in results:
                 file_id = result["id"]
                 filename = result["filename"]
+                basename = Path(filename).name
 
                 response = client._get(  # type: ignore[attr-defined]
                     f"activity/event/{event_id}/file/{file_id}/original/{filename}",
                     return_response=True,
                 )
 
-                _persist_bytes(response.content, event_dir, filename)
+                _persist_bytes(response.content, event_dir, basename)
 
-                downloaded_paths.append(f"{attachments_subdir}/{event_dir_name}/{filename}")
+                downloaded_paths.append(f"{attachments_subdir}/{event_dir_name}/{basename}")
 
     return downloaded_paths
 
