@@ -46,9 +46,8 @@ def _get_path(root_path: str, filename: str):
             else:
                 # Standard file URL or local path
                 local_path = Path(parsed_url.path)
-            if not local_path.exists():
-                local_path.mkdir(parents=True, exist_ok=True)
             write_path = local_path / filename
+            write_path.parent.mkdir(parents=True, exist_ok=True)
             read_path = write_path.absolute().as_posix()
 
         case "gs":
