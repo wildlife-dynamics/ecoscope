@@ -1664,6 +1664,99 @@ class TestDownloadGroupedEventAttachments:
         assert not (tmp_path / "attachments").exists()
         assert dummy_er_client.calls == []
 
+    def test_nested_filename_is_flattened_to_basename(self, output_dir, tmp_path):
+        nested = "uuid/image_fileuploads/2026/7/28/uuid/photo.jpg"
+
+        class NestedClient(DummyEarthRangerClient):
+            def _get(self, url, return_response=False):
+                self.calls.append((url, return_response))
+                if url.endswith("/files"):
+                    return {"results": [{"id": "f1", "filename": nested}]}
+                if return_response:
+                    return DummyResponse(b"fake-bytes")
+                return {"results": []}
+
+        client = NestedClient()
+        event_id = "evt-nested"
+        key = (("event_type", "=", "carcass"),)
+        key_hash = _hash_grouper_key(key)
+
+        result = download_grouped_event_attachments(
+            client=client,
+            grouped_event_gdfs=[(key, self._make_df(event_id))],
+            output_dir=output_dir,
+        )
+
+        expected_dirname = f"{key_hash}_{event_id}"
+        assert (tmp_path / "attachments" / expected_dirname / "photo.jpg").exists()
+        assert result == [f"attachments/{expected_dirname}/photo.jpg"]
+        assert (
+            client.calls[1][0]
+            == f"activity/event/{event_id}/file/f1/original/{nested}"
+        )
+
+    def test_plain_filename_is_unchanged(self, output_dir, tmp_path):
+        class PlainClient(DummyEarthRangerClient):
+            def _get(self, url, return_response=False):
+                self.calls.append((url, return_response))
+                if url.endswith("/files"):
+                    return {"results": [{"id": "f1", "filename": "photo.jpg"}]}
+                if return_response:
+                    return DummyResponse(b"fake-bytes")
+                return {"results": []}
+
+        client = PlainClient()
+        event_id = "evt-plain"
+        key = (("event_type", "=", "carcass"),)
+        key_hash = _hash_grouper_key(key)
+
+        result = download_grouped_event_attachments(
+            client=client,
+            grouped_event_gdfs=[(key, self._make_df(event_id))],
+            output_dir=output_dir,
+        )
+
+        expected_dirname = f"{key_hash}_{event_id}"
+        assert (tmp_path / "attachments" / expected_dirname / "photo.jpg").exists()
+        assert result == [f"attachments/{expected_dirname}/photo.jpg"]
+
+    def test_multiple_nested_attachments(self, output_dir, tmp_path):
+        class MultiClient(DummyEarthRangerClient):
+            def _get(self, url, return_response=False):
+                self.calls.append((url, return_response))
+                if url.endswith("/files"):
+                    return {
+                        "results": [
+                            {"id": "f1", "filename": "uuid/2026/7/28/photo1.jpg"},
+                            {"id": "f2", "filename": "photo2.jpg"},
+                            {"id": "f3", "filename": "deep/nested/path/photo3.png"},
+                        ]
+                    }
+                if return_response:
+                    return DummyResponse(b"fake-bytes")
+                return {"results": []}
+
+        client = MultiClient()
+        event_id = "evt-multi"
+        key = (("event_type", "=", "carcass"),)
+        key_hash = _hash_grouper_key(key)
+
+        result = download_grouped_event_attachments(
+            client=client,
+            grouped_event_gdfs=[(key, self._make_df(event_id))],
+            output_dir=output_dir,
+        )
+
+        expected_dirname = f"{key_hash}_{event_id}"
+        assert (tmp_path / "attachments" / expected_dirname / "photo1.jpg").exists()
+        assert (tmp_path / "attachments" / expected_dirname / "photo2.jpg").exists()
+        assert (tmp_path / "attachments" / expected_dirname / "photo3.png").exists()
+        assert result == [
+            f"attachments/{expected_dirname}/photo1.jpg",
+            f"attachments/{expected_dirname}/photo2.jpg",
+            f"attachments/{expected_dirname}/photo3.png",
+        ]
+
 
 # ---------------------------------------------------------------------------
 # process_events_details tests (v2-first with v1 fallback)
