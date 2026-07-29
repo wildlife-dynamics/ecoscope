@@ -29,6 +29,7 @@ from ._set_vars import (
     prefix_string_var,
     set_bool_var,
     set_list_of_string_vars,
+    set_optional_string_var,
     set_string_var,
     title_case_var,
 )
@@ -49,6 +50,7 @@ __all__ = [
     "prefix_string_var",
     "set_bool_var",
     "set_list_of_string_vars",
+    "set_optional_string_var",
     "set_string_var",
     "title_case_var",
     "WorkflowDetails",

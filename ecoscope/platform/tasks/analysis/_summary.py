@@ -27,14 +27,6 @@ class _BaseSummaryParam(BaseModel):
     display_name: Annotated[str, Field(title="Display Name", description="Column header shown in the summary table.")]
 
 
-# The unit fields are excluded from the model's own JSON schema (SkipJsonSchema)
-# and re-introduced via the allOf/if/then block in json_schema_extra, so the form
-# only shows them once "Convert Units" is checked. if/then (not the legacy
-# `dependencies` keyword) is understood by BOTH the RJSF renderer and JSON Schema
-# 2020-12 validators (ecoscope-server validates submitted formdata with
-# Draft202012Validator, which silently ignores `dependencies`). See
-# wildlife-dynamics/wt-download-subject-tracks#31 for the full dialect story.
-# Note the docstring renders as the form's helper text.
 class StatSummaryParam(_BaseSummaryParam):
     """Pick a column and statistic, with optional unit conversion."""
 

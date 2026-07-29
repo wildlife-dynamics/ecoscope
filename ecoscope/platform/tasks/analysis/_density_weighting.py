@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, TypeAlias
 
 from pydantic import Field
 from wt_registry import register
@@ -10,11 +10,29 @@ from ecoscope.platform.tasks.transformation._unit import Unit, with_unit
 
 
 @dataclass(frozen=True)
-class WeightingSpec:
+class SumWeightingSpec:
+    # Per-cell column sum, equal-interval value bins.
     density_sum_column: str  # gdf column the density is summed from
     original_unit: Unit  # unit of the raw summed column
     display_unit: Unit  # unit shown on the map and in the legend title
     option_label: str  # form dropdown label and default legend title prefix
+    legend_label: str | None = None  # legend title prefix when it differs from option_label
+    # Bins are emitted ascending, so low sums get the first colors: green -> red.
+    colormap: str = "RdYlGn_r"
+
+
+@dataclass(frozen=True)
+class UDWeightingSpec:
+    # Utilisation distribution (currently LTD), percentile bins.
+    option_label: str  # form dropdown label and default legend title prefix
+    legend_label: str | None = None  # legend title prefix when it differs from option_label
+    percentiles: tuple[float, ...] | None = None  # percentile bins; None -> LTD defaults
+    display_unit: Unit = Unit.PERCENT  # unit shown on the map and in the legend title
+    # Lowest isopleth is the densest core, so red comes first (patrols parity).
+    colormap: str = "RdYlGn"
+
+
+WeightingSpec: TypeAlias = SumWeightingSpec | UDWeightingSpec
 
 
 def labeled_weighting(specs: dict[str, WeightingSpec]) -> Callable[[dict], None]:
@@ -31,11 +49,17 @@ def labeled_weighting(specs: dict[str, WeightingSpec]) -> Callable[[dict], None]
 def normalize_density_units(
     df: Annotated[
         AnyGeoDataFrame,
-        Field(description="Feature density output with a raw 'density' column.", exclude=True),
+        Field(
+            description="Feature density output with a raw 'density' column.",
+            exclude=True,
+        ),
     ],
     weighting_spec: Annotated[
-        WeightingSpec,
-        Field(description="The weighting the density was summed from; determines the display unit.", exclude=True),
+        SumWeightingSpec,
+        Field(
+            description="The weighting the density was summed from; determines the display unit.",
+            exclude=True,
+        ),
     ],
 ) -> AnyGeoDataFrame:
     """
@@ -58,13 +82,31 @@ def get_density_legend_title(
     """
     Legend title for the density map: the weighting's label and display unit.
     """
-    return f"{weighting_spec.option_label} ({weighting_spec.display_unit.value})"
+    label = weighting_spec.legend_label or weighting_spec.option_label
+    return f"{label} ({weighting_spec.display_unit.value})"
+
+
+@register()
+def get_density_colormap(
+    weighting_spec: Annotated[
+        WeightingSpec,
+        Field(
+            description="The weighting the density was summed from; determines the colormap direction.",
+            exclude=True,
+        ),
+    ],
+) -> str:
+    """
+    Colormap for the density map: high sums are red, but for percentile (UD)
+    weightings the lowest isopleth is the densest core, so the direction flips.
+    """
+    return weighting_spec.colormap
 
 
 @register()
 def get_weighting_column(
     weighting_spec: Annotated[
-        WeightingSpec,
+        SumWeightingSpec,
         Field(description="The weighting to read the column name from.", exclude=True),
     ],
 ) -> str:
