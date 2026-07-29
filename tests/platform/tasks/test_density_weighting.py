@@ -10,6 +10,7 @@ from ecoscope.platform.tasks.analysis import (
     calculate_classified_track_density,
     calculate_feature_density,
     calculate_linear_time_density,
+    get_density_colormap,
     get_density_legend_title,
     get_weighting_column,
     normalize_density_units,
@@ -107,7 +108,11 @@ def test_set_patrol_weighting_spec_custom_percentiles():
 def test_sum_specs_unchanged():
     time_spec = PATROL_WEIGHTING_SPECS["timespan_seconds"]
     assert isinstance(time_spec, SumWeightingSpec)
-    assert (time_spec.density_sum_column, time_spec.original_unit, time_spec.display_unit) == (
+    assert (
+        time_spec.density_sum_column,
+        time_spec.original_unit,
+        time_spec.display_unit,
+    ) == (
         "timespan_seconds",
         Unit.SECOND,
         Unit.HOUR,
@@ -115,7 +120,11 @@ def test_sum_specs_unchanged():
     assert time_spec.option_label == "Time"
     dist_spec = PATROL_WEIGHTING_SPECS["dist_meters"]
     assert isinstance(dist_spec, SumWeightingSpec)
-    assert (dist_spec.density_sum_column, dist_spec.original_unit, dist_spec.display_unit) == (
+    assert (
+        dist_spec.density_sum_column,
+        dist_spec.original_unit,
+        dist_spec.display_unit,
+    ) == (
         "dist_meters",
         Unit.METER,
         Unit.KILOMETER,
@@ -126,7 +135,10 @@ def test_sum_specs_unchanged():
 def test_ud_spec():
     ud_spec = PATROL_WEIGHTING_SPECS["normalised_ltd"]
     assert isinstance(ud_spec, UDWeightingSpec)
-    assert (ud_spec.option_label, ud_spec.legend_label) == ("Normalised (LTD)", "Time Spent")
+    assert (ud_spec.option_label, ud_spec.legend_label) == (
+        "Normalised (LTD)",
+        "Time Spent",
+    )
     assert ud_spec.display_unit == Unit.PERCENT
     assert ud_spec.percentiles is None
 
@@ -163,6 +175,14 @@ def test_get_density_legend_title():
     assert get_density_legend_title(weighting_spec=PATROL_WEIGHTING_SPECS["timespan_seconds"]) == "Time (h)"
     assert get_density_legend_title(weighting_spec=PATROL_WEIGHTING_SPECS["dist_meters"]) == "Distance (km)"
     assert get_density_legend_title(weighting_spec=PATROL_WEIGHTING_SPECS["normalised_ltd"]) == "Time Spent (%)"
+
+
+def test_get_density_colormap():
+    # Sum weightings: bins ascend, high sums red. UD: the lowest percentile
+    # isopleth is the densest core, so the direction flips.
+    assert get_density_colormap(weighting_spec=PATROL_WEIGHTING_SPECS["timespan_seconds"]) == "RdYlGn_r"
+    assert get_density_colormap(weighting_spec=PATROL_WEIGHTING_SPECS["dist_meters"]) == "RdYlGn_r"
+    assert get_density_colormap(weighting_spec=PATROL_WEIGHTING_SPECS["normalised_ltd"]) == "RdYlGn"
 
 
 def test_labeled_weighting_replaces_enum_with_labeled_options():

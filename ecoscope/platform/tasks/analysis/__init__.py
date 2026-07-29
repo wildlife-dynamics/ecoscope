@@ -15,6 +15,7 @@ from ._calculate_feature_density import calculate_feature_density
 from ._create_meshgrid import create_meshgrid
 from ._density_weighting import (
     calculate_classified_track_density,
+    get_density_colormap,
     get_density_legend_title,
     get_weighting_column,
     normalize_density_units,
@@ -44,6 +45,7 @@ __all__ = [
     "calculate_classified_track_density",
     "calculate_feature_density",
     "create_meshgrid",
+    "get_density_colormap",
     "get_density_legend_title",
     "get_weighting_column",
     "normalize_density_units",

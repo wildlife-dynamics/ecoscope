@@ -11,7 +11,9 @@ from ecoscope import Trajectory
 from ecoscope.analysis.classifier import classify_percentile
 from ecoscope.analysis.linear_time_density import calculate_ltd
 from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
-from ecoscope.platform.tasks.analysis._calculate_feature_density import calculate_feature_density
+from ecoscope.platform.tasks.analysis._calculate_feature_density import (
+    calculate_feature_density,
+)
 from ecoscope.platform.tasks.analysis._time_density import LTD_DEFAULT_PERCENTILES
 from ecoscope.platform.tasks.transformation._classification import (
     DefaultLabels,
@@ -29,6 +31,8 @@ class SumWeightingSpec:
     display_unit: Unit  # unit shown on the map and in the legend title
     option_label: str  # form dropdown label and default legend title prefix
     legend_label: str | None = None  # legend title prefix when it differs from option_label
+    # Bins are emitted ascending, so low sums get the first colors: green -> red.
+    colormap: str = "RdYlGn_r"
     mode: Literal["sum"] = "sum"  # union discriminator
 
 
@@ -39,6 +43,10 @@ class UDWeightingSpec:
     legend_label: str | None = None  # legend title prefix when it differs from option_label
     percentiles: tuple[float, ...] | None = None  # percentile bins; None -> LTD defaults
     display_unit: Unit = Unit.PERCENT  # unit shown on the map and in the legend title
+    # Percentiles are emitted ascending and the lowest isopleth is the densest
+    # core, so it gets the first color: red -> green (matches patrols' Time
+    # Density Map).
+    colormap: str = "RdYlGn"
     mode: Literal["ud"] = "ud"  # union discriminator
 
 
@@ -59,11 +67,17 @@ def labeled_weighting(specs: dict[str, WeightingSpec]) -> Callable[[dict], None]
 def normalize_density_units(
     df: Annotated[
         AnyGeoDataFrame,
-        Field(description="Feature density output with a raw 'density' column.", exclude=True),
+        Field(
+            description="Feature density output with a raw 'density' column.",
+            exclude=True,
+        ),
     ],
     weighting_spec: Annotated[
         SumWeightingSpec,
-        Field(description="The weighting the density was summed from; determines the display unit.", exclude=True),
+        Field(
+            description="The weighting the density was summed from; determines the display unit.",
+            exclude=True,
+        ),
     ],
 ) -> AnyGeoDataFrame:
     """
@@ -91,6 +105,23 @@ def get_density_legend_title(
 
 
 @register()
+def get_density_colormap(
+    weighting_spec: Annotated[
+        WeightingSpec,
+        Field(
+            description="The weighting the density was summed from; determines the colormap direction.",
+            exclude=True,
+        ),
+    ],
+) -> str:
+    """
+    Colormap for the density map: high sums are red, but for percentile (UD)
+    weightings the lowest isopleth is the densest core, so the direction flips.
+    """
+    return weighting_spec.colormap
+
+
+@register()
 def get_weighting_column(
     weighting_spec: Annotated[
         SumWeightingSpec,
@@ -105,7 +136,10 @@ def get_weighting_column(
 
 def _empty_density_result(meshgrid: AnyGeoDataFrame) -> AnyGeoDataFrame:
     return gpd.GeoDataFrame(
-        {"density": pd.Series(dtype="float64"), "density_bins": pd.Series(dtype="object")},
+        {
+            "density": pd.Series(dtype="float64"),
+            "density_bins": pd.Series(dtype="object"),
+        },
         geometry=gpd.GeoSeries(dtype="geometry"),
         crs=meshgrid.crs,
     )
@@ -173,7 +207,10 @@ def _classified_ud_density(
 def calculate_classified_track_density(
     geodataframe: Annotated[
         AnyGeoDataFrame,
-        Field(description="The trajectory segments to grid into a density surface.", exclude=True),
+        Field(
+            description="The trajectory segments to grid into a density surface.",
+            exclude=True,
+        ),
     ],
     meshgrid: Annotated[
         AnyGeoDataFrame,
@@ -181,7 +218,10 @@ def calculate_classified_track_density(
     ],
     weighting_spec: Annotated[
         WeightingSpec,
-        Field(description="The weighting that selects the density calculation mode.", exclude=True),
+        Field(
+            description="The weighting that selects the density calculation mode.",
+            exclude=True,
+        ),
     ],
 ) -> AnyGeoDataFrame:
     """
