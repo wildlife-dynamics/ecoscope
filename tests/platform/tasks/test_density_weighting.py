@@ -61,9 +61,7 @@ def test_set_patrol_weighting_spec():
 
 
 def test_weighting_selection_schema_shape():
-    # percentiles is hidden from base properties (SkipJsonSchema) and only
-    # revealed by the dependency branch for the Normalised (LTD) selection —
-    # the StatSummaryParam convert_units pattern.
+    # percentiles is only revealed by the Normalised (LTD) dependency branch
     schema = PatrolWeightingSelection.model_json_schema()
     assert list(schema["properties"]) == ["density_sum_column"]
     assert "additionalProperties" not in schema
@@ -71,8 +69,7 @@ def test_weighting_selection_schema_shape():
     ltd_branch = branches[-1]["properties"]
     assert ltd_branch["density_sum_column"]["const"] == "normalised_ltd"
     percentiles = ltd_branch["percentiles"]
-    # no default on the branch — RJSF never copies dependency-branch defaults
-    # into formData; the pre-fill rides on the param-level object default
+    # no default on the branch — the pre-fill rides on the param-level default
     assert "default" not in percentiles
     assert "minItems" not in percentiles
     assert percentiles["uniqueItems"] is True
@@ -82,9 +79,6 @@ def test_weighting_param_default_seeds_ltd_percentiles():
     from wt_registry.jsonschema import jsonschema_from_task_func
 
     schema = jsonschema_from_task_func(set_patrol_weighting_spec)
-    # pre-filled like the patrols workflow's Time Density Map; while another
-    # option is selected the seeded value sits hidden in formData and
-    # clear_orphaned_percentiles discards it server-side
     assert schema["properties"]["weighting"]["default"] == {
         "density_sum_column": "timespan_seconds",
         "percentiles": ["50", "60", "70", "80", "90", "100"],
@@ -178,8 +172,6 @@ def test_get_density_legend_title():
 
 
 def test_get_density_colormap():
-    # Sum weightings: bins ascend, high sums red. UD: the lowest percentile
-    # isopleth is the densest core, so the direction flips.
     assert get_density_colormap(weighting_spec=PATROL_WEIGHTING_SPECS["timespan_seconds"]) == "RdYlGn_r"
     assert get_density_colormap(weighting_spec=PATROL_WEIGHTING_SPECS["dist_meters"]) == "RdYlGn_r"
     assert get_density_colormap(weighting_spec=PATROL_WEIGHTING_SPECS["normalised_ltd"]) == "RdYlGn"

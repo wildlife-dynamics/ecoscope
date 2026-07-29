@@ -1,4 +1,5 @@
 import geopandas as gpd  # type: ignore[import-untyped]
+import pytest
 
 from ecoscope.platform.tasks.analysis import (
     calculate_feature_density,
@@ -78,8 +79,6 @@ def test_calculate_feature_density_sum_column_coerced_to_numeric():
 
 
 def test_calculate_feature_density_missing_sum_column_raises():
-    import pytest
-
     bounds = random_3857_rectangle(500, 500, 500, 500, utm_safe=True)
 
     aoi = gpd.GeoDataFrame(geometry=[bounds], crs="EPSG:3857")

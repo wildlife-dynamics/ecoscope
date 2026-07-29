@@ -29,9 +29,7 @@ class UDWeightingSpec:
     legend_label: str | None = None  # legend title prefix when it differs from option_label
     percentiles: tuple[float, ...] | None = None  # percentile bins; None -> LTD defaults
     display_unit: Unit = Unit.PERCENT  # unit shown on the map and in the legend title
-    # Percentiles are emitted ascending and the lowest isopleth is the densest
-    # core, so it gets the first color: red -> green (matches patrols' Time
-    # Density Map).
+    # Lowest isopleth is the densest core, so red comes first (patrols parity).
     colormap: str = "RdYlGn"
     mode: Literal["ud"] = "ud"  # union discriminator
 
