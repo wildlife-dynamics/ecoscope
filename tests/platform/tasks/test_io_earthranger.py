@@ -1690,10 +1690,7 @@ class TestDownloadGroupedEventAttachments:
         expected_dirname = f"{key_hash}_{event_id}"
         assert (tmp_path / "attachments" / expected_dirname / "photo.jpg").exists()
         assert result == [f"attachments/{expected_dirname}/photo.jpg"]
-        assert (
-            client.calls[1][0]
-            == f"activity/event/{event_id}/file/f1/original/{nested}"
-        )
+        assert client.calls[1][0] == f"activity/event/{event_id}/file/f1/original/{nested}"
 
     def test_plain_filename_is_unchanged(self, output_dir, tmp_path):
         class PlainClient(DummyEarthRangerClient):
