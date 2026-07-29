@@ -14,7 +14,6 @@ from ._aggregation import (
 from ._calculate_feature_density import calculate_feature_density
 from ._create_meshgrid import create_meshgrid
 from ._density_weighting import (
-    calculate_classified_track_density,
     get_density_colormap,
     get_density_legend_title,
     get_weighting_column,
@@ -29,6 +28,7 @@ from ._time_density import (
     calculate_elliptical_time_density,
     calculate_linear_time_density,
 )
+from ._track_density import calculate_classified_track_density
 
 __all__ = [
     "apply_arithmetic_operation",
