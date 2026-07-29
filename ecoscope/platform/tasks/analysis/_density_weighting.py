@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Annotated, Literal, TypeAlias
+from typing import Annotated, TypeAlias
 
 from pydantic import Field
 from wt_registry import register
@@ -19,7 +19,6 @@ class SumWeightingSpec:
     legend_label: str | None = None  # legend title prefix when it differs from option_label
     # Bins are emitted ascending, so low sums get the first colors: green -> red.
     colormap: str = "RdYlGn_r"
-    mode: Literal["sum"] = "sum"  # union discriminator
 
 
 @dataclass(frozen=True)
@@ -31,7 +30,6 @@ class UDWeightingSpec:
     display_unit: Unit = Unit.PERCENT  # unit shown on the map and in the legend title
     # Lowest isopleth is the densest core, so red comes first (patrols parity).
     colormap: str = "RdYlGn"
-    mode: Literal["ud"] = "ud"  # union discriminator
 
 
 WeightingSpec: TypeAlias = SumWeightingSpec | UDWeightingSpec

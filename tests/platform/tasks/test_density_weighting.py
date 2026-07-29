@@ -31,14 +31,13 @@ def test_set_patrol_weighting_spec():
 
 
 def test_weighting_selection_schema_shape():
-    # percentiles is only revealed by the Normalised (LTD) dependency branch
+    # percentiles is only revealed by the Normalised (LTD) conditional branch
     schema = PatrolWeightingSelection.model_json_schema()
     assert list(schema["properties"]) == ["density_sum_column"]
     assert "additionalProperties" not in schema
-    branches = schema["dependencies"]["density_sum_column"]["oneOf"]
-    ltd_branch = branches[-1]["properties"]
-    assert ltd_branch["density_sum_column"]["const"] == "normalised_ltd"
-    percentiles = ltd_branch["percentiles"]
+    (branch,) = schema["allOf"]
+    assert branch["if"]["properties"]["density_sum_column"]["const"] == "normalised_ltd"
+    percentiles = branch["then"]["properties"]["percentiles"]
     # no default on the branch — the pre-fill rides on the param-level default
     assert "default" not in percentiles
     assert "minItems" not in percentiles

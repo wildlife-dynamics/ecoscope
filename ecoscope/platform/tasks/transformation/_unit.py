@@ -17,7 +17,8 @@ class Unit(Enum):
     DAY = "d"
     METERS_PER_SECOND = "m/s"
     KILOMETERS_PER_HOUR = "km/h"
-    # Display-only label; never routed through astropy conversion.
+    # Display-only by convention: nothing here forbids conversion, but astropy
+    # raises for any target other than a dimensionless one.
     PERCENT = "%"
 
     def __str__(self) -> str:

@@ -29,35 +29,28 @@ class PatrolWeightingSelection(BaseModel):
     model_config = ConfigDict(
         title="",
         json_schema_extra={
-            "dependencies": {
-                "density_sum_column": {
-                    "oneOf": [
-                        {
-                            "properties": {
-                                "density_sum_column": {"enum": ["timespan_seconds", "dist_meters"]},
-                            }
-                        },
-                        {
-                            "properties": {
-                                "density_sum_column": {"const": "normalised_ltd"},
-                                # No `default` here: RJSF resolves dependency
-                                # branches when rendering but never copies their
-                                # defaults into formData, so a branch default
-                                # would show an empty picker. The pre-fill
-                                # instead rides on set_patrol_weighting_spec's
-                                # param-level object default.
-                                "percentiles": {
-                                    "title": "Percentile Levels",
-                                    "description": "Choose the time density percentile bins to display.",
-                                    "type": "array",
-                                    "uniqueItems": True,
-                                    "items": {"type": "string", "enum": list(get_args(UDPercentiles))},
-                                },
-                            }
-                        },
-                    ]
+            "allOf": [
+                {
+                    "if": {"properties": {"density_sum_column": {"const": "normalised_ltd"}}},
+                    "then": {
+                        "properties": {
+                            # No `default` here: RJSF resolves conditional
+                            # branches when rendering but never copies their
+                            # defaults into formData, so a branch default
+                            # would show an empty picker. The pre-fill
+                            # instead rides on set_patrol_weighting_spec's
+                            # param-level object default.
+                            "percentiles": {
+                                "title": "Percentile Levels",
+                                "description": "Choose the time density percentile bins to display.",
+                                "type": "array",
+                                "uniqueItems": True,
+                                "items": {"type": "string", "enum": list(get_args(UDPercentiles))},
+                            },
+                        }
+                    },
                 }
-            }
+            ]
         },
     )
     density_sum_column: Annotated[
