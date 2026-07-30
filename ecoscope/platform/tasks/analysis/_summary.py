@@ -59,7 +59,7 @@ class StatSummaryParam(_BaseSummaryParam):
     )
     aggregator: Annotated[AggOperations, Field(title="Statistic")]
     column: Annotated[str, Field(title="Column", description="Column to aggregate.")]
-    decimal_places: Annotated[int, Field(default=2, title="Decimal Places")] = 2
+    decimal_places: Annotated[int | SkipJsonSchema[None], Field(default=2, title="Decimal Places")] = 2
     convert_units: Annotated[bool, Field(default=False, title="Convert Units")] = False
     original_unit: SkipJsonSchema[Unit | None] = None
     new_unit: SkipJsonSchema[Unit | None] = None
