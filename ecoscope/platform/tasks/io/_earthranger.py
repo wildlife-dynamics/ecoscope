@@ -59,6 +59,35 @@ def _make_warehouse_client_from_env(er_site_url: str, er_api_token: SecretStr | 
     return None
 
 
+def _sort_warehouse_relocations(gdf):
+    """Return warehouse-sourced relocations in a stable, time-ordered layout.
+
+    The warehouse API makes no row-order guarantee: its DuckDB query path has no
+    ``ORDER BY`` and its parallel scan order varies between runs, whereas the
+    EarthRanger API path is sorted by ``recorded_at``. `Trajectory.from_relocations`
+    pairs adjacent rows via ``shift(-1)``, so unordered input yields segments built
+    from unrelated fixes -- silently wrong output rather than an error. Sorting here
+    also makes the persisted relocations download and its content-hash filename
+    reproducible across runs.
+
+    ``groupby_col`` and ``fixtime`` are required rather than best-effort: degrading to
+    a partial sort on schema drift would silently reintroduce the corruption above.
+    ``extra__source`` is an optional tie-break (one subject may have several sources
+    reporting the same instant) so repeated runs over unchanged data agree.
+
+    Note the sort is ``fixtime``-major within each group, matching the EarthRanger API
+    path (which sorts on ``recorded_at`` alone); where a group spans several sources
+    their fixes interleave, deliberately, for parity.
+    """
+    missing = {"groupby_col", "fixtime"} - set(gdf.columns)
+    if missing:
+        raise ValueError(f"Warehouse observations are missing required sort keys: {sorted(missing)}")
+    sort_keys = ["groupby_col", "fixtime"]
+    if "extra__source" in gdf.columns:
+        sort_keys.append("extra__source")
+    return gdf.sort_values(sort_keys, kind="stable", ignore_index=True)
+
+
 def _strip_whitespace_from_list_items(v: list[str]):
     return [item.strip() for item in v]
 
@@ -474,7 +503,7 @@ def get_subjectgroup_observations(
             until=time_range.until.isoformat(),
             filter=filter_int,
         )
-        subject_group_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+        subject_group_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
         subject_group_obs_relocs = client.get_subjectgroup_observations(
             subject_group_name=subject_group_name,
@@ -527,7 +556,7 @@ def get_patrol_observations(
             sub_page_size=sub_page_size,
             patrols_overlap_daterange=patrols_overlap_daterange,
         )
-        patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+        patrol_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
         patrol_obs_relocs = client.get_patrol_observations_with_patrol_filter(
             since=time_range.since.isoformat(),
@@ -881,7 +910,7 @@ def get_patrol_observations_from_patrols_df(
             include_patrol_details=include_patrol_details,
             sub_page_size=sub_page_size,
         )
-        patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+        patrol_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
         patrol_obs_relocs = client.get_patrol_observations(
             patrols_df=patrols_df,

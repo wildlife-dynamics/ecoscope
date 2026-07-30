@@ -65,6 +65,23 @@ class Trajectory(EcoDataFrame):
         if copy:
             relocs = Relocations(relocs.gdf.copy())
 
+        # `_create_multitraj` pairs each fix with the physically next row via `shift(-1)`,
+        # so relocations must be time-ordered within each individual. Callers cannot be
+        # relied on for that: the EarthRanger API path happens to sort by `recorded_at`,
+        # but the Data Warehouse API makes no row-order guarantee. Unordered input yields
+        # segments built from unrelated fixes, which is silently wrong rather than an error.
+        # Sort unconditionally (cheap, and idempotent on already-ordered input), but only
+        # warn when the input was genuinely out of order -- null fixtimes alone make the
+        # monotonicity check False and would otherwise warn on healthy data.
+        ordered = relocs.gdf[["groupby_col", "fixtime"]].dropna()
+        if not ordered.groupby("groupby_col")["fixtime"].is_monotonic_increasing.all():
+            warnings.warn(
+                "Relocations are not time-ordered within each `groupby_col`; sorting by "
+                "`fixtime` before trajectory creation. The caller should supply sorted data.",
+                stacklevel=2,
+            )
+        relocs.gdf = relocs.gdf.sort_values(["groupby_col", "fixtime"], kind="stable")
+
         original_crs = relocs.gdf.crs
         relocs.gdf.to_crs(4326, inplace=True)
         relocs.gdf = (
