@@ -127,6 +127,18 @@ class StrictSubjectGroupObservationsGDFSchema(RelocationsGDFSchema):
     extra__subject__name: pa_typing.Series[str] = pa.Field()
     extra__subject__subject_subtype: pa_typing.Series[str] = pa.Field()
     extra__subject__sex: pa_typing.Series[str] = pa.Field()
+    # The subject's free-form `additional` attributes. `Any` because the two backends
+    # disagree on shape: the EarthRanger API serves a dict, the warehouse a JSON string
+    # (see `assign_subject_colors`, which accepts either). Same reason `reported_by` is
+    # `Any` below.
+    #
+    # Optional and nullable rather than placeholder-filled like the columns above: the
+    # EarthRanger API always serves it, the warehouse serves it null unless the caller
+    # opts in, and consumers parse it -- so a "None" placeholder would be an unparsable
+    # value where null is already handled. `Series[...] | None` is what makes the column
+    # itself optional (pandera spells this `Optional[Series[...]]`; both resolve to
+    # `required=False`).
+    extra__subject__additional: pa_typing.Series[Any] | None = pa.Field(nullable=True)
 
 
 class StrictEventsGDFSchema(EventGDFSchema):

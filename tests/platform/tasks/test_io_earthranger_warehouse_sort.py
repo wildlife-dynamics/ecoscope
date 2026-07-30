@@ -29,35 +29,6 @@ _TIME_RANGE = TimeRange(
 )
 
 
-def _make_observations_arrow_table(fixtimes, subject_ids, sources=None):
-    """Build a pa.Table matching OBSERVATIONS_SCHEMA__ECOSCOPE_SLIM_V1.
-
-    ``fixtimes`` are emitted in the given order, which is what lets these tests
-    simulate the warehouse returning rows in an arbitrary order.
-    """
-    import geoarrow.pyarrow as ga  # type: ignore[import-untyped]
-    import pyarrow as pa
-    from ecoscope_earthranger_io_core.arrow import OBSERVATIONS_SCHEMA__ECOSCOPE_SLIM_V1
-    from shapely.geometry import Point
-
-    n = len(fixtimes)
-    sources = sources if sources is not None else ["source-1"] * n
-    geometries = [Point(37.5 + i * 0.001, -2.5).wkb for i in range(n)]
-
-    return pa.table(
-        {
-            "geometry": ga.array(geometries),
-            "fixtime": pa.array(fixtimes, type=pa.timestamp("ns", tz="UTC")),
-            "groupby_col": pa.array(subject_ids, type=pa.string()),
-            "extra__subject__name": pa.array([f"subj-{s}" for s in subject_ids], type=pa.string()),
-            "extra__subject__subject_subtype": pa.array(["elephant"] * n, type=pa.string()),
-            "extra__source": pa.array(sources, type=pa.string()),
-            "junk_status": pa.array([False] * n, type=pa.bool_()),
-        },
-        schema=OBSERVATIONS_SCHEMA__ECOSCOPE_SLIM_V1,
-    )
-
-
 def _fixtimes(minutes):
     return [datetime(2015, 1, 1, tzinfo=timezone.utc).replace(minute=m % 60, hour=m // 60) for m in minutes]
 
@@ -140,11 +111,11 @@ class TestGetSubjectgroupObservationsRowOrder:
         mock_legacy_client.get_subjectgroup_observations.assert_not_called()
         return result
 
-    def test_unordered_warehouse_rows_are_sorted(self):
+    def test_unordered_warehouse_rows_are_sorted(self, warehouse_observations_table):
         """Rows arriving in arbitrary order come back time-ordered per subject."""
-        table = _make_observations_arrow_table(
-            fixtimes=_fixtimes([50, 10, 30, 20, 40]),
+        table = warehouse_observations_table(
             subject_ids=["s1", "s2", "s1", "s1", "s2"],
+            fixtimes=_fixtimes([50, 10, 30, 20, 40]),
         )
         result = self._call_with_table(table)
 
@@ -152,12 +123,14 @@ class TestGetSubjectgroupObservationsRowOrder:
         assert len(result) == 5
         assert result.groupby("groupby_col")["fixtime"].is_monotonic_increasing.all()
 
-    def test_row_order_does_not_change_content(self):
+    def test_row_order_does_not_change_content(self, warehouse_observations_table):
         """Sorting must reorder rows only -- never add, drop, or alter them."""
         ordered = _fixtimes([10, 20, 30, 40, 50])
         subjects = ["s1"] * 5
-        forward = self._call_with_table(_make_observations_arrow_table(ordered, subjects))
-        reversed_ = self._call_with_table(_make_observations_arrow_table(list(reversed(ordered)), subjects))
+        forward = self._call_with_table(warehouse_observations_table(subject_ids=subjects, fixtimes=ordered))
+        reversed_ = self._call_with_table(
+            warehouse_observations_table(subject_ids=subjects, fixtimes=list(reversed(ordered)))
+        )
 
         assert list(forward.fixtime) == list(reversed_.fixtime)
         assert len(forward) == len(reversed_) == 5
