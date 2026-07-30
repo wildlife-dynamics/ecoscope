@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+from pandera.errors import SchemaError
 from pydantic import TypeAdapter
 from shapely.geometry import Point
 
@@ -172,6 +173,27 @@ class TestAdditionalColumnInResult:
         validated = _RETURN_TYPE.validate_python(gdf)
 
         assert validated.extra__subject__additional.iloc[0] == {"rgb": "255, 0, 0"}
+
+    @pytest.mark.parametrize("value", [pytest.param(5, id="int"), pytest.param(["255, 0, 0"], id="list")])
+    def test_shapes_neither_backend_serves_are_rejected(self, value):
+        """`Any` is the dtype because pandera has no str-or-dict union, but the column is
+        still narrowed to the two shapes a backend can actually produce."""
+        gdf = gpd.GeoDataFrame(
+            {
+                "geometry": [Point(0, 0)],
+                "groupby_col": ["s1"],
+                "fixtime": pd.to_datetime(["2015-01-01"], utc=True),
+                "junk_status": [False],
+                "extra__subject__name": ["subj-s1"],
+                "extra__subject__subject_subtype": ["elephant"],
+                "extra__subject__sex": ["female"],
+                "extra__subject__additional": [value],
+            },
+            crs=4326,
+        )
+
+        with pytest.raises(SchemaError, match="str_or_dict"):
+            _RETURN_TYPE.validate_python(gdf)
 
 
 class TestColoringParity:
