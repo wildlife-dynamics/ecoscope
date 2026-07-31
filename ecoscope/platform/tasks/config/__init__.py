@@ -16,6 +16,7 @@ from ._set_download_params import (
     set_download_params,
 )
 from ._set_patrol_download_params import (
+    PatrolDownloadParams,
     get_patrol_event_filename_prefix,
     get_patrol_event_filetypes,
     get_patrol_track_filename_prefix,
@@ -68,6 +69,7 @@ __all__ = [
     "get_gps_point_filetypes",
     "get_gps_point_filename_prefix",
     "get_skip_relocation_persist",
+    "PatrolDownloadParams",
     "set_patrol_download_params",
     "get_patrol_track_filetypes",
     "get_patrol_track_filename_prefix",

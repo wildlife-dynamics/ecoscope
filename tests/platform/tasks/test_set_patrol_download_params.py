@@ -1,4 +1,5 @@
 from ecoscope.platform.tasks.config import (
+    PatrolDownloadParams,
     get_patrol_event_filename_prefix,
     get_patrol_event_filetypes,
     get_patrol_track_filename_prefix,
@@ -8,11 +9,11 @@ from ecoscope.platform.tasks.config import (
 
 
 def _params():
-    return (
-        ["parquet", "csv"],
-        "tracks",
-        ["csv"],
-        "events",
+    return PatrolDownloadParams(
+        track_filetypes=["parquet", "csv"],
+        track_filename_prefix="tracks",
+        event_filetypes=["csv"],
+        event_filename_prefix="events",
     )
 
 
@@ -24,37 +25,37 @@ def test_set_patrol_download_params_returns_inputs_unchanged():
         event_filename_prefix="events",
     )
 
-    assert result == (["parquet", "csv"], "tracks", ["csv"], "events")
+    assert result == _params()
 
 
 def test_set_patrol_download_params_defaults():
     result = set_patrol_download_params()
 
-    assert result[0] == ["parquet"]  # track_filetypes
-    assert result[2] == ["parquet"]  # event_filetypes
-    assert result[1] == "patrol_tracks"
-    assert result[3] == "patrol_events"
+    assert result.track_filetypes == ["parquet"]
+    assert result.event_filetypes == ["parquet"]
+    assert result.track_filename_prefix == "patrol_tracks"
+    assert result.event_filename_prefix == "patrol_events"
 
 
-def test_get_patrol_track_filetypes_returns_first_element():
+def test_get_patrol_track_filetypes():
     params = _params()
 
-    assert get_patrol_track_filetypes(params) is params[0]
+    assert get_patrol_track_filetypes(params) is params.track_filetypes
 
 
-def test_get_patrol_track_filename_prefix_returns_second_element():
+def test_get_patrol_track_filename_prefix():
     params = _params()
 
-    assert get_patrol_track_filename_prefix(params) is params[1]
+    assert get_patrol_track_filename_prefix(params) is params.track_filename_prefix
 
 
-def test_get_patrol_event_filetypes_returns_third_element():
+def test_get_patrol_event_filetypes():
     params = _params()
 
-    assert get_patrol_event_filetypes(params) is params[2]
+    assert get_patrol_event_filetypes(params) is params.event_filetypes
 
 
-def test_get_patrol_event_filename_prefix_returns_fourth_element():
+def test_get_patrol_event_filename_prefix():
     params = _params()
 
-    assert get_patrol_event_filename_prefix(params) is params[3]
+    assert get_patrol_event_filename_prefix(params) is params.event_filename_prefix

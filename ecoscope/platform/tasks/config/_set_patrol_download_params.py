@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Annotated
 
 from pydantic import Field
@@ -9,7 +10,13 @@ from ecoscope.platform.tasks.io._persist import (  # type: ignore[import-untyped
     ResultsFileType as FileType,
 )
 
-PatrolDownloadParams = tuple[list[FileType], str, list[FileType], str]
+
+@dataclass
+class PatrolDownloadParams:
+    track_filetypes: list[FileType]
+    track_filename_prefix: str
+    event_filetypes: list[FileType]
+    event_filename_prefix: str
 
 
 @register()
@@ -57,11 +64,11 @@ def set_patrol_download_params(
         track_filetypes = ["parquet"]
     if event_filetypes is None:
         event_filetypes = ["parquet"]
-    return (
-        track_filetypes,
-        track_filename_prefix,
-        event_filetypes,
-        event_filename_prefix,
+    return PatrolDownloadParams(
+        track_filetypes=track_filetypes,
+        track_filename_prefix=track_filename_prefix,
+        event_filetypes=event_filetypes,
+        event_filename_prefix=event_filename_prefix,
     )
 
 
@@ -69,25 +76,25 @@ def set_patrol_download_params(
 def get_patrol_track_filetypes(
     params: Annotated[PatrolDownloadParams, Field(title="")],
 ) -> list[FileType]:
-    return params[0]
+    return params.track_filetypes
 
 
 @register()
 def get_patrol_track_filename_prefix(
     params: Annotated[PatrolDownloadParams, Field(title="")],
 ) -> str:
-    return params[1]
+    return params.track_filename_prefix
 
 
 @register()
 def get_patrol_event_filetypes(
     params: Annotated[PatrolDownloadParams, Field(title="")],
 ) -> list[FileType]:
-    return params[2]
+    return params.event_filetypes
 
 
 @register()
 def get_patrol_event_filename_prefix(
     params: Annotated[PatrolDownloadParams, Field(title="")],
 ) -> str:
-    return params[3]
+    return params.event_filename_prefix
