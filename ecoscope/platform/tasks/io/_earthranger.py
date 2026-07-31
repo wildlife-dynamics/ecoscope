@@ -481,8 +481,23 @@ def get_subjectgroup_observations(
             description="Filter observations based on exclusion flags.",
         ),
     ] = "clean",
+    include_subject_additional: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            title="Include Subject Additional",
+            description="Whether or not to include the subject's free-form `additional` JSON",
+        ),
+    ] = False,
 ) -> SubjectGroupObservationsGDF | EmptyDataFrame:
-    """Get observations for a subject group from EarthRanger."""
+    """Get observations for a subject group from EarthRanger.
+
+    ``include_subject_additional`` only affects the warehouse path. The EarthRanger API
+    path serves the subject's ``additional`` JSON unconditionally (it rides along with
+    ``include_subject_details``), whereas the warehouse serves the column null unless
+    asked, so consumers of ``subject__additional`` -- e.g. ``assign_subject_colors``,
+    which reads its ``rgb`` key -- must opt in to get the same data from both backends.
+    """
     from ecoscope.relocations import Relocations
 
     filter_int = _EXCLUSION_FILTER_TO_INT[filter]
@@ -502,6 +517,7 @@ def get_subjectgroup_observations(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
             filter=filter_int,
+            include_subject_additional=include_subject_additional,
         )
         subject_group_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:

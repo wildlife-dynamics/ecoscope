@@ -127,6 +127,12 @@ class StrictSubjectGroupObservationsGDFSchema(RelocationsGDFSchema):
     extra__subject__name: pa_typing.Series[str] = pa.Field()
     extra__subject__subject_subtype: pa_typing.Series[str] = pa.Field()
     extra__subject__sex: pa_typing.Series[str] = pa.Field()
+    # Free-form subject attributes: dict from the ER API, JSON string from the warehouse, null when not requested.
+    extra__subject__additional: pa_typing.Series[Any] | None = pa.Field(nullable=True)
+
+    @pa.check("extra__subject__additional", name="str_or_dict")
+    def check_additional_is_str_or_dict(cls, series: pd.Series) -> pd.Series:  # type: ignore[misc]
+        return series.map(lambda value: isinstance(value, (str, dict)))
 
 
 class StrictEventsGDFSchema(EventGDFSchema):
