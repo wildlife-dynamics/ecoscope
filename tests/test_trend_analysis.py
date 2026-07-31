@@ -43,6 +43,7 @@ def fitted_gamm(gamm_sample_data):
         draws=100,
         tune=100,
         chains=1,
+        random_seed=42,
     )
     gamm.fit(X, y, sites)
     return gamm, X, y, sites
