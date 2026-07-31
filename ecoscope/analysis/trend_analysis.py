@@ -131,6 +131,8 @@ class GAMMRegressor(_TrendRegressorBase):
     family : str, default="gaussian"
         Response distribution family. Supports "gaussian", "poisson",
         "gamma", "bernoulli".
+    random_seed : int, optional
+        Seed for the MCMC sampler, for reproducible fits (``mcmc`` only).
     """
 
     def __init__(
@@ -141,6 +143,7 @@ class GAMMRegressor(_TrendRegressorBase):
         tune: Optional[int] = None,
         chains: int = 2,
         family: str = "gaussian",
+        random_seed: Optional[int] = None,
     ):
         if inference_method not in ("mcmc", "laplace"):
             raise ValueError(f"Unsupported inference_method: {inference_method!r}. " 'Must be "mcmc" or "laplace".')
@@ -150,6 +153,7 @@ class GAMMRegressor(_TrendRegressorBase):
         self.tune = tune
         self.chains = chains
         self.family = family
+        self.random_seed = random_seed
 
     def fit(self, X, y, site_ids):
         """
@@ -211,6 +215,7 @@ class GAMMRegressor(_TrendRegressorBase):
                 draws=self.draws,
                 tune=tune,
                 chains=self.chains,
+                random_seed=self.random_seed,
             )
 
         return self
