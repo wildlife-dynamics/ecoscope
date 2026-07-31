@@ -57,6 +57,40 @@ def test_relocations_from_gdf_preserve_fields(sample_relocs):
     gpd.testing.assert_geodataframe_equal(sample_relocs.gdf, ecoscope.Relocations.from_gdf(sample_relocs.gdf).gdf)
 
 
+def _sorted_relocs(relocs):
+    return ecoscope.Relocations(
+        relocs.gdf.sort_values(["groupby_col", "fixtime"], kind="stable").reset_index(drop=True)
+    )
+
+
+def test_trajectory_from_shuffled_relocations_matches_sorted(movebank_relocations):
+    """ERDW-247: `_create_multitraj` pairs adjacent rows via shift(-1), so unordered
+    relocations silently yield segments built from unrelated fixes. Callers cannot be
+    relied on to sort (the Data Warehouse API guarantees no row order), so
+    `from_relocations` must produce the same trajectory either way."""
+    ordered = _sorted_relocs(movebank_relocations)
+    shuffled = ecoscope.Relocations(ordered.gdf.sample(frac=1, random_state=0).reset_index(drop=True))
+
+    with pytest.warns(UserWarning, match="not time-ordered"):
+        from_shuffled = ecoscope.Trajectory.from_relocations(shuffled)
+    from_sorted = ecoscope.Trajectory.from_relocations(ordered)
+
+    compared = ["groupby_col", "segment_start", "segment_end", "timespan_seconds", "dist_meters", "speed_kmhr"]
+    pandas.testing.assert_frame_equal(
+        from_shuffled.gdf[compared].sort_values(["groupby_col", "segment_start"]).reset_index(drop=True),
+        from_sorted.gdf[compared].sort_values(["groupby_col", "segment_start"]).reset_index(drop=True),
+    )
+    # The failure mode this guards against: backwards pairs produce negative timespans.
+    assert (from_shuffled.gdf["timespan_seconds"] > 0).all()
+
+
+def test_trajectory_from_sorted_relocations_does_not_warn(movebank_relocations, recwarn):
+    """The already-ordered EarthRanger API path must not emit the reordering warning."""
+    ecoscope.Trajectory.from_relocations(_sorted_relocs(movebank_relocations))
+
+    assert [str(w.message) for w in recwarn if "not time-ordered" in str(w.message)] == []
+
+
 def test_trajectory_properties(movebank_relocations):
     trajectory = ecoscope.Trajectory.from_relocations(movebank_relocations)
 

@@ -111,6 +111,22 @@ def test_summarize_df_decimal_places_zero():
     assert result.loc[0, "Mean of A"] == 2.0
 
 
+def test_stat_summary_param_decimal_places_none_is_valid():
+    param = StatSummaryParam(display_name="Start", aggregator="min", column="started_at", decimal_places=None)
+    assert param.decimal_places is None
+
+
+def test_summarize_df_decimal_places_none_skips_rounding():
+    df = pd.DataFrame({"started_at": pd.to_datetime(["2024-01-01 08:00", "2024-01-02 09:00", "2024-01-03 10:00"])})
+    summary_params = [
+        StatSummaryParam(display_name="Start", aggregator="min", column="started_at", decimal_places=None),
+        StatSummaryParam(display_name="End", aggregator="max", column="started_at", decimal_places=None),
+    ]
+    result = summarize_df(df, summary_params)
+    assert result.loc[0, "Start"] == pd.Timestamp("2024-01-01 08:00")
+    assert result.loc[0, "End"] == pd.Timestamp("2024-01-03 10:00")
+
+
 def test_summarize_df_with_missing_column(sample_dataframe):
     with pytest.raises(ValueError):
         StatSummaryParam(display_name="Sum of A", aggregator="sum")
