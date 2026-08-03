@@ -46,6 +46,7 @@ from ._mapping import (
     title_case_columns_by_prefix,
 )
 from ._normalize import normalize_json_column, normalize_numeric_column
+from ._rings import apply_rings_correction_if_enabled, convert_to_nonoverlapping_rings
 from ._sorting import sort_values
 from ._sql_query import apply_sql_query
 from ._subjects import assign_subject_colors
@@ -94,6 +95,8 @@ __all__ = [
     "title_case_columns_by_prefix",
     "normalize_json_column",
     "normalize_numeric_column",
+    "apply_rings_correction_if_enabled",
+    "convert_to_nonoverlapping_rings",
     "sort_values",
     "apply_sql_query",
     "assign_subject_colors",
