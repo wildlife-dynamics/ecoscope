@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -11,7 +12,11 @@ from ecoscope.platform.tasks.results._dashboard import (
     EmumeratedWidgetSingleView,
     Metadata,
 )
-from ecoscope.platform.tasks.results._widget_types import GroupedWidget
+from ecoscope.platform.tasks.results._widget_types import (
+    FilesListSingleView,
+    GroupedFiles,
+    GroupedWidget,
+)
 
 DashboardFixture = tuple[list[GroupedWidget], Dashboard]
 
@@ -121,38 +126,44 @@ def test__get_view(single_filter_dashboard: DashboardFixture):
 def test_model_dump_views(single_filter_dashboard: DashboardFixture):
     _, dashboard = single_filter_dashboard
     assert dashboard.model_dump()["views"] == {
-        '{"TemporalGrouper_%B": "January"}': [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A Great Map",
-                "data": "/path/to/precomputed/jan/map.html",
-                "is_filtered": True,
-            },
-            {
-                "id": 1,
-                "widget_type": "graph",
-                "title": "A Cool Plot",
-                "data": "/path/to/precomputed/jan/plot.html",
-                "is_filtered": True,
-            },
-        ],
-        '{"TemporalGrouper_%B": "February"}': [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A Great Map",
-                "data": "/path/to/precomputed/feb/map.html",
-                "is_filtered": True,
-            },
-            {
-                "id": 1,
-                "widget_type": "graph",
-                "title": "A Cool Plot",
-                "data": "/path/to/precomputed/feb/plot.html",
-                "is_filtered": True,
-            },
-        ],
+        '{"TemporalGrouper_%B": "January"}': {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A Great Map",
+                    "data": "/path/to/precomputed/jan/map.html",
+                    "is_filtered": True,
+                },
+                {
+                    "id": 1,
+                    "widget_type": "graph",
+                    "title": "A Cool Plot",
+                    "data": "/path/to/precomputed/jan/plot.html",
+                    "is_filtered": True,
+                },
+            ],
+            "files": [],
+        },
+        '{"TemporalGrouper_%B": "February"}': {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A Great Map",
+                    "data": "/path/to/precomputed/feb/map.html",
+                    "is_filtered": True,
+                },
+                {
+                    "id": 1,
+                    "widget_type": "graph",
+                    "title": "A Cool Plot",
+                    "data": "/path/to/precomputed/feb/plot.html",
+                    "is_filtered": True,
+                },
+            ],
+            "files": [],
+        },
     }
 
 
@@ -272,24 +283,30 @@ def test__get_view_two_part_key(two_filter_dashboard: DashboardFixture):
 def test_model_dump_views_two_filter(two_filter_dashboard: DashboardFixture):
     _, dashboard = two_filter_dashboard
     assert dashboard.model_dump()["views"] == {
-        '{"TemporalGrouper_%B": "January", "TemporalGrouper_%Y": "2022"}': [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A Great Map",
-                "data": "/path/to/jan/2022/map.html",
-                "is_filtered": True,
-            },
-        ],
-        '{"TemporalGrouper_%B": "January", "TemporalGrouper_%Y": "2023"}': [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A Great Map",
-                "data": "/path/to/jan/2023/map.html",
-                "is_filtered": True,
-            },
-        ],
+        '{"TemporalGrouper_%B": "January", "TemporalGrouper_%Y": "2022"}': {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A Great Map",
+                    "data": "/path/to/jan/2022/map.html",
+                    "is_filtered": True,
+                },
+            ],
+            "files": [],
+        },
+        '{"TemporalGrouper_%B": "January", "TemporalGrouper_%Y": "2023"}': {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A Great Map",
+                    "data": "/path/to/jan/2023/map.html",
+                    "is_filtered": True,
+                },
+            ],
+            "files": [],
+        },
     }
 
 
@@ -441,24 +458,30 @@ def test_model_dump_views_three_filter(three_filter_dashboard: DashboardFixture)
     assert dashboard.model_dump()["views"] == {
         # Note sort_keys=True in `json.dumps` in _iter_views_json method of Dashboard
         # results in the json keys being ordered differently than the keys in the tuple
-        '{"TemporalGrouper_%B": "January", "TemporalGrouper_%Y": "2022", "subject_name": "jo"}': [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A Great Map",
-                "data": "/path/to/jan/2022/jo/map.html",
-                "is_filtered": True,
-            },
-        ],
-        '{"TemporalGrouper_%B": "January", "TemporalGrouper_%Y": "2022", "subject_name": "zo"}': [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A Great Map",
-                "data": "/path/to/jan/2022/zo/map.html",
-                "is_filtered": True,
-            },
-        ],
+        '{"TemporalGrouper_%B": "January", "TemporalGrouper_%Y": "2022", "subject_name": "jo"}': {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A Great Map",
+                    "data": "/path/to/jan/2022/jo/map.html",
+                    "is_filtered": True,
+                },
+            ],
+            "files": [],
+        },
+        '{"TemporalGrouper_%B": "January", "TemporalGrouper_%Y": "2022", "subject_name": "zo"}': {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A Great Map",
+                    "data": "/path/to/jan/2022/zo/map.html",
+                    "is_filtered": True,
+                },
+            ],
+            "files": [],
+        },
     }
 
 
@@ -606,38 +629,44 @@ def test__get_view_with_none_views(dashboard_with_none_views: DashboardFixture):
 def test_model_dump_views_with_none_views(dashboard_with_none_views: DashboardFixture):
     _, dashboard = dashboard_with_none_views
     assert dashboard.model_dump()["views"] == {
-        '{"TemporalGrouper_%B": "January"}': [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A Great Map",
-                "data": "/path/to/precomputed/jan/map.html",
-                "is_filtered": True,
-            },
-            {
-                "id": 1,
-                "widget_type": "graph",
-                "title": "A plot with only one view and no groupers",
-                "data": "/path/to/precomputed/single/plot.html",
-                "is_filtered": False,
-            },
-        ],
-        '{"TemporalGrouper_%B": "February"}': [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A Great Map",
-                "data": "/path/to/precomputed/feb/map.html",
-                "is_filtered": True,
-            },
-            {
-                "id": 1,
-                "widget_type": "graph",
-                "title": "A plot with only one view and no groupers",
-                "data": "/path/to/precomputed/single/plot.html",
-                "is_filtered": False,
-            },
-        ],
+        '{"TemporalGrouper_%B": "January"}': {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A Great Map",
+                    "data": "/path/to/precomputed/jan/map.html",
+                    "is_filtered": True,
+                },
+                {
+                    "id": 1,
+                    "widget_type": "graph",
+                    "title": "A plot with only one view and no groupers",
+                    "data": "/path/to/precomputed/single/plot.html",
+                    "is_filtered": False,
+                },
+            ],
+            "files": [],
+        },
+        '{"TemporalGrouper_%B": "February"}': {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A Great Map",
+                    "data": "/path/to/precomputed/feb/map.html",
+                    "is_filtered": True,
+                },
+                {
+                    "id": 1,
+                    "widget_type": "graph",
+                    "title": "A plot with only one view and no groupers",
+                    "data": "/path/to/precomputed/single/plot.html",
+                    "is_filtered": False,
+                },
+            ],
+            "files": [],
+        },
     }
 
 
@@ -735,22 +764,25 @@ def test_model_dump_views_with_all_none_views(
 ):
     _, dashboard = dashboard_with_all_none_views
     assert dashboard.model_dump()["views"] == {
-        "{}": [
-            {
-                "id": 0,
-                "widget_type": "map",
-                "title": "A map with only one view and no groupers",
-                "data": "/path/to/precomputed/single/map.html",
-                "is_filtered": False,
-            },
-            {
-                "id": 1,
-                "widget_type": "graph",
-                "title": "A plot with only one view and no groupers",
-                "data": "/path/to/precomputed/single/plot.html",
-                "is_filtered": False,
-            },
-        ],
+        "{}": {
+            "dashboard": [
+                {
+                    "id": 0,
+                    "widget_type": "map",
+                    "title": "A map with only one view and no groupers",
+                    "data": "/path/to/precomputed/single/map.html",
+                    "is_filtered": False,
+                },
+                {
+                    "id": 1,
+                    "widget_type": "graph",
+                    "title": "A plot with only one view and no groupers",
+                    "data": "/path/to/precomputed/single/plot.html",
+                    "is_filtered": False,
+                },
+            ],
+            "files": [],
+        },
     }
 
 
@@ -792,38 +824,44 @@ def outer_join_dashboard() -> Dashboard:
 
 def test_gather_dashboard_views_outer_join(outer_join_dashboard: Dashboard):
     dashboard_json = outer_join_dashboard.model_dump()
-    assert dashboard_json["views"]['{"TemporalGrouper_%B": "January"}'] == [
-        {
-            "id": 0,
-            "widget_type": "map",
-            "title": "A great map that happens to have only january data",
-            "data": "/path/to/precomputed/jan/map.html",
-            "is_filtered": True,
-        },
-        {
-            "id": 1,
-            "widget_type": "graph",
-            "title": "A plot that happens to have only february data",
-            "data": None,  # this is the outer join behavior in action
-            "is_filtered": False,
-        },
-    ]
-    assert dashboard_json["views"]['{"TemporalGrouper_%B": "February"}'] == [
-        {
-            "id": 0,
-            "widget_type": "map",
-            "title": "A great map that happens to have only january data",
-            "data": None,  # and this is the outer join behavior in action
-            "is_filtered": True,
-        },
-        {
-            "id": 1,
-            "widget_type": "graph",
-            "title": "A plot that happens to have only february data",
-            "data": "/path/to/precomputed/feb/plot.html",
-            "is_filtered": False,
-        },
-    ]
+    assert dashboard_json["views"]['{"TemporalGrouper_%B": "January"}'] == {
+        "dashboard": [
+            {
+                "id": 0,
+                "widget_type": "map",
+                "title": "A great map that happens to have only january data",
+                "data": "/path/to/precomputed/jan/map.html",
+                "is_filtered": True,
+            },
+            {
+                "id": 1,
+                "widget_type": "graph",
+                "title": "A plot that happens to have only february data",
+                "data": None,  # this is the outer join behavior in action
+                "is_filtered": False,
+            },
+        ],
+        "files": [],
+    }
+    assert dashboard_json["views"]['{"TemporalGrouper_%B": "February"}'] == {
+        "dashboard": [
+            {
+                "id": 0,
+                "widget_type": "map",
+                "title": "A great map that happens to have only january data",
+                "data": None,  # and this is the outer join behavior in action
+                "is_filtered": True,
+            },
+            {
+                "id": 1,
+                "widget_type": "graph",
+                "title": "A plot that happens to have only february data",
+                "data": "/path/to/precomputed/feb/plot.html",
+                "is_filtered": False,
+            },
+        ],
+        "files": [],
+    }
     # and note that the filters include all the months, even though no individual
     # widget has data for all of the months. this is also the outer join behavior.
     assert dashboard_json["filters"]["schema"]["properties"]["TemporalGrouper_%B"] == {
@@ -897,3 +935,52 @@ def test_gather_dashboard_with_no_time_range(single_filter_dashboard: DashboardF
         groupers=[TemporalGrouper(temporal_index=Month())],
     )
     assert_dashboards_equal(dashboard, expected_dashboard)
+
+
+def test_model_dump_views_with_files(single_filter_dashboard: DashboardFixture):
+    _, dashboard = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    dashboard.files = GroupedFiles(views={jan_key: [Path("/tmp/results/jan_events.parquet")]})
+
+    views = dashboard.model_dump(mode="json")["views"]
+    # widgets are nested under "dashboard", files under "files"
+    assert len(views['{"TemporalGrouper_%B": "January"}']["dashboard"]) == 2
+    assert views['{"TemporalGrouper_%B": "January"}']["files"] == [{"path": "/tmp/results/jan_events.parquet"}]
+    # february has no associated files
+    assert views['{"TemporalGrouper_%B": "February"}']["files"] == []
+
+
+def test_model_dump_views_with_ungrouped_files(dashboard_with_all_none_views: DashboardFixture):
+    _, dashboard = dashboard_with_all_none_views
+    dashboard.files = GroupedFiles(views={None: [Path("/tmp/results/all.parquet")]})
+
+    views = dashboard.model_dump(mode="json")["views"]
+    assert views["{}"]["files"] == [{"path": "/tmp/results/all.parquet"}]
+
+
+def test_gather_dashboard_with_files(single_filter_dashboard: DashboardFixture):
+    grouped_widgets, _ = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    feb_key = (("TemporalGrouper_%B", "=", "February"),)
+
+    dashboard: Dashboard = gather_dashboard(
+        details=WorkflowDetails(
+            name="A Great Dashboard",
+            description="A dashboard with a map and a plot",
+        ),
+        widgets=grouped_widgets,
+        groupers=[TemporalGrouper(temporal_index=Month())],
+        files=[
+            FilesListSingleView(files=[Path("/tmp/a.parquet")], view=jan_key),
+            FilesListSingleView(files=[Path("/tmp/b.parquet")], view=feb_key),
+        ],
+    )
+    assert dashboard.files == GroupedFiles(
+        views={
+            jan_key: [Path("/tmp/a.parquet")],
+            feb_key: [Path("/tmp/b.parquet")],
+        }
+    )
+    views = dashboard.model_dump(mode="json")["views"]
+    assert views['{"TemporalGrouper_%B": "January"}']["files"] == [{"path": "/tmp/a.parquet"}]
+    assert views['{"TemporalGrouper_%B": "February"}']["files"] == [{"path": "/tmp/b.parquet"}]
