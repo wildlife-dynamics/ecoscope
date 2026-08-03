@@ -26,7 +26,7 @@ def _fallback_to_none(obj: WidgetData | SkipSentinel) -> WidgetData | None:
     return None if isinstance(obj, SkipSentinel) else obj
 
 
-def _fallback_to_empty_list(obj: list[Path] | SkipSentinel) -> list[Path]:
+def _fallback_to_empty_list(obj: Path | list[Path] | SkipSentinel) -> Path | list[Path]:
     """Fallback function to convert SkipSentinel to an empty list."""
     return [] if isinstance(obj, SkipSentinel) else obj
 
@@ -263,10 +263,10 @@ def merge_widget_views(
 
 
 @register()
-def create_files_list_single_view(
+def create_files_single_view(
     files: Annotated[
-        list[Path],
-        Field(description="Paths to the files for this view"),
+        Path | list[Path],
+        Field(description="A file, or list of files, for this view"),
         SkippedDependencyFallback(_fallback_to_empty_list),
     ],
     view: Annotated[
@@ -274,16 +274,16 @@ def create_files_list_single_view(
         Field(description="If grouped, the view of the files", exclude=True),
     ] = None,
 ) -> Annotated[FilesListSingleView, Field(description="The files for a single view")]:
-    """Create a list of files associated with a single view.
+    """Create the files associated with a single view.
 
     Args:
-        files: Paths to the files for this view.
+        files: A single file, or a list of files, for this view.
         view: If grouped, the view of the files.
 
     Returns:
         The files for a single view.
     """
-    return FilesListSingleView(files=files, view=view)
+    return FilesListSingleView(files=[files] if isinstance(files, Path) else files, view=view)
 
 
 @register()

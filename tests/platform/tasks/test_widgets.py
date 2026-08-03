@@ -5,7 +5,7 @@ import pytest
 from wt_task.skip import SKIP_SENTINEL
 
 from ecoscope.platform.tasks.results import (
-    create_files_list_single_view,
+    create_files_single_view,
     create_map_v2_widget_single_view,
     create_map_widget_single_view,
     create_plot_widget_single_view,
@@ -455,18 +455,25 @@ def test_merge_grouped_widget_views_multiple_widgets_with_none_views():
     ]
 
 
-def test_create_files_list_single_view():
+def test_create_files_single_view():
     view = (("month", "=", "january"), ("year", "=", "2022"))
     files = [Path("/path/to/jan/2022/a.parquet"), Path("/path/to/jan/2022/b.parquet")]
 
-    single_view = create_files_list_single_view(files, view)
+    single_view = create_files_single_view(files, view)
     assert single_view == FilesListSingleView(files=files, view=view)
 
 
-def test_create_files_list_single_view_no_view():
+def test_create_files_single_view_single_path():
+    # a single Path is normalized to a one-element list
+    view = (("month", "=", "january"),)
+    single_view = create_files_single_view(Path("/path/to/a.parquet"), view)
+    assert single_view == FilesListSingleView(files=[Path("/path/to/a.parquet")], view=view)
+
+
+def test_create_files_single_view_no_view():
     files = [Path("/path/to/a.parquet")]
 
-    single_view = create_files_list_single_view(files)
+    single_view = create_files_single_view(files)
     assert single_view == FilesListSingleView(files=files, view=None)
 
 
