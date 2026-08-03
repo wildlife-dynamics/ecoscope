@@ -11,6 +11,7 @@ from ._aggregation import (
     dataframe_count,
     get_night_day_ratio,
 )
+from ._bbmm import calculate_brownian_bridge_range
 from ._calculate_feature_density import calculate_feature_density
 from ._create_meshgrid import create_meshgrid
 from ._density_weighting import (
@@ -19,7 +20,6 @@ from ._density_weighting import (
     get_weighting_column,
     normalize_density_units,
 )
-from ._bbmm import calculate_brownian_bridge_range
 from ._mcp import calculate_minimum_convex_polygon
 from ._patrol_density import set_patrol_weighting_spec
 from ._patrol_summary import set_encounter_rate_metrics, set_event_aggregation, set_patrol_summary_metrics
