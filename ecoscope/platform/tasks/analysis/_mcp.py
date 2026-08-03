@@ -7,12 +7,11 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.tasks.analysis._time_density import (
+    DEFAULT_PERCENTILES,
     TimeDensityReturnGDF,
     UDPercentiles,
     _coerce_percentile_strings_to_floats,
 )
-
-MCP_DEFAULT_PERCENTILES = ["50", "60", "70", "80", "90", "95", "99.999"]
 
 RelocationsAnnotation: TypeAlias = Annotated[
     AnyGeoDataFrame,
@@ -35,7 +34,7 @@ McpCrsAnnotation: TypeAlias = Annotated[
 McpPercentileAnnotation: TypeAlias = Annotated[
     list[UDPercentiles] | SkipJsonSchema[list[float]] | SkipJsonSchema[None],
     AdvancedField(
-        default=MCP_DEFAULT_PERCENTILES,
+        default=DEFAULT_PERCENTILES,
         description="Choose the percentile levels to display.",
         title="Percentile Levels",
         json_schema_extra={"uniqueItems": True, "minItems": 1},
