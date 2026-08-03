@@ -7,14 +7,13 @@ from wt_registry import register
 from ecoscope.platform.annotations import AdvancedField
 from ecoscope.platform.tasks.analysis._time_density import (
     CrsAnnotation,
+    DEFAULT_PERCENTILES,
     ExpansionFactorAnnotation,
     TimeDensityReturnGDF,
     TrajectoryAnnotation,
     UDPercentiles,
     _coerce_percentile_strings_to_floats,
 )
-
-BBMM_DEFAULT_PERCENTILES = ["50", "60", "70", "80", "90", "95", "99.999"]
 
 LocationErrorAnnotation: TypeAlias = Annotated[
     float,
@@ -38,7 +37,7 @@ TimeStepAnnotation: TypeAlias = Annotated[
 BbmmPercentileAnnotation: TypeAlias = Annotated[
     list[UDPercentiles] | SkipJsonSchema[list[float]] | SkipJsonSchema[None],
     AdvancedField(
-        default=BBMM_DEFAULT_PERCENTILES,
+        default=DEFAULT_PERCENTILES,
         description="Choose the percentile levels to display.",
         title="Percentile Levels",
         json_schema_extra={"uniqueItems": True, "minItems": 1},
