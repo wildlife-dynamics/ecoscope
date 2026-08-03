@@ -19,7 +19,6 @@ from ._ecoplot import (
 from ._map_utils import persist_geoarrow_for_pydeck, set_base_maps, set_layer_opacity
 from ._output_files import OutputFiles, gather_output_files
 from ._pydeck import (
-    compute_fitted_view_state,
     create_geojson_layer,
     create_hexagon_layer,
     create_icon_layer,
@@ -93,6 +92,5 @@ __all__ = [
     "rewrite_file_urls_for_screenshots",
     "view_state_from_geodataframes",
     "view_state_from_layers",
-    "compute_fitted_view_state",
     "persist_geoarrow_for_pydeck",
 ]
