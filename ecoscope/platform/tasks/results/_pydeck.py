@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal, Tuple, TypeAlias, Union
 
@@ -417,6 +418,56 @@ def view_state_from_layers(
     return view_state_from_geodataframes(
         geodataframes=gdfs,
         max_zoom=max_zoom,
+    )
+
+
+# pydeck's own bbox_to_zoom_level fits a bounding box into a single 256px
+# tile, which systematically under-zooms (the data appears as a small blob
+# surrounded by empty basemap) for maps that render smaller than a full
+# browser window - e.g. one view inside a dashboard's grid layout, sharing
+# its row with another widget. 650px is a representative width for that
+# smaller rendering context, tuned against common desktop dashboard layouts.
+_ASSUMED_VIEWPORT_WIDTH_PX = 650
+_TILE_WIDTH_PX = 256
+
+
+@register()
+def compute_fitted_view_state(
+    geo_layers: Annotated[
+        PydeckLayerDefinition | list[PydeckLayerDefinition] | SkipJsonSchema[None],
+        Field(description="The same layers passed to draw_map's own geo_layers.", exclude=True),
+    ] = None,
+    max_zoom: float = 20,
+) -> Annotated[ViewState, Field()]:
+    """Compute a `ViewState` fitted to `geo_layers`, corrected for rendering
+    inside a smaller-than-full-window map widget (see `_ASSUMED_VIEWPORT_WIDTH_PX`).
+
+    Meant to be called before `draw_map` and passed in as its own `view_state`
+    override, instead of leaving `view_state` unset and relying on
+    `draw_map`'s own uncorrected fit-to-bounds fallback.
+    """
+    if geo_layers is None:
+        geo_layers = []
+    elif isinstance(geo_layers, PydeckLayerDefinition):
+        geo_layers = [geo_layers]
+
+    # Mirrors draw_map's own zoom-layer selection exactly: if any layer opts in via
+    # zoom=True, bounds are computed from ONLY those layers; otherwise all layers.
+    zoom_layers = [layer for layer in geo_layers if layer.zoom]
+    if not zoom_layers:
+        zoom_layers = geo_layers
+
+    gdfs = [layer.geodataframe for layer in zoom_layers if layer.geodataframe is not None]
+    if not gdfs:
+        return ViewState()
+
+    view_state = view_state_from_geodataframes(geodataframes=gdfs, max_zoom=max_zoom)
+    corrected_zoom = view_state.zoom + math.log2(_ASSUMED_VIEWPORT_WIDTH_PX / _TILE_WIDTH_PX)
+
+    return ViewState(
+        longitude=view_state.longitude,
+        latitude=view_state.latitude,
+        zoom=min(max_zoom, corrected_zoom),
     )
 
 
