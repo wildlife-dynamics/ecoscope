@@ -7,7 +7,7 @@ import geopandas.testing
 import numpy as np
 import pandas as pd
 import pytest
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 
 import ecoscope
 from ecoscope.analysis.percentile import get_percentile_area
@@ -234,3 +234,56 @@ def test_estimate_motion_variance_returns_positive_value(synthetic_traj):
     sigma_m2 = estimate_motion_variance(synthetic_traj.gdf.to_crs("EPSG:3857"), location_error=20.0)
 
     assert sigma_m2 > 0
+
+
+def test_estimate_motion_variance_raises_with_too_few_fixes():
+    # A single segment has no interior fixes at all to leave one out from.
+    times = pd.date_range("2024-01-01", periods=2, freq="60s", tz="UTC")
+    tiny_gdf = gpd.GeoDataFrame(
+        [{"geometry": LineString([(0, 0), (10, 10)]), "segment_start": times[0], "segment_end": times[1]}],
+        crs="EPSG:3857",
+    )
+
+    with pytest.raises(ValueError, match="Not enough interior fixes"):
+        estimate_motion_variance(tiny_gdf, location_error=20.0)
+
+
+def test_calculate_bbmm_range_skips_segment_with_nonpositive_time_lag():
+    # Segment index 2's segment_end duplicates its own segment_start, giving
+    # it a zero time lag - it should be silently skipped, not raise or corrupt
+    # the surface built from the other (valid) segments.
+    times = pd.date_range("2024-01-01", periods=6, freq="60s", tz="UTC")
+    points = [(0, 0), (10, 10), (20, 20), (20, 20), (30, 30), (40, 40)]
+    rows = [
+        {
+            "geometry": LineString([points[i], points[i + 1]]),
+            "segment_start": times[i],
+            "segment_end": times[i] if i == 2 else times[i + 1],
+        }
+        for i in range(5)
+    ]
+    gdf = gpd.GeoDataFrame(rows, crs="EPSG:3857")
+
+    result = calculate_bbmm_range(gdf, crs="EPSG:3857", location_error=20.0)
+
+    assert result.data.shape[0] > 0 and result.data.shape[1] > 0
+
+
+def test_calculate_bbmm_range_skips_segment_outside_grid_window(synthetic_traj):
+    # `pad` (window_padding_sigma * sigma + pixel_size) always reaches at least
+    # one real pixel center in practice, so this branch is effectively
+    # unreachable with real data - shrink the grid `_build_grid` returns to an
+    # empty one instead, forcing every segment's own local window to miss it.
+    import ecoscope.analysis.UD.bbmm_range as bbmm_module
+
+    real_build_grid = bbmm_module._build_grid
+
+    def empty_grid(*args, **kwargs):
+        profile, col_centers, row_centers = real_build_grid(*args, **kwargs)
+        return profile, col_centers[:0], row_centers[:0]
+
+    with patch.object(bbmm_module, "_build_grid", side_effect=empty_grid):
+        result = calculate_bbmm_range(synthetic_traj.gdf, crs="EPSG:3857")
+
+    # Every segment was skipped, so nothing was accumulated onto the grid.
+    assert np.all(result.data == 0)
