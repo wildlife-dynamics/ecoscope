@@ -11,7 +11,13 @@ from shapely.geometry import Point
 
 import ecoscope
 from ecoscope.analysis.percentile import get_percentile_area
-from ecoscope.analysis.UD import calculate_etd_range, grid_size_from_geographic_extent
+from ecoscope.analysis.UD import (
+    calculate_bbmm_range,
+    calculate_etd_range,
+    calculate_mcp_range,
+    grid_size_from_geographic_extent,
+)
+from ecoscope.analysis.UD.bbmm_range import estimate_motion_variance
 
 
 @pytest.fixture
@@ -162,3 +168,69 @@ def test_grid_size_from_geographic_extent(movebank_relocations, aoi_gdf, sample_
     relocs_cell_size = grid_size_from_geographic_extent(relocs_gdf)
 
     assert aoi_gdf_cell_size < sample_observations_cell_size < relocs_cell_size
+
+
+def test_calculate_mcp_range_area_increases_with_percentile(movebank_relocations):
+    result = calculate_mcp_range(
+        relocations=movebank_relocations,
+        percentile_levels=[50.0, 90.0],
+        crs="ESRI:102022",
+        subject_id="Salif Keita",
+    )
+
+    assert list(result.columns) == ["subject_id", "percentile", "actual_percentile", "geometry"]
+    assert (result["subject_id"] == "Salif Keita").all()
+    assert result.crs.to_string() == "ESRI:102022"
+
+    area_by_percentile = result.set_index("percentile").area
+    assert area_by_percentile[90.0] > area_by_percentile[50.0]
+
+
+def test_calculate_mcp_range_accepts_geodataframe_directly(movebank_relocations):
+    from_relocations = calculate_mcp_range(relocations=movebank_relocations, percentile_levels=[90.0])
+    from_gdf = calculate_mcp_range(relocations=movebank_relocations.gdf, percentile_levels=[90.0])
+
+    geopandas.testing.assert_geodataframe_equal(from_relocations, from_gdf)
+
+
+def test_calculate_mcp_range_skips_percentile_with_too_few_fixes(movebank_relocations):
+    tiny_gdf = movebank_relocations.gdf.iloc[:5].copy()
+
+    result = calculate_mcp_range(relocations=tiny_gdf, percentile_levels=[90.0, 10.0])
+
+    # 10% of 5 fixes rounds down to 0, well under the 3-fix minimum for a hull.
+    assert list(result["percentile"]) == [90.0]
+
+
+def test_calculate_bbmm_range_returns_normalized_raster(synthetic_traj):
+    result = calculate_bbmm_range(synthetic_traj.gdf, crs="EPSG:3857")
+
+    assert isinstance(result, ecoscope.io.raster.RasterData)
+    assert result.data.shape[0] > 0 and result.data.shape[1] > 0
+    assert not np.all(result.data == 0)
+    # Normalized to integrate to ~1 over the grid.
+    pixel_size = grid_size_from_geographic_extent(synthetic_traj.gdf.to_crs("EPSG:3857"), scale_factor=500)
+    assert result.data.sum() * pixel_size * pixel_size == pytest.approx(1.0, abs=0.05)
+
+
+def test_calculate_bbmm_range_percentile_area_increases_with_percentile(synthetic_traj):
+    raster_data = calculate_bbmm_range(synthetic_traj.gdf, crs="EPSG:3857")
+    result = get_percentile_area(percentile_levels=[50.0, 90.0], raster_data=raster_data, subject_id="s1")
+
+    area_by_percentile = result.set_index("percentile").area
+    assert area_by_percentile[90.0] > area_by_percentile[50.0]
+
+
+def test_calculate_bbmm_range_excludes_segments_beyond_max_data_gap(synthetic_traj):
+    # Every segment in synthetic_traj is a 1-hour (3600s) gap; excluding anything
+    # under that drops every segment, leaving an all-zero (not normalized) surface
+    # rather than raising a division error.
+    result = calculate_bbmm_range(synthetic_traj.gdf, crs="EPSG:3857", max_data_gap_seconds=1000.0)
+
+    assert np.all(result.data == 0)
+
+
+def test_estimate_motion_variance_returns_positive_value(synthetic_traj):
+    sigma_m2 = estimate_motion_variance(synthetic_traj.gdf.to_crs("EPSG:3857"), location_error=20.0)
+
+    assert sigma_m2 > 0
