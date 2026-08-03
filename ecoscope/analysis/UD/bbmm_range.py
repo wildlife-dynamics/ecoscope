@@ -26,9 +26,7 @@ def _extract_points(trajectory_gdf: gpd.GeoDataFrame) -> tuple[np.ndarray, np.nd
     ends = np.array([geom.coords[-1] for geom in trajectory_gdf.geometry])
     xy = np.vstack([starts[[0]], ends])
     t = (
-        pd.concat([trajectory_gdf["segment_start"].iloc[0:1], trajectory_gdf["segment_end"]])
-        .astype("int64")
-        .to_numpy()
+        pd.concat([trajectory_gdf["segment_start"].iloc[0:1], trajectory_gdf["segment_end"]]).astype("int64").to_numpy()
         / 1e9
     )
     return xy, t
@@ -86,9 +84,7 @@ def estimate_motion_variance(trajectory_gdf: gpd.GeoDataFrame, location_error: f
         method="bounded",
         args=(midpoints, location_error),
     )
-    logger.info(
-        f"Estimated Brownian motion variance (sigma_m^2) = {result.x:.2f} m^2/s (from {len(midpoints)} fixes)"
-    )
+    logger.info(f"Estimated Brownian motion variance (sigma_m^2) = {result.x:.2f} m^2/s (from {len(midpoints)} fixes)")
     return float(result.x)
 
 
@@ -126,7 +122,7 @@ def calculate_bbmm_range(
     expansion_factor: float = 1.3,
     max_steps_per_segment: int = 50,
     window_padding_sigma: float = 4.0,
-    grid_scale_factor: float = 500.0,
+    grid_scale_factor: int = 500,
     max_data_gap_seconds: float | None = 14400.0,
 ) -> raster.RasterData:
     """Estimate a home range using the classic (non-dynamic) Brownian Bridge
@@ -155,7 +151,7 @@ def calculate_bbmm_range(
         Sizes the padded rectangular window each segment's density is
         computed over - a vectorization/performance device, not part of the
         Horne et al. 2007 formula itself.
-    grid_scale_factor : float
+    grid_scale_factor : int
         Passed to `grid_size_from_geographic_extent` to size the output
         grid's pixels from the trajectory's own geographic extent.
     max_data_gap_seconds : float or None

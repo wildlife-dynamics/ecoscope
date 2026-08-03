@@ -6,8 +6,8 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField
 from ecoscope.platform.tasks.analysis._time_density import (
-    CrsAnnotation,
     DEFAULT_PERCENTILES,
+    CrsAnnotation,
     ExpansionFactorAnnotation,
     TimeDensityReturnGDF,
     TrajectoryAnnotation,
