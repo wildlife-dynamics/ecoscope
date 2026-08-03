@@ -19,6 +19,7 @@ from ._density_weighting import (
     get_weighting_column,
     normalize_density_units,
 )
+from ._mcp import calculate_minimum_convex_polygon
 from ._patrol_density import set_patrol_weighting_spec
 from ._patrol_summary import set_encounter_rate_metrics, set_event_aggregation, set_patrol_summary_metrics
 from ._summary import aggregate_over_rows, summarize_df
@@ -31,6 +32,7 @@ from ._time_density import (
 from ._track_density import calculate_classified_track_density
 
 __all__ = [
+    "calculate_minimum_convex_polygon",
     "apply_arithmetic_operation",
     "apply_arithmetic_operation_over_rows",
     "dataframe_column_first_unique",
