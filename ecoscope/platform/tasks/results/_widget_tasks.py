@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field
@@ -7,6 +8,8 @@ from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 from ecoscope.platform.annotations import AdvancedField
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.tasks.results._widget_types import (
+    FilesListSingleView,
+    GroupedFiles,
     GroupedWidget,
     GroupedWidgetMergeKey,
     MapWidgetData,
@@ -21,6 +24,11 @@ from ecoscope.platform.tasks.transformation._unit import Quantity
 def _fallback_to_none(obj: WidgetData | SkipSentinel) -> WidgetData | None:
     """Fallback function to convert SkipSentinel to None."""
     return None if isinstance(obj, SkipSentinel) else obj
+
+
+def _fallback_to_empty_list(obj: list[Path] | SkipSentinel) -> list[Path]:
+    """Fallback function to convert SkipSentinel to an empty list."""
+    return [] if isinstance(obj, SkipSentinel) else obj
 
 
 @register()
@@ -252,3 +260,50 @@ def merge_widget_views(
         else:
             merged[gw.merge_key] |= gw
     return list(merged.values())
+
+
+@register()
+def create_files_list_single_view(
+    files: Annotated[
+        list[Path],
+        Field(description="Paths to the files for this view"),
+        SkippedDependencyFallback(_fallback_to_empty_list),
+    ],
+    view: Annotated[
+        CompositeFilter | None,
+        Field(description="If grouped, the view of the files", exclude=True),
+    ] = None,
+) -> Annotated[FilesListSingleView, Field(description="The files for a single view")]:
+    """Create a list of files associated with a single view.
+
+    Args:
+        files: Paths to the files for this view.
+        view: If grouped, the view of the files.
+
+    Returns:
+        The files for a single view.
+    """
+    return FilesListSingleView(files=files, view=view)
+
+
+@register()
+def merge_file_views(
+    files: Annotated[
+        list[FilesListSingleView],
+        Field(description="The file views to merge", exclude=True),
+    ],
+) -> Annotated[GroupedFiles, Field(description="The merged grouped files")]:
+    """Merge file single-views into a single `GroupedFiles`.
+
+    Files for the same view are concatenated.
+
+    Args:
+        files: The file views to merge.
+
+    Returns:
+        The merged grouped files.
+    """
+    merged = GroupedFiles(views={})
+    for f in files:
+        merged |= GroupedFiles.from_single_view(f)
+    return merged

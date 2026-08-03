@@ -77,3 +77,42 @@ class GroupedWidget(WidgetBase):
             )
         self.views.update(other.views)
         return self
+
+
+@dataclass
+class FilesListSingleView:
+    """A list of files associated with a single view of a dashboard.
+    Mirrors `WidgetSingleView`, but carries a list of file paths rather than widget data.
+    """
+
+    files: list[Path]
+    view: CompositeFilter | None = None
+
+
+@dataclass
+class GroupedFiles:
+    """The files associated with a dashboard across all of its views. Mirrors `GroupedWidget`,
+    but the per-view value is a list of file paths. Unlike a widget, files are not titled, so
+    a dashboard has a single `GroupedFiles` and there is no `merge_key`.
+    """
+
+    views: dict[CompositeFilter | None, list[Path]]
+
+    @classmethod
+    def from_single_view(cls, view: FilesListSingleView) -> "GroupedFiles":
+        """Construct a GroupedFiles from a FilesListSingleView.
+        The resulting GroupedFiles will have a single view.
+        """
+        return cls(views={view.view: view.files})
+
+    def get_view(self, view: CompositeFilter | None) -> list[Path]:
+        """Get the list of files for a specific view, or an empty list if there are none."""
+        return self.views.get(view, [])
+
+    def __ior__(self, other: "GroupedFiles") -> "GroupedFiles":
+        """Implements the in-place or operator, i.e. `|=`, used to merge two GroupedFiles.
+        Files for the same view key are concatenated rather than overwritten.
+        """
+        for key, paths in other.views.items():
+            self.views.setdefault(key, []).extend(paths)
+        return self
