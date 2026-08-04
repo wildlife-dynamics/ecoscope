@@ -93,17 +93,27 @@ class DashboardFile(BaseModel):
 
 
 class DashboardView(BaseModel):
-    """The contents of a single dashboard view: its widgets and associated files."""
+    """The contents of a single dashboard view: its widgets and associated files.
+
+    This wrapper is only used when a dashboard actually has associated files. When a
+    dashboard has no files, each view is serialized as a bare list of widgets (see
+    `Dashboard._iter_views_json`) to preserve the historical output shape.
+    """
 
     dashboard: list[EmumeratedWidgetSingleView]
     files: list[DashboardFile]
+
+
+# A view is serialized either as the file-aware `DashboardView` (when the dashboard has
+# files) or as a bare list of widgets (the historical shape, when it has none).
+SerializedView = DashboardView | list[EmumeratedWidgetSingleView]
 
 
 class DashboardJson(BaseModel):
     """A JSON-serialized representation of a dashboard."""
 
     filters: dict | None
-    views: dict[str, DashboardView]
+    views: dict[str, SerializedView]
     metadata: Metadata
     layout: list  # this is a placeholder for future use by server
 
@@ -174,28 +184,36 @@ class Dashboard(BaseModel):
             paths += self.files.get_view(view)
         return [DashboardFile(path=p) for p in paths]
 
+    def _view_value(self, view: CompositeFilter | None) -> SerializedView:
+        """Build the serialized value for a single view. If the dashboard has associated
+        files, wrap the widgets and files in a `DashboardView`. Otherwise, yield a bare
+        list of widgets, preserving the historical (file-free) output shape.
+        """
+        widgets = self._get_view(view)
+        if self.files is None:
+            return widgets
+        return DashboardView(dashboard=widgets, files=self._get_files(view))
+
     def _iter_views_json(
         self,
-    ) -> Generator[tuple[str, DashboardView], None, None]:
+    ) -> Generator[tuple[str, SerializedView], None, None]:
         """Iterate over all possible views for the dashboard, yielding key:value pairs for each,
         in which the keys are a JSON-stringified representation of the views key, and the values
-        are JSON-serializable `DashboardView`s containing the widgets and associated files.
+        are JSON-serializable views. When the dashboard has associated files, each value is a
+        `DashboardView` wrapping the widgets and files; otherwise it is a bare list of widgets.
         """
         if not self.keys:
             # if there is no grouping for any widgets, there is only one view
             # so yield it back as a single view with an empty key
-            yield json.dumps({}), DashboardView(dashboard=self._get_view(None), files=self._get_files(None))
+            yield json.dumps({}), self._view_value(None)
             # and then stop iterating
             return
         for k in self.keys:
             asdict = {attr: value for attr, _, value in k}
-            yield (
-                json.dumps(asdict, sort_keys=True),
-                DashboardView(dashboard=self._get_view(k), files=self._get_files(k)),
-            )
+            yield json.dumps(asdict, sort_keys=True), self._view_value(k)
 
     @property
-    def views_json(self) -> dict[str, DashboardView]:
+    def views_json(self) -> dict[str, SerializedView]:
         """A JSON-serializable dictionary for all possible views of the dashboard,
         keyed by JSON-stringified representations of the views keys.
         """
@@ -405,6 +423,15 @@ def gather_dashboard(
         grouped_files = GroupedFiles(views={})
         for f in as_flat_files:
             grouped_files |= GroupedFiles.from_single_view(f) if isinstance(f, FilesListSingleView) else f
+        # a `None` file key is ungrouped/global and applies to every view; any other file key
+        # must correspond to a dashboard view key, otherwise those files would be silently
+        # dropped at serialization time (mirrors the grouped-widget key check above).
+        valid_view_keys = all_view_keys if groupers else set()
+        file_view_keys = {k for k in grouped_files.views if k is not None}
+        assert file_view_keys <= valid_view_keys, (
+            f"File view keys must be ungrouped (`None`) or match the dashboard's view keys. "
+            f"Unexpected file view keys: {file_view_keys - valid_view_keys}"
+        )
 
     return Dashboard(
         widgets=grouped_widgets,
