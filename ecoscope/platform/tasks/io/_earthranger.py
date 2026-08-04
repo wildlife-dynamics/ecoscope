@@ -33,10 +33,19 @@ from ecoscope.platform.tasks.io._persist import (
 
 logger = logging.getLogger(__name__)
 
-# Temporary kill switch (ERDW-233): when False, event-related tasks bypass the
-# DWH/warehouse client and read event data from the EarthRanger API directly.
-# Observation/patrol tasks are unaffected. Flip to True (or remove the guards)
-# to re-enable DWH-backed event data.
+# Temporary kill switch (ERDW-233, ERDW-269): when False, every task whose DWH
+# read carries event data bypasses the warehouse client and reads from the
+# EarthRanger API instead. Observation tasks are unaffected and keep reading
+# from the DWH. Flip to True (or remove the guards) to re-enable DWH-backed
+# event data.
+#
+# `get_patrols` is covered because warehouse patrols nest their events:
+# `ERWarehouseClient.get_patrols` always sends `include_events=True` and offers
+# no way to turn it off, so DWH patrols cannot be enabled independently of DWH
+# events. It also must stay off until the API deployed in prod is new enough --
+# that build pins io-core v0.0.16, which predates `include_events`, so it
+# silently ignores the flag and answers with the patrol-only shape, whose
+# missing `patrol_segments` column then fails PatrolsDFSchema.
 DWH_EVENTS_ENABLED = False
 
 
@@ -873,9 +882,15 @@ def get_patrols(
     if status is None:
         status = ["done"]
 
-    if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server,
-        er_api_token=SecretStr(client.token) if client.token else None,
+    # Gated on DWH_EVENTS_ENABLED: warehouse patrols nest their events, so this
+    # read is event data and follows the same switch. Unlike the event tasks, the
+    # ER-API fallback below does not reference warehouse_client, so the walrus
+    # can stay inside the condition.
+    if DWH_EVENTS_ENABLED and (
+        warehouse_client := _make_warehouse_client_from_env(
+            er_site_url=client.server,
+            er_api_token=SecretStr(client.token) if client.token else None,
+        )
     ):
         from ecoscope.io.earthranger_utils import warehouse_patrols_table_to_patrols_df
 
