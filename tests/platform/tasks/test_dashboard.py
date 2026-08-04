@@ -942,6 +942,7 @@ def test_model_dump_views_with_files(single_filter_dashboard: DashboardFixture):
     jan_key = (("TemporalGrouper_%B", "=", "January"),)
     dashboard.files = GroupedFiles(views={jan_key: [Path("/tmp/results/jan_events.parquet")]})
 
+    # JSON-mode dump renders Path values as strings
     views = dashboard.model_dump(mode="json")["views"]
     # widgets are nested under "dashboard", files under "files"
     assert len(views['{"TemporalGrouper_%B": "January"}']["dashboard"]) == 2
@@ -956,6 +957,31 @@ def test_model_dump_views_with_ungrouped_files(dashboard_with_all_none_views: Da
 
     views = dashboard.model_dump(mode="json")["views"]
     assert views["{}"]["files"] == [{"path": "/tmp/results/all.parquet"}]
+
+
+def test_model_dump_views_with_ungrouped_and_grouped_files(single_filter_dashboard: DashboardFixture):
+    # a dashboard can combine ungrouped (null-view) files that apply to every view with
+    # per-view (grouped) files; each view surfaces the global file plus its own.
+    _, dashboard = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    feb_key = (("TemporalGrouper_%B", "=", "February"),)
+    dashboard.files = GroupedFiles(
+        views={
+            None: [Path("/tmp/results/all_events.csv")],
+            jan_key: [Path("/tmp/results/jan.csv")],
+            feb_key: [Path("/tmp/results/feb.csv")],
+        }
+    )
+
+    views = dashboard.model_dump(mode="json")["views"]
+    assert views['{"TemporalGrouper_%B": "January"}']["files"] == [
+        {"path": "/tmp/results/all_events.csv"},
+        {"path": "/tmp/results/jan.csv"},
+    ]
+    assert views['{"TemporalGrouper_%B": "February"}']["files"] == [
+        {"path": "/tmp/results/all_events.csv"},
+        {"path": "/tmp/results/feb.csv"},
+    ]
 
 
 def test_gather_dashboard_with_files(single_filter_dashboard: DashboardFixture):
@@ -984,3 +1010,28 @@ def test_gather_dashboard_with_files(single_filter_dashboard: DashboardFixture):
     views = dashboard.model_dump(mode="json")["views"]
     assert views['{"TemporalGrouper_%B": "January"}']["files"] == [{"path": "/tmp/a.parquet"}]
     assert views['{"TemporalGrouper_%B": "February"}']["files"] == [{"path": "/tmp/b.parquet"}]
+
+
+def test_gather_dashboard_with_ungrouped_and_grouped_files(single_filter_dashboard: DashboardFixture):
+    grouped_widgets, _ = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    feb_key = (("TemporalGrouper_%B", "=", "February"),)
+
+    dashboard: Dashboard = gather_dashboard(
+        details=WorkflowDetails(name="A Great Dashboard", description=""),
+        widgets=grouped_widgets,
+        groupers=[TemporalGrouper(temporal_index=Month())],
+        files=[
+            FilesListSingleView(files=[Path("/tmp/ungrouped.csv")], view=None),
+            GroupedFiles(views={jan_key: [Path("/tmp/jan.csv")], feb_key: [Path("/tmp/feb.csv")]}),
+        ],
+    )
+    views = dashboard.model_dump(mode="json")["views"]
+    assert views['{"TemporalGrouper_%B": "January"}']["files"] == [
+        {"path": "/tmp/ungrouped.csv"},
+        {"path": "/tmp/jan.csv"},
+    ]
+    assert views['{"TemporalGrouper_%B": "February"}']["files"] == [
+        {"path": "/tmp/ungrouped.csv"},
+        {"path": "/tmp/feb.csv"},
+    ]

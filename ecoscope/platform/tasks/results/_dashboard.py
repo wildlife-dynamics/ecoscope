@@ -160,13 +160,19 @@ class Dashboard(BaseModel):
         ]
 
     def _get_files(self, view: CompositeFilter | None) -> list[DashboardFile]:
-        """Get the files associated with a view. If the dashboard's files are ungrouped
-        (i.e. only have a `None` key), request `None` for that view, mirroring `_get_view`.
+        """Get the files associated with a view. Files keyed by `None` are ungrouped/global:
+        they apply to every view, so they are included in addition to any files keyed to the
+        requested `view`. This means a dashboard can combine ungrouped files (a single `None`
+        key) with grouped files (per-view keys) and both surface in each view.
         """
         if self.files is None:
             return []
-        key = view if list(self.files.views) != [None] else None
-        return [DashboardFile(path=p) for p in self.files.get_view(key)]
+        # global (ungrouped) files apply to every view...
+        paths = list(self.files.get_view(None))
+        # ...plus any files specific to the requested view
+        if view is not None:
+            paths += self.files.get_view(view)
+        return [DashboardFile(path=p) for p in paths]
 
     def _iter_views_json(
         self,
