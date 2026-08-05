@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 from pydantic import Field
 from wt_registry import register
@@ -32,7 +32,7 @@ def _fallback_to_empty_list(obj: Path | list[Path] | list[SkipSentinel] | SkipSe
         isinstance(obj, list) and all([isinstance(item, SkipSentinel) for item in obj])
     ):
         return []
-    return obj
+    return cast(Path | list[Path], obj)
 
 
 @register()
