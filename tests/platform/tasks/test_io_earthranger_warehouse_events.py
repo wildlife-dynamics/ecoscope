@@ -445,6 +445,7 @@ def test_get_events_via_warehouse_client_display_values():
     assert result["event_type_display"].tolist() == ["Human Wildlife Conflict"]
 
 
+@requires_dwh_events
 def test_get_patrols_via_warehouse_client_synthesized_shape_feeds_unpack():
     """Warehouse get_patrols is converted to the ER-native PatrolsDF shape:
     per-event synthesized geojson + per-segment time_range.start_time, and that
@@ -488,6 +489,7 @@ def test_get_patrols_via_warehouse_client_synthesized_shape_feeds_unpack():
     _assert_valid_events_gdf(events)
 
 
+@requires_dwh_events
 def test_get_patrols_via_warehouse_client_empty():
     mock_legacy_client = MagicMock()
     mock_warehouse_client = MagicMock()
@@ -844,3 +846,37 @@ def test_get_patrol_events_legacy_display_values_path():
 
     mock_legacy_client.get_patrol_events.assert_called_once()
     mock_legacy_client.get_event_type_display_names_from_events.assert_called_once()
+
+
+def test_get_patrols_respects_dwh_events_kill_switch():
+    """With the switch off, patrols come from the ER API even when the DWH is configured.
+
+    Distinct from test_get_patrols_warehouse_disabled_falls_back_to_legacy_client,
+    which simulates the warehouse not being configured at all: here a warehouse
+    client is available and must still be bypassed. Warehouse patrols nest their
+    events (the client always sends include_events=True), so they follow the
+    event kill switch rather than the observation path.
+    """
+    mock_legacy_client = MagicMock()
+    mock_legacy_client.get_patrols.return_value = pd.DataFrame()
+    mock_warehouse_client = MagicMock()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_patrols(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            patrol_types=["ecoscope_patrol"],
+            status=None,
+            raise_on_empty=False,
+        )
+
+    if DWH_EVENTS_ENABLED:
+        mock_warehouse_client.get_patrols.assert_called_once()
+        mock_legacy_client.get_patrols.assert_not_called()
+    else:
+        mock_legacy_client.get_patrols.assert_called_once()
+        mock_warehouse_client.get_patrols.assert_not_called()
+        assert result.empty

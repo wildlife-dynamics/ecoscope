@@ -42,6 +42,10 @@ def warehouse_observations_table():
                 "geometry": ga.array([Point(37.5 + i * 0.001, -2.5).wkb for i in range(n)]),
                 "fixtime": pa.array(list(fixtimes), type=pa.timestamp("ns", tz="UTC")),
                 "groupby_col": pa.array(subject_ids, type=pa.string()),
+                # Duplicates groupby_col, matching what the warehouse serves: io-core
+                # v0.0.23 added this so the subject id survives under the name the
+                # EarthRanger API path uses (`subject__id`, once `extra__` is stripped).
+                "extra__subject__id": pa.array(subject_ids, type=pa.string()),
                 "extra__subject__name": pa.array([f"subj-{s}" for s in subject_ids], type=pa.string()),
                 "extra__subject__subject_subtype": pa.array(["elephant"] * n, type=pa.string()),
                 "extra__subject__additional": pa.array(
