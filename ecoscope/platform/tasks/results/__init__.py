@@ -35,12 +35,14 @@ from ._pydeck import (
 )
 from ._table import draw_table
 from ._widget_tasks import (
+    create_files_single_view,
     create_map_v2_widget_single_view,
     create_map_widget_single_view,
     create_plot_widget_single_view,
     create_single_value_widget_single_view,
     create_table_widget_single_view,
     create_text_widget_single_view,
+    merge_file_views,
     merge_widget_views,
 )
 
@@ -70,7 +72,9 @@ __all__ = [
     "create_single_value_widget_single_view",
     "create_table_widget_single_view",
     "create_text_widget_single_view",
+    "create_files_single_view",
     "merge_widget_views",
+    "merge_file_views",
     "create_geojson_layer",
     "create_hexagon_layer",
     "create_icon_layer",
