@@ -26,9 +26,13 @@ def _fallback_to_none(obj: WidgetData | SkipSentinel) -> WidgetData | None:
     return None if isinstance(obj, SkipSentinel) else obj
 
 
-def _fallback_to_empty_list(obj: Path | list[Path] | SkipSentinel) -> Path | list[Path]:
+def _fallback_to_empty_list(obj: Path | list[Path] | list[SkipSentinel] | SkipSentinel) -> Path | list[Path]:
     """Fallback function to convert SkipSentinel to an empty list."""
-    return [] if isinstance(obj, SkipSentinel) else obj
+    if isinstance(obj, SkipSentinel) or (
+        isinstance(obj, list) and all([isinstance(item, SkipSentinel) for item in obj])
+    ):
+        return []
+    return obj
 
 
 @register()
