@@ -56,13 +56,13 @@ def test_is_night(movebank_relocations):
 )
 def test_nightday_ratio_salif_habiba(movebank_relocations, timezone):
     # movebank_relocations is subsampled to keep execution speed low.
-    # Expected (mean of per-day ratios) for the full data are:
-    # Habiba=0.45466853994690504, Salif Keita=1.9993308671543129.
+    # Expected (mean per-day night fraction mapped to ratio scale) for the full data are:
+    # Habiba=0.4420952421286314, Salif Keita=1.4269356538351035.
     movebank_relocations.gdf = movebank_relocations.gdf.groupby("groupby_col", group_keys=False).head(100)
 
     trajectory = Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
-        [0.38558629470445627, 2.233781684822844],
+        [0.3846537588901658, 1.7533910921716953],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     # test against a handful of timezone to ensure this calculation is agnotisc of input timezone
@@ -196,13 +196,35 @@ def test_nightday_ratio_multiday_three_day_split():
     assert astronomy.get_nightday_ratio(long_gdf) == pytest.approx(astronomy.get_nightday_ratio(split_gdf), rel=1e-9)
 
 
-def test_nightday_ratio_all_night_returns_nan():
-    # No daytime movement -> the denominator is zero and the ratio is NaN, not inf.
+def test_nightday_ratio_all_night_returns_inf():
+    # A day with movement only at night is fully nocturnal: its night fraction is 1.0, so it
+    # is kept (not dropped as it was under the old raw night/day ratio) and, being the only
+    # day, maps to an infinite ratio rather than NaN.
     segments = [
         Segment(EQUATOR, pd.Timestamp("2024-03-20 01:00", tz="UTC"), pd.Timestamp("2024-03-20 02:00", tz="UTC")),
         Segment(EQUATOR, pd.Timestamp("2024-03-20 22:00", tz="UTC"), pd.Timestamp("2024-03-20 23:00", tz="UTC")),
     ]
-    assert np.isnan(astronomy.get_nightday_ratio(build_segments(segments)))
+    assert np.isinf(astronomy.get_nightday_ratio(build_segments(segments)))
+
+
+def test_nightday_ratio_nocturnal_days_not_dropped():
+    # Two purely-nocturnal days (no daytime movement) plus one day with a little daytime
+    # movement. The nocturnal days must stay in the average as night fraction 1.0 rather than
+    # dropping out; the resulting ratio is far more nocturnal than the ~50 the old
+    # drop-the-inf-days behaviour reported (it kept only the single mixed day).
+    def night(day, dist):
+        return Segment(EQUATOR, pd.Timestamp(f"{day} 22:00", tz="UTC"), pd.Timestamp(f"{day} 23:00", tz="UTC"), dist)
+
+    segments = [
+        night("2024-03-20", 5000.0),  # pure-night day
+        night("2024-03-21", 5000.0),  # pure-night day
+        night("2024-03-22", 5000.0),  # mostly-night day ...
+        Segment(EQUATOR, pd.Timestamp("2024-03-22 12:00", tz="UTC"), pd.Timestamp("2024-03-22 13:00", tz="UTC"), 100.0),
+    ]
+    # Fractions: [1.0, 1.0, 5000/5100]; mean 0.99346; ratio m/(1-m).
+    mean_fraction = (1.0 + 1.0 + 5000.0 / 5100.0) / 3.0
+    expected = mean_fraction / (1.0 - mean_fraction)
+    assert astronomy.get_nightday_ratio(build_segments(segments)) == pytest.approx(expected, rel=1e-6)
 
 
 @pytest.mark.parametrize(
