@@ -233,12 +233,9 @@ def _segments_by_local_day(
 def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
     """Night/day movement ratio, averaged per local solar day.
 
-    Each local solar day contributes its night fraction, ``night / (night + day)``, and the
-    mean of those fractions across days is mapped back onto the night/day ratio scale
-    (``m / (1 - m)``) so 1.0 means balanced movement, >1 more nocturnal, <1 more diurnal.
-    Working in fractions rather than raw ``night / day`` ratios keeps a purely nocturnal day
-    (no daytime movement) in the average as a fraction of 1.0 instead of dropping it as an
-    infinite ratio; only days with no movement at all fall out.
+    Calculate the night fraction for each local solar day, ``night / (night + day)``, and the
+    mean of those fractions across days is mapped back to a ratio via (``mean_fraction / (1 - mean_fraction)``)
+    1.0 means balanced movement, >1 more nocturnal, <1 more diurnal.
 
     Multi-day segments are first split at local-midnight boundaries (see
     ``_segments_by_local_day``) so a single long gap-bridging segment is apportioned across
@@ -279,13 +276,12 @@ def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
 
     # Each day contributes its night fraction, night / (night + day), which stays in [0, 1]
     # even for a day with no daytime movement -- so a purely nocturnal day counts as 1.0
-    # rather than dropping out as an infinite night/day ratio (the raw night/day would divide
-    # by zero). Days with no movement at all (0 / 0) are NaN and fall out.
+    # rather than dropping out as infinite. Days with no movement at all (0 / 0) are NaN and ignored.
     night_fraction = (night_dist / (night_dist + day_dist)).dropna()
     if night_fraction.empty:
         return np.nan
 
-    # Map the mean fraction back onto the night/day ratio scale, so 1.0 still means balanced
+    # Map the mean fraction back onto a ratio scale, so 1.0 still means balanced
     # movement and the returned value stays comparable to the historical ratio. A fully
     # nocturnal track (mean fraction 1.0) maps to an infinite ratio.
     mean_fraction = night_fraction.mean()
