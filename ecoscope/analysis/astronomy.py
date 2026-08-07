@@ -129,7 +129,7 @@ def calculate_day_night_distance(
     daily_summary.loc[date, "night_distance"] += (1 - day_percent) * dist_meters
 
 
-def _to_epoch_ns(series: pd.Series) -> np.ndarray:
+def _datetimes_to_epochs(series: pd.Series) -> np.ndarray:
     """Datetime Series -> float array of absolute UTC nanoseconds, with NaT mapped to NaN.
 
     Comparing/subtracting in absolute UTC lets tz-aware and tz-naive inputs be mixed
@@ -139,9 +139,9 @@ def _to_epoch_ns(series: pd.Series) -> np.ndarray:
     dt = pd.to_datetime(series)
     if getattr(dt.dtype, "tz", None) is not None:
         dt = dt.dt.tz_convert("UTC").dt.tz_localize(None)
-    out = dt.to_numpy(dtype="datetime64[ns]").view("int64").astype("float64")
-    out[dt.isna().to_numpy()] = np.nan
-    return out
+    epochs = dt.to_numpy(dtype="datetime64[ns]").view("int64").astype("float64")
+    epochs[dt.isna().to_numpy()] = np.nan
+    return epochs
 
 
 def calculate_day_fraction(
@@ -165,10 +165,10 @@ def calculate_day_fraction(
     tz-naive inputs may be mixed. Rows with NaT sunrise/sunset (polar day/night that
     astroplan could not resolve) yield NaN, which the caller drops.
     """
-    start = _to_epoch_ns(segment_start)
-    end = _to_epoch_ns(segment_end)
-    rise = _to_epoch_ns(sunrise)
-    fall = _to_epoch_ns(sunset)
+    start = _datetimes_to_epochs(segment_start)
+    end = _datetimes_to_epochs(segment_end)
+    rise = _datetimes_to_epochs(sunrise)
+    fall = _datetimes_to_epochs(sunset)
 
     duration = end - start
     # Normal day: daylight is the window [sunrise, sunset]; day fraction is its overlap
@@ -188,15 +188,13 @@ def _segments_by_local_day(
     dist_meters: np.ndarray,
     start_points: gpd.GeoSeries,
 ) -> pd.DataFrame:
-    """Explode each segment into one piece per local solar day it spans.
+    """Cut a trajectory segment into pieces per local solar day it spans.
 
     A segment that straddles local midnight -- most often a long gap-bridging segment
     created when a tag stops reporting for hours or days -- is divided at each midnight,
     with its distance apportioned to each piece in proportion to that piece's share of
     the segment's duration. Single-day segments (the overwhelming majority) pass through
-    unchanged as a single piece. Without this split a multi-day segment is binned to one
-    date and its whole distance is attributed against that date's single sunrise/sunset,
-    which lands almost entirely on one side of the day.
+    unchanged.
 
     `local_*` are datetime64[ns] on the local-solar clock (UTC shifted by `offset`).
     Returned `segment_start`/`segment_end` are shifted back to absolute UTC so they line
