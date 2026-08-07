@@ -172,7 +172,7 @@ def test_summarize_df_night_day_ratio(trajectories):
     ]
     result = summarize_df(trajectories, summary_params)
     assert result.loc[0, "Total Dist Km"] == 2242.49
-    assert result.loc[0, "Night Day Ratio"] == 1.0
+    assert result.loc[0, "Night Day Ratio"] == 1.02
 
 
 def test_summarize_df_coverage_merged_le_unmerged(coverage_trajectories):

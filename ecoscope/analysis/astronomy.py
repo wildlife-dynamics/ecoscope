@@ -233,13 +233,14 @@ def _segments_by_local_day(
 
 
 def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
-    """Distance-weighted ratio of night to day movement over the whole trajectory.
+    """Mean of the per-local-day night/day movement ratios.
 
-    Returns ``sum(night_distance) / sum(day_distance)`` across every local solar day, so
-    each day contributes in proportion to how much movement it actually holds. (The earlier
-    mean of per-day ratios let sparsely-sampled days -- a single long gap-bridging segment,
-    for instance -- dominate the result far out of proportion to their real share of movement.)
-    Returns NaN when there is no daytime movement to divide by.
+    Each local solar day contributes ``night_distance / day_distance``, and the returned
+    value is the mean of those ratios across days (days with no daytime movement fall out).
+    Multi-day segments are first split at local-midnight boundaries (see
+    ``_segments_by_local_day``) so a single long gap-bridging segment is apportioned across
+    the days it spans instead of being scored entirely against one day's sunrise/sunset.
+    Returns NaN if no day has daytime movement.
     """
     start_points = gpd.GeoSeries(
         shapely.get_point(gdf["geometry"].values, 0),
@@ -268,9 +269,8 @@ def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
     )
 
     dist = pieces["dist_meters"].to_numpy()
-    total_day = np.nansum(day_fraction * dist)
-    total_night = np.nansum((1.0 - day_fraction) * dist)
+    day_dist = pd.Series(day_fraction * dist, index=pieces.index).groupby(pieces["local_date"]).sum()
+    night_dist = pd.Series((1.0 - day_fraction) * dist, index=pieces.index).groupby(pieces["local_date"]).sum()
 
-    if total_day == 0:
-        return float("nan")
-    return float(total_night / total_day)
+    night_day_ratio = night_dist / day_dist
+    return night_day_ratio.replace([np.inf, -np.inf], np.nan).dropna().mean()

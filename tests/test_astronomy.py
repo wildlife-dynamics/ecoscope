@@ -56,13 +56,13 @@ def test_is_night(movebank_relocations):
 )
 def test_nightday_ratio_salif_habiba(movebank_relocations, timezone):
     # movebank_relocations is subsampled to keep execution speed low.
-    # Expected (distance-weighted) ratios for the full data are:
-    # Habiba=0.4517557675884352, Salif Keita=1.5436554776386255.
+    # Expected (mean of per-day ratios) for the full data are:
+    # Habiba=0.45466853994690504, Salif Keita=1.9993308671543129.
     movebank_relocations.gdf = movebank_relocations.gdf.groupby("groupby_col", group_keys=False).head(100)
 
     trajectory = Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
-        [0.3804130629156344, 1.5455983218342175],
+        [0.38558629470445627, 2.233781684822844],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     # test against a handful of timezone to ensure this calculation is agnotisc of input timezone
@@ -150,9 +150,10 @@ def test_nightday_ratio_multiday_segment_split():
 
     long_ratio = astronomy.get_nightday_ratio(long_gdf)
     assert long_ratio == pytest.approx(astronomy.get_nightday_ratio(split_gdf), rel=1e-9)
-    # The segment covers two full daylight spans, so a "mostly night" answer (what the
-    # unsplit, single-boundary calculation produced) would be wrong.
-    assert 1.0 < long_ratio < 2.5
+    # Splitting keeps the result moderate (the night-heavy evening/morning edge days pull the
+    # per-day mean above 1). The unsplit single-boundary calc would instead dump the whole
+    # segment onto one day's sunrise/sunset and inflate the ratio into the hundreds.
+    assert 1.0 < long_ratio < 10.0
 
 
 @pytest.mark.parametrize("lat", [-33.0, -10.0, 45.0])
