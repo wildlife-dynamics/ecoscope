@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -11,7 +12,11 @@ from ecoscope.platform.tasks.results._dashboard import (
     EmumeratedWidgetSingleView,
     Metadata,
 )
-from ecoscope.platform.tasks.results._widget_types import GroupedWidget
+from ecoscope.platform.tasks.results._widget_types import (
+    FilesListSingleView,
+    GroupedFiles,
+    GroupedWidget,
+)
 
 DashboardFixture = tuple[list[GroupedWidget], Dashboard]
 
@@ -897,3 +902,155 @@ def test_gather_dashboard_with_no_time_range(single_filter_dashboard: DashboardF
         groupers=[TemporalGrouper(temporal_index=Month())],
     )
     assert_dashboards_equal(dashboard, expected_dashboard)
+
+
+def test_model_dump_views_with_files(single_filter_dashboard: DashboardFixture):
+    _, dashboard = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    dashboard.files = GroupedFiles(views={jan_key: [Path("/tmp/results/jan_events.parquet")]})
+
+    # JSON-mode dump renders Path values as strings
+    views = dashboard.model_dump(mode="json")["views"]
+    # widgets are nested under "dashboard", files under "files"
+    assert len(views['{"TemporalGrouper_%B": "January"}']["dashboard"]) == 2
+    assert views['{"TemporalGrouper_%B": "January"}']["files"] == [{"path": "/tmp/results/jan_events.parquet"}]
+    # february has no associated files
+    assert views['{"TemporalGrouper_%B": "February"}']["files"] == []
+
+
+def test_model_dump_views_with_ungrouped_files(dashboard_with_all_none_views: DashboardFixture):
+    _, dashboard = dashboard_with_all_none_views
+    dashboard.files = GroupedFiles(views={None: [Path("/tmp/results/all.parquet")]})
+
+    views = dashboard.model_dump(mode="json")["views"]
+    assert views["{}"]["files"] == [{"path": "/tmp/results/all.parquet"}]
+
+
+def test_model_dump_views_with_ungrouped_and_grouped_files(single_filter_dashboard: DashboardFixture):
+    # a dashboard can combine ungrouped (null-view) files that apply to every view with
+    # per-view (grouped) files; each view surfaces the global file plus its own.
+    _, dashboard = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    feb_key = (("TemporalGrouper_%B", "=", "February"),)
+    dashboard.files = GroupedFiles(
+        views={
+            None: [Path("/tmp/results/all_events.csv")],
+            jan_key: [Path("/tmp/results/jan.csv")],
+            feb_key: [Path("/tmp/results/feb.csv")],
+        }
+    )
+
+    views = dashboard.model_dump(mode="json")["views"]
+    assert views['{"TemporalGrouper_%B": "January"}']["files"] == [
+        {"path": "/tmp/results/all_events.csv"},
+        {"path": "/tmp/results/jan.csv"},
+    ]
+    assert views['{"TemporalGrouper_%B": "February"}']["files"] == [
+        {"path": "/tmp/results/all_events.csv"},
+        {"path": "/tmp/results/feb.csv"},
+    ]
+
+
+def test_gather_dashboard_with_files(single_filter_dashboard: DashboardFixture):
+    grouped_widgets, _ = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    feb_key = (("TemporalGrouper_%B", "=", "February"),)
+
+    dashboard: Dashboard = gather_dashboard(
+        details=WorkflowDetails(
+            name="A Great Dashboard",
+            description="A dashboard with a map and a plot",
+        ),
+        widgets=grouped_widgets,
+        groupers=[TemporalGrouper(temporal_index=Month())],
+        files=[
+            FilesListSingleView(files=[Path("/tmp/a.parquet")], view=jan_key),
+            FilesListSingleView(files=[Path("/tmp/b.parquet")], view=feb_key),
+        ],
+    )
+    assert dashboard.files == GroupedFiles(
+        views={
+            jan_key: [Path("/tmp/a.parquet")],
+            feb_key: [Path("/tmp/b.parquet")],
+        }
+    )
+    views = dashboard.model_dump(mode="json")["views"]
+    assert views['{"TemporalGrouper_%B": "January"}']["files"] == [{"path": "/tmp/a.parquet"}]
+    assert views['{"TemporalGrouper_%B": "February"}']["files"] == [{"path": "/tmp/b.parquet"}]
+
+
+def test_gather_dashboard_with_ungrouped_and_grouped_files(single_filter_dashboard: DashboardFixture):
+    grouped_widgets, _ = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    feb_key = (("TemporalGrouper_%B", "=", "February"),)
+
+    dashboard: Dashboard = gather_dashboard(
+        details=WorkflowDetails(name="A Great Dashboard", description=""),
+        widgets=grouped_widgets,
+        groupers=[TemporalGrouper(temporal_index=Month())],
+        files=[
+            FilesListSingleView(files=[Path("/tmp/ungrouped.csv")], view=None),
+            GroupedFiles(views={jan_key: [Path("/tmp/jan.csv")], feb_key: [Path("/tmp/feb.csv")]}),
+        ],
+    )
+    views = dashboard.model_dump(mode="json")["views"]
+    assert views['{"TemporalGrouper_%B": "January"}']["files"] == [
+        {"path": "/tmp/ungrouped.csv"},
+        {"path": "/tmp/jan.csv"},
+    ]
+    assert views['{"TemporalGrouper_%B": "February"}']["files"] == [
+        {"path": "/tmp/ungrouped.csv"},
+        {"path": "/tmp/feb.csv"},
+    ]
+
+
+def test_model_dump_views_no_files_preserves_bare_list_shape(single_filter_dashboard: DashboardFixture):
+    # a dashboard with no associated files serializes each view as a bare list of widgets,
+    # preserving the historical output shape (no "dashboard"/"files" wrapper).
+    _, dashboard = single_filter_dashboard
+    assert dashboard.files is None
+
+    views = dashboard.model_dump(mode="json")["views"]
+    jan = views['{"TemporalGrouper_%B": "January"}']
+    assert isinstance(jan, list)
+    assert jan[0]["widget_type"] == "map"
+
+
+def test_model_dump_views_with_files_uses_wrapper_shape(single_filter_dashboard: DashboardFixture):
+    # as soon as a dashboard has any files, every view switches to the wrapped
+    # {"dashboard": [...], "files": [...]} shape, even views with no files of their own.
+    _, dashboard = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+    dashboard.files = GroupedFiles(views={jan_key: [Path("/tmp/results/jan.parquet")]})
+
+    views = dashboard.model_dump(mode="json")["views"]
+    for view in views.values():
+        assert set(view) == {"dashboard", "files"}
+
+
+def test_gather_dashboard_rejects_file_key_not_matching_view(single_filter_dashboard: DashboardFixture):
+    # files keyed to a view the dashboard doesn't have would be silently dropped at
+    # serialization time, so gather_dashboard rejects them (mirrors the grouped-widget check).
+    grouped_widgets, _ = single_filter_dashboard
+    march_key = (("TemporalGrouper_%B", "=", "March"),)  # no widget produces a March view
+
+    with pytest.raises(AssertionError, match="File view keys"):
+        gather_dashboard(
+            details=WorkflowDetails(name="A Great Dashboard", description=""),
+            widgets=grouped_widgets,
+            groupers=[TemporalGrouper(temporal_index=Month())],
+            files=[FilesListSingleView(files=[Path("/tmp/march.parquet")], view=march_key)],
+        )
+
+
+def test_gather_dashboard_rejects_grouped_files_without_groupers(single_filter_dashboard: DashboardFixture):
+    # with no groupers there are no view keys, so any non-`None` file key is invalid.
+    grouped_widgets, _ = single_filter_dashboard
+    jan_key = (("TemporalGrouper_%B", "=", "January"),)
+
+    with pytest.raises(AssertionError, match="File view keys"):
+        gather_dashboard(
+            details=WorkflowDetails(name="A Great Dashboard", description=""),
+            widgets=grouped_widgets,
+            files=[FilesListSingleView(files=[Path("/tmp/jan.parquet")], view=jan_key)],
+        )
