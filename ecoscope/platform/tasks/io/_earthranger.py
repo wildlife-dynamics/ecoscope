@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, Literal, cast
 
 import pandas as pd
@@ -32,10 +33,19 @@ from ecoscope.platform.tasks.io._persist import (
 
 logger = logging.getLogger(__name__)
 
-# Temporary kill switch (ERDW-233): when False, event-related tasks bypass the
-# DWH/warehouse client and read event data from the EarthRanger API directly.
-# Observation/patrol tasks are unaffected. Flip to True (or remove the guards)
-# to re-enable DWH-backed event data.
+# Temporary kill switch (ERDW-233, ERDW-269): when False, every task whose DWH
+# read carries event data bypasses the warehouse client and reads from the
+# EarthRanger API instead. Observation tasks are unaffected and keep reading
+# from the DWH. Flip to True (or remove the guards) to re-enable DWH-backed
+# event data.
+#
+# `get_patrols` is covered because warehouse patrols nest their events:
+# `ERWarehouseClient.get_patrols` always sends `include_events=True` and offers
+# no way to turn it off, so DWH patrols cannot be enabled independently of DWH
+# events. It also must stay off until the API deployed in prod is new enough --
+# that build pins io-core v0.0.16, which predates `include_events`, so it
+# silently ignores the flag and answers with the patrol-only shape, whose
+# missing `patrol_segments` column then fails PatrolsDFSchema.
 DWH_EVENTS_ENABLED = False
 
 
@@ -56,6 +66,35 @@ def _make_warehouse_client_from_env(er_site_url: str, er_api_token: SecretStr | 
             warehouse_base_url=warehouse_api_base_url,
         )
     return None
+
+
+def _sort_warehouse_relocations(gdf):
+    """Return warehouse-sourced relocations in a stable, time-ordered layout.
+
+    The warehouse API makes no row-order guarantee: its DuckDB query path has no
+    ``ORDER BY`` and its parallel scan order varies between runs, whereas the
+    EarthRanger API path is sorted by ``recorded_at``. `Trajectory.from_relocations`
+    pairs adjacent rows via ``shift(-1)``, so unordered input yields segments built
+    from unrelated fixes -- silently wrong output rather than an error. Sorting here
+    also makes the persisted relocations download and its content-hash filename
+    reproducible across runs.
+
+    ``groupby_col`` and ``fixtime`` are required rather than best-effort: degrading to
+    a partial sort on schema drift would silently reintroduce the corruption above.
+    ``extra__source`` is an optional tie-break (one subject may have several sources
+    reporting the same instant) so repeated runs over unchanged data agree.
+
+    Note the sort is ``fixtime``-major within each group, matching the EarthRanger API
+    path (which sorts on ``recorded_at`` alone); where a group spans several sources
+    their fixes interleave, deliberately, for parity.
+    """
+    missing = {"groupby_col", "fixtime"} - set(gdf.columns)
+    if missing:
+        raise ValueError(f"Warehouse observations are missing required sort keys: {sorted(missing)}")
+    sort_keys = ["groupby_col", "fixtime"]
+    if "extra__source" in gdf.columns:
+        sort_keys.append("extra__source")
+    return gdf.sort_values(sort_keys, kind="stable", ignore_index=True)
 
 
 def _strip_whitespace_from_list_items(v: list[str]):
@@ -451,8 +490,23 @@ def get_subjectgroup_observations(
             description="Filter observations based on exclusion flags.",
         ),
     ] = "clean",
+    include_subject_additional: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            title="Include Subject Additional",
+            description="Whether or not to include the subject's free-form `additional` JSON",
+        ),
+    ] = False,
 ) -> SubjectGroupObservationsGDF | EmptyDataFrame:
-    """Get observations for a subject group from EarthRanger."""
+    """Get observations for a subject group from EarthRanger.
+
+    ``include_subject_additional`` only affects the warehouse path. The EarthRanger API
+    path serves the subject's ``additional`` JSON unconditionally (it rides along with
+    ``include_subject_details``), whereas the warehouse serves the column null unless
+    asked, so consumers of ``subject__additional`` -- e.g. ``assign_subject_colors``,
+    which reads its ``rgb`` key -- must opt in to get the same data from both backends.
+    """
     from ecoscope.relocations import Relocations
 
     filter_int = _EXCLUSION_FILTER_TO_INT[filter]
@@ -472,8 +526,9 @@ def get_subjectgroup_observations(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
             filter=filter_int,
+            include_subject_additional=include_subject_additional,
         )
-        subject_group_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+        subject_group_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
         subject_group_obs_relocs = client.get_subjectgroup_observations(
             subject_group_name=subject_group_name,
@@ -526,7 +581,7 @@ def get_patrol_observations(
             sub_page_size=sub_page_size,
             patrols_overlap_daterange=patrols_overlap_daterange,
         )
-        patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+        patrol_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
         patrol_obs_relocs = client.get_patrol_observations_with_patrol_filter(
             since=time_range.since.isoformat(),
@@ -827,9 +882,15 @@ def get_patrols(
     if status is None:
         status = ["done"]
 
-    if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server,
-        er_api_token=SecretStr(client.token) if client.token else None,
+    # Gated on DWH_EVENTS_ENABLED: warehouse patrols nest their events, so this
+    # read is event data and follows the same switch. Unlike the event tasks, the
+    # ER-API fallback below does not reference warehouse_client, so the walrus
+    # can stay inside the condition.
+    if DWH_EVENTS_ENABLED and (
+        warehouse_client := _make_warehouse_client_from_env(
+            er_site_url=client.server,
+            er_api_token=SecretStr(client.token) if client.token else None,
+        )
     ):
         from ecoscope.io.earthranger_utils import warehouse_patrols_table_to_patrols_df
 
@@ -880,7 +941,7 @@ def get_patrol_observations_from_patrols_df(
             include_patrol_details=include_patrol_details,
             sub_page_size=sub_page_size,
         )
-        patrol_obs_relocs = gpd.GeoDataFrame.from_arrow(table)
+        patrol_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
         patrol_obs_relocs = client.get_patrol_observations(
             patrols_df=patrols_df,
@@ -1225,15 +1286,16 @@ def download_grouped_event_attachments(
             for result in results:
                 file_id = result["id"]
                 filename = result["filename"]
+                basename = Path(filename).name
 
                 response = client._get(  # type: ignore[attr-defined]
                     f"activity/event/{event_id}/file/{file_id}/original/{filename}",
                     return_response=True,
                 )
 
-                _persist_bytes(response.content, event_dir, filename)
+                _persist_bytes(response.content, event_dir, basename)
 
-                downloaded_paths.append(f"{attachments_subdir}/{event_dir_name}/{filename}")
+                downloaded_paths.append(f"{attachments_subdir}/{event_dir_name}/{basename}")
 
     return downloaded_paths
 

@@ -15,6 +15,13 @@ def set_string_var(
 
 
 @register()
+def set_optional_string_var(
+    var: Annotated[str, Field(title="")] = "",
+) -> str:
+    return var
+
+
+@register()
 def set_bool_var(
     var: Annotated[bool, Field(title="")],
 ) -> bool:

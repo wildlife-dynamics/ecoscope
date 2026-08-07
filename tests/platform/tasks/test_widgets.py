@@ -1,20 +1,29 @@
 import re
+from pathlib import Path
 
 import pytest
+from wt_task.skip import SKIP_SENTINEL
 
 from ecoscope.platform.tasks.results import (
+    create_files_single_view,
     create_map_v2_widget_single_view,
     create_map_widget_single_view,
     create_plot_widget_single_view,
     create_single_value_widget_single_view,
     create_table_widget_single_view,
     create_text_widget_single_view,
+    merge_file_views,
     merge_widget_views,
 )
 from ecoscope.platform.tasks.results._pydeck import DeckJsonSpec
 from ecoscope.platform.tasks.results._widget_tasks import (
     GroupedWidget,
     WidgetSingleView,
+    _fallback_to_empty_list,
+)
+from ecoscope.platform.tasks.results._widget_types import (
+    FilesListSingleView,
+    GroupedFiles,
 )
 from ecoscope.platform.tasks.transformation._unit import Quantity, Unit
 
@@ -444,3 +453,91 @@ def test_merge_grouped_widget_views_multiple_widgets_with_none_views():
             is_filtered=False,
         ),
     ]
+
+
+def test_create_files_single_view():
+    view = (("month", "=", "january"), ("year", "=", "2022"))
+    files = [Path("/path/to/jan/2022/a.parquet"), Path("/path/to/jan/2022/b.parquet")]
+
+    single_view = create_files_single_view(files, view)
+    assert single_view == FilesListSingleView(files=files, view=view)
+
+
+def test_create_files_single_view_single_path():
+    # a single Path is normalized to a one-element list
+    view = (("month", "=", "january"),)
+    single_view = create_files_single_view(Path("/path/to/a.parquet"), view)
+    assert single_view == FilesListSingleView(files=[Path("/path/to/a.parquet")], view=view)
+
+
+def test_create_files_single_view_no_view():
+    files = [Path("/path/to/a.parquet")]
+
+    single_view = create_files_single_view(files)
+    assert single_view == FilesListSingleView(files=files, view=None)
+
+
+def test_fallback_to_empty_list():
+    # a skipped upstream dependency falls back to an empty list
+    assert _fallback_to_empty_list(SKIP_SENTINEL) == []
+    # a real list passes through unchanged
+    files = [Path("/path/to/a.parquet")]
+    assert _fallback_to_empty_list(files) is files
+
+
+def test_merge_file_views_distinct_keys():
+    jan = (("month", "=", "january"),)
+    feb = (("month", "=", "february"),)
+
+    merged = merge_file_views(
+        [
+            FilesListSingleView(files=[Path("/jan.parquet")], view=jan),
+            FilesListSingleView(files=[Path("/feb.parquet")], view=feb),
+        ]
+    )
+    assert merged == GroupedFiles(
+        views={
+            jan: [Path("/jan.parquet")],
+            feb: [Path("/feb.parquet")],
+        }
+    )
+
+
+def test_merge_file_views_duplicate_keys_concatenate():
+    jan = (("month", "=", "january"),)
+
+    merged = merge_file_views(
+        [
+            FilesListSingleView(files=[Path("/jan_a.parquet")], view=jan),
+            FilesListSingleView(files=[Path("/jan_b.parquet")], view=jan),
+        ]
+    )
+    assert merged == GroupedFiles(views={jan: [Path("/jan_a.parquet"), Path("/jan_b.parquet")]})
+
+
+def test_grouped_files_from_single_view():
+    jan = (("month", "=", "january"),)
+    single_view = FilesListSingleView(files=[Path("/jan.parquet")], view=jan)
+    assert GroupedFiles.from_single_view(single_view) == GroupedFiles(views={jan: [Path("/jan.parquet")]})
+
+
+def test_grouped_files_get_view():
+    jan = (("month", "=", "january"),)
+    feb = (("month", "=", "february"),)
+    grouped = GroupedFiles(views={jan: [Path("/jan.parquet")]})
+    assert grouped.get_view(jan) == [Path("/jan.parquet")]
+    # a missing view returns an empty list rather than raising
+    assert grouped.get_view(feb) == []
+
+
+def test_grouped_files_ior_concatenates():
+    jan = (("month", "=", "january"),)
+    feb = (("month", "=", "february"),)
+    grouped = GroupedFiles(views={jan: [Path("/jan_a.parquet")]})
+    grouped |= GroupedFiles(views={jan: [Path("/jan_b.parquet")], feb: [Path("/feb.parquet")]})
+    assert grouped == GroupedFiles(
+        views={
+            jan: [Path("/jan_a.parquet"), Path("/jan_b.parquet")],
+            feb: [Path("/feb.parquet")],
+        }
+    )

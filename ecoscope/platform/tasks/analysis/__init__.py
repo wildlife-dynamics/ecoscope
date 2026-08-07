@@ -14,6 +14,7 @@ from ._aggregation import (
 from ._calculate_feature_density import calculate_feature_density
 from ._create_meshgrid import create_meshgrid
 from ._density_weighting import (
+    get_density_colormap,
     get_density_legend_title,
     get_weighting_column,
     normalize_density_units,
@@ -27,6 +28,7 @@ from ._time_density import (
     calculate_elliptical_time_density,
     calculate_linear_time_density,
 )
+from ._track_density import calculate_classified_track_density
 
 __all__ = [
     "apply_arithmetic_operation",
@@ -40,8 +42,10 @@ __all__ = [
     "dataframe_column_sum",
     "dataframe_count",
     "get_night_day_ratio",
+    "calculate_classified_track_density",
     "calculate_feature_density",
     "create_meshgrid",
+    "get_density_colormap",
     "get_density_legend_title",
     "get_weighting_column",
     "normalize_density_units",

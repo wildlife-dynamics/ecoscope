@@ -37,7 +37,10 @@ def test_subjectgroupobservations_schema():
         "extra__subject__subject_subtype",
         "extra__subject__sex",
     ]
-    assert [col in result for col in allowed_missing_columns]
+    assert all(col in result for col in allowed_missing_columns)
+    # `extra__subject__additional` is optional too, but is deliberately not placeholder-
+    # injected: consumers parse it, and "None" is not parseable.
+    assert "extra__subject__additional" not in result
     assert result.extra__subject__name.to_list() == ["Test", "None"]
     assert result.extra__subject__subject_subtype.to_list() == ["None", "None"]
     assert result.extra__subject__sex.to_list() == ["None", "None"]

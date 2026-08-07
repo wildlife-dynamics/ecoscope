@@ -15,6 +15,14 @@ from ._set_download_params import (
     get_track_filetypes,
     set_download_params,
 )
+from ._set_patrol_download_params import (
+    PatrolDownloadParams,
+    get_patrol_event_filename_prefix,
+    get_patrol_event_filetypes,
+    get_patrol_track_filename_prefix,
+    get_patrol_track_filetypes,
+    set_patrol_download_params,
+)
 from ._set_traj_filters import (
     get_bounding_box,
     get_filter_point_coords,
@@ -29,6 +37,7 @@ from ._set_vars import (
     prefix_string_var,
     set_bool_var,
     set_list_of_string_vars,
+    set_optional_string_var,
     set_string_var,
     title_case_var,
 )
@@ -49,6 +58,7 @@ __all__ = [
     "prefix_string_var",
     "set_bool_var",
     "set_list_of_string_vars",
+    "set_optional_string_var",
     "set_string_var",
     "title_case_var",
     "WorkflowDetails",
@@ -59,6 +69,12 @@ __all__ = [
     "get_gps_point_filetypes",
     "get_gps_point_filename_prefix",
     "get_skip_relocation_persist",
+    "PatrolDownloadParams",
+    "set_patrol_download_params",
+    "get_patrol_track_filetypes",
+    "get_patrol_track_filename_prefix",
+    "get_patrol_event_filetypes",
+    "get_patrol_event_filename_prefix",
     "set_traj_filters",
     "get_bounding_box",
     "get_filter_point_coords",
