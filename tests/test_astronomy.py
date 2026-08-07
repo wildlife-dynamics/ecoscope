@@ -99,6 +99,29 @@ def test_nightday_ratio_synthetic_baseline(lon):
     assert astronomy.get_nightday_ratio(gdf) == pytest.approx(1.0, rel=1e-6)
 
 
+@pytest.mark.parametrize("lon", [150.0, -150.0, 179.0])
+def test_nightday_ratio_asymmetric_longitude_no_night_inflation(lon):
+    # Regression for mismatches in UTC-vs-local solar-time:
+    # at far east/west longitudes, local daytime falls at UTC times that "look like" night
+    offset = pd.Timedelta(hours=lon / 15.0)
+    day = pd.Timestamp("2024-03-20 10:00") - offset  # local day
+    night = pd.Timestamp("2024-03-20 22:00") - offset  # local night
+    segment = LineString([(lon, 0.0), (lon + 0.001, 0.0)])
+    gdf = gpd.GeoDataFrame(
+        {
+            "segment_start": [day.tz_localize("UTC"), night.tz_localize("UTC")],
+            "segment_end": [
+                (day + pd.Timedelta(hours=1)).tz_localize("UTC"),
+                (night + pd.Timedelta(hours=1)).tz_localize("UTC"),
+            ],
+            "geometry": [segment, segment],
+            "dist_meters": [3000.0, 1000.0],
+        },
+        crs="EPSG:4326",
+    )
+    assert astronomy.get_nightday_ratio(gdf) == pytest.approx(1000.0 / 3000.0, rel=1e-6)
+
+
 def test_nightday_ratio_multiday_segment_split():
     # A single gap-bridging segment spanning ~1.6 local days (a tag that went quiet from
     # one evening to the morning two days later) must be apportioned across every day it
