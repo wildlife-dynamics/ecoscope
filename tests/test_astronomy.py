@@ -1,14 +1,14 @@
 from datetime import datetime, timedelta, timezone
 
-import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
 import pytest
-from shapely.geometry import LineString, Point
+from shapely.geometry import Point
 
 from ecoscope import Trajectory
 from ecoscope.analysis import astronomy
+from tests.conftest import ARCTIC, EQUATOR, Segment, build_segments
 
 # Normal day: sunrise 06:00, sunset 18:00
 SUNRISE = datetime(2024, 1, 1, 6, 0)
@@ -77,49 +77,56 @@ def test_nightday_ratio_salif_habiba(movebank_relocations, timezone):
 
 @pytest.mark.parametrize("lon", [0.0, 60.0, 120.0, -60.0, -120.0, 23.0, -77.0])
 def test_nightday_ratio_synthetic_baseline(lon):
-    # Place two segments at clear local-night times and two at clear local-day times;
-    # the calculated ratio should always be 1.0.
+    # Two clear-night + two clear-day 1h segments -> ratio 1.0 regardless of longitude.
     # For non-zero longitudes the segments straddle two UTC dates, so this also
     # ensures we're agnostic of UTC date boundaries.
     utc_midnight = pd.Timestamp("2024-03-20", tz="UTC")
-    offset = pd.Timedelta(hours=lon / 15.0)
-    local_hours = [2, 12, 13, 22]  # two clearly-night, two clearly-day
-    starts = [utc_midnight + pd.Timedelta(hours=h) - offset for h in local_hours]
-    ends = [s + pd.Timedelta(hours=1) for s in starts]
-    segment = LineString([(lon, 0.0), (lon + 0.001, 0.0)])
-    gdf = gpd.GeoDataFrame(
-        {
-            "segment_start": starts,
-            "segment_end": ends,
-            "geometry": [segment] * 4,
-            "dist_meters": [1000.0] * 4,
-        },
-        crs="EPSG:4326",
-    )
-    assert astronomy.get_nightday_ratio(gdf) == pytest.approx(1.0, rel=1e-6)
+    tz_offset = pd.Timedelta(hours=lon / 15.0)
+    start = Point(lon, 0.0)
+    segments = [
+        Segment(
+            start,
+            utc_midnight + pd.Timedelta(hours=h) - tz_offset,
+            utc_midnight + pd.Timedelta(hours=h + 1) - tz_offset,
+        )
+        for h in [2, 12, 13, 22]  # two clearly-night, two clearly-day
+    ]
+    assert astronomy.get_nightday_ratio(build_segments(segments)) == pytest.approx(1.0, rel=1e-6)
 
 
 @pytest.mark.parametrize("lon", [150.0, -150.0, 179.0])
 def test_nightday_ratio_asymmetric_longitude_no_night_inflation(lon):
-    # Regression for mismatches in UTC-vs-local solar-time:
-    # at far east/west longitudes, local daytime falls at UTC times that "look like" night
-    offset = pd.Timedelta(hours=lon / 15.0)
-    day = pd.Timestamp("2024-03-20 10:00") - offset  # local day
-    night = pd.Timestamp("2024-03-20 22:00") - offset  # local night
-    segment = LineString([(lon, 0.0), (lon + 0.001, 0.0)])
-    gdf = gpd.GeoDataFrame(
-        {
-            "segment_start": [day.tz_localize("UTC"), night.tz_localize("UTC")],
-            "segment_end": [
-                (day + pd.Timedelta(hours=1)).tz_localize("UTC"),
-                (night + pd.Timedelta(hours=1)).tz_localize("UTC"),
-            ],
-            "geometry": [segment, segment],
-            "dist_meters": [3000.0, 1000.0],
-        },
-        crs="EPSG:4326",
-    )
-    assert astronomy.get_nightday_ratio(gdf) == pytest.approx(1000.0 / 3000.0, rel=1e-6)
+    # Regression for mismatches in UTC-vs-local solar-time: at far east/west longitudes,
+    # local daytime falls at UTC times that "look like" night. An asymmetric 3:1 day:night
+    # distance pins the classification direction -- night/day must be ~0.333, not the ~3.0
+    # a UTC-confused classifier would give.
+    tz_offset = pd.Timedelta(hours=lon / 15.0)
+    start = Point(lon, 0.0)
+    day = pd.Timestamp("2024-03-20 10:00") - tz_offset  # local day
+    night = pd.Timestamp("2024-03-20 22:00") - tz_offset  # local night
+    segments = [
+        Segment(start, day.tz_localize("UTC"), (day + pd.Timedelta(hours=1)).tz_localize("UTC"), 3000.0),
+        Segment(start, night.tz_localize("UTC"), (night + pd.Timedelta(hours=1)).tz_localize("UTC"), 1000.0),
+    ]
+    assert astronomy.get_nightday_ratio(build_segments(segments)) == pytest.approx(1000.0 / 3000.0, rel=1e-6)
+
+
+@pytest.mark.parametrize("bearing_deg", [0.0, 90.0, 180.0, 45.0], ids=["north", "east", "south", "north-east"])
+def test_nightday_ratio_invariant_to_segment_direction(bearing_deg):
+    # The ratio uses only the start point (solar offset + sun_time) and dist_meters, never
+    # the segment's bearing, so movement in any direction gives the same answer.
+    midnight = pd.Timestamp("2024-03-20", tz="UTC")
+    segments = [
+        Segment(
+            EQUATOR,
+            midnight + pd.Timedelta(hours=h),
+            midnight + pd.Timedelta(hours=h + 1),
+            dist,
+            bearing_deg=bearing_deg,
+        )
+        for h, dist in [(2, 1000.0), (12, 3000.0)]  # one night, one day, asymmetric
+    ]
+    assert astronomy.get_nightday_ratio(build_segments(segments)) == pytest.approx(1000.0 / 3000.0, rel=1e-6)
 
 
 def test_nightday_ratio_multiday_segment_split():
@@ -128,27 +135,17 @@ def test_nightday_ratio_multiday_segment_split():
     # covers, not dumped onto its start date. Its ratio should equal that of the same
     # segment pre-split by hand into one piece per calendar day, distance shared by time.
     # At lon 0 the local solar day boundary coincides with UTC midnight.
-    seg = LineString([(0.0, 0.0), (0.01, 0.0)])
-    start = pd.Timestamp("2024-03-20 17:00", tz="UTC")
-    end = pd.Timestamp("2024-03-22 07:00", tz="UTC")
-    long_gdf = gpd.GeoDataFrame(
-        {"segment_start": [start], "segment_end": [end], "geometry": [seg], "dist_meters": [3800.0]},
-        crs="EPSG:4326",
-    )
+    start_time = pd.Timestamp("2024-03-20 17:00", tz="UTC")
+    end_time = pd.Timestamp("2024-03-22 07:00", tz="UTC")
+    long_gdf = build_segments([Segment(EQUATOR, start_time, end_time, 3800.0)])
 
-    bounds = [start, pd.Timestamp("2024-03-21", tz="UTC"), pd.Timestamp("2024-03-22", tz="UTC"), end]
-    total_seconds = (end - start).total_seconds()
-    split_gdf = gpd.GeoDataFrame(
+    bounds = [start_time, pd.Timestamp("2024-03-21", tz="UTC"), pd.Timestamp("2024-03-22", tz="UTC"), end_time]
+    total_seconds = (end_time - start_time).total_seconds()
+    split_gdf = build_segments(
         [
-            {
-                "segment_start": s,
-                "segment_end": e,
-                "geometry": seg,
-                "dist_meters": 3800.0 * (e - s).total_seconds() / total_seconds,
-            }
+            Segment(EQUATOR, s, e, 3800.0 * (e - s).total_seconds() / total_seconds)
             for s, e in zip(bounds[:-1], bounds[1:])
-        ],
-        crs="EPSG:4326",
+        ]
     )
 
     long_ratio = astronomy.get_nightday_ratio(long_gdf)
@@ -156,6 +153,55 @@ def test_nightday_ratio_multiday_segment_split():
     # The segment covers two full daylight spans, so a "mostly night" answer (what the
     # unsplit, single-boundary calculation produced) would be wrong.
     assert 1.0 < long_ratio < 2.5
+
+
+@pytest.mark.parametrize("lat", [-33.0, -10.0, 45.0])
+def test_nightday_ratio_symmetric_across_latitudes(lat):
+    # Two clear-night + two clear-day 1h segments on an equinox -> ratio 1.0 at any
+    # non-polar latitude, in either hemisphere. Real fixtures are all near-equator NH.
+    midnight = pd.Timestamp("2024-03-20", tz="UTC")
+    start = Point(0.0, lat)
+    segments = [
+        Segment(start, midnight + pd.Timedelta(hours=h), midnight + pd.Timedelta(hours=h + 1)) for h in [2, 12, 13, 22]
+    ]
+    assert astronomy.get_nightday_ratio(build_segments(segments)) == pytest.approx(1.0, rel=1e-6)
+
+
+@pytest.mark.parametrize("date", [datetime(2024, 6, 21), datetime(2024, 12, 21)])
+def test_nightday_ratio_polar_returns_nan(date):
+    # At lat 80 the sun never sets (June) / never rises (December): sun_time yields NaT,
+    # every day drops out, and the ratio must degrade to NaN rather than crash.
+    d = pd.Timestamp(date, tz="UTC")
+    segments = [Segment(ARCTIC, d + pd.Timedelta(hours=h), d + pd.Timedelta(hours=h + 1)) for h in [2, 6, 12, 18]]
+    assert np.isnan(astronomy.get_nightday_ratio(build_segments(segments)))
+
+
+def test_nightday_ratio_multiday_three_day_split():
+    # Same split-equivalence invariant as the ~1.6-day case above, extended to a segment
+    # that spans four local dates, to exercise the general per-day explosion.
+    start_time = pd.Timestamp("2024-03-19 20:00", tz="UTC")
+    end_time = pd.Timestamp("2024-03-22 05:00", tz="UTC")
+    long_gdf = build_segments([Segment(EQUATOR, start_time, end_time, 9000.0)])
+
+    midnights = [pd.Timestamp(d, tz="UTC") for d in ["2024-03-20", "2024-03-21", "2024-03-22"]]
+    bounds = [start_time, *midnights, end_time]
+    total_seconds = (end_time - start_time).total_seconds()
+    split_gdf = build_segments(
+        [
+            Segment(EQUATOR, s, e, 9000.0 * (e - s).total_seconds() / total_seconds)
+            for s, e in zip(bounds[:-1], bounds[1:])
+        ]
+    )
+    assert astronomy.get_nightday_ratio(long_gdf) == pytest.approx(astronomy.get_nightday_ratio(split_gdf), rel=1e-9)
+
+
+def test_nightday_ratio_all_night_returns_nan():
+    # No daytime movement -> the denominator is zero and the ratio is NaN, not inf.
+    segments = [
+        Segment(EQUATOR, pd.Timestamp("2024-03-20 01:00", tz="UTC"), pd.Timestamp("2024-03-20 02:00", tz="UTC")),
+        Segment(EQUATOR, pd.Timestamp("2024-03-20 22:00", tz="UTC"), pd.Timestamp("2024-03-20 23:00", tz="UTC")),
+    ]
+    assert np.isnan(astronomy.get_nightday_ratio(build_segments(segments)))
 
 
 @pytest.mark.parametrize(
