@@ -56,13 +56,13 @@ def test_is_night(movebank_relocations):
 )
 def test_nightday_ratio_salif_habiba(movebank_relocations, timezone):
     # movebank_relocations is subsampled to keep execution speed low.
-    # Expected ratios for the full data are:
-    # Habiba=0.4546939436509577, Salif Keita=2.0114194855402805.
+    # Expected (distance-weighted) ratios for the full data are:
+    # Habiba=0.4517557675884352, Salif Keita=1.5436554776386255.
     movebank_relocations.gdf = movebank_relocations.gdf.groupby("groupby_col", group_keys=False).head(100)
 
     trajectory = Trajectory.from_relocations(movebank_relocations)
     expected = pd.Series(
-        [0.3855732298373231, 2.529674418228213],
+        [0.3804130629156344, 1.5455983218342175],
         index=pd.Index(["Habiba", "Salif Keita"], name="groupby_col"),
     )
     # test against a handful of timezone to ensure this calculation is agnotisc of input timezone
@@ -97,6 +97,56 @@ def test_nightday_ratio_synthetic_baseline(lon):
         crs="EPSG:4326",
     )
     assert astronomy.get_nightday_ratio(gdf) == pytest.approx(1.0, rel=1e-6)
+
+
+def test_nightday_ratio_multiday_segment_split():
+    # A single gap-bridging segment spanning ~1.6 local days (a tag that went quiet from
+    # one evening to the morning two days later) must be apportioned across every day it
+    # covers, not dumped onto its start date. Its ratio should equal that of the same
+    # segment pre-split by hand into one piece per calendar day, distance shared by time.
+    # At lon 0 the local solar day boundary coincides with UTC midnight.
+    seg = LineString([(0.0, 0.0), (0.01, 0.0)])
+    start = pd.Timestamp("2024-03-20 17:00", tz="UTC")
+    end = pd.Timestamp("2024-03-22 07:00", tz="UTC")
+    long_gdf = gpd.GeoDataFrame(
+        {"segment_start": [start], "segment_end": [end], "geometry": [seg], "dist_meters": [3800.0]},
+        crs="EPSG:4326",
+    )
+
+    bounds = [start, pd.Timestamp("2024-03-21", tz="UTC"), pd.Timestamp("2024-03-22", tz="UTC"), end]
+    total_seconds = (end - start).total_seconds()
+    split_gdf = gpd.GeoDataFrame(
+        [
+            {
+                "segment_start": s,
+                "segment_end": e,
+                "geometry": seg,
+                "dist_meters": 3800.0 * (e - s).total_seconds() / total_seconds,
+            }
+            for s, e in zip(bounds[:-1], bounds[1:])
+        ],
+        crs="EPSG:4326",
+    )
+
+    long_ratio = astronomy.get_nightday_ratio(long_gdf)
+    assert long_ratio == pytest.approx(astronomy.get_nightday_ratio(split_gdf), rel=1e-9)
+    # The segment covers two full daylight spans, so a "mostly night" answer (what the
+    # unsplit, single-boundary calculation produced) would be wrong.
+    assert 1.0 < long_ratio < 2.5
+
+
+@pytest.mark.parametrize(
+    "segment_start, segment_end, expected, label",
+    [
+        (datetime(2024, 1, 1, 4), datetime(2024, 1, 1, 20), 0.75, "spans both sunrise and sunset"),
+        (datetime(2024, 1, 1, 0), datetime(2024, 1, 2, 0), 0.5, "exactly one full calendar day"),
+    ],
+)
+def test_calculate_day_fraction_full_day(segment_start, segment_end, expected, label):
+    # An interval containing both sunrise and sunset must count only the daylight window
+    # between them; the previous single-crossing branch logic mis-scored these.
+    actual = _day_fraction_one(SUNRISE, SUNSET, segment_start, segment_end)
+    assert actual == pytest.approx(expected), f"{label}: got {actual}, expected {expected}"
 
 
 @pytest.fixture

@@ -129,6 +129,21 @@ def calculate_day_night_distance(
     daily_summary.loc[date, "night_distance"] += (1 - day_percent) * dist_meters
 
 
+def _to_epoch_ns(series: pd.Series) -> np.ndarray:
+    """Datetime Series -> float array of absolute UTC nanoseconds, with NaT mapped to NaN.
+
+    Comparing/subtracting in absolute UTC lets tz-aware and tz-naive inputs be mixed
+    freely (segment times may be tz-aware, sunrise/sunset come back from `sun_time` in
+    UTC), and keeps NaN propagating through the arithmetic so unresolved polar days drop out.
+    """
+    dt = pd.to_datetime(series)
+    if getattr(dt.dtype, "tz", None) is not None:
+        dt = dt.dt.tz_convert("UTC").dt.tz_localize(None)
+    out = dt.to_numpy(dtype="datetime64[ns]").view("int64").astype("float64")
+    out[dt.isna().to_numpy()] = np.nan
+    return out
+
+
 def calculate_day_fraction(
     sunrise: pd.Series,
     sunset: pd.Series,
@@ -136,83 +151,126 @@ def calculate_day_fraction(
     segment_end: pd.Series,
 ) -> np.ndarray:
     """
-    Vectorized fraction of each [segment_start, segment_end] interval that falls
-    in daylight, given the corresponding sunrise/sunset per row.
+    Vectorized fraction of each [segment_start, segment_end] interval that falls in
+    daylight, given the sunrise/sunset of the local solar day the interval lies in.
+
+    Computed as the overlap of the interval with the daylight window, rather than by
+    branching on a single sunrise/sunset crossing. This means an interval that contains
+    *both* sunrise and sunset (a full local day) is handled correctly, not only single
+    transitions -- callers must first split multi-day segments on local-day boundaries
+    (see `get_nightday_ratio`) so exactly one sunrise/sunset pair applies per row.
 
     Handles both `sunrise < sunset` (normal) and `sunrise >= sunset` (inverted /
-    high-latitude) day orderings. Boundary samples (segment touching sunrise or
-    sunset exactly) are assigned to the same side as the adjacent open interval,
-    so np.select never falls through to NaN for valid `segment_start < segment_end`.
+    high-latitude) orderings. Times are compared in absolute UTC, so tz-aware and
+    tz-naive inputs may be mixed. Rows with NaT sunrise/sunset (polar day/night that
+    astroplan could not resolve) yield NaN, which the caller drops.
     """
-    duration = segment_end - segment_start
+    start = _to_epoch_ns(segment_start)
+    end = _to_epoch_ns(segment_end)
+    rise = _to_epoch_ns(sunrise)
+    fall = _to_epoch_ns(sunset)
 
-    sr_lt_ss = sunrise < sunset
-    is_day_to_night = (segment_start <= sunset) & (segment_end > sunset)
-    is_night_to_day = (segment_start <= sunrise) & (segment_end > sunrise)
-    is_all_night_normal = sr_lt_ss & ((segment_end <= sunrise) | (segment_start >= sunset))
-    is_all_day_normal = sr_lt_ss & (segment_start >= sunrise) & (segment_end <= sunset)
-    is_all_day_inverted = (~sr_lt_ss) & ((segment_end <= sunset) | (segment_start >= sunrise))
-    is_all_night_inverted = (~sr_lt_ss) & (segment_start >= sunset) & (segment_end <= sunrise)
+    duration = end - start
+    # Normal day: daylight is the window [sunrise, sunset]; day fraction is its overlap
+    # with the segment. Inverted day: night is the window [sunset, sunrise], and the day
+    # fraction is the complement of that overlap.
+    day_overlap = np.clip(np.minimum(end, fall) - np.maximum(start, rise), 0.0, None)
+    night_overlap = np.clip(np.minimum(end, rise) - np.maximum(start, fall), 0.0, None)
 
-    return np.select(
-        [
-            is_day_to_night,
-            is_night_to_day,
-            is_all_night_normal,
-            is_all_day_normal,
-            is_all_day_inverted,
-            is_all_night_inverted,
-        ],
-        [
-            (sunset - segment_start) / duration,
-            (segment_end - sunrise) / duration,
-            0.0,
-            1.0,
-            1.0,
-            0.0,
-        ],
-        default=np.nan,
+    with np.errstate(invalid="ignore"):
+        return np.where(rise < fall, day_overlap / duration, 1.0 - night_overlap / duration)
+
+
+def _segments_by_local_day(
+    local_start: np.ndarray,
+    local_end: np.ndarray,
+    offset: np.ndarray,
+    dist_meters: np.ndarray,
+    start_points: gpd.GeoSeries,
+) -> pd.DataFrame:
+    """Explode each segment into one piece per local solar day it spans.
+
+    A segment that straddles local midnight -- most often a long gap-bridging segment
+    created when a tag stops reporting for hours or days -- is divided at each midnight,
+    with its distance apportioned to each piece in proportion to that piece's share of
+    the segment's duration. Single-day segments (the overwhelming majority) pass through
+    unchanged as a single piece. Without this split a multi-day segment is binned to one
+    date and its whole distance is attributed against that date's single sunrise/sunset,
+    which lands almost entirely on one side of the day.
+
+    `local_*` are datetime64[ns] on the local-solar clock (UTC shifted by `offset`).
+    Returned `segment_start`/`segment_end` are shifted back to absolute UTC so they line
+    up with the UTC sunrise/sunset produced by `sun_time`.
+    """
+    day = np.timedelta64(1, "D")
+    first_day = local_start.astype("datetime64[D]").astype("datetime64[ns]")
+    last_day = local_end.astype("datetime64[D]").astype("datetime64[ns]")
+    n_days = ((last_day - first_day) / day).astype("int64") + 1
+
+    src = np.repeat(np.arange(len(n_days)), n_days)
+    ordinal = np.arange(len(src)) - np.repeat(np.cumsum(n_days) - n_days, n_days)
+
+    seg_start = local_start[src]
+    seg_end = local_end[src]
+    piece_day = first_day[src] + ordinal * day
+    piece_start = np.maximum(seg_start, piece_day)
+    piece_end = np.minimum(seg_end, piece_day + day)
+
+    seg_seconds = (seg_end - seg_start) / np.timedelta64(1, "s")
+    piece_seconds = (piece_end - piece_start) / np.timedelta64(1, "s")
+    piece_dist = dist_meters[src] * (piece_seconds / seg_seconds)
+
+    off = offset[src]
+    return pd.DataFrame(
+        {
+            "local_date": pd.DatetimeIndex(piece_day).date,
+            "geometry": list(start_points.values[src]),
+            "segment_start": pd.DatetimeIndex(piece_start - off).tz_localize("UTC"),
+            "segment_end": pd.DatetimeIndex(piece_end - off).tz_localize("UTC"),
+            "dist_meters": piece_dist,
+        }
     )
 
 
 def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
+    """Distance-weighted ratio of night to day movement over the whole trajectory.
+
+    Returns ``sum(night_distance) / sum(day_distance)`` across every local solar day, so
+    each day contributes in proportion to how much movement it actually holds. (The earlier
+    mean of per-day ratios let sparsely-sampled days -- a single long gap-bridging segment,
+    for instance -- dominate the result far out of proportion to their real share of movement.)
+    Returns NaN when there is no daytime movement to divide by.
+    """
     start_points = gpd.GeoSeries(
         shapely.get_point(gdf["geometry"].values, 0),
         crs=gdf.crs,
         index=gdf.index,
     ).to_crs(4326)
 
-    # Bin by local solar date to prevent UTC timestamps straddling local night -> day
+    # Bin by local solar date to prevent UTC timestamps straddling local night -> day.
     # NOTE: this calculation will skew if tracks cross the -180, 180 boundary
     offset = pd.to_timedelta(start_points.x / 15.0, unit="h")
-    gdf["local_date"] = (gdf["segment_start"].dt.tz_convert("UTC").dt.tz_localize(None) + offset).dt.date
+    local_start = gdf["segment_start"].dt.tz_convert("UTC").dt.tz_localize(None).to_numpy() + offset.to_numpy()
+    local_end = gdf["segment_end"].dt.tz_convert("UTC").dt.tz_localize(None).to_numpy() + offset.to_numpy()
 
-    daily_summary = (
-        pd.DataFrame({"local_date": gdf["local_date"].values, "geometry": start_points.values})
-        .groupby("local_date")
-        .first()
-        .reset_index()
+    pieces = _segments_by_local_day(
+        local_start, local_end, offset.to_numpy(), gdf["dist_meters"].to_numpy(), start_points
     )
-    daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.local_date, x.geometry), axis=1)
-    daily_summary = daily_summary.set_index("local_date")
+
+    daily_summary = pieces.groupby("local_date").agg(geometry=("geometry", "first"))
+    daily_summary[["sunrise", "sunset"]] = daily_summary.apply(lambda x: sun_time(x.name, x.geometry), axis=1)
 
     day_fraction = calculate_day_fraction(
-        sunrise=gdf["local_date"].map(daily_summary["sunrise"]),
-        sunset=gdf["local_date"].map(daily_summary["sunset"]),
-        segment_start=gdf["segment_start"],
-        segment_end=gdf["segment_end"],
+        sunrise=pieces["local_date"].map(daily_summary["sunrise"]),
+        sunset=pieces["local_date"].map(daily_summary["sunset"]),
+        segment_start=pieces["segment_start"],
+        segment_end=pieces["segment_end"],
     )
 
-    day_dist = day_fraction * gdf["dist_meters"]
-    night_dist = (1 - day_fraction) * gdf["dist_meters"]
+    dist = pieces["dist_meters"].to_numpy()
+    total_day = np.nansum(day_fraction * dist)
+    total_night = np.nansum((1.0 - day_fraction) * dist)
 
-    daily_summary["day_distance"] = (
-        day_dist.groupby(gdf["local_date"]).sum().reindex(daily_summary.index, fill_value=0.0)
-    )
-    daily_summary["night_distance"] = (
-        night_dist.groupby(gdf["local_date"]).sum().reindex(daily_summary.index, fill_value=0.0)
-    )
-
-    daily_summary["night_day_ratio"] = daily_summary["night_distance"] / daily_summary["day_distance"]
-    mean_night_day_ratio = daily_summary["night_day_ratio"].replace([np.inf, -np.inf], np.nan).dropna().mean()
-    return mean_night_day_ratio
+    if total_day == 0:
+        return float("nan")
+    return float(total_night / total_day)
