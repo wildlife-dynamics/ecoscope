@@ -271,13 +271,13 @@ def get_nightday_ratio(gdf: gpd.GeoDataFrame) -> float:
     )
 
     dist = pieces["dist_meters"].to_numpy()
-    day_dist = pd.Series(day_fraction * dist, index=pieces.index).groupby(pieces["local_date"]).sum()
-    night_dist = pd.Series((1.0 - day_fraction) * dist, index=pieces.index).groupby(pieces["local_date"]).sum()
+    day_distances = pd.Series(day_fraction * dist, index=pieces.index).groupby(pieces["local_date"]).sum()
+    night_distances = pd.Series((1.0 - day_fraction) * dist, index=pieces.index).groupby(pieces["local_date"]).sum()
 
     # Each day contributes its night fraction, night / (night + day), which stays in [0, 1]
     # even for a day with no daytime movement -- so a purely nocturnal day counts as 1.0
-    # rather than dropping out as infinite. Days with no movement at all (0 / 0) are NaN and ignored.
-    night_fraction = (night_dist / (night_dist + day_dist)).dropna()
+    # rather than inf. Days with no movement at all (0 / 0) are NaN and ignored.
+    night_fraction = (night_distances / (night_distances + day_distances)).dropna()
     if night_fraction.empty:
         return np.nan
 
