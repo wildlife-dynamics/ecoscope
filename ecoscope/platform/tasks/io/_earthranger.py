@@ -33,20 +33,29 @@ from ecoscope.platform.tasks.io._persist import (
 
 logger = logging.getLogger(__name__)
 
-# Temporary kill switch (ERDW-233, ERDW-269): when False, every task whose DWH
-# read carries event data bypasses the warehouse client and reads from the
-# EarthRanger API instead. Observation tasks are unaffected and keep reading
-# from the DWH. Flip to True (or remove the guards) to re-enable DWH-backed
-# event data.
-#
-# `get_patrols` is covered because warehouse patrols nest their events:
-# `ERWarehouseClient.get_patrols` always sends `include_events=True` and offers
-# no way to turn it off, so DWH patrols cannot be enabled independently of DWH
-# events. It also must stay off until the API deployed in prod is new enough --
-# that build pins io-core v0.0.16, which predates `include_events`, so it
-# silently ignores the flag and answers with the patrol-only shape, whose
-# missing `patrol_segments` column then fails PatrolsDFSchema.
-DWH_EVENTS_ENABLED = False
+
+def _dwh_events_enabled() -> bool:
+    """Whether tasks whose DWH read carries event data may use the warehouse.
+
+    Kill switch (ERDW-233, ERDW-269, ERDW-249) for DWH-backed event data, now
+    enabled by default: set ``DWH_EVENTS_ENABLED=false`` to make every task whose
+    DWH read carries event data bypass the warehouse client and read from the
+    EarthRanger API instead. Observation tasks are unaffected and always read
+    from the DWH (subject to ``USE_EARTHRANGER_WAREHOUSE_API``).
+
+    `get_patrols` is covered because warehouse patrols nest their events:
+    `ERWarehouseClient.get_patrols` always sends ``include_events=True`` and
+    offers no way to turn it off, so DWH patrols cannot be toggled independently
+    of DWH events. That also means the warehouse API this talks to must be new
+    enough to honour ``include_events``: an older build answers with the
+    patrol-only shape, whose missing ``patrol_segments`` column then fails
+    PatrolsDFSchema. Turn this off when pointing at such a deployment.
+
+    Read from the environment on every call (like
+    `_make_warehouse_client_from_env`) so the switch can be flipped without
+    re-importing this module.
+    """
+    return os.environ.get("DWH_EVENTS_ENABLED", "true").lower() == "true"
 
 
 def _make_warehouse_client_from_env(er_site_url: str, er_api_token: SecretStr | None):
@@ -623,7 +632,7 @@ def get_patrol_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if DWH_EVENTS_ENABLED and (
+    if _dwh_events_enabled() and (
         warehouse_client := _make_warehouse_client_from_env(
             er_site_url=client.server,
             er_api_token=SecretStr(client.token) if client.token else None,
@@ -703,7 +712,7 @@ def get_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if DWH_EVENTS_ENABLED and (
+    if _dwh_events_enabled() and (
         warehouse_client := _make_warehouse_client_from_env(
             er_site_url=client.server,
             er_api_token=SecretStr(client.token) if client.token else None,
@@ -882,11 +891,11 @@ def get_patrols(
     if status is None:
         status = ["done"]
 
-    # Gated on DWH_EVENTS_ENABLED: warehouse patrols nest their events, so this
+    # Gated on _dwh_events_enabled(): warehouse patrols nest their events, so this
     # read is event data and follows the same switch. Unlike the event tasks, the
     # ER-API fallback below does not reference warehouse_client, so the walrus
     # can stay inside the condition.
-    if DWH_EVENTS_ENABLED and (
+    if _dwh_events_enabled() and (
         warehouse_client := _make_warehouse_client_from_env(
             er_site_url=client.server,
             er_api_token=SecretStr(client.token) if client.token else None,
@@ -996,7 +1005,7 @@ def get_event_type_display_names_from_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if DWH_EVENTS_ENABLED and (
+    if _dwh_events_enabled() and (
         warehouse_client := _make_warehouse_client_from_env(
             er_site_url=client.server,
             er_api_token=SecretStr(client.token) if client.token else None,
