@@ -8,7 +8,10 @@ from ecoscope.platform.indexes import (  # type: ignore[import-untyped]
     SpatialGrouper,
     UserDefinedGroupers,
 )
-from ecoscope.platform.tasks.analysis._patrol_summary import EncounterRateMetric
+from ecoscope.platform.tasks.analysis._patrol_summary import (
+    EncounterRateMetric,
+    encounter_metrics_to_summary_params,
+)
 from ecoscope.platform.tasks.analysis._summary import SummaryParam
 from ecoscope.platform.tasks.results._ecoplot import (
     AxisStyle,
@@ -192,8 +195,6 @@ def _config_task_json_schema(schema: dict) -> None:
 
 _DEFAULT_TREND_METRICS: tuple = ({"metric": "patrol_count"},)
 
-_MetricAdapter: TypeAdapter = TypeAdapter(EncounterRateMetric)
-
 
 class TrendChartConfig(BaseModel):
     """Validated carrier for the trend chart configuration (the runtime gate
@@ -264,8 +265,7 @@ def set_trend_chart_config(
 def get_trend_chart_metrics(
     config: Annotated[TrendChartConfig, Field(title="")],
 ) -> Annotated[list[SummaryParam], Field(description="Summary metric parameters")]:
-    validated = [m if isinstance(m, BaseModel) else _MetricAdapter.validate_python(m) for m in config.metrics]
-    return [m.to_summary_param() for m in validated]
+    return encounter_metrics_to_summary_params(config.metrics)
 
 
 @register()

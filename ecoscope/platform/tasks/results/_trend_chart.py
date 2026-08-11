@@ -223,6 +223,8 @@ def draw_time_series_chart(
     layout_kws = layout_style.model_dump(exclude_none=True) if layout_style else {}
     plot_style = plot_style if plot_style else PlotStyle()
 
+    # Rows without a timestamp (e.g. NA-filled after concat) can't be bucketed.
+    dataframe = dataframe.loc[dataframe[x_axis].notna()].copy()
     dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_interval))
     layout_kws["xaxis_dtick"] = _INTERVAL_DTICKS[time_interval]
     # plotly hides the legend on single-trace figures; the series name is the
@@ -287,7 +289,8 @@ def draw_time_series_chart(
             x, y = series.setdefault(value, ([], []))
             x.append(bucket)
             y.append(summarize_column(group, param))
-        keys = sorted(series)
+        # key=str: category values from event details can mix types (ints, strings)
+        keys = sorted(series, key=str)
         colors = _resolve_palette_colors(palette, len(keys))
         traces = [
             make_trace(series[value][0], series[value][1], str(value), colors[i % len(colors)] if colors else None)

@@ -7,7 +7,7 @@ from ecoscope.platform.tasks.analysis._summary import (
     RatioSummaryParam,
     StatSummaryParam,
 )
-from ecoscope.platform.tasks.config._trend_chart import (
+from ecoscope.platform.tasks.config.set_trend_chart import (
     CategoryBreakdownMode,
     MetricsOnlyMode,
     SpatialBreakdownMode,
@@ -84,6 +84,40 @@ def test_draw_time_series_chart_metric_mode(time_series_dataframe, widget_id, ti
     assert "Distinct Categories" in plot
     assert "#111111" in plot
     assert "#222222" in plot
+
+
+def test_draw_time_series_chart_skips_rows_with_missing_timestamps(time_series_dataframe):
+    df = time_series_dataframe.copy()
+    df.loc[len(df)] = {"category": "A", "events": 9, "time": pd.NaT}
+    summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
+
+    plot = draw_time_series_chart(
+        dataframe=df,
+        x_axis="time",
+        time_interval="month",
+        summary_params=summary_params,
+    )
+
+    assert isinstance(plot, str)
+    assert '"y":[5,6]' in plot  # NaT row's 9 events are excluded
+
+
+def test_category_breakdown_handles_mixed_type_values(time_series_dataframe):
+    df = time_series_dataframe.copy()
+    df["category"] = [1, "foot", 1, "foot", "foot"]
+    summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
+
+    plot = draw_time_series_chart(
+        dataframe=df,
+        x_axis="time",
+        time_interval="month",
+        summary_params=summary_params,
+        category="category",
+    )
+
+    assert isinstance(plot, str)
+    assert '"name":"1"' in plot
+    assert '"name":"foot"' in plot
 
 
 def test_draw_time_series_chart_unsupported_interval(time_series_dataframe):
@@ -446,7 +480,7 @@ def test_trend_chart_config_branch_field_validation():
 def test_trend_chart_config_task_schema_blocks_multi_metric_breakdowns():
     """The task-level json_schema_extra adds the form guard to the inline
     params schema; the field-level callables shape the mode conditional."""
-    from ecoscope.platform.tasks.config._trend_chart import (
+    from ecoscope.platform.tasks.config.set_trend_chart import (
         _config_task_json_schema,
         _flat_conditional_mode_schema,
         _time_interval_schema,
@@ -593,7 +627,7 @@ def test_trend_chart_style_y_axis_title():
 def test_trend_chart_style_schema_reveals_barmode_for_bars_only():
     """The chart-type field callable renders the union as a flat conditional
     (Bar Mode revealed only for bars); the palette callable titles branches."""
-    from ecoscope.platform.tasks.config._trend_chart import (
+    from ecoscope.platform.tasks.config.set_trend_chart import (
         _flat_conditional_chart_schema,
         _palette_schema,
     )

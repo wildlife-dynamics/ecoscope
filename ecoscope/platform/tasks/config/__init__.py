@@ -41,7 +41,8 @@ from ._set_vars import (
     set_string_var,
     title_case_var,
 )
-from ._trend_chart import (
+from ._workflow_details import WorkflowDetails, set_workflow_details
+from .set_trend_chart import (
     BarChartStyle,
     CategoryBreakdownMode,
     LineChartStyle,
@@ -63,7 +64,6 @@ from ._trend_chart import (
     set_trend_chart_config,
     set_trend_chart_style,
 )
-from ._workflow_details import WorkflowDetails, set_workflow_details
 
 __all__ = [
     "call_etd_from_combined_params",
