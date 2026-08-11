@@ -20,7 +20,7 @@ from ._density_weighting import (
     normalize_density_units,
 )
 from ._patrol_density import set_patrol_weighting_spec
-from ._patrol_summary import set_encounter_rate_metrics, set_patrol_summary_metrics
+from ._patrol_summary import set_encounter_rate_metrics, set_event_aggregation, set_patrol_summary_metrics
 from ._summary import aggregate_over_rows, summarize_df
 from ._time_density import (
     TimeDensityReturnGDF,
@@ -51,6 +51,7 @@ __all__ = [
     "normalize_density_units",
     "aggregate_over_rows",
     "set_encounter_rate_metrics",
+    "set_event_aggregation",
     "set_patrol_weighting_spec",
     "set_patrol_summary_metrics",
     "summarize_df",

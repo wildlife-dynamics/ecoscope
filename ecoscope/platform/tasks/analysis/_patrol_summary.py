@@ -496,15 +496,16 @@ def make_aggregation_json_schema_extra(
     return _flat_conditional_json_schema
 
 
-# Wording mirrors the encounter-rate map's aggregation field.
+# Shared by the encounter-rate cards and set_event_aggregation — wording stays
+# event-generic so every consumer reads the same.
 _EVENT_AGGREGATION_EXTRA = make_aggregation_json_schema_extra(
-    aggregation_title="Measure Encounters By",
+    aggregation_title="Measure Events By",
     count_title="Number of Events",
     sum_title="Sum of an Event Field",
     column_title="Event Field to Sum",
     column_description=(
-        "Event details field whose values are totaled for the Encounter metrics"
-        " using the field title shown in EarthRanger (for example"
+        "Event details field whose values are totaled, using the field title"
+        " shown in EarthRanger (for example"
         ' "Number of Animals").'
     ),
 )
@@ -533,3 +534,17 @@ def set_encounter_rate_metrics(
         aggregation.column if isinstance(aggregation, SumOfColumnAggregation) and aggregation.column else None
     )
     return encounter_metrics_to_summary_params(metrics, aggregate_column)
+
+
+@register()
+def set_event_aggregation(
+    aggregation: Annotated[
+        CountAggregation | SumOfColumnAggregation | SkipJsonSchema[None],
+        Field(default=None, json_schema_extra=_EVENT_AGGREGATION_EXTRA),
+    ] = None,
+) -> Annotated[str, Field(description="Column to sum, or empty string to count rows")]:
+    if isinstance(aggregation, dict):
+        aggregation = _AggregationAdapter.validate_python(aggregation)
+    if isinstance(aggregation, SumOfColumnAggregation):
+        return aggregation.column
+    return ""
