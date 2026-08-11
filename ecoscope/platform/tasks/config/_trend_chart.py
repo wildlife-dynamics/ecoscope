@@ -30,9 +30,7 @@ class CategoryBreakdownMode(BaseModel):
 
     model_config = ConfigDict(json_schema_extra={"title": "Category"})
     mode: Annotated[Literal["category"], Field(default="category", exclude=True)] = "category"
-    # Deliberately a plain string with no default: the category options (and
-    # the form default) are workflow concerns, constrained per-spec via
-    # rjsf-overrides — like the groupers' index_name options.
+    # Options and the form default are supplied per-spec via rjsf-overrides.
     category: Annotated[str, Field(title="Category")]
 
 
@@ -64,8 +62,7 @@ _FINER_INTERVAL_HINT = (
     "The Time Interval above must be smaller than the period compared here — e.g. a Month interval to compare Years."
 )
 
-# Shown by the form (ajv-errors errorMessage keyword) in place of the raw
-# "must NOT have more than 1 items" when the maxItems guard below trips.
+# ajv-errors errorMessage, shown in place of the raw maxItems message.
 _SINGLE_METRIC_ERROR = (
     "When comparing values by category, spatial group or time, only one metric can be "
     "selected — remove the extra metric rows or set Compares to Metrics Only."
@@ -109,9 +106,6 @@ def _flat_conditional_mode_schema(schema: dict) -> None:
                     "if": {"properties": {"mode": {"const": "category"}}},
                     "then": {
                         "properties": {
-                            # Options and the form default are supplied per-spec
-                            # via rjsf-overrides (the column names are workflow
-                            # data-model concerns, not platform ones).
                             "category": {
                                 "type": "string",
                                 "title": "Category",
@@ -170,13 +164,9 @@ def _time_interval_schema(schema: dict) -> None:
 
 
 def _config_task_json_schema(schema: dict) -> None:
-    # Task-level form guard: breakdown modes cap the metric rows at one, so
-    # the form blocks submission instead of the run failing at validation
-    # time. The TrendChartConfig model_validator is the equivalent runtime
-    # gate. NOTE: becomes @register(json_schema_extra=_config_task_json_schema)
-    # once the wt-registry release (> 0.2.2) ships task-level json_schema_extra
-    # (infra commit d698b2b); until then workflow specs restate this allOf at
-    # the task path via rjsf-overrides.
+    # Form-side twin of the TrendChartConfig runtime validator. Becomes
+    # @register(json_schema_extra=...) once wt-registry > 0.2.2 ships; until
+    # then workflow specs restate this allOf via rjsf-overrides.
     schema["allOf"] = [
         {
             "if": {
@@ -314,8 +304,7 @@ def get_chart_mode_spatial_groupers(
     return []
 
 
-# Default palette: the named colormap the patrols workflow uses for its
-# events chart (apply_color_map colormap: tab20b).
+# tab20b matches the patrols workflow events chart.
 _DEFAULT_PALETTE = "tab20b"
 
 

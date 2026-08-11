@@ -26,8 +26,7 @@ from ecoscope.platform.tasks.results._ecoplot import (
 TimeInterval = Literal["year", "month", "week", "day", "hour"]
 TimeBreakdownUnit = Literal["year", "month", "week", "day"]
 
-# Coarse -> fine. A time breakdown requires time_interval strictly finer than
-# the breakdown unit.
+# Coarse -> fine; a time breakdown needs time_interval strictly finer.
 INTERVAL_FINENESS: dict[str, int] = {"year": 0, "month": 1, "week": 2, "day": 3, "hour": 4}
 
 _INTERVAL_DTICKS = {
@@ -48,9 +47,8 @@ _PERIOD_LABEL_FORMATS = {
     "day": "%d %b %Y",
 }
 
-# x tick/hover formats for the shared within-period axis, keyed by
-# (time_breakdown, time_interval). Week intervals are absent: they plot on an
-# integer week-of-period axis (see the week branch in the time_breakdown path).
+# Keyed by (time_breakdown, time_interval); week intervals are absent — they
+# plot on an integer week-of-period axis instead.
 _WITHIN_PERIOD_TICKFORMATS = {
     "year": {"month": "%b", "day": "%d %b", "hour": "%d %b %H:00"},
     "month": {"day": "Day %e", "hour": "%e %H:00"},
@@ -227,8 +225,8 @@ def draw_time_series_chart(
 
     dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_interval))
     layout_kws["xaxis_dtick"] = _INTERVAL_DTICKS[time_interval]
-    # plotly hides the legend on single-trace figures, but the series name is
-    # the only place the metric is identified — always show it.
+    # plotly hides the legend on single-trace figures; the series name is the
+    # only place the metric is identified.
     layout_kws.setdefault("showlegend", True)
 
     if chart_type == "bar":
@@ -249,15 +247,11 @@ def draw_time_series_chart(
             return go.Scatter(x=x, y=y, name=name, line_color=color, marker_color=color, **trace_style)
 
     if time_breakdown is not None:
-        # one series per period, overlaid on the shared within-period axis
         param = summary_params[0]
         dataframe["period_start"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_breakdown))
         if time_interval == "week":
-            # Calendar weeks (Monday-anchored) straddle period boundaries and
-            # start on different days-of-period in different periods, so their
-            # rebased buckets would never align across series. Bucket weeks
-            # relative to each period's start instead — week k covers days
-            # [7(k-1), 7k) of the period — on an integer week-of-period axis.
+            # Calendar weeks straddle period boundaries, so rebased buckets would
+            # never align across series; week k = days [7(k-1), 7k) of the period.
             dataframe["truncated_time"] = [
                 (t.replace(tzinfo=None) - p).days // 7 + 1 for t, p in zip(dataframe[x_axis], dataframe["period_start"])
             ]
@@ -286,7 +280,6 @@ def draw_time_series_chart(
             layout_kws["xaxis_tickformat"] = tickformat
             layout_kws["xaxis_hoverformat"] = tickformat
     elif category is not None:
-        # one series per category value, all showing the single metric.
         # groupby resolves category as a column or an index level.
         param = summary_params[0]
         series = {}
@@ -317,10 +310,8 @@ def draw_time_series_chart(
     if chart_type == "bar":
         layout_kws["barmode"] = barmode
         if time_interval == "month" and (barmode == "stack" or len(traces) == 1):
-            # Full-month bars: months vary in length so plotly cannot auto-size
-            # a uniform bar. Safe only when bars share an x slot — a grouped
-            # multi-series chart with month-wide bars would overlap neighboring
-            # groups, so those keep plotly's automatic group sizing.
+            # Month-wide bars are safe only when bars share an x slot; grouped
+            # multi-series bars would overlap neighboring groups.
             for trace in traces:
                 trace.update(width=MONTH_IN_MILLISECONDS, xperiod="M1", xperiodalignment="start")
     plot = go.Figure(data=traces, layout=go.Layout(**layout_kws))

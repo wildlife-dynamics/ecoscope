@@ -134,7 +134,6 @@ def test_draw_time_series_chart_month_bar_width(time_series_dataframe):
     single = draw(one_metric, "group")
     assert '"xperiod":"M1"' in single
     assert f'"width":{MONTH_IN_MILLISECONDS}' in single
-    # plotly would hide the legend for a lone trace; the task forces it on
     assert '"showlegend":true' in single
     assert '"xperiod":"M1"' in draw(two_metrics, "stack")
     grouped = draw(two_metrics, "group")
@@ -201,7 +200,6 @@ def test_draw_time_series_chart_line_mode(time_series_dataframe):
     assert '"barmode":"group"' not in plot
     assert '"barmode":"stack"' not in plot
     assert "#111111" in plot
-    # bar-only styling is stripped for lines
     assert '"texttemplate":"%{y:,.2~f}"' not in plot
 
 
@@ -266,10 +264,8 @@ def test_draw_time_series_chart_breakdown_by_column(breakdown_dataframe):
     assert isinstance(plot, str)
     assert "breakdown-test" in plot
     assert '"barmode":"group"' in plot
-    # one trace per category value, palette cycled over sorted values
     assert '"marker":{"color":"#111111"},"name":"foot"' in plot
     assert '"marker":{"color":"#222222"},"name":"vehicle"' in plot
-    # per-bucket metric within each subgroup
     assert '"y":[2,5]' in plot
     assert '"y":[3,1]' in plot
 
@@ -344,7 +340,6 @@ def test_draw_time_series_chart_time_breakdown_overlay(breakdown_dataframe):
 
     assert '"name":"May 2024"' in plot
     assert '"name":"Jun 2024"' in plot
-    # day-of-month preserved on the rebased axis
     assert '"x":["2000-01-01T00:00:00","2000-01-02T00:00:00"]' in plot
     assert '"x":["2000-01-03T00:00:00","2000-01-04T00:00:00"]' in plot
     assert '"y":[2,3]' in plot
@@ -357,8 +352,7 @@ def test_draw_time_series_chart_time_breakdown_week_of_period_aligns():
     (not calendar Mondays), so week indices align across the period series."""
     dataframe = pd.DataFrame(
         {
-            # week-of-month 1 and 2 in each month; the calendar Mondays of
-            # these weeks differ between months.
+            # the calendar Mondays of these weeks differ between months
             "time": pd.to_datetime(["2024-05-02", "2024-05-09", "2024-06-04", "2024-06-12"], utc=True),
             "events": [2, 3, 5, 1],
         }
@@ -376,7 +370,6 @@ def test_draw_time_series_chart_time_breakdown_week_of_period_aligns():
 
     assert '"name":"May 2024"' in plot
     assert '"name":"Jun 2024"' in plot
-    # both series share the same integer week-of-period x values
     assert plot.count('"x":[1,2]') == 2
     assert '"y":[2,3]' in plot
     assert '"y":[5,1]' in plot
@@ -528,9 +521,7 @@ def test_set_trend_chart_style_defaults():
 
     assert get_style_chart_type(style) == "bar"
     assert get_style_barmode(style) == "group"
-    # default palette is the named colormap the patrols workflow uses
     assert get_style_palette(style) == "tab20b"
-    # bar value labels default on; no y-axis title -> no layout overrides
     assert get_style_plot_style(style) == PlotStyle(texttemplate="%{y:,.2~f}", textposition="auto")
     assert get_style_layout_style(style) is None
 
@@ -550,7 +541,6 @@ def test_trend_chart_style_chart_union_selects_barmode():
     assert get_style_chart_type(line) == "line"
     assert get_style_barmode(line) == "group"
 
-    # a retained barmode while Line is selected is ignored by validation
     retained = set_trend_chart_style(chart={"chart_type": "line", "barmode": "stack"})
     assert get_style_chart_type(retained) == "line"
     assert get_style_barmode(retained) == "group"
@@ -560,7 +550,6 @@ def test_trend_chart_style_bar_value_labels_toggle():
     labels_off = set_trend_chart_style(chart={"chart_type": "bar", "show_value_labels": False})
     assert get_style_plot_style(labels_off) == PlotStyle()
 
-    # line charts never carry the bar label attrs (the draw task strips them anyway)
     line = set_trend_chart_style(chart={"chart_type": "line"})
     plot_style = get_style_plot_style(line)
     assert plot_style.texttemplate is None
@@ -568,7 +557,6 @@ def test_trend_chart_style_bar_value_labels_toggle():
 
 
 def test_trend_chart_style_line_options():
-    # defaults: straight solid line with markers -> only the mode is set
     line = set_trend_chart_style(chart={"chart_type": "line"})
     assert get_style_plot_style(line) == PlotStyle(mode="lines+markers")
 
@@ -586,7 +574,6 @@ def test_trend_chart_style_line_options():
     assert plot_style.line.shape == "spline"
     assert plot_style.line.dash == "dot"
 
-    # line options retained while Bar is selected are ignored
     retained = set_trend_chart_style(chart={"chart_type": "bar", "line_shape": "spline", "show_markers": False})
     assert retained.line_shape == "linear"
     assert retained.show_markers is True
@@ -600,7 +587,6 @@ def test_trend_chart_style_y_axis_title():
     assert layout_style.yaxis.title == "Patrol Count"
     assert layout_style.model_dump(exclude_none=True) == {"yaxis": {"title": "Patrol Count"}}
 
-    # whitespace-only titles mean "no label"
     assert get_style_layout_style(set_trend_chart_style(y_axis_title="   ")) is None
 
 
