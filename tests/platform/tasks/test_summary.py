@@ -9,6 +9,8 @@ from ecoscope.platform.mock_loaders import load_parquet
 from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
     NightDayRatioSummaryParam,
+    RatioOperand,
+    RatioSummaryParam,
     StatSummaryParam,
     UniqueSummaryParam,
     summarize_df,
@@ -201,6 +203,80 @@ def test_summarize_df_coverage_scales_with_swath(coverage_trajectories):
     # Buffered-line area is dominated by length * width, so doubling the swath
     # roughly doubles the covered area.
     assert unmerged(1000.0) == pytest.approx(2 * unmerged(500.0), rel=0.05)
+
+
+def test_summarize_df_ratio_with_scale():
+    df = pd.DataFrame({"event_type": ["a", "b", "c", "d"], "timespan_seconds": [1800.0, 1800.0, 3600.0, 0.0]})
+    summary_params = [
+        RatioSummaryParam(
+            display_name="Events per Hour",
+            aggregator="ratio",
+            numerator=RatioOperand(aggregator="count", column="event_type"),
+            denominator=RatioOperand(aggregator="sum", column="timespan_seconds"),
+            scale=3600.0,
+        )
+    ]
+    result = summarize_df(df, summary_params)
+    # 4 events over 7200 seconds -> 2 per hour
+    assert result.loc[0, "Events per Hour"] == 2.0
+
+
+def test_summarize_df_ratio_is_ratio_of_sums_per_group():
+    df = pd.DataFrame(
+        {
+            "Group": ["X", "X", "Y"],
+            "num": [2.0, 2.0, 1.0],
+            "den": [1.0, 3.0, 2.0],
+        }
+    )
+    summary_params = [
+        RatioSummaryParam(
+            display_name="Rate",
+            aggregator="ratio",
+            numerator=RatioOperand(aggregator="sum", column="num"),
+            denominator=RatioOperand(aggregator="sum", column="den"),
+        )
+    ]
+    result = summarize_df(df, summary_params, groupby_cols=["Group"])
+    # sum(num)/sum(den), not the mean of per-row ratios (which would be 1.33 for X)
+    assert result.loc["X", "Rate"] == 1.0
+    assert result.loc["Y", "Rate"] == 0.5
+
+
+def test_summarize_df_ratio_zero_denominator_is_na():
+    df = pd.DataFrame({"Group": ["X", "Y"], "num": [1.0, 1.0], "den": [0.0, 2.0]})
+    summary_params = [
+        RatioSummaryParam(
+            display_name="Rate",
+            aggregator="ratio",
+            numerator=RatioOperand(aggregator="sum", column="num"),
+            denominator=RatioOperand(aggregator="sum", column="den"),
+        )
+    ]
+    result = summarize_df(df, summary_params, groupby_cols=["Group"])
+    assert pd.isna(result.loc["X", "Rate"])
+    assert result.loc["Y", "Rate"] == 0.5
+
+
+def test_summarize_df_ratio_sum_numerator_skips_nan_rows():
+    # Concatenated segment + event rows: the aggregate column is NaN on segment rows.
+    df = pd.DataFrame(
+        {
+            "number_of_animals": [None, None, 2.0, 3.0],
+            "timespan_seconds": [3600.0, 3600.0, None, None],
+        }
+    )
+    summary_params = [
+        RatioSummaryParam(
+            display_name="Animals per Hour",
+            aggregator="ratio",
+            numerator=RatioOperand(aggregator="sum", column="number_of_animals"),
+            denominator=RatioOperand(aggregator="sum", column="timespan_seconds"),
+            scale=3600.0,
+        )
+    ]
+    result = summarize_df(df, summary_params)
+    assert result.loc[0, "Animals per Hour"] == 2.5
 
 
 def test_summarize_df_coverage_groupby(coverage_trajectories):

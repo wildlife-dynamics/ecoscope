@@ -79,3 +79,41 @@ def test_percentile():
 def test_apply_arithmetic_operation(a, b, operation, expected):
     result = apply_arithmetic_operation(a, b, operation)
     assert result == expected
+
+
+def test_aggregation_models_roundtrip():
+    from ecoscope.platform.tasks.analysis._aggregation import (
+        CountAggregation,
+        SumOfColumnAggregation,
+    )
+
+    assert CountAggregation().count_or_sum == "Count"
+    assert SumOfColumnAggregation(column="Number of Animals").column == "Number of Animals"
+
+
+def test_make_aggregation_json_schema_extra_flattens_to_conditional_object():
+    from ecoscope.platform.tasks.analysis._aggregation import (
+        make_aggregation_json_schema_extra,
+    )
+
+    extra = make_aggregation_json_schema_extra(
+        aggregation_title="Rate Based On",
+        count_title="Number of Events",
+        sum_title="Total of an Event Field",
+        column_title="Event Field to Total",
+        column_description="desc",
+    )
+    schema = {"anyOf": [{"$ref": "#/$defs/CountAggregation"}], "default": None}
+    extra(schema)
+
+    assert "anyOf" not in schema
+    assert schema["type"] == "object"
+    select = schema["properties"]["count_or_sum"]
+    assert select["title"] == "Rate Based On"
+    assert [o["title"] for o in select["oneOf"]] == ["Number of Events", "Total of an Event Field"]
+    conditional = schema["allOf"][0]
+    assert conditional["if"]["properties"]["count_or_sum"]["const"] == "Sum of Column"
+    column = conditional["then"]["properties"]["column"]
+    assert column["title"] == "Event Field to Total"
+    assert "default" not in column
+    assert "additionalProperties" not in schema

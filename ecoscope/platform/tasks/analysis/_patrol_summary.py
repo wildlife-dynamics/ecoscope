@@ -7,10 +7,18 @@ from pydantic import (
     Field,
     TypeAdapter,
 )
+from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
+from ecoscope.platform.tasks.analysis._aggregation import (
+    CountAggregation,
+    SumOfColumnAggregation,
+    make_aggregation_json_schema_extra,
+)
 from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
+    RatioOperand,
+    RatioSummaryParam,
     StatSummaryParam,
     SummaryParam,
 )
@@ -186,3 +194,252 @@ def set_patrol_summary_metrics(
 ) -> Annotated[list[SummaryParam], Field(description="Summary metric parameters")]:
     validated = [m if isinstance(m, BaseModel) else _PatrolSummaryMetricAdapter.validate_python(m) for m in metrics]
     return [m.to_summary_param() for m in validated]
+
+
+def _event_numerator(aggregate_column: str | None) -> RatioOperand:
+    # With no aggregate column, each event row counts as 1. With one, we sum it
+    # over event rows; segment rows are NaN there, so pandas sum skips them.
+    if aggregate_column is None:
+        return RatioOperand(aggregator="count", column="event_type")
+    return RatioOperand(aggregator="sum", column=aggregate_column)
+
+
+_MINOR_WORDS = {"a", "an", "and", "of", "or", "per", "the"}
+
+
+def _event_label(aggregate_column: str | None) -> str:
+    # Column-less metrics count event rows: "Events per X" rates, "Total
+    # Events" for the plain total (the Total prefix comes from the caller).
+    if aggregate_column is None:
+        return "Events"
+    words = aggregate_column.replace("_", " ").lower().split()
+    return " ".join(word if i > 0 and word in _MINOR_WORDS else word.capitalize() for i, word in enumerate(words))
+
+
+# Encounter-rate presets, sharing the patrol presets above where the metric is
+# the same (patrol count, total distance, total duration). The "Encounter ..."
+# metrics follow the task-level aggregation ("Measure Encounters By"): they
+# count event records in Number of Events mode and sum an event field over
+# event rows in Sum of an Event Field mode — their own aggregate_column if
+# set, else the task-level field — falling back to counting, and to
+# "Events per ..." / "Total Events" display names, when neither names a
+# field. Total Events always counts, regardless of the aggregation; both can
+# appear in one table.
+class TotalEventsMetric(BaseModel):
+    model_config = ConfigDict(title="Total Events")
+    metric: Annotated[Literal["total_events"], Field(default="total_events", title="Metric")] = "total_events"
+
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(display_name="Total Events", aggregator="count", column="event_type")
+
+
+_PER_METRIC_AGGREGATE_COLUMN_FIELD = Field(
+    default="",
+    title="Event Field to Sum",
+    description=(
+        "Event details field whose values are totaled for this metric, using the"
+        ' field title shown in EarthRanger (for example "Number of Animals").'
+        " Leave blank to use the task-level Event Field to Sum."
+    ),
+)
+
+
+class TotalEncounterMetric(BaseModel):
+    model_config = ConfigDict(title="Total Encounter")
+    metric: Annotated[
+        Literal["total_encounter"],
+        Field(default="total_encounter", title="Metric"),
+    ] = "total_encounter"
+    aggregate_column: Annotated[str, _PER_METRIC_AGGREGATE_COLUMN_FIELD] = ""
+
+    def to_summary_param(self, aggregate_column: str | None = None) -> StatSummaryParam:
+        column = self.aggregate_column or aggregate_column
+        operand = _event_numerator(column)
+        return StatSummaryParam(
+            display_name=f"Total {_event_label(column)}",
+            aggregator=operand.aggregator,
+            column=operand.column,
+        )
+
+
+_UNIT_RATE_LABELS = {"h": "Hour", "d": "Day", "km": "Km", "m": "Meter"}
+_PER_TIME_SCALES = {"h": 3600.0, "d": 86400.0}
+_PER_DISTANCE_SCALES = {"km": 1000.0, "m": 1.0}
+
+
+class EncountersPerDurationMetric(BaseModel):
+    model_config = ConfigDict(title="Encounters per Duration")
+    metric: Annotated[
+        Literal["encounters_per_duration"],
+        Field(default="encounters_per_duration", title="Metric"),
+    ] = "encounters_per_duration"
+    unit: Annotated[
+        Literal["h", "d"],
+        Field(default="h", title="Unit", json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY)),
+    ] = "h"
+    aggregate_column: Annotated[str, _PER_METRIC_AGGREGATE_COLUMN_FIELD] = ""
+
+    def to_summary_param(self, aggregate_column: str | None = None) -> RatioSummaryParam:
+        column = self.aggregate_column or aggregate_column
+        return RatioSummaryParam(
+            display_name=f"{_event_label(column)} per {_UNIT_RATE_LABELS[self.unit]}",
+            aggregator="ratio",
+            numerator=_event_numerator(column),
+            denominator=RatioOperand(aggregator="sum", column="timespan_seconds"),
+            scale=_PER_TIME_SCALES[self.unit],
+            decimal_places=2,
+        )
+
+
+class EncountersPerDistanceMetric(BaseModel):
+    model_config = ConfigDict(title="Encounters per Distance")
+    metric: Annotated[
+        Literal["encounters_per_distance"],
+        Field(default="encounters_per_distance", title="Metric"),
+    ] = "encounters_per_distance"
+    unit: Annotated[
+        Literal["km", "m"],
+        Field(default="km", title="Unit", json_schema_extra=labeled_units(Unit.KILOMETER, Unit.METER)),
+    ] = "km"
+    aggregate_column: Annotated[str, _PER_METRIC_AGGREGATE_COLUMN_FIELD] = ""
+
+    def to_summary_param(self, aggregate_column: str | None = None) -> RatioSummaryParam:
+        column = self.aggregate_column or aggregate_column
+        return RatioSummaryParam(
+            display_name=f"{_event_label(column)} per {_UNIT_RATE_LABELS[self.unit]}",
+            aggregator="ratio",
+            numerator=_event_numerator(column),
+            denominator=RatioOperand(aggregator="sum", column="dist_meters"),
+            scale=_PER_DISTANCE_SCALES[self.unit],
+            decimal_places=2,
+        )
+
+
+class EncountersPerPatrolMetric(BaseModel):
+    model_config = ConfigDict(title="Encounters per Patrol")
+    metric: Annotated[
+        Literal["encounters_per_patrol"],
+        Field(default="encounters_per_patrol", title="Metric"),
+    ] = "encounters_per_patrol"
+    aggregate_column: Annotated[str, _PER_METRIC_AGGREGATE_COLUMN_FIELD] = ""
+
+    def to_summary_param(self, aggregate_column: str | None = None) -> RatioSummaryParam:
+        column = self.aggregate_column or aggregate_column
+        return RatioSummaryParam(
+            display_name=f"{_event_label(column)} per Patrol",
+            aggregator="ratio",
+            numerator=_event_numerator(column),
+            denominator=RatioOperand(aggregator="nunique", column="patrol_id"),
+            scale=1.0,
+            decimal_places=2,
+        )
+
+
+class EncountersPerPatrolDayMetric(BaseModel):
+    """Rate against patrol days — distinct calendar days with patrol movement
+    (nunique segment_start_date, matching PatrolDaysMetric)."""
+
+    model_config = ConfigDict(title="Encounters per Patrol Day")
+    metric: Annotated[
+        Literal["encounters_per_patrol_day"],
+        Field(default="encounters_per_patrol_day", title="Metric"),
+    ] = "encounters_per_patrol_day"
+    aggregate_column: Annotated[str, _PER_METRIC_AGGREGATE_COLUMN_FIELD] = ""
+
+    def to_summary_param(self, aggregate_column: str | None = None) -> RatioSummaryParam:
+        column = self.aggregate_column or aggregate_column
+        return RatioSummaryParam(
+            display_name=f"{_event_label(column)} per Patrol Day",
+            aggregator="ratio",
+            numerator=_event_numerator(column),
+            denominator=RatioOperand(aggregator="nunique", column="segment_start_date"),
+            scale=1.0,
+            decimal_places=2,
+        )
+
+
+# Union order drives the RJSF dropdown: keep it ALPHABETICAL by title.
+# NOTE: the area-covered metrics buffer every geometry in the group — on the
+# combined segments+events frame the event points add small discs.
+EncounterRateMetric = Annotated[
+    Union[
+        MergedAreaCoveredMetric,  # Area Covered (Merged)
+        UnmergedAreaCoveredMetric,  # Area Covered (Unmerged)
+        CustomMetric,  # Custom
+        EncountersPerDistanceMetric,  # Encounters per Distance
+        EncountersPerDurationMetric,  # Encounters per Duration
+        EncountersPerPatrolMetric,  # Encounters per Patrol
+        EncountersPerPatrolDayMetric,  # Encounters per Patrol Day
+        PatrolCountMetric,  # Patrol Count
+        PatrolDaysMetric,  # Patrol Days
+        TotalDistanceMetric,  # Total Distance
+        TotalDurationMetric,  # Total Duration
+        TotalEncounterMetric,  # Total Encounter
+        TotalEventsMetric,  # Total Events
+    ],
+    Field(discriminator="metric"),
+]
+
+_EncounterRateMetricAdapter: TypeAdapter = TypeAdapter(EncounterRateMetric)
+
+# The metrics that receive the task-level aggregate_column.
+_EVENT_METRIC_TYPES = (
+    TotalEncounterMetric,
+    EncountersPerDurationMetric,
+    EncountersPerDistanceMetric,
+    EncountersPerPatrolMetric,
+    EncountersPerPatrolDayMetric,
+)
+
+_DEFAULT_ENCOUNTER_RATE_METRICS: tuple = (
+    {"metric": "total_encounter"},
+    {"metric": "total_duration", "unit": "h"},
+    {"metric": "encounters_per_duration", "unit": "h"},
+    {"metric": "total_distance", "unit": "km"},
+    {"metric": "encounters_per_distance", "unit": "km"},
+)
+
+
+# Event-relevant wording for this card (mirrors the encounter-rate map's
+# aggregation field); the platform mechanism stays generic.
+_EVENT_AGGREGATION_EXTRA = make_aggregation_json_schema_extra(
+    aggregation_title="Measure Encounters By",
+    count_title="Number of Events",
+    sum_title="Sum of an Event Field",
+    column_title="Event Field to Sum",
+    column_description=(
+        "Event details field whose values are totaled for the Encounter metrics"
+        " (Total Encounter and the Encounters per Duration/Distance/Patrol"
+        " rates), using the field title shown in EarthRanger (for example"
+        ' "Number of Animals"). Total Events always counts events.'
+    ),
+)
+
+_AggregationAdapter: TypeAdapter = TypeAdapter(CountAggregation | SumOfColumnAggregation)
+
+
+@register()
+def set_encounter_rate_metrics(
+    aggregation: Annotated[
+        CountAggregation | SumOfColumnAggregation | SkipJsonSchema[None],
+        Field(default=None, json_schema_extra=_EVENT_AGGREGATION_EXTRA),
+    ] = None,
+    metrics: Annotated[
+        Sequence[EncounterRateMetric],
+        Field(
+            default=_DEFAULT_ENCOUNTER_RATE_METRICS,
+            description="Metrics shown as columns in the encounter rate table. Add or remove rows to customize.",
+        ),
+    ] = _DEFAULT_ENCOUNTER_RATE_METRICS,
+) -> Annotated[list[SummaryParam], Field(description="Summary metric parameters")]:
+    if isinstance(aggregation, dict):
+        aggregation = _AggregationAdapter.validate_python(aggregation)
+    # Empty column in sum mode degrades to counting, like the map task.
+    aggregate_column = (
+        aggregation.column if isinstance(aggregation, SumOfColumnAggregation) and aggregation.column else None
+    )
+    validated = [m if isinstance(m, BaseModel) else _EncounterRateMetricAdapter.validate_python(m) for m in metrics]
+    return [
+        m.to_summary_param(aggregate_column) if isinstance(m, _EVENT_METRIC_TYPES) else m.to_summary_param()
+        for m in validated
+    ]
