@@ -1,107 +1,13 @@
 from operator import add, floordiv, mod, mul, pow, sub, truediv
-from typing import Annotated, Literal, TypeAlias, cast
+from typing import Annotated, Literal, cast
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import Field
 from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
 
 ColumnName = Annotated[str, Field(description="Column to aggregate")]
-
-
-class CountAggregation(BaseModel):
-    """Count rows — no column needed."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Count"})
-    count_or_sum: Annotated[
-        Literal["Count"],
-        Field(default="Count", title="Aggregation"),
-    ] = "Count"
-
-
-class SumOfColumnAggregation(BaseModel):
-    """Sum the values of a chosen column."""
-
-    model_config = ConfigDict(json_schema_extra={"title": "Sum of Column"})
-    count_or_sum: Annotated[
-        Literal["Sum of Column"],
-        Field(default="Sum of Column", title="Aggregation"),
-    ] = "Sum of Column"
-    column: Annotated[
-        str,
-        Field(
-            default="",
-            title="Column",
-            description="Column whose values are summed instead of counting rows.",
-        ),
-    ] = ""
-
-
-def make_aggregation_json_schema_extra(
-    *,
-    aggregation_title: str = "Aggregation",
-    count_title: str = "Count",
-    sum_title: str = "Sum of Column",
-    column_title: str = "Column",
-    column_description: str = "Column whose values are summed instead of counting rows.",
-):
-    """Flat allOf/if/then form schema for the Count | SumOfColumn union.
-
-    RJSF discards branch formData when an anyOf selection changes, so a typed
-    column would be lost on mode toggle. Rendering the union as a flat object
-    with a conditionally revealed column keeps the value. No
-    additionalProperties/unevaluatedProperties and no default on the
-    conditional field — the only shape that renders, retains values, and
-    passes 2020-12 submit validation. A retained "column" while Count is
-    selected is ignored by CountAggregation validation.
-    """
-
-    def _flat_conditional_json_schema(schema: dict) -> None:
-        schema.pop("anyOf", None)
-        schema.update(
-            {
-                "type": "object",
-                "title": "",
-                "properties": {
-                    "count_or_sum": {
-                        "type": "string",
-                        "title": aggregation_title,
-                        "default": "Count",
-                        "oneOf": [
-                            {"const": "Count", "title": count_title},
-                            {"const": "Sum of Column", "title": sum_title},
-                        ],
-                    },
-                },
-                "allOf": [
-                    {
-                        "if": {"properties": {"count_or_sum": {"const": "Sum of Column"}}},
-                        "then": {
-                            "properties": {
-                                "column": {
-                                    "type": "string",
-                                    "title": column_title,
-                                    "description": column_description,
-                                },
-                            },
-                        },
-                    },
-                ],
-            }
-        )
-
-    return _flat_conditional_json_schema
-
-
-AggregationAnnotation: TypeAlias = Annotated[
-    CountAggregation | SumOfColumnAggregation | SkipJsonSchema[None],
-    Field(
-        default=None,
-        json_schema_extra=make_aggregation_json_schema_extra(),
-    ),
-]
 
 
 @register()

@@ -10,11 +10,6 @@ from pydantic import (
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.tasks.analysis._aggregation import (
-    CountAggregation,
-    SumOfColumnAggregation,
-    make_aggregation_json_schema_extra,
-)
 from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
     RatioOperand,
@@ -54,7 +49,11 @@ class TotalDistanceMetric(BaseModel):
     metric: Annotated[Literal["total_distance"], Field(default="total_distance", title="Metric")] = "total_distance"
     unit: Annotated[
         Literal["km", "m"],
-        Field(default="km", title="Unit", json_schema_extra=labeled_units(Unit.KILOMETER, Unit.METER)),
+        Field(
+            default="km",
+            title="Unit",
+            json_schema_extra=labeled_units(Unit.KILOMETER, Unit.METER),
+        ),
     ] = "km"
 
     def to_summary_param(self) -> StatSummaryParam:
@@ -74,7 +73,11 @@ class TotalDurationMetric(BaseModel):
     metric: Annotated[Literal["total_duration"], Field(default="total_duration", title="Metric")] = "total_duration"
     unit: Annotated[
         Literal["h", "d"],
-        Field(default="h", title="Unit", json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY)),
+        Field(
+            default="h",
+            title="Unit",
+            json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY),
+        ),
     ] = "h"
 
     def to_summary_param(self) -> StatSummaryParam:
@@ -233,7 +236,7 @@ _PER_METRIC_AGGREGATE_COLUMN_FIELD = Field(
 
 
 class TotalEncounterMetric(BaseModel):
-    model_config = ConfigDict(title="Total Encounter")
+    model_config = ConfigDict(title="Total Encounters")
     metric: Annotated[
         Literal["total_encounter"],
         Field(default="total_encounter", title="Metric"),
@@ -243,8 +246,10 @@ class TotalEncounterMetric(BaseModel):
     def to_summary_param(self, aggregate_column: str | None = None) -> StatSummaryParam:
         column = self.aggregate_column or aggregate_column
         operand = _event_numerator(column)
+        # "Total Encounters" in count mode, not "Total Events": TotalEventsMetric
+        # owns that display name, and summarize_df keys columns by display name.
         return StatSummaryParam(
-            display_name=f"Total {_event_label(column)}",
+            display_name=f"Total {_event_label(column)}" if column else "Total Encounters",
             aggregator=operand.aggregator,
             column=operand.column,
         )
@@ -263,7 +268,11 @@ class EncountersPerDurationMetric(BaseModel):
     ] = "encounters_per_duration"
     unit: Annotated[
         Literal["h", "d"],
-        Field(default="h", title="Unit", json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY)),
+        Field(
+            default="h",
+            title="Unit",
+            json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY),
+        ),
     ] = "h"
     aggregate_column: Annotated[str, _PER_METRIC_AGGREGATE_COLUMN_FIELD] = ""
 
@@ -287,7 +296,11 @@ class EncountersPerDistanceMetric(BaseModel):
     ] = "encounters_per_distance"
     unit: Annotated[
         Literal["km", "m"],
-        Field(default="km", title="Unit", json_schema_extra=labeled_units(Unit.KILOMETER, Unit.METER)),
+        Field(
+            default="km",
+            title="Unit",
+            json_schema_extra=labeled_units(Unit.KILOMETER, Unit.METER),
+        ),
     ] = "km"
     aggregate_column: Annotated[str, _PER_METRIC_AGGREGATE_COLUMN_FIELD] = ""
 
@@ -360,7 +373,7 @@ EncounterRateMetric = Annotated[
         PatrolDaysMetric,  # Patrol Days
         TotalDistanceMetric,  # Total Distance
         TotalDurationMetric,  # Total Duration
-        TotalEncounterMetric,  # Total Encounter
+        TotalEncounterMetric,  # Total Encounters
         TotalEventsMetric,  # Total Events
     ],
     Field(discriminator="metric"),
@@ -376,6 +389,20 @@ _EVENT_METRIC_TYPES = (
     EncountersPerPatrolDayMetric,
 )
 
+
+def encounter_metrics_to_summary_params(
+    metrics: Sequence[EncounterRateMetric],
+    aggregate_column: str | None = None,
+) -> list[SummaryParam]:
+    """Validate metric rows and convert to SummaryParams, threading the
+    task-level aggregate column into the mode-following Encounter metrics."""
+    validated = [m if isinstance(m, BaseModel) else _EncounterRateMetricAdapter.validate_python(m) for m in metrics]
+    return [
+        m.to_summary_param(aggregate_column) if isinstance(m, _EVENT_METRIC_TYPES) else m.to_summary_param()
+        for m in validated
+    ]
+
+
 _DEFAULT_ENCOUNTER_RATE_METRICS: tuple = (
     {"metric": "total_encounter"},
     {"metric": "total_duration", "unit": "h"},
@@ -383,6 +410,90 @@ _DEFAULT_ENCOUNTER_RATE_METRICS: tuple = (
     {"metric": "total_distance", "unit": "km"},
     {"metric": "encounters_per_distance", "unit": "km"},
 )
+
+
+class CountAggregation(BaseModel):
+    """Count rows — no column needed."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Count"})
+    count_or_sum: Annotated[
+        Literal["Count"],
+        Field(default="Count", title="Aggregation"),
+    ] = "Count"
+
+
+class SumOfColumnAggregation(BaseModel):
+    """Sum the values of a chosen column."""
+
+    model_config = ConfigDict(json_schema_extra={"title": "Sum of Column"})
+    count_or_sum: Annotated[
+        Literal["Sum of Column"],
+        Field(default="Sum of Column", title="Aggregation"),
+    ] = "Sum of Column"
+    column: Annotated[
+        str,
+        Field(
+            default="",
+            title="Column",
+            description="Column whose values are summed instead of counting rows.",
+        ),
+    ] = ""
+
+
+def make_aggregation_json_schema_extra(
+    *,
+    aggregation_title: str = "Aggregation",
+    count_title: str = "Count",
+    sum_title: str = "Sum of Column",
+    column_title: str = "Column",
+    column_description: str = "Column whose values are summed instead of counting rows.",
+):
+    """Flat allOf/if/then form schema for the Count | SumOfColumn union.
+
+    RJSF discards branch formData when an anyOf selection changes, so a typed
+    column would be lost on mode toggle. Rendering the union as a flat object
+    with a conditionally revealed column keeps the value. No
+    additionalProperties/unevaluatedProperties and no default on the
+    conditional field — the only shape that renders, retains values, and
+    passes 2020-12 submit validation. A retained "column" while Count is
+    selected is ignored by CountAggregation validation.
+    """
+
+    def _flat_conditional_json_schema(schema: dict) -> None:
+        schema.pop("anyOf", None)
+        schema.update(
+            {
+                "type": "object",
+                "title": "",
+                "properties": {
+                    "count_or_sum": {
+                        "type": "string",
+                        "title": aggregation_title,
+                        "default": "Count",
+                        "oneOf": [
+                            {"const": "Count", "title": count_title},
+                            {"const": "Sum of Column", "title": sum_title},
+                        ],
+                    },
+                },
+                "allOf": [
+                    {
+                        "if": {"properties": {"count_or_sum": {"const": "Sum of Column"}}},
+                        "then": {
+                            "properties": {
+                                "column": {
+                                    "type": "string",
+                                    "title": column_title,
+                                    "description": column_description,
+                                },
+                            },
+                        },
+                    },
+                ],
+            }
+        )
+
+    return _flat_conditional_json_schema
 
 
 # Wording mirrors the encounter-rate map's aggregation field.
@@ -393,7 +504,7 @@ _EVENT_AGGREGATION_EXTRA = make_aggregation_json_schema_extra(
     column_title="Event Field to Sum",
     column_description=(
         "Event details field whose values are totaled for the Encounter metrics"
-        "using the field title shown in EarthRanger (for example"
+        " using the field title shown in EarthRanger (for example"
         ' "Number of Animals").'
     ),
 )
@@ -421,8 +532,4 @@ def set_encounter_rate_metrics(
     aggregate_column = (
         aggregation.column if isinstance(aggregation, SumOfColumnAggregation) and aggregation.column else None
     )
-    validated = [m if isinstance(m, BaseModel) else _EncounterRateMetricAdapter.validate_python(m) for m in metrics]
-    return [
-        m.to_summary_param(aggregate_column) if isinstance(m, _EVENT_METRIC_TYPES) else m.to_summary_param()
-        for m in validated
-    ]
+    return encounter_metrics_to_summary_params(metrics, aggregate_column)

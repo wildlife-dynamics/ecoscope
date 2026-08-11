@@ -77,14 +77,17 @@ def decompose_datetime(
     dt_accessor = result[datetime_column].dt
 
     for component in components:
-        if not hasattr(dt_accessor, component):
+        if component in ("week", "weekofyear"):
+            # Series.dt.week/weekofyear were removed in pandas 2.0.
+            value = dt_accessor.isocalendar().week
+        elif not hasattr(dt_accessor, component):
             raise AttributeError(
                 f"Invalid temporal component: '{component}'. "
                 f"Pandas datetime accessor does not support this attribute."
             )
-
-        attribute = getattr(dt_accessor, component)
-        value = attribute() if callable(attribute) else attribute
+        else:
+            attribute = getattr(dt_accessor, component)
+            value = attribute() if callable(attribute) else attribute
         result[f"{prefix}_{component}"] = value
 
     if remove_source:

@@ -55,11 +55,24 @@ def test_explicit_fill_value(events_df):
     assert result[1][1].columns.tolist() == ["custom"]
 
 
-def test_empty_target_fills_all_keys(events_df):
-    result = align_keyed_iterable_to_reference(target=[], reference=[(JAN, None), (FEB, None)])
+def test_empty_target_without_fill_value_raises(events_df):
+    with pytest.raises(ValueError, match="fill_value"):
+        align_keyed_iterable_to_reference(target=[], reference=[(JAN, None), (FEB, None)])
+
+
+def test_empty_target_with_fill_value_fills_all_keys(events_df):
+    result = align_keyed_iterable_to_reference(
+        target=[], reference=[(JAN, None), (FEB, None)], fill_value=events_df.iloc[0:0]
+    )
 
     assert [key for key, _ in result] == [JAN, FEB]
     assert all(len(df) == 0 for _, df in result)
+    assert all(df.columns.tolist() == events_df.columns.tolist() for _, df in result)
+
+
+def test_duplicate_target_keys_raise(events_df):
+    with pytest.raises(ValueError, match="Duplicate key"):
+        align_keyed_iterable_to_reference(target=[(JAN, events_df), (JAN, events_df.copy())], reference=[(JAN, None)])
 
 
 def test_duplicate_reference_keys_deduped(events_df):

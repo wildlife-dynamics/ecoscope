@@ -66,6 +66,23 @@ def test_add_temporal_index_skips_existing_index_level():
     pd.testing.assert_frame_equal(twice, once)
 
 
+def test_add_temporal_index_recomputes_existing_level_from_time_col():
+    df = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime(["2022-01-01", "2022-02-01"]),
+            "other_time": pd.to_datetime(["2022-06-01", "2022-07-01"]),
+            "value": [1, 2],
+        }
+    )
+    month = TemporalGrouper(temporal_index=Month())
+
+    first = add_temporal_index(df, time_col="timestamp", groupers=[month])
+    second = add_temporal_index(first, time_col="other_time", groupers=[month])
+
+    assert second.index.names.count(month.index_name) == 1
+    assert list(second.index.get_level_values(month.index_name)) == ["June", "July"]
+
+
 # --- Spatial indexing tests (from ext) ---
 
 

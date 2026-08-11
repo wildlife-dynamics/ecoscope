@@ -16,3 +16,9 @@ def test_remove_source_and_custom_prefix():
     result = decompose_datetime(df, datetime_column="t", components=["month"], remove_source=True, column_prefix="ts")
     assert "t" not in result.columns
     assert list(result["ts_month"]) == [1]
+
+
+def test_week_component_uses_isocalendar():
+    df = pd.DataFrame({"t": ["2026-01-15", "2026-12-28"]})
+    result = decompose_datetime(df, datetime_column="t", components=["week"])
+    assert list(result["t_week"]) == [3, 53]

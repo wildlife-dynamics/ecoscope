@@ -13,7 +13,7 @@ from ecoscope.platform.tasks.analysis._summary import (
 def test_default_metrics():
     params = set_encounter_rate_metrics()
     assert [p.display_name for p in params] == [
-        "Total Events",
+        "Total Encounters",
         "Total Duration (hrs)",
         "Events per Hour",
         "Total Distance (km)",
@@ -69,7 +69,7 @@ def test_encounter_metrics_fall_back_to_count_when_no_column(aggregation):
         ),
     )
     assert [p.display_name for p in params] == [
-        "Total Events",
+        "Total Encounters",
         "Events per Hour",
         "Events per Km",
         "Events per Patrol",
@@ -140,7 +140,7 @@ def test_per_metric_aggregate_columns_differ_without_task_level():
     assert [p.display_name for p in params] == [
         "Total Number of Animals",
         "Number of Snares per Km",
-        "Total Events",
+        "Total Encounters",
     ]
     assert params[0].aggregator == "sum"
     assert params[1].numerator.column == "number_of_snares"
@@ -216,6 +216,11 @@ def test_metric_subset_from_dicts_with_units():
     assert [p.display_name for p in params] == ["Total Distance (m)", "Total Duration (days)", "Events per Km"]
 
 
+def test_total_encounters_and_total_events_distinct_in_count_mode():
+    params = set_encounter_rate_metrics(metrics=({"metric": "total_encounter"}, {"metric": "total_events"}))
+    assert [p.display_name for p in params] == ["Total Encounters", "Total Events"]
+
+
 def test_unknown_metric_raises():
     with pytest.raises(ValueError):
         set_encounter_rate_metrics(metrics=({"metric": "not_a_metric"},))
@@ -242,13 +247,13 @@ def combined_df():
 def test_end_to_end_with_summarize_df(combined_df):
     result = summarize_df(combined_df, set_encounter_rate_metrics(), groupby_cols=["grp"])
 
-    assert result.loc["A", "Total Events"] == 2
+    assert result.loc["A", "Total Encounters"] == 2
     assert result.loc["A", "Total Duration (hrs)"] == 2.0
     assert result.loc["A", "Events per Hour"] == 1.0
     assert result.loc["A", "Total Distance (km)"] == 5.0
     assert result.loc["A", "Events per Km"] == 0.4
 
-    assert result.loc["B", "Total Events"] == 0
+    assert result.loc["B", "Total Encounters"] == 0
     assert result.loc["B", "Events per Hour"] == 0.0
 
 
@@ -301,3 +306,41 @@ def test_end_to_end_with_per_metric_aggregate_columns(combined_df):
     assert result.loc["A", "Total Number of Animals"] == 5.0
     assert result.loc["A", "Total Number of Snares"] == 1.0
     assert result.loc["A", "Number of Snares per Hour"] == 0.5
+
+
+def test_aggregation_models_roundtrip():
+    from ecoscope.platform.tasks.analysis._patrol_summary import (
+        CountAggregation,
+        SumOfColumnAggregation,
+    )
+
+    assert CountAggregation().count_or_sum == "Count"
+    assert SumOfColumnAggregation(column="Number of Animals").column == "Number of Animals"
+
+
+def test_make_aggregation_json_schema_extra_flattens_to_conditional_object():
+    from ecoscope.platform.tasks.analysis._patrol_summary import (
+        make_aggregation_json_schema_extra,
+    )
+
+    extra = make_aggregation_json_schema_extra(
+        aggregation_title="Rate Based On",
+        count_title="Number of Events",
+        sum_title="Total of an Event Field",
+        column_title="Event Field to Total",
+        column_description="desc",
+    )
+    schema = {"anyOf": [{"$ref": "#/$defs/CountAggregation"}], "default": None}
+    extra(schema)
+
+    assert "anyOf" not in schema
+    assert schema["type"] == "object"
+    select = schema["properties"]["count_or_sum"]
+    assert select["title"] == "Rate Based On"
+    assert [o["title"] for o in select["oneOf"]] == ["Number of Events", "Total of an Event Field"]
+    conditional = schema["allOf"][0]
+    assert conditional["if"]["properties"]["count_or_sum"]["const"] == "Sum of Column"
+    column = conditional["then"]["properties"]["column"]
+    assert column["title"] == "Event Field to Total"
+    assert "default" not in column
+    assert "additionalProperties" not in schema

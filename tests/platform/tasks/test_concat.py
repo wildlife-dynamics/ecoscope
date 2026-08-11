@@ -44,6 +44,16 @@ def test_concat_all_empty_returns_empty_df() -> None:
     assert isinstance(result, pd.DataFrame)
 
 
+def test_concat_all_empty_preserves_schema_union() -> None:
+    a = pd.DataFrame({"x": pd.Series(dtype=float), "t": pd.Series(dtype="datetime64[ns]")})
+    b = pd.DataFrame({"y": pd.Series(dtype=object)})
+
+    result = concat_dataframes([a, b])
+
+    assert result.empty
+    assert set(result.columns) == {"x", "t", "y"}
+
+
 def test_concat_all_empty_with_ensure_columns() -> None:
     result = concat_dataframes([pd.DataFrame()], ensure_columns=["a", "b"])
 
