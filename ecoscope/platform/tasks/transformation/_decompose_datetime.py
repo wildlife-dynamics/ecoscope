@@ -1,5 +1,3 @@
-# Ported from ecoscope-workflows-ext-custom; registered under a different FQN,
-# so specs installing both copies must use a dotted reference.
 from typing import Annotated, List, Literal, cast
 
 import pandas as pd
