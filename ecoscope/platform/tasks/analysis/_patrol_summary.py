@@ -393,9 +393,8 @@ _EVENT_AGGREGATION_EXTRA = make_aggregation_json_schema_extra(
     column_title="Event Field to Sum",
     column_description=(
         "Event details field whose values are totaled for the Encounter metrics"
-        " (Total Encounter and the Encounters per Duration/Distance/Patrol"
-        " rates), using the field title shown in EarthRanger (for example"
-        ' "Number of Animals"). Total Events always counts events.'
+        "using the field title shown in EarthRanger (for example"
+        ' "Number of Animals").'
     ),
 )
 

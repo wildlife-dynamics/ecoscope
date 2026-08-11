@@ -68,8 +68,9 @@ def add_temporal_index(
         temporal_groupers = [g for g in groupers if isinstance(g, TemporalGrouper)]
         for tg in temporal_groupers:
             if tg.index_name in df.index.names:
-                # Already indexed by an earlier call with an overlapping grouper list.
-                continue
+                # Recompute rather than trust a level an earlier call may have
+                # built from a different time_col.
+                df = df.reset_index(level=tg.index_name, drop=True)  # type: ignore[assignment]
             df[tg.index_name] = df[time_col].dt.strftime(tg.temporal_index.directive)
             df = df.set_index(tg.index_name, append=True)  # type: ignore[assignment]
 

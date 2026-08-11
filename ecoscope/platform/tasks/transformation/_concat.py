@@ -46,16 +46,17 @@ def concat_dataframes(
 
     Returns:
         The concatenated dataframe: a GeoDataFrame (preserving CRS) if any input
-        is one, or an empty DataFrame if all inputs were dropped or empty.
+        is one. If all inputs are empty, an empty frame preserving the union of
+        input columns; if all inputs were skipped, a bare empty DataFrame.
     """
     ensure_columns = ensure_columns or []
-    non_empty = [df for df in dfs if not df.empty]
-    if not non_empty:
+    if not dfs:
         return cast(AnyDataFrame, pd.DataFrame(columns=list(ensure_columns)))
 
-    result = pd.concat(non_empty, axis=0, ignore_index=reset_index)
+    frames = [df for df in dfs if not df.empty] or list(dfs)
+    result = pd.concat(frames, axis=0, ignore_index=reset_index)
 
-    geo_inputs = [df for df in non_empty if isinstance(df, gpd.GeoDataFrame)]
+    geo_inputs = [df for df in frames if isinstance(df, gpd.GeoDataFrame)]
     if geo_inputs:
         geom_col = next((g.active_geometry_name for g in geo_inputs if g.active_geometry_name is not None), None)
         crs = next((g.crs for g in geo_inputs if g.crs is not None), None)
