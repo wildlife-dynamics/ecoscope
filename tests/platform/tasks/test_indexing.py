@@ -15,6 +15,8 @@ from ecoscope.platform.indexes import (
 from ecoscope.platform.tasks.transformation import (
     add_spatial_index,
     add_temporal_index,
+    extract_grouper_index_names,
+    rename_grouper_index_columns,
     resolve_spatial_feature_groups_for_spatial_groupers,
 )
 
@@ -45,6 +47,24 @@ def test_add_temporal_index():
         (2, "February"),
         (3, "February"),
     ]
+
+
+def test_add_temporal_index_skips_existing_index_level():
+    df = pd.DataFrame(
+        {
+            "timestamp": pd.to_datetime(["2022-01-01", "2022-02-01"]),
+            "value": [1, 2],
+        }
+    )
+    month = TemporalGrouper(temporal_index=Month())
+
+    once = add_temporal_index(df, time_col="timestamp", groupers=[month])
+    # Second call with an overlapping grouper list (e.g. view groupers vs. an
+    # independent aggregator groupers list) must not re-add the index level.
+    twice = add_temporal_index(once, time_col="timestamp", groupers=[month])
+
+    assert twice.index.names.count(month.index_name) == 1
+    pd.testing.assert_frame_equal(twice, once)
 
 
 # --- Spatial indexing tests (from ext) ---
@@ -319,6 +339,46 @@ def test_add_spatial_index_unresolved_grouper_passthrough():
 def test_add_spatial_index_all_grouper_passthrough(example_events):
     result = add_spatial_index(gdf=example_events, groupers=AllGrouper())
     pd.testing.assert_frame_equal(result, example_events)
+
+
+def test_add_spatial_index_skips_existing_index_level(example_events, example_regions):
+    sg = SpatialGrouper(spatial_index_name="Test")
+    sg.resolve(example_regions)
+
+    once = add_spatial_index(gdf=example_events, groupers=[sg])
+    twice = add_spatial_index(gdf=once, groupers=[sg])
+
+    assert twice.index.names.count(sg.index_name) == 1
+    pd.testing.assert_frame_equal(twice, once)
+
+
+def test_extract_grouper_index_names():
+    vg = ValueGrouper(index_name="event_type")
+    tg = TemporalGrouper(temporal_index=Month())
+    sg = SpatialGrouper(spatial_index_name="Test")
+
+    assert extract_grouper_index_names(AllGrouper()) == []
+    assert extract_grouper_index_names([vg, tg, sg]) == [
+        "event_type",
+        tg.index_name,
+        sg.index_name,
+    ]
+
+
+def test_rename_grouper_index_columns():
+    vg = ValueGrouper(index_name="event_type")
+    tg = TemporalGrouper(temporal_index=Month())
+    df = pd.DataFrame({vg.index_name: ["a"], tg.index_name: ["January"], "value": [1]})
+
+    result = rename_grouper_index_columns(df, groupers=[vg, tg])
+
+    assert list(result.columns) == ["Event Type", "Month", "value"]
+
+
+def test_rename_grouper_index_columns_all_grouper_passthrough():
+    df = pd.DataFrame({"value": [1]})
+    result = rename_grouper_index_columns(df, groupers=AllGrouper())
+    pd.testing.assert_frame_equal(result, df)
 
 
 def test_add_spatial_index_mixed_groupers_ignores_non_spatial(example_events, example_regions):

@@ -67,6 +67,9 @@ def add_temporal_index(
     if not isinstance(groupers, AllGrouper):
         temporal_groupers = [g for g in groupers if isinstance(g, TemporalGrouper)]
         for tg in temporal_groupers:
+            if tg.index_name in df.index.names:
+                # Already indexed by an earlier call with an overlapping grouper list.
+                continue
             df[tg.index_name] = df[time_col].dt.strftime(tg.temporal_index.directive)
             df = df.set_index(tg.index_name, append=True)  # type: ignore[assignment]
 
@@ -81,6 +84,27 @@ def extract_spatial_grouper_feature_group_names(
     if isinstance(groupers, AllGrouper):
         return []
     return [grouper.spatial_index_name for grouper in groupers if isinstance(grouper, SpatialGrouper)]
+
+
+@register()
+def extract_grouper_index_names(
+    groupers: AllGrouper | UserDefinedGroupers,
+) -> list[str]:
+    """Return each grouper's index_name, e.g. for use as groupby columns; empty for AllGrouper."""
+    if isinstance(groupers, AllGrouper):
+        return []
+    return [grouper.index_name for grouper in groupers]
+
+
+@register()
+def rename_grouper_index_columns(
+    df: AnyDataFrame,
+    groupers: AllGrouper | UserDefinedGroupers,
+) -> AnyDataFrame:
+    """Rename each grouper's index_name column to its display_name."""
+    if isinstance(groupers, AllGrouper):
+        return df
+    return cast(AnyDataFrame, df.rename(columns={grouper.index_name: grouper.display_name for grouper in groupers}))
 
 
 @register()
@@ -144,6 +168,9 @@ def add_spatial_index(
     if not isinstance(groupers, AllGrouper):
         spatial_groupers = [g for g in groupers if isinstance(g, SpatialGrouper)]
         for sg in spatial_groupers:
+            if sg.index_name in gdf.index.names:
+                # Already indexed by an earlier call with an overlapping grouper list.
+                continue
             if sg.is_resolved and sg.spatial_regions is not None:
                 # spatial_regions is typed as AnyGeoDataFrame,
                 # but in our opinionated use here we expect a RegionsGDF
