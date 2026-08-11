@@ -21,14 +21,19 @@ from ecoscope.platform.tasks.io import (
     get_patrol_events,
     get_patrols,
 )
-from ecoscope.platform.tasks.io._earthranger import DWH_EVENTS_ENABLED
+from ecoscope.platform.tasks.io._earthranger import _dwh_events_enabled
 
-# ERDW-233: tests that exercise the warehouse (DWH) events path are skipped while
-# DWH_EVENTS_ENABLED is False; they auto-re-enable when the flag is flipped back.
-requires_dwh_events = pytest.mark.skipif(
-    not DWH_EVENTS_ENABLED,
-    reason="ERDW-233: DWH client disabled for events (DWH_EVENTS_ENABLED=False)",
-)
+
+@pytest.fixture
+def dwh_events_enabled(monkeypatch):
+    """Pin DWH_EVENTS_ENABLED on, regardless of the ambient environment."""
+    monkeypatch.setenv("DWH_EVENTS_ENABLED", "true")
+
+
+# Marks a test as exercising the DWH-backed event path, and pins the kill switch on
+# for it: a deployment-style DWH_EVENTS_ENABLED=false in the developer's or CI's
+# environment must not silently reroute these to the ER API and fail them.
+requires_dwh_events = pytest.mark.usefixtures("dwh_events_enabled")
 
 
 def _make_events_arrow_table(
@@ -848,35 +853,55 @@ def test_get_patrol_events_legacy_display_values_path():
     mock_legacy_client.get_event_type_display_names_from_events.assert_called_once()
 
 
-def test_get_patrols_respects_dwh_events_kill_switch():
-    """With the switch off, patrols come from the ER API even when the DWH is configured.
+def test_dwh_events_enabled_defaults_to_true(monkeypatch):
+    """ERDW-249: the DWH events path is on unless DWH_EVENTS_ENABLED says otherwise."""
+    monkeypatch.delenv("DWH_EVENTS_ENABLED", raising=False)
+    assert _dwh_events_enabled() is True
 
-    Distinct from test_get_patrols_warehouse_disabled_falls_back_to_legacy_client,
-    which simulates the warehouse not being configured at all: here a warehouse
-    client is available and must still be bypassed. Warehouse patrols nest their
-    events (the client always sends include_events=True), so they follow the
-    event kill switch rather than the observation path.
+    for value, expected in [("false", False), ("FALSE", False), ("true", True), ("True", True)]:
+        monkeypatch.setenv("DWH_EVENTS_ENABLED", value)
+        assert _dwh_events_enabled() is expected
+
+
+@pytest.mark.parametrize(
+    "task, method, kwargs",
+    [
+        (get_patrols, "get_patrols", {"patrol_types": ["ecoscope_patrol"], "status": None}),
+        (get_events, "get_events", {"event_types": ["hwc_rep"]}),
+        (
+            get_patrol_events,
+            "get_patrols",
+            {"patrol_types": ["ecoscope_patrol"], "event_types": ["hwc_rep"]},
+        ),
+    ],
+)
+def test_dwh_events_kill_switch_falls_back_to_legacy_client(monkeypatch, task, method, kwargs):
+    """With DWH_EVENTS_ENABLED=false, event data comes from the ER API even when the DWH is configured.
+
+    Distinct from the test_*_warehouse_disabled_falls_back_to_legacy_client tests,
+    which simulate the warehouse not being configured at all: here a warehouse
+    client is available and must still be bypassed. `get_patrols` is included
+    because warehouse patrols nest their events (the client always sends
+    include_events=True), so they follow the event kill switch rather than the
+    observation path.
     """
+    monkeypatch.setenv("DWH_EVENTS_ENABLED", "false")
     mock_legacy_client = MagicMock()
-    mock_legacy_client.get_patrols.return_value = pd.DataFrame()
+    mock_legacy_client.get_event_types.return_value = pd.DataFrame({"id": ["id-1"], "value": ["hwc_rep"]})
+    getattr(mock_legacy_client, task.__name__).return_value = pd.DataFrame()
     mock_warehouse_client = MagicMock()
 
     with patch(
         "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
         return_value=mock_warehouse_client,
     ):
-        result = get_patrols(
+        result = task(
             client=mock_legacy_client,
             time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            status=None,
             raise_on_empty=False,
+            **kwargs,
         )
 
-    if DWH_EVENTS_ENABLED:
-        mock_warehouse_client.get_patrols.assert_called_once()
-        mock_legacy_client.get_patrols.assert_not_called()
-    else:
-        mock_legacy_client.get_patrols.assert_called_once()
-        mock_warehouse_client.get_patrols.assert_not_called()
-        assert result.empty
+    getattr(mock_legacy_client, task.__name__).assert_called_once()
+    getattr(mock_warehouse_client, method).assert_not_called()
+    assert result.empty
