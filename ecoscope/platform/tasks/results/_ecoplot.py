@@ -79,6 +79,8 @@ class PlotStyle(BaseModel):
     xperiodalignment: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     marker_colors: Annotated[list[str] | SkipJsonSchema[None], AdvancedField(default=None)] = None
     textinfo: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    textposition: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
+    texttemplate: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     line: Annotated[LineStyle | SkipJsonSchema[None], AdvancedField(default=None)] = None
     fillcolor: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     mode: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None

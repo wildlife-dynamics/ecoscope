@@ -34,6 +34,7 @@ from ._pydeck import (
     view_state_from_layers,
 )
 from ._table import draw_table
+from ._trend_chart import draw_time_series_chart
 from ._widget_tasks import (
     create_files_single_view,
     create_map_v2_widget_single_view,
@@ -63,6 +64,7 @@ __all__ = [
     "draw_line_chart",
     "draw_pie_chart",
     "draw_time_series_bar_chart",
+    "draw_time_series_chart",
     "OutputFiles",
     "gather_output_files",
     "draw_table",
