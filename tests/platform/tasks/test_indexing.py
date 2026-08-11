@@ -59,8 +59,7 @@ def test_add_temporal_index_skips_existing_index_level():
     month = TemporalGrouper(temporal_index=Month())
 
     once = add_temporal_index(df, time_col="timestamp", groupers=[month])
-    # Second call with an overlapping grouper list (e.g. view groupers vs. an
-    # independent aggregator groupers list) must not re-add the index level.
+    # An overlapping grouper list must not re-add the index level.
     twice = add_temporal_index(once, time_col="timestamp", groupers=[month])
 
     assert twice.index.names.count(month.index_name) == 1

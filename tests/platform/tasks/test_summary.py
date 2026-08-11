@@ -259,7 +259,6 @@ def test_summarize_df_ratio_zero_denominator_is_na():
 
 
 def test_summarize_df_ratio_sum_numerator_skips_nan_rows():
-    # Concatenated segment + event rows: the aggregate column is NaN on segment rows.
     df = pd.DataFrame(
         {
             "number_of_animals": [None, None, 2.0, 3.0],

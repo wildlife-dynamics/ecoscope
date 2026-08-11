@@ -1,8 +1,5 @@
-# Ported from ecoscope-workflows-ext-custom so platform-only workflows can
-# derive calendar columns (e.g. `segment_start_date` for patrol-day metrics)
-# without the ext-custom dependency. Registered FQNs differ, so both copies
-# can be installed side by side; specs depending on both must use a dotted
-# reference instead of the plain task name.
+# Ported from ecoscope-workflows-ext-custom; registered under a different FQN,
+# so specs installing both copies must use a dotted reference.
 from typing import Annotated, List, Literal, cast
 
 import pandas as pd
@@ -11,7 +8,6 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrame
 
-# Type alias for all supported pandas datetime accessor attributes
 TemporalComponent = Literal[
     "year",
     "month",

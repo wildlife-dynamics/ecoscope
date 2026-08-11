@@ -197,8 +197,7 @@ def set_patrol_summary_metrics(
 
 
 def _event_numerator(aggregate_column: str | None) -> RatioOperand:
-    # With no aggregate column, each event row counts as 1. With one, we sum it
-    # over event rows; segment rows are NaN there, so pandas sum skips them.
+    # The aggregate column is NaN on segment rows, so sum covers event rows only.
     if aggregate_column is None:
         return RatioOperand(aggregator="count", column="event_type")
     return RatioOperand(aggregator="sum", column=aggregate_column)
@@ -208,23 +207,12 @@ _MINOR_WORDS = {"a", "an", "and", "of", "or", "per", "the"}
 
 
 def _event_label(aggregate_column: str | None) -> str:
-    # Column-less metrics count event rows: "Events per X" rates, "Total
-    # Events" for the plain total (the Total prefix comes from the caller).
     if aggregate_column is None:
         return "Events"
     words = aggregate_column.replace("_", " ").lower().split()
     return " ".join(word if i > 0 and word in _MINOR_WORDS else word.capitalize() for i, word in enumerate(words))
 
 
-# Encounter-rate presets, sharing the patrol presets above where the metric is
-# the same (patrol count, total distance, total duration). The "Encounter ..."
-# metrics follow the task-level aggregation ("Measure Encounters By"): they
-# count event records in Number of Events mode and sum an event field over
-# event rows in Sum of an Event Field mode — their own aggregate_column if
-# set, else the task-level field — falling back to counting, and to
-# "Events per ..." / "Total Events" display names, when neither names a
-# field. Total Events always counts, regardless of the aggregation; both can
-# appear in one table.
 class TotalEventsMetric(BaseModel):
     model_config = ConfigDict(title="Total Events")
     metric: Annotated[Literal["total_events"], Field(default="total_events", title="Metric")] = "total_events"
@@ -359,8 +347,6 @@ class EncountersPerPatrolDayMetric(BaseModel):
 
 
 # Union order drives the RJSF dropdown: keep it ALPHABETICAL by title.
-# NOTE: the area-covered metrics buffer every geometry in the group — on the
-# combined segments+events frame the event points add small discs.
 EncounterRateMetric = Annotated[
     Union[
         MergedAreaCoveredMetric,  # Area Covered (Merged)
@@ -382,7 +368,6 @@ EncounterRateMetric = Annotated[
 
 _EncounterRateMetricAdapter: TypeAdapter = TypeAdapter(EncounterRateMetric)
 
-# The metrics that receive the task-level aggregate_column.
 _EVENT_METRIC_TYPES = (
     TotalEncounterMetric,
     EncountersPerDurationMetric,
@@ -400,8 +385,7 @@ _DEFAULT_ENCOUNTER_RATE_METRICS: tuple = (
 )
 
 
-# Event-relevant wording for this card (mirrors the encounter-rate map's
-# aggregation field); the platform mechanism stays generic.
+# Wording mirrors the encounter-rate map's aggregation field.
 _EVENT_AGGREGATION_EXTRA = make_aggregation_json_schema_extra(
     aggregation_title="Measure Encounters By",
     count_title="Number of Events",

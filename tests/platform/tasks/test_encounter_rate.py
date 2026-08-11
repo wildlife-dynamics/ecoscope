@@ -22,8 +22,6 @@ def test_default_metrics():
 
 
 def test_default_metrics_with_aggregate_column():
-    # The default set is all Encounter + effort metrics, so the whole encounter
-    # family follows the chosen field.
     params = set_encounter_rate_metrics(aggregation={"count_or_sum": "Sum of Column", "column": "number_of_animals"})
     assert [p.display_name for p in params] == [
         "Total Number of Animals",
@@ -40,7 +38,6 @@ def test_default_metrics_with_aggregate_column():
 
 
 def test_total_events_ignores_aggregate_column():
-    # Total Events is the always-count metric: unaffected by the aggregation.
     params = set_encounter_rate_metrics(
         aggregation={"count_or_sum": "Sum of Column", "column": "number_of_animals"},
         metrics=({"metric": "total_events"},),
@@ -133,7 +130,6 @@ def test_per_metric_aggregate_column_overrides_task_level():
 
 
 def test_per_metric_aggregate_columns_differ_without_task_level():
-    # One run charting event sums over different numeric fields.
     params = set_encounter_rate_metrics(
         metrics=(
             {"metric": "total_encounter", "aggregate_column": "number_of_animals"},
@@ -227,9 +223,7 @@ def test_unknown_metric_raises():
 
 @pytest.fixture
 def combined_df():
-    # Concatenated trajectory segments and events, as produced by the
-    # encounter-rate workflow: event columns are NaN on segment rows and
-    # segment columns are NaN on event rows.
+    # Event columns are NaN on segment rows and vice versa.
     nan = np.nan
     return pd.DataFrame(
         {
@@ -254,7 +248,6 @@ def test_end_to_end_with_summarize_df(combined_df):
     assert result.loc["A", "Total Distance (km)"] == 5.0
     assert result.loc["A", "Events per Km"] == 0.4
 
-    # Group B has patrol effort but no events.
     assert result.loc["B", "Total Events"] == 0
     assert result.loc["B", "Events per Hour"] == 0.0
 
@@ -272,7 +265,6 @@ def test_end_to_end_per_patrol_rates(combined_df):
 
 
 def test_end_to_end_with_aggregate_column(combined_df):
-    # The always-count Total Events beside mode-following Encounter metrics.
     result = summarize_df(
         combined_df,
         set_encounter_rate_metrics(
@@ -294,7 +286,6 @@ def test_end_to_end_with_aggregate_column(combined_df):
 
 
 def test_end_to_end_with_per_metric_aggregate_columns(combined_df):
-    # Event sums over different numeric fields in one table.
     result = summarize_df(
         combined_df,
         set_encounter_rate_metrics(
