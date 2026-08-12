@@ -23,6 +23,7 @@ from ._density_weighting import (
 from ._mcp import calculate_minimum_convex_polygon
 from ._patrol_density import set_patrol_weighting_spec
 from ._patrol_summary import set_encounter_rate_metrics, set_event_aggregation, set_patrol_summary_metrics
+from ._raster import BbmmRasterArgs, generate_bbmm_raster, generate_etd_raster
 from ._summary import aggregate_over_rows, summarize_df
 from ._time_density import (
     TimeDensityReturnGDF,
@@ -63,4 +64,7 @@ __all__ = [
     "TimeDensityReturnGDFSchema",
     "calculate_elliptical_time_density",
     "calculate_linear_time_density",
+    "generate_etd_raster",
+    "generate_bbmm_raster",
+    "BbmmRasterArgs",
 ]
