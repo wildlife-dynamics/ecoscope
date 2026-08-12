@@ -41,13 +41,17 @@ def _make_events_arrow_table(
     event_category_values=("monitoring",),
     geometry_wkbs=None,
     event_times=None,
+    event_details=None,
 ):
     """Build a pa.Table matching EVENTS_SCHEMA_V1 with one row per event type.
 
     ``geometry_wkbs`` optionally overrides the default point geometry (one WKB per
     event type); useful for exercising polygon -> centroid reduction.
     ``event_times`` optionally overrides the per-row event_time (tz-aware datetimes);
-    useful for exercising sort-by-time parity."""
+    useful for exercising sort-by-time parity.
+    ``event_details`` optionally overrides the per-row event_details; these are raw
+    JSON strings, as the warehouse serves them with ``raw_details=True`` (the flat
+    ``EVENTS_SCHEMA_V1`` types the column ``pa.string()``)."""
     import datetime as dt
 
     import geoarrow.pyarrow as ga  # type: ignore[import-untyped]
@@ -85,7 +89,7 @@ def _make_events_arrow_table(
                 geometry_wkbs if geometry_wkbs is not None else [Point(36.8 + i, -1.3).wkb for i in range(n)]
             ),
             "reported_by": pa.array([{"id": "u1", "name": "Ranger", "type": "user"}] * n),
-            "event_details": [None] * n,
+            "event_details": list(event_details) if event_details is not None else [None] * n,
             "das_tenant_id": ["tenant-a"] * n,
         },
         schema=EVENTS_SCHEMA_V1,
@@ -393,6 +397,122 @@ def test_get_events_via_warehouse_client_event_columns_subset():
 
     assert sorted(result.columns) == sorted(["id", "time", "event_type", "geometry"])
     _assert_valid_events_gdf(result)
+
+
+@requires_dwh_events
+@pytest.mark.parametrize(
+    "event_types",
+    [[], ["hwc_rep"], ["hwc_rep", "fire_rep"]],
+    ids=["all-types", "one-type", "many-types"],
+)
+def test_get_events_via_warehouse_client_details_request_raw(event_types):
+    """include_details asks the warehouse for raw JSON details. The typed struct is
+    derived from a single event type's schema and so raises for the zero- and
+    many-type selections workflows allow (ERDW-276)."""
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=event_types,
+            include_details=True,
+            raise_on_empty=False,
+        )
+
+    call_kwargs = mock_warehouse_client.get_events.call_args.kwargs
+    assert call_kwargs["include_details"] is True
+    assert call_kwargs["raw_details"] is True
+
+
+@requires_dwh_events
+def test_get_events_via_warehouse_client_no_details_does_not_request_raw():
+    """Without include_details there is no typed-struct constraint to work around, so
+    the request stays in the warehouse's omit mode."""
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=["hwc_rep", "fire_rep"],
+            raise_on_empty=False,
+        )
+
+    call_kwargs = mock_warehouse_client.get_events.call_args.kwargs
+    assert call_kwargs["include_details"] is False
+    assert call_kwargs["raw_details"] is False
+
+
+@requires_dwh_events
+def test_get_events_via_warehouse_client_decodes_raw_details_to_dicts():
+    """The warehouse serves raw event_details as a JSON string; the task decodes it so
+    the column matches the ER API path, which every downstream consumer assumes --
+    process_events_details no-ops on non-dicts and normalize_json_column
+    (pd.json_normalize) cannot flatten strings."""
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
+        event_type_values=("hwc_rep", "fire_rep"),
+        event_category_values=("monitoring", "monitoring"),
+        event_details=['{"species": "elephant", "count": 3}', None],
+    )
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=["hwc_rep", "fire_rep"],
+            include_details=True,
+            raise_on_empty=False,
+        )
+
+    # A detail-less event becomes {}, as the ER API serves it.
+    assert result["event_details"].tolist() == [{"species": "elephant", "count": 3}, {}]
+    _assert_valid_events_gdf(result)
+
+
+@requires_dwh_events
+def test_get_events_via_warehouse_client_details_normalize_into_columns():
+    """End-to-end contract the download-events and event-details workflows rely on:
+    the decoded details flatten into event_details__* columns."""
+    from ecoscope.platform.tasks.transformation import normalize_json_column
+
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
+        event_details=['{"species": "elephant", "count": 3}'],
+    )
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=["hwc_rep"],
+            include_details=True,
+            raise_on_empty=False,
+        )
+
+    normalized = normalize_json_column(df=result, column="event_details", sort_columns=False)
+
+    assert normalized["event_details__species"].tolist() == ["elephant"]
+    assert normalized["event_details__count"].tolist() == [3]
 
 
 @requires_dwh_events

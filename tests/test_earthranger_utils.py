@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ecoscope.io.earthranger_utils import normalize_column
+from ecoscope.io.earthranger_utils import decode_raw_event_details, normalize_column
 from ecoscope.io.utils import clean_time_cols
 
 
@@ -116,3 +116,80 @@ def test_normalize_column_sorted():
     # Verify column order: original columns first, then alphabetically sorted new columns
     expected_column_order = original_cols + expected_new_cols
     assert list(df_with_nested_column.columns) == expected_column_order
+
+
+def test_decode_raw_event_details():
+    df = pd.DataFrame(
+        {
+            "id": ["e1", "e2"],
+            "event_details": [
+                '{"species": "elephant", "count": 3}',
+                '{"nested": {"a": 1}, "list": [1, 2]}',
+            ],
+        }
+    )
+
+    decode_raw_event_details(df)
+
+    assert df["event_details"].tolist() == [
+        {"species": "elephant", "count": 3},
+        {"nested": {"a": 1}, "list": [1, 2]},
+    ]
+
+
+@pytest.mark.parametrize(
+    "value",
+    [None, "", pd.NA, np.nan],
+    ids=["none", "empty-string", "pd-NA", "nan"],
+)
+def test_decode_raw_event_details_null_becomes_empty_dict(value):
+    """Parity with the ER API, which serves `event_details: {}` for an event without
+    details, and a precondition for pd.json_normalize (which rejects non-dicts)."""
+    df = pd.DataFrame({"event_details": [value, '{"a": 1}']})
+
+    decode_raw_event_details(df)
+
+    assert df["event_details"].tolist() == [{}, {"a": 1}]
+
+
+@pytest.mark.parametrize("value", ["not json at all", "[1, 2]", "42", '"a string"'])
+def test_decode_raw_event_details_unusable_payload_becomes_empty_dict(value):
+    """One malformed (or non-object) payload must not fail the whole download."""
+    df = pd.DataFrame({"event_details": [value, '{"a": 1}']})
+
+    decode_raw_event_details(df)
+
+    assert df["event_details"].tolist() == [{}, {"a": 1}]
+
+
+def test_decode_raw_event_details_is_idempotent():
+    df = pd.DataFrame({"event_details": ['{"a": 1}']})
+
+    decode_raw_event_details(df)
+    decode_raw_event_details(df)
+
+    assert df["event_details"].tolist() == [{"a": 1}]
+
+
+def test_decode_raw_event_details_missing_column_is_a_noop():
+    df = pd.DataFrame({"id": ["e1"]})
+
+    decode_raw_event_details(df)
+
+    assert list(df.columns) == ["id"]
+
+
+def test_decode_raw_event_details_feeds_normalize_column():
+    """The end-to-end contract the download-events workflow relies on: decoded details
+    flatten into `event_details__*` columns."""
+    df = pd.DataFrame(
+        {
+            "id": ["e1", "e2"],
+            "event_details": ['{"species": "elephant"}', None],
+        }
+    )
+
+    decode_raw_event_details(df)
+    normalize_column(df, "event_details")
+
+    assert df["event_details__species"].tolist() == ["elephant", np.nan]
