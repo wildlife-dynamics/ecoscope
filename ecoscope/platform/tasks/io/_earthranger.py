@@ -723,11 +723,13 @@ def get_events(
         # The warehouse get_events accepts event type slugs directly, so pass the
         # values straight through — no value->id round-trip via get_event_types.
         #
-        # raw_details: the warehouse can also serve `event_details` as structured Arrow
-        # data, but only for a single event type (the struct is derived from that type's
-        # schema), and adopting it would mean refactoring the tasks and workflows that
-        # consume the column, which expect dicts. So ask for the raw JSON form — valid
-        # for any number of event types — and decode it to dicts below.
+        # event_details: the warehouse serves it as a structured Arrow struct, which
+        # `from_arrow` lands as dicts, but that struct is derived from one event type's
+        # schema and so requires a single-type selection. Workflows also allow zero or
+        # many types (download-events offers "leave empty for all event types"), so fall
+        # back to the raw JSON form there and decode it below — either way the column
+        # ends up dicts, as the ER API path serves it.
+        raw_details = include_details and len(event_types) != 1
         table = warehouse_client.get_events(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
@@ -736,7 +738,7 @@ def get_events(
             include_details=include_details,
             include_updates=include_updates,
             include_related_events=include_related_events,
-            raw_details=include_details,
+            raw_details=raw_details,
         )
         events_df = gpd.GeoDataFrame.from_arrow(table).rename(
             columns={
@@ -745,7 +747,7 @@ def get_events(
                 "event_time": "time",
             }
         )
-        if include_details:
+        if raw_details:
             from ecoscope.io.earthranger_utils import decode_raw_event_details
 
             decode_raw_event_details(events_df)
