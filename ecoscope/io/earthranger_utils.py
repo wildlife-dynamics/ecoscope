@@ -1,3 +1,6 @@
+import json
+import logging
+
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
@@ -6,6 +9,8 @@ import shapely.wkb
 from shapely.geometry import shape
 
 from ecoscope.io.utils import clean_time_cols
+
+logger = logging.getLogger(__name__)
 
 
 def clean_kwargs(addl_kwargs: dict | None = None, **kwargs) -> dict:
@@ -26,6 +31,57 @@ def normalize_column(df: pd.DataFrame, col: str, sort_columns: bool = False) -> 
 
     for k in new_cols:
         df[k] = normalized[k].values  # type: ignore[call-overload]
+
+
+def decode_raw_event_details(df: pd.DataFrame, col: str = "event_details") -> None:
+    """Decode a warehouse raw-JSON ``event_details`` column into dicts, in place.
+
+    Used by the warehouse branch of the ``get_events`` task. The warehouse serves
+    ``event_details`` as a JSON string when asked for raw details (``EVENTS_SCHEMA_V1``
+    types it ``pa.string()``); the typed-struct alternative is derived from a single
+    event type's schema and so cannot serve the multi- or all-event-type selections
+    workflows allow. The ER API path, by contrast, serves ``event_details`` already
+    parsed, and every downstream consumer -- notably ``normalize_column``
+    (``pd.json_normalize``) and the ``process_events_details`` task, which no-ops on
+    anything that is not a ``dict`` -- depends on that. Decoding here keeps both paths'
+    output identical.
+
+    A null/absent payload becomes ``{}`` rather than ``None``, matching the ER API
+    (which serves ``"event_details": {}`` for an event without details) and keeping the
+    column free of the non-dict values ``pd.json_normalize`` rejects. A value that
+    fails to parse -- or parses to a non-object, e.g. a bare JSON scalar -- also
+    becomes ``{}``, with a warning: one malformed payload should not fail a download.
+    No-ops when the column is absent or already decoded.
+    """
+    if col not in df.columns:
+        return
+
+    bad = 0
+
+    def decode(value):
+        nonlocal bad
+        if isinstance(value, dict):
+            return value
+        # None / NaN / pd.NA (the warehouse serves the column nullable) and "" are all
+        # "no details", not malformed input, so they decode quietly.
+        if not isinstance(value, str):
+            return {}
+        if value == "":
+            return {}
+        try:
+            decoded = json.loads(value)
+        except (TypeError, ValueError):
+            bad += 1
+            return {}
+        if not isinstance(decoded, dict):
+            bad += 1
+            return {}
+        return decoded
+
+    df[col] = [decode(v) for v in df[col]]
+
+    if bad:
+        logger.warning("Could not decode %s of %s `%s` JSON payloads; used {} instead.", bad, len(df), col)
 
 
 def dataframe_to_dict_or_list(events: gpd.GeoDataFrame | pd.DataFrame | dict | list[dict]) -> dict | list[dict]:

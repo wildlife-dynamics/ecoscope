@@ -722,6 +722,14 @@ def get_events(
 
         # The warehouse get_events accepts event type slugs directly, so pass the
         # values straight through — no value->id round-trip via get_event_types.
+        #
+        # event_details: the warehouse serves it as a structured Arrow struct, which
+        # `from_arrow` lands as dicts, but that struct is derived from one event type's
+        # schema and so requires a single-type selection. Workflows also allow zero or
+        # many types (download-events offers "leave empty for all event types"), so fall
+        # back to the raw JSON form there and decode it below — either way the column
+        # ends up dicts, as the ER API path serves it.
+        raw_details = include_details and len(event_types) != 1
         table = warehouse_client.get_events(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
@@ -730,6 +738,7 @@ def get_events(
             include_details=include_details,
             include_updates=include_updates,
             include_related_events=include_related_events,
+            raw_details=raw_details,
         )
         events_df = gpd.GeoDataFrame.from_arrow(table).rename(
             columns={
@@ -738,6 +747,10 @@ def get_events(
                 "event_time": "time",
             }
         )
+        if raw_details:
+            from ecoscope.io.earthranger_utils import decode_raw_event_details
+
+            decode_raw_event_details(events_df)
         # Parity with the legacy path (geometry_from_event_geojson): when
         # force_point_geometry is set, reduce geometry to its centroid so downstream
         # point layers / gridding / .geometry.x|y keep working. Done per-geometry on
