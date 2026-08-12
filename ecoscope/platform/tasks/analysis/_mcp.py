@@ -23,11 +23,14 @@ RelocationsAnnotation: TypeAlias = Annotated[
 McpCrsAnnotation: TypeAlias = Annotated[
     str,
     AdvancedField(
-        default="ESRI:102022",
+        # Matches ETD/BBMM's own default for consistency across the Method
+        # selector - trades off some area accuracy at higher latitudes
+        # versus an equal-area projection (e.g. the previous ESRI:102022).
+        default="EPSG:3857",
         title="Coordinate Reference System",
         description=(
             "The projected coordinate reference system used to rank fixes by distance from"
-            " the centroid and compute hull areas - must be a valid CRS code, e.g. ESRI:102022."
+            " the centroid and compute hull areas - must be a valid CRS code, e.g. EPSG:3857."
         ),
     ),
 ]
@@ -46,7 +49,7 @@ McpPercentileAnnotation: TypeAlias = Annotated[
 @register()
 def calculate_minimum_convex_polygon(
     relocations_gdf: RelocationsAnnotation,
-    crs: McpCrsAnnotation = "ESRI:102022",
+    crs: McpCrsAnnotation = "EPSG:3857",
     percentiles: McpPercentileAnnotation = None,
 ) -> TimeDensityReturnGDF:
     """Estimate a Minimum Convex Polygon (MCP) home range and return it in the
