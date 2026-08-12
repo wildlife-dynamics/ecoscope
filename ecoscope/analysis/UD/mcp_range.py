@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def calculate_mcp_range(
     relocations: Relocations | gpd.GeoDataFrame,
     percentile_levels: list[float],
-    crs: str = "ESRI:102022",
+    crs: str = "EPSG:3857",
     subject_id: str = "",
 ) -> gpd.GeoDataFrame:
     """Estimate a home range using the Minimum Convex Polygon (MCP) method.
@@ -34,7 +34,7 @@ def calculate_mcp_range(
         The percentile levels to compute, e.g. `[50.0, 90.0]`.
     crs : str
         The projected coordinate reference system to rank fixes and compute
-        hull areas in - must be a valid CRS authority code, e.g. ESRI:102022.
+        hull areas in - must be a valid CRS authority code, e.g. EPSG:3857.
     subject_id : str
         Value written to the `subject_id` column of the returned rows.
 
