@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import rasterio as rio  # type: ignore[import-untyped]
 
+import ecoscope.analysis.UD as UD  # type: ignore[import-untyped]
 from ecoscope.io.raster import RasterData
 from ecoscope.platform.tasks.analysis._raster import (
     BbmmRasterArgs,
@@ -190,6 +191,26 @@ def test_generate_etd_raster_empty_trajectory_raises(trajectory_gdf, tmp_path):
         generate_etd_raster(trajectory_gdf.iloc[0:0], combined_params, output_dir=str(tmp_path))
 
 
+def test_generate_etd_raster_no_data_generated_raises(trajectory_gdf, tmp_path, monkeypatch):
+    # Forcing calculate_etd_range to actually return empty/None data isn't
+    # practical with real trajectory data, so mock it directly to exercise
+    # this defensive check.
+    monkeypatch.setattr(UD, "calculate_etd_range", lambda **kwargs: None)
+    combined_params = EtdArgsWithOpacity(
+        opacity=1.0,
+        auto_scale_or_custom_cell_size=AutoScaleGridCellSize(),
+        crs="ESRI:102022",
+        nodata_value="nan",
+        band_count=1,
+        max_speed_factor=1.05,
+        expansion_factor=1.3,
+        percentiles=[50.0],
+    )
+
+    with pytest.raises(ValueError, match="no raster data was generated"):
+        generate_etd_raster(trajectory_gdf, combined_params, output_dir=str(tmp_path))
+
+
 def test_generate_bbmm_raster(trajectory_gdf, tmp_path):
     combined_params = BbmmRasterArgs(
         crs="ESRI:102022",
@@ -217,6 +238,22 @@ def test_generate_bbmm_raster_empty_trajectory_raises(trajectory_gdf, tmp_path):
 
     with pytest.raises(ValueError, match="`trajectory_gdf` is empty"):
         generate_bbmm_raster(trajectory_gdf.iloc[0:0], combined_params, output_dir=str(tmp_path))
+
+
+def test_generate_bbmm_raster_no_data_generated_raises(trajectory_gdf, tmp_path, monkeypatch):
+    # Same rationale as the ETD version: mock calculate_bbmm_range directly
+    # rather than trying to coax real data into producing an empty raster.
+    monkeypatch.setattr(UD, "calculate_bbmm_range", lambda *args, **kwargs: None)
+    combined_params = BbmmRasterArgs(
+        crs="ESRI:102022",
+        location_error=20.0,
+        time_step_seconds=60.0,
+        expansion_factor=1.3,
+        max_data_gap_seconds=14400.0,
+    )
+
+    with pytest.raises(ValueError, match="no raster data was generated"):
+        generate_bbmm_raster(trajectory_gdf, combined_params, output_dir=str(tmp_path))
 
 
 def test_generate_bbmm_raster_with_group_key(trajectory_gdf, tmp_path):
