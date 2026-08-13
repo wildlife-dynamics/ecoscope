@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Annotated, Any, TypeAlias
+from typing import Annotated, Any, TypeAlias, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 from wt_registry import register
@@ -33,6 +33,7 @@ from ecoscope.platform.tasks.config._meta_tasks import (
     EtdArgsWithOpacity,  # type: ignore[import-untyped]
 )
 from ecoscope.platform.tasks.preprocessing._preprocessing import (  # type: ignore[import-untyped]
+    TrajectoryGDF,
     convert_trajectory_to_relocations,
 )
 
@@ -308,7 +309,9 @@ def call_home_range_from_args(
             .validate()
             .call(trajectory_gdf=trajectory_gdf, **args.get_bbmm_params())
         )
-    relocations_gdf = task(convert_trajectory_to_relocations).validate().call(trajectory_gdf=trajectory_gdf)
+    relocations_gdf = (
+        task(convert_trajectory_to_relocations).validate().call(trajectory_gdf=cast(TrajectoryGDF, trajectory_gdf))
+    )
     return (
         task(calculate_minimum_convex_polygon).validate().call(relocations_gdf=relocations_gdf, **args.get_mcp_params())
     )

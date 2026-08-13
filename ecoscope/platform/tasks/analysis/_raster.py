@@ -115,7 +115,7 @@ def export_geotiff(
     """
     from ecoscope.io.raster import RasterPy  # type: ignore[import-untyped]
 
-    nodata_value = float("nan") if nodata == "nan" else nodata
+    nodata_value: float = float("nan") if nodata == "nan" else float(nodata)
 
     ndarray = raster_data.data.copy()
     ndarray[np.isnan(ndarray) | (ndarray == 0)] = nodata_value
@@ -162,6 +162,8 @@ def generate_etd_raster(
     auto_scale_or_custom_cell_size = etd_params["auto_scale_or_custom_cell_size"] or AutoScaleGridCellSize()
 
     if isinstance(auto_scale_or_custom_cell_size, CustomGridCellSize):
+        if auto_scale_or_custom_cell_size.grid_cell_size is None:
+            raise ValueError("generate_etd_raster: grid_cell_size must be set when Grid Cell Size is 'Customize'.")
         pixel_size = auto_scale_or_custom_cell_size.grid_cell_size
     else:
         pixel_size = grid_size_from_geographic_extent(trajectory_gdf, scale_factor=500)
