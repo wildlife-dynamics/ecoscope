@@ -147,6 +147,11 @@ class UnmergedAreaCoveredMetric(BaseModel):
         )
 
 
+# Suffix labels for auto-appended units on custom metric headers; parity with
+# TotalDurationMetric's word labels, symbol otherwise.
+_CUSTOM_UNIT_LABELS = {Unit.HOUR: "hrs", Unit.DAY: "days"}
+
+
 # Inherits the full statistic form (column, statistic, units-behind-a-checkbox
 # `dependencies` block) from StatSummaryParam; only adds the `metric`
 # discriminator for the patrol preset union.
@@ -157,7 +162,14 @@ class CustomMetric(StatSummaryParam):
     metric: Annotated[Literal["custom"], Field(default="custom", title="Metric")] = "custom"
 
     def to_summary_param(self) -> StatSummaryParam:
-        return StatSummaryParam(**self.model_dump(exclude={"metric"}))
+        param = StatSummaryParam(**self.model_dump(exclude={"metric"}))
+        # new_unit is non-None iff Convert Units is on (check_units nulls it
+        # otherwise); skip the suffix if the user already typed it themselves.
+        if param.new_unit is not None:
+            suffix = f"({_CUSTOM_UNIT_LABELS.get(param.new_unit, param.new_unit.value)})"
+            if not param.display_name.rstrip().endswith(suffix):
+                param.display_name = f"{param.display_name} {suffix}"
+        return param
 
 
 PatrolSummaryMetric = Annotated[

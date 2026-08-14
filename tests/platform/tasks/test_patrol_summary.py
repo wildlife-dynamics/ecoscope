@@ -92,6 +92,35 @@ def test_set_patrol_summary_metrics_custom_unit_conversion():
     )
     assert param.original_unit == Unit.METER
     assert param.new_unit == Unit.KILOMETER
+    # hand-typed suffix is not duplicated
+    assert param.display_name == "Total Distance (km)"
+
+
+def test_custom_metric_appends_unit_to_display_name():
+    dist, dur = set_patrol_summary_metrics(
+        [
+            {
+                "metric": "custom",
+                "display_name": "Avg Leg Distance",
+                "aggregator": "mean",
+                "column": "dist_meters",
+                "convert_units": True,
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+            {
+                "metric": "custom",
+                "display_name": "Max Leg Duration",
+                "aggregator": "max",
+                "column": "timespan_seconds",
+                "convert_units": True,
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+        ]
+    )
+    assert dist.display_name == "Avg Leg Distance (km)"
+    assert dur.display_name == "Max Leg Duration (hrs)"
 
 
 def test_custom_metric_units_ignored_when_unchecked():
