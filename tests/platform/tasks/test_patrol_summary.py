@@ -135,6 +135,8 @@ def test_custom_metric_units_ignored_when_unchecked():
     )
     param = metric.to_summary_param()
     assert param.original_unit is None and param.new_unit is None
+    # no unit suffix without conversion — the name stays exactly as typed
+    assert param.display_name == "Distance"
 
 
 def test_custom_metric_requires_both_units_when_checked():
