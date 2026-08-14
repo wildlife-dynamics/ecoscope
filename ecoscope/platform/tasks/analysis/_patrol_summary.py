@@ -81,9 +81,8 @@ class TotalDurationMetric(BaseModel):
     ] = "h"
 
     def to_summary_param(self) -> StatSummaryParam:
-        label = {"h": "hrs", "d": "days"}[self.unit]
         return StatSummaryParam(
-            display_name=f"Total Duration ({label})",
+            display_name=f"Total Duration ({Unit(self.unit).short_label})",
             aggregator="sum",
             column="timespan_seconds",
             convert_units=True,
@@ -147,11 +146,6 @@ class UnmergedAreaCoveredMetric(BaseModel):
         )
 
 
-# Suffix labels for auto-appended units on custom metric headers; parity with
-# TotalDurationMetric's word labels, symbol otherwise.
-_CUSTOM_UNIT_LABELS = {Unit.HOUR: "hrs", Unit.DAY: "days"}
-
-
 # Inherits the full statistic form (column, statistic, units-behind-a-checkbox
 # `dependencies` block) from StatSummaryParam; only adds the `metric`
 # discriminator for the patrol preset union.
@@ -166,7 +160,7 @@ class CustomMetric(StatSummaryParam):
         # new_unit is non-None iff Convert Units is on (check_units nulls it
         # otherwise); skip the suffix if the user already typed it themselves.
         if param.new_unit is not None:
-            suffix = f"({_CUSTOM_UNIT_LABELS.get(param.new_unit, param.new_unit.value)})"
+            suffix = f"({param.new_unit.short_label})"
             name = param.display_name.rstrip()
             if not name.endswith(suffix):
                 param.display_name = f"{name} {suffix}"
