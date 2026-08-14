@@ -31,8 +31,10 @@ def add_temporal_index(
             description="""\
             A list of groupers which may contain TemporalGroupers. If TemporalGroupers are present,
             additional indexes will be added to the `df` by formatting the `time_col` according to
-            the `index_name` attribute of each TemporalGrouper. If no TemporalGroupers are present,
-            this task will return the input `df` unchanged. This parameter is excluded from the
+            the `index_name` attribute of each TemporalGrouper. If a grouper's index level already
+            exists on `df` (e.g. from an earlier call with an overlapping grouper list), it is left
+            untouched. If no TemporalGroupers are present, this task will return the input `df`
+            unchanged. This parameter is excluded from the
             generated RJSF because it should only be set programmatically in the `spec.yaml` file.
             Note also that the type of this parameter is `AllGrouper | UserDefinedGroupers` to allow
             passing a list of any type of Grouper from upstream tasks in the DAG; any elements of
@@ -68,9 +70,8 @@ def add_temporal_index(
         temporal_groupers = [g for g in groupers if isinstance(g, TemporalGrouper)]
         for tg in temporal_groupers:
             if tg.index_name in df.index.names:
-                # Recompute rather than trust a level an earlier call may have
-                # built from a different time_col.
-                df = df.reset_index(level=tg.index_name, drop=True)  # type: ignore[assignment]
+                # Already indexed by an earlier call with an overlapping grouper list.
+                continue
             df[tg.index_name] = df[time_col].dt.strftime(tg.temporal_index.directive)
             df = df.set_index(tg.index_name, append=True)  # type: ignore[assignment]
 
@@ -149,7 +150,9 @@ def add_spatial_index(
             description="""\
             A list of groupers which may contain SpatialGroupers. If SpatialGroupers are present,
             additional indexes will be added to the `gdf` by taking a spatial join of each region
-            in the SpatialGrouper, and adding the joined region name
+            in the SpatialGrouper, and adding the joined region name.
+            If a grouper's index level already exists on `gdf` (e.g. from an earlier call with an
+            overlapping grouper list), it is left untouched.
             If no SpatialGroupers are present, this task will return the input `gdf` unchanged.
             This parameter is excluded from the generated RJSF because it should only be set
             programmatically in the `spec.yaml` file.

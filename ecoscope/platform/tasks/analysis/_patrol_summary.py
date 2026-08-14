@@ -167,8 +167,9 @@ class CustomMetric(StatSummaryParam):
         # otherwise); skip the suffix if the user already typed it themselves.
         if param.new_unit is not None:
             suffix = f"({_CUSTOM_UNIT_LABELS.get(param.new_unit, param.new_unit.value)})"
-            if not param.display_name.rstrip().endswith(suffix):
-                param.display_name = f"{param.display_name} {suffix}"
+            name = param.display_name.rstrip()
+            if not name.endswith(suffix):
+                param.display_name = f"{name} {suffix}"
         return param
 
 
