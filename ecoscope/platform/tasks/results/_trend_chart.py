@@ -265,6 +265,7 @@ def draw_time_series_chart(
             return go.Scatter(x=x, y=y, name=name, line_color=color, marker_color=color, **trace_style)
 
     if time_breakdown is not None:
+        assert time_interval is not None  # validated above: breakdown requires an interval
         param = summary_params[0]
         dataframe["period_start"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_breakdown))
         if time_interval == "week":
