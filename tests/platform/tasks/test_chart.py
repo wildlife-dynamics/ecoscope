@@ -26,8 +26,12 @@ from ecoscope.platform.tasks.config.set_chart import (
     set_chart_config,
     set_chart_style,
 )
-from ecoscope.platform.tasks.results._chart import draw_chart
+from ecoscope.platform.tasks.results._chart import ChartFigure, draw_chart
 from ecoscope.platform.tasks.results._ecoplot import MONTH_IN_MILLISECONDS, PlotStyle
+
+
+def _figs(*params, chart_type="bar"):
+    return [ChartFigure(metric=param, chart_type=chart_type) for param in params]
 
 
 @pytest.fixture
@@ -70,7 +74,7 @@ def test_draw_chart_metric_mode(time_series_dataframe, widget_id, time_interval)
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval=time_interval,
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         barmode="group",
         palette=["#111111", "#222222"],
         widget_id=widget_id,
@@ -95,7 +99,7 @@ def test_draw_chart_skips_rows_with_missing_timestamps(time_series_dataframe):
         dataframe=df,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
     )
 
     assert isinstance(plot, str)
@@ -111,7 +115,7 @@ def test_category_breakdown_handles_mixed_type_values(time_series_dataframe):
         dataframe=df,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         category="category",
     )
 
@@ -128,7 +132,7 @@ def test_draw_chart_unsupported_interval(time_series_dataframe):
             dataframe=time_series_dataframe,
             x_axis="time",
             time_interval="Not an interval",
-            summary_params=summary_params,
+            figures=_figs(*summary_params),
         )
 
 
@@ -140,7 +144,7 @@ def test_draw_chart_value_labels(time_series_dataframe):
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         plot_style=PlotStyle(texttemplate="%{y:,.2~f}", textposition="auto"),
     )
 
@@ -161,7 +165,7 @@ def test_draw_chart_month_bar_width(time_series_dataframe):
             dataframe=time_series_dataframe.copy(),
             x_axis="time",
             time_interval="month",
-            summary_params=summary_params,
+            figures=_figs(*summary_params),
             barmode=barmode,
         )
 
@@ -183,7 +187,7 @@ def test_draw_chart_defaults(time_series_dataframe):
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
     )
 
     assert isinstance(plot, str)
@@ -206,7 +210,7 @@ def test_draw_chart_ratio_na_on_zero_denominator(time_series_dataframe):
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
     )
 
     assert '"y":[0.31,null]' in plot
@@ -222,8 +226,7 @@ def test_draw_chart_line_mode(time_series_dataframe):
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
-        chart_type="line",
+        figures=_figs(*summary_params, chart_type="line"),
         palette=["#111111", "#222222"],
         plot_style=PlotStyle(texttemplate="%{y:,.2~f}", textposition="auto"),
     )
@@ -247,8 +250,7 @@ def test_draw_chart_line_shape_dash_and_markers(time_series_dataframe):
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
-        chart_type="line",
+        figures=_figs(*summary_params, chart_type="line"),
         palette=["#111111"],
         plot_style=PlotStyle(mode="lines", line=LineStyle(shape="spline", dash="dot")),
     )
@@ -270,7 +272,7 @@ def test_draw_chart_named_colormap_palette(time_series_dataframe):
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         palette="tab10",
     )
 
@@ -288,7 +290,7 @@ def test_draw_chart_breakdown_by_column(breakdown_dataframe):
         dataframe=breakdown_dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         category="patrol_type",
         barmode="group",
         palette=["#111111", "#222222"],
@@ -312,7 +314,7 @@ def test_draw_chart_breakdown_by_index_level(breakdown_dataframe):
         dataframe=dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         category="SpatialGrouper_region",
     )
 
@@ -333,7 +335,7 @@ def test_draw_chart_breakdown_requires_single_metric(breakdown_dataframe):
             dataframe=breakdown_dataframe,
             x_axis="time",
             time_interval="month",
-            summary_params=summary_params,
+            figures=_figs(*summary_params),
             category="patrol_type",
         )
 
@@ -350,7 +352,7 @@ def test_draw_chart_empty_string_category_is_plain_metric_mode(
         dataframe=breakdown_dataframe,
         x_axis="time",
         time_interval="month",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         category="",
     )
 
@@ -367,7 +369,7 @@ def test_draw_chart_time_breakdown_overlay(breakdown_dataframe):
         dataframe=breakdown_dataframe,
         x_axis="time",
         time_interval="day",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         time_breakdown="month",
         palette=["#111111", "#222222"],
     )
@@ -397,9 +399,8 @@ def test_draw_chart_time_breakdown_week_of_period_aligns():
         dataframe=dataframe,
         x_axis="time",
         time_interval="week",
-        summary_params=summary_params,
+        figures=_figs(*summary_params, chart_type="line"),
         time_breakdown="month",
-        chart_type="line",
     )
 
     assert '"name":"May 2024"' in plot
@@ -421,7 +422,7 @@ def test_draw_chart_time_breakdown_requires_finer_interval(
             dataframe=breakdown_dataframe,
             x_axis="time",
             time_interval="month",
-            summary_params=summary_params,
+            figures=_figs(*summary_params),
             time_breakdown="month",
         )
 
@@ -434,7 +435,7 @@ def test_draw_chart_breakdowns_mutually_exclusive(breakdown_dataframe):
             dataframe=breakdown_dataframe,
             x_axis="time",
             time_interval="day",
-            summary_params=summary_params,
+            figures=_figs(*summary_params),
             category="patrol_type",
             time_breakdown="month",
         )
@@ -455,9 +456,8 @@ def test_draw_chart_categorical_x_stacked_bar():
     plot = draw_chart(
         dataframe=dataframe,
         x_axis="subject",
-        summary_params=summary_params,
+        figures=_figs(*summary_params),
         category="method",
-        chart_type="bar",
         barmode="stack",
         palette=["#111111", "#222222"],
     )
@@ -473,6 +473,31 @@ def test_draw_chart_categorical_x_stacked_bar():
     assert '"xaxis":{"dtick"' not in plot
 
 
+def test_draw_chart_combo_bar_and_line_figures(time_series_dataframe):
+    """Figures carry their own chart type: one metric as bars, another as a
+    line, sharing the x axis; the month-wide-bar tweak applies to bars only."""
+    plot = draw_chart(
+        dataframe=time_series_dataframe,
+        x_axis="time",
+        time_interval="month",
+        figures=[
+            ChartFigure(metric=StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")),
+            ChartFigure(
+                metric=StatSummaryParam(display_name="Distinct Categories", aggregator="nunique", column="category"),
+                chart_type="line",
+            ),
+        ],
+    )
+
+    assert '"type":"bar"' in plot
+    assert '"type":"scatter"' in plot
+    assert '"barmode":"group"' in plot
+    # single bar series shares its x slot, so it gets the month-wide width; the line does not
+    assert plot.count(f'"width":{MONTH_IN_MILLISECONDS}') == 1
+    assert '"name":"Total Events"' in plot
+    assert '"name":"Distinct Categories"' in plot
+
+
 def test_draw_chart_time_breakdown_requires_time_interval(breakdown_dataframe):
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
@@ -480,7 +505,7 @@ def test_draw_chart_time_breakdown_requires_time_interval(breakdown_dataframe):
         draw_chart(
             dataframe=breakdown_dataframe,
             x_axis="time",
-            summary_params=summary_params,
+            figures=_figs(*summary_params),
             time_breakdown="month",
         )
 
@@ -568,6 +593,20 @@ def test_chart_config_task_schema_blocks_multi_metric_breakdowns():
         "Day",
         "Hour",
     ]
+
+
+def test_get_chart_figures_combines_metrics_and_chart_type():
+    from ecoscope.platform.tasks.config.set_chart import get_chart_figures
+
+    config = set_chart_config()
+    line_style = set_chart_style(chart={"chart_type": "line"})
+
+    (figure,) = get_chart_figures(config, line_style)
+    assert figure.chart_type == "line"
+    assert figure.metric.display_name == "Patrol Count"
+
+    (bar_figure,) = get_chart_figures(config, set_chart_style())
+    assert bar_figure.chart_type == "bar"
 
 
 def test_chart_mode_splitters():

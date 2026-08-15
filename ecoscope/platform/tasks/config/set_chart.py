@@ -13,6 +13,7 @@ from ecoscope.platform.tasks.analysis._patrol_summary import (
     encounter_metrics_to_summary_params,
 )
 from ecoscope.platform.tasks.analysis._summary import SummaryParam
+from ecoscope.platform.tasks.results._chart import ChartFigure
 from ecoscope.platform.tasks.results._ecoplot import (
     AxisStyle,
     BarLayoutStyle,
@@ -266,6 +267,15 @@ def get_chart_metrics(
     config: Annotated[ChartConfig, Field(title="")],
 ) -> Annotated[list[SummaryParam], Field(description="Summary metric parameters")]:
     return encounter_metrics_to_summary_params(config.metrics)
+
+
+@register()
+def get_chart_figures(
+    config: Annotated[ChartConfig, Field(title="")],
+    style: Annotated["ChartStyle", Field(title="")],
+) -> Annotated[list[ChartFigure], Field(description="One figure per configured metric, in the styled chart type")]:
+    params = encounter_metrics_to_summary_params(config.metrics)
+    return [ChartFigure(metric=param, chart_type=style.chart_type) for param in params]
 
 
 @register()
