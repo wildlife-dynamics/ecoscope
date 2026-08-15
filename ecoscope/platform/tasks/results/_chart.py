@@ -109,7 +109,7 @@ def _resolve_palette_colors(palette: str | list[str] | None, n: int) -> list[str
 
 
 @register()
-def draw_time_series_chart(
+def draw_chart(
     dataframe: DataFrame[JsonSerializableDataFrameModel],
     x_axis: Annotated[str, Field(description="The dataframe column to plot in the x/time axis.")],
     summary_params: Annotated[
@@ -177,7 +177,7 @@ def draw_time_series_chart(
     ] = None,
 ) -> Annotated[str, Field()]:
     """
-    Generates a time series chart (bar or line) of summary metrics.
+    Generates a chart (bar or line) of summary metrics.
 
     Each summary param is computed per time bucket via summarize_column and
     drawn as one series. Without a time_interval, the raw x_axis values are

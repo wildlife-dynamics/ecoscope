@@ -7,27 +7,27 @@ from ecoscope.platform.tasks.analysis._summary import (
     RatioSummaryParam,
     StatSummaryParam,
 )
-from ecoscope.platform.tasks.config.set_trend_chart import (
+from ecoscope.platform.tasks.config.set_chart import (
     CategoryBreakdownMode,
+    ChartConfig,
     MetricsOnlyMode,
     SpatialBreakdownMode,
     TimeBreakdownMode,
-    TrendChartConfig,
+    get_chart_metrics,
     get_chart_mode_category_column,
     get_chart_mode_spatial_groupers,
     get_chart_mode_time_unit,
+    get_chart_time_interval,
     get_style_barmode,
     get_style_chart_type,
     get_style_layout_style,
     get_style_palette,
     get_style_plot_style,
-    get_trend_chart_metrics,
-    get_trend_chart_time_interval,
-    set_trend_chart_config,
-    set_trend_chart_style,
+    set_chart_config,
+    set_chart_style,
 )
+from ecoscope.platform.tasks.results._chart import draw_chart
 from ecoscope.platform.tasks.results._ecoplot import MONTH_IN_MILLISECONDS, PlotStyle
-from ecoscope.platform.tasks.results._trend_chart import draw_time_series_chart
 
 
 @pytest.fixture
@@ -60,13 +60,13 @@ def breakdown_dataframe():
 
 @pytest.mark.parametrize("widget_id", ["THIS IS A TEST ID", None])
 @pytest.mark.parametrize("time_interval", ["year", "month", "week", "day", "hour"])
-def test_draw_time_series_chart_metric_mode(time_series_dataframe, widget_id, time_interval):
+def test_draw_chart_metric_mode(time_series_dataframe, widget_id, time_interval):
     summary_params = [
         StatSummaryParam(display_name="Total Events", aggregator="sum", column="events"),
         StatSummaryParam(display_name="Distinct Categories", aggregator="nunique", column="category"),
     ]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval=time_interval,
@@ -86,12 +86,12 @@ def test_draw_time_series_chart_metric_mode(time_series_dataframe, widget_id, ti
     assert "#222222" in plot
 
 
-def test_draw_time_series_chart_skips_rows_with_missing_timestamps(time_series_dataframe):
+def test_draw_chart_skips_rows_with_missing_timestamps(time_series_dataframe):
     df = time_series_dataframe.copy()
     df.loc[len(df)] = {"category": "A", "events": 9, "time": pd.NaT}
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=df,
         x_axis="time",
         time_interval="month",
@@ -107,7 +107,7 @@ def test_category_breakdown_handles_mixed_type_values(time_series_dataframe):
     df["category"] = [1, "foot", 1, "foot", "foot"]
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=df,
         x_axis="time",
         time_interval="month",
@@ -120,11 +120,11 @@ def test_category_breakdown_handles_mixed_type_values(time_series_dataframe):
     assert '"name":"foot"' in plot
 
 
-def test_draw_time_series_chart_unsupported_interval(time_series_dataframe):
+def test_draw_chart_unsupported_interval(time_series_dataframe):
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
     with pytest.raises(NotImplementedError):
-        draw_time_series_chart(
+        draw_chart(
             dataframe=time_series_dataframe,
             x_axis="time",
             time_interval="Not an interval",
@@ -132,11 +132,11 @@ def test_draw_time_series_chart_unsupported_interval(time_series_dataframe):
         )
 
 
-def test_draw_time_series_chart_value_labels(time_series_dataframe):
+def test_draw_chart_value_labels(time_series_dataframe):
     """plot_style texttemplate/textposition pass through to every bar trace."""
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
@@ -149,7 +149,7 @@ def test_draw_time_series_chart_value_labels(time_series_dataframe):
     assert '"textposition":"auto"' in plot
 
 
-def test_draw_time_series_chart_month_bar_width(time_series_dataframe):
+def test_draw_chart_month_bar_width(time_series_dataframe):
     """Full-month bar width applies only when bars share an x slot (single
     series or stacked) — month-wide grouped bars would overlap neighboring
     groups, so grouped multi-series charts keep plotly's automatic sizing."""
@@ -157,7 +157,7 @@ def test_draw_time_series_chart_month_bar_width(time_series_dataframe):
     two_metrics = one_metric + [StatSummaryParam(display_name="Mean Events", aggregator="mean", column="events")]
 
     def draw(summary_params, barmode):
-        return draw_time_series_chart(
+        return draw_chart(
             dataframe=time_series_dataframe.copy(),
             x_axis="time",
             time_interval="month",
@@ -175,11 +175,11 @@ def test_draw_time_series_chart_month_bar_width(time_series_dataframe):
     assert f'"width":{MONTH_IN_MILLISECONDS}' not in grouped
 
 
-def test_draw_time_series_chart_defaults(time_series_dataframe):
+def test_draw_chart_defaults(time_series_dataframe):
     """No palette -> plotly default colors; barmode defaults to group."""
     summary_params = [StatSummaryParam(display_name="Distinct Categories", aggregator="nunique", column="category")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
@@ -190,7 +190,7 @@ def test_draw_time_series_chart_defaults(time_series_dataframe):
     assert '"barmode":"group"' in plot
 
 
-def test_draw_time_series_chart_ratio_na_on_zero_denominator(time_series_dataframe):
+def test_draw_chart_ratio_na_on_zero_denominator(time_series_dataframe):
     # denominator sums to zero in the second month bucket
     time_series_dataframe["km"] = [10.0, 6.0, 0.0, 0.0, 0.0]
     summary_params = [
@@ -202,7 +202,7 @@ def test_draw_time_series_chart_ratio_na_on_zero_denominator(time_series_datafra
         ),
     ]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
@@ -212,13 +212,13 @@ def test_draw_time_series_chart_ratio_na_on_zero_denominator(time_series_datafra
     assert '"y":[0.31,null]' in plot
 
 
-def test_draw_time_series_chart_line_mode(time_series_dataframe):
+def test_draw_chart_line_mode(time_series_dataframe):
     summary_params = [
         StatSummaryParam(display_name="Total Events", aggregator="sum", column="events"),
         StatSummaryParam(display_name="Distinct Categories", aggregator="nunique", column="category"),
     ]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
@@ -237,13 +237,13 @@ def test_draw_time_series_chart_line_mode(time_series_dataframe):
     assert '"texttemplate":"%{y:,.2~f}"' not in plot
 
 
-def test_draw_time_series_chart_line_shape_dash_and_markers(time_series_dataframe):
+def test_draw_chart_line_shape_dash_and_markers(time_series_dataframe):
     """plot_style.line (shape/dash) and mode merge with the palette's line_color."""
     from ecoscope.platform.tasks.results._ecoplot import LineStyle
 
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
@@ -260,13 +260,13 @@ def test_draw_time_series_chart_line_shape_dash_and_markers(time_series_datafram
     assert "#111111" in plot
 
 
-def test_draw_time_series_chart_named_colormap_palette(time_series_dataframe):
+def test_draw_chart_named_colormap_palette(time_series_dataframe):
     summary_params = [
         StatSummaryParam(display_name="Total Events", aggregator="sum", column="events"),
         StatSummaryParam(display_name="Distinct Categories", aggregator="nunique", column="category"),
     ]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=time_series_dataframe,
         x_axis="time",
         time_interval="month",
@@ -281,10 +281,10 @@ def test_draw_time_series_chart_named_colormap_palette(time_series_dataframe):
         assert color in plot
 
 
-def test_draw_time_series_chart_breakdown_by_column(breakdown_dataframe):
+def test_draw_chart_breakdown_by_column(breakdown_dataframe):
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=breakdown_dataframe,
         x_axis="time",
         time_interval="month",
@@ -304,11 +304,11 @@ def test_draw_time_series_chart_breakdown_by_column(breakdown_dataframe):
     assert '"y":[3,1]' in plot
 
 
-def test_draw_time_series_chart_breakdown_by_index_level(breakdown_dataframe):
+def test_draw_chart_breakdown_by_index_level(breakdown_dataframe):
     dataframe = breakdown_dataframe.set_index("patrol_type").rename_axis("SpatialGrouper_region")
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=dataframe,
         x_axis="time",
         time_interval="month",
@@ -322,14 +322,14 @@ def test_draw_time_series_chart_breakdown_by_index_level(breakdown_dataframe):
     assert '"y":[3,1]' in plot
 
 
-def test_draw_time_series_chart_breakdown_requires_single_metric(breakdown_dataframe):
+def test_draw_chart_breakdown_requires_single_metric(breakdown_dataframe):
     summary_params = [
         StatSummaryParam(display_name="Total Events", aggregator="sum", column="events"),
         StatSummaryParam(display_name="Mean Events", aggregator="mean", column="events"),
     ]
 
     with pytest.raises(ValueError, match="exactly one metric"):
-        draw_time_series_chart(
+        draw_chart(
             dataframe=breakdown_dataframe,
             x_axis="time",
             time_interval="month",
@@ -338,7 +338,7 @@ def test_draw_time_series_chart_breakdown_requires_single_metric(breakdown_dataf
         )
 
 
-def test_draw_time_series_chart_empty_string_category_is_plain_metric_mode(
+def test_draw_chart_empty_string_category_is_plain_metric_mode(
     breakdown_dataframe,
 ):
     summary_params = [
@@ -346,7 +346,7 @@ def test_draw_time_series_chart_empty_string_category_is_plain_metric_mode(
         StatSummaryParam(display_name="Mean Events", aggregator="mean", column="events"),
     ]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=breakdown_dataframe,
         x_axis="time",
         time_interval="month",
@@ -358,12 +358,12 @@ def test_draw_time_series_chart_empty_string_category_is_plain_metric_mode(
     assert '"name":"Mean Events"' in plot
 
 
-def test_draw_time_series_chart_time_breakdown_overlay(breakdown_dataframe):
+def test_draw_chart_time_breakdown_overlay(breakdown_dataframe):
     """unit=month, interval=day: one series per month, day buckets rebased onto
     a shared axis (Jan 2000) so the periods overlay."""
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=breakdown_dataframe,
         x_axis="time",
         time_interval="day",
@@ -381,7 +381,7 @@ def test_draw_time_series_chart_time_breakdown_overlay(breakdown_dataframe):
     assert '"tickformat":"Day %e"' in plot
 
 
-def test_draw_time_series_chart_time_breakdown_week_of_period_aligns():
+def test_draw_chart_time_breakdown_week_of_period_aligns():
     """unit=month, interval=week: weeks bucket relative to each period's start
     (not calendar Mondays), so week indices align across the period series."""
     dataframe = pd.DataFrame(
@@ -393,7 +393,7 @@ def test_draw_time_series_chart_time_breakdown_week_of_period_aligns():
     )
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=dataframe,
         x_axis="time",
         time_interval="week",
@@ -411,13 +411,13 @@ def test_draw_time_series_chart_time_breakdown_week_of_period_aligns():
     assert '"dtick":1' in plot
 
 
-def test_draw_time_series_chart_time_breakdown_requires_finer_interval(
+def test_draw_chart_time_breakdown_requires_finer_interval(
     breakdown_dataframe,
 ):
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
     with pytest.raises(ValueError, match="must be smaller"):
-        draw_time_series_chart(
+        draw_chart(
             dataframe=breakdown_dataframe,
             x_axis="time",
             time_interval="month",
@@ -426,11 +426,11 @@ def test_draw_time_series_chart_time_breakdown_requires_finer_interval(
         )
 
 
-def test_draw_time_series_chart_breakdowns_mutually_exclusive(breakdown_dataframe):
+def test_draw_chart_breakdowns_mutually_exclusive(breakdown_dataframe):
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
     with pytest.raises(ValueError, match="mutually exclusive"):
-        draw_time_series_chart(
+        draw_chart(
             dataframe=breakdown_dataframe,
             x_axis="time",
             time_interval="day",
@@ -440,7 +440,7 @@ def test_draw_time_series_chart_breakdowns_mutually_exclusive(breakdown_datafram
         )
 
 
-def test_draw_time_series_chart_categorical_x_stacked_bar():
+def test_draw_chart_categorical_x_stacked_bar():
     """No time_interval: raw x_axis values are the buckets, so a categorical
     column stacks by category without any time semantics or axis dtick."""
     dataframe = pd.DataFrame(
@@ -452,7 +452,7 @@ def test_draw_time_series_chart_categorical_x_stacked_bar():
     )
     summary_params = [StatSummaryParam(display_name="Sightings", aggregator="sum", column="events")]
 
-    plot = draw_time_series_chart(
+    plot = draw_chart(
         dataframe=dataframe,
         x_axis="subject",
         summary_params=summary_params,
@@ -473,11 +473,11 @@ def test_draw_time_series_chart_categorical_x_stacked_bar():
     assert '"xaxis":{"dtick"' not in plot
 
 
-def test_draw_time_series_chart_time_breakdown_requires_time_interval(breakdown_dataframe):
+def test_draw_chart_time_breakdown_requires_time_interval(breakdown_dataframe):
     summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
 
     with pytest.raises(ValueError, match="requires a Time Interval"):
-        draw_time_series_chart(
+        draw_chart(
             dataframe=breakdown_dataframe,
             x_axis="time",
             summary_params=summary_params,
@@ -488,44 +488,44 @@ def test_draw_time_series_chart_time_breakdown_requires_time_interval(breakdown_
 # ------------------------------------------------------------- config task
 
 
-def test_set_trend_chart_config_defaults():
-    config = set_trend_chart_config()
+def test_set_chart_config_defaults():
+    config = set_chart_config()
 
     assert isinstance(config.mode, MetricsOnlyMode)
     assert config.time_interval == "week"
-    params = get_trend_chart_metrics(config)
+    params = get_chart_metrics(config)
     assert len(params) == 1
     assert params[0].display_name == "Patrol Count"
-    assert get_trend_chart_time_interval(config) == "week"
+    assert get_chart_time_interval(config) == "week"
 
 
-def test_trend_chart_config_breakdown_requires_single_metric():
+def test_chart_config_breakdown_requires_single_metric():
     with pytest.raises(ValidationError, match="exactly one metric"):
-        TrendChartConfig(
+        ChartConfig(
             metrics=[{"metric": "patrol_count"}, {"metric": "total_events"}],
             mode={"mode": "category", "category": "patrol_type"},
         )
 
 
-def test_trend_chart_config_time_breakdown_requires_finer_interval():
+def test_chart_config_time_breakdown_requires_finer_interval():
     with pytest.raises(ValidationError, match="must be smaller"):
-        TrendChartConfig(time_interval="month", mode={"mode": "time", "unit": "month"})
+        ChartConfig(time_interval="month", mode={"mode": "time", "unit": "month"})
 
-    config = TrendChartConfig(time_interval="month", mode={"mode": "time", "unit": "year"})
+    config = ChartConfig(time_interval="month", mode={"mode": "time", "unit": "year"})
     assert isinstance(config.mode, TimeBreakdownMode)
 
 
-def test_trend_chart_config_branch_field_validation():
+def test_chart_config_branch_field_validation():
     with pytest.raises(ValidationError, match="category column name"):
-        TrendChartConfig(mode={"mode": "category", "category": "  "})
+        ChartConfig(mode={"mode": "category", "category": "  "})
     with pytest.raises(ValidationError, match="spatial feature group name"):
-        TrendChartConfig(mode={"mode": "spatial"})
+        ChartConfig(mode={"mode": "spatial"})
 
 
-def test_trend_chart_config_task_schema_blocks_multi_metric_breakdowns():
+def test_chart_config_task_schema_blocks_multi_metric_breakdowns():
     """The task-level json_schema_extra adds the form guard to the inline
     params schema; the field-level callables shape the mode conditional."""
-    from ecoscope.platform.tasks.config.set_trend_chart import (
+    from ecoscope.platform.tasks.config.set_chart import (
         _config_task_json_schema,
         _flat_conditional_mode_schema,
         _time_interval_schema,
@@ -571,10 +571,10 @@ def test_trend_chart_config_task_schema_blocks_multi_metric_breakdowns():
 
 
 def test_chart_mode_splitters():
-    metrics_only = set_trend_chart_config()
-    category = TrendChartConfig(mode={"mode": "category", "category": "patrol_type"})
-    spatial = TrendChartConfig(mode={"mode": "spatial", "spatial_feature_group": "Regions"})
-    time_mode = TrendChartConfig(time_interval="month", mode={"mode": "time", "unit": "year"})
+    metrics_only = set_chart_config()
+    category = ChartConfig(mode={"mode": "category", "category": "patrol_type"})
+    spatial = ChartConfig(mode={"mode": "spatial", "spatial_feature_group": "Regions"})
+    time_mode = ChartConfig(time_interval="month", mode={"mode": "time", "unit": "year"})
 
     assert get_chart_mode_category_column(metrics_only) is None
     assert get_chart_mode_category_column(category) == "patrol_type"
@@ -595,8 +595,8 @@ def test_chart_mode_splitters():
 # -------------------------------------------------------------- style task
 
 
-def test_set_trend_chart_style_defaults():
-    style = set_trend_chart_style()
+def test_set_chart_style_defaults():
+    style = set_chart_style()
 
     assert get_style_chart_type(style) == "bar"
     assert get_style_barmode(style) == "group"
@@ -605,41 +605,41 @@ def test_set_trend_chart_style_defaults():
     assert get_style_layout_style(style) is None
 
 
-def test_trend_chart_style_accepts_custom_colors():
-    style = set_trend_chart_style(palette=["#111111", "#222222"])
+def test_chart_style_accepts_custom_colors():
+    style = set_chart_style(palette=["#111111", "#222222"])
 
     assert get_style_palette(style) == ["#111111", "#222222"]
 
 
-def test_trend_chart_style_chart_union_selects_barmode():
-    style = set_trend_chart_style(chart={"chart_type": "bar", "barmode": "stack"})
+def test_chart_style_chart_union_selects_barmode():
+    style = set_chart_style(chart={"chart_type": "bar", "barmode": "stack"})
     assert get_style_chart_type(style) == "bar"
     assert get_style_barmode(style) == "stack"
 
-    line = set_trend_chart_style(chart={"chart_type": "line"})
+    line = set_chart_style(chart={"chart_type": "line"})
     assert get_style_chart_type(line) == "line"
     assert get_style_barmode(line) == "group"
 
-    retained = set_trend_chart_style(chart={"chart_type": "line", "barmode": "stack"})
+    retained = set_chart_style(chart={"chart_type": "line", "barmode": "stack"})
     assert get_style_chart_type(retained) == "line"
     assert get_style_barmode(retained) == "group"
 
 
-def test_trend_chart_style_bar_value_labels_toggle():
-    labels_off = set_trend_chart_style(chart={"chart_type": "bar", "show_value_labels": False})
+def test_chart_style_bar_value_labels_toggle():
+    labels_off = set_chart_style(chart={"chart_type": "bar", "show_value_labels": False})
     assert get_style_plot_style(labels_off) == PlotStyle()
 
-    line = set_trend_chart_style(chart={"chart_type": "line"})
+    line = set_chart_style(chart={"chart_type": "line"})
     plot_style = get_style_plot_style(line)
     assert plot_style.texttemplate is None
     assert plot_style.textposition is None
 
 
-def test_trend_chart_style_line_options():
-    line = set_trend_chart_style(chart={"chart_type": "line"})
+def test_chart_style_line_options():
+    line = set_chart_style(chart={"chart_type": "line"})
     assert get_style_plot_style(line) == PlotStyle(mode="lines+markers")
 
-    styled = set_trend_chart_style(
+    styled = set_chart_style(
         chart={
             "chart_type": "line",
             "line_shape": "spline",
@@ -653,26 +653,26 @@ def test_trend_chart_style_line_options():
     assert plot_style.line.shape == "spline"
     assert plot_style.line.dash == "dot"
 
-    retained = set_trend_chart_style(chart={"chart_type": "bar", "line_shape": "spline", "show_markers": False})
+    retained = set_chart_style(chart={"chart_type": "bar", "line_shape": "spline", "show_markers": False})
     assert retained.line_shape == "linear"
     assert retained.show_markers is True
 
 
-def test_trend_chart_style_y_axis_title():
-    style = set_trend_chart_style(y_axis_title="Patrol Count")
+def test_chart_style_y_axis_title():
+    style = set_chart_style(y_axis_title="Patrol Count")
     layout_style = get_style_layout_style(style)
     assert layout_style is not None
     assert layout_style.yaxis is not None
     assert layout_style.yaxis.title == "Patrol Count"
     assert layout_style.model_dump(exclude_none=True) == {"yaxis": {"title": "Patrol Count"}}
 
-    assert get_style_layout_style(set_trend_chart_style(y_axis_title="   ")) is None
+    assert get_style_layout_style(set_chart_style(y_axis_title="   ")) is None
 
 
-def test_trend_chart_style_schema_reveals_barmode_for_bars_only():
+def test_chart_style_schema_reveals_barmode_for_bars_only():
     """The chart-type field callable renders the union as a flat conditional
     (Bar Mode revealed only for bars); the palette callable titles branches."""
-    from ecoscope.platform.tasks.config.set_trend_chart import (
+    from ecoscope.platform.tasks.config.set_chart import (
         _flat_conditional_chart_schema,
         _palette_schema,
     )

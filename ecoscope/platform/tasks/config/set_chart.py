@@ -57,7 +57,7 @@ class TimeBreakdownMode(BaseModel):
     unit: Annotated[Literal["year", "month", "week", "day"], Field(default="year", title="Period")] = "year"
 
 
-TrendChartMode: TypeAlias = MetricsOnlyMode | CategoryBreakdownMode | SpatialBreakdownMode | TimeBreakdownMode
+ChartMode: TypeAlias = MetricsOnlyMode | CategoryBreakdownMode | SpatialBreakdownMode | TimeBreakdownMode
 
 _BREAKDOWN_MODES = ("category", "spatial", "time")
 
@@ -167,7 +167,7 @@ def _time_interval_schema(schema: dict) -> None:
 
 
 def _config_task_json_schema(schema: dict) -> None:
-    # Form-side twin of the TrendChartConfig runtime validator. Becomes
+    # Form-side twin of the ChartConfig runtime validator. Becomes
     # @register(json_schema_extra=...) once wt-registry > 0.2.2 ships; until
     # then workflow specs restate this allOf via rjsf-overrides.
     schema["allOf"] = [
@@ -196,19 +196,19 @@ def _config_task_json_schema(schema: dict) -> None:
 _DEFAULT_TREND_METRICS: tuple = ({"metric": "patrol_count"},)
 
 
-class TrendChartConfig(BaseModel):
-    """Validated carrier for the trend chart configuration (the runtime gate
+class ChartConfig(BaseModel):
+    """Validated carrier for the chart configuration (the runtime gate
     matching the form-time guard in _config_task_json_schema)."""
 
     model_config = ConfigDict(title="")
 
     metrics: Annotated[Sequence[EncounterRateMetric], Field(default=_DEFAULT_TREND_METRICS)] = _DEFAULT_TREND_METRICS
     time_interval: Annotated[Literal["year", "month", "week", "day", "hour"], Field(default="week")] = "week"
-    mode: Annotated[Union[TrendChartMode, SkipJsonSchema[None]], Field(default=None)] = None
+    mode: Annotated[Union[ChartMode, SkipJsonSchema[None]], Field(default=None)] = None
 
     @model_validator(mode="after")
-    def _validate(self) -> "TrendChartConfig":
-        from ecoscope.platform.tasks.results._trend_chart import INTERVAL_FINENESS
+    def _validate(self) -> "ChartConfig":
+        from ecoscope.platform.tasks.results._chart import INTERVAL_FINENESS
 
         if self.mode is None:
             self.mode = MetricsOnlyMode()
@@ -232,7 +232,7 @@ class TrendChartConfig(BaseModel):
 
 
 @register()
-def set_trend_chart_config(
+def set_chart_config(
     metrics: Annotated[
         Sequence[EncounterRateMetric],
         Field(
@@ -254,30 +254,30 @@ def set_trend_chart_config(
         ),
     ] = "week",
     mode: Annotated[
-        Union[TrendChartMode, SkipJsonSchema[None]],
+        Union[ChartMode, SkipJsonSchema[None]],
         Field(default=None, json_schema_extra=_flat_conditional_mode_schema),
     ] = None,
-) -> TrendChartConfig:
-    return TrendChartConfig(metrics=metrics, time_interval=time_interval, mode=mode)
+) -> ChartConfig:
+    return ChartConfig(metrics=metrics, time_interval=time_interval, mode=mode)
 
 
 @register()
-def get_trend_chart_metrics(
-    config: Annotated[TrendChartConfig, Field(title="")],
+def get_chart_metrics(
+    config: Annotated[ChartConfig, Field(title="")],
 ) -> Annotated[list[SummaryParam], Field(description="Summary metric parameters")]:
     return encounter_metrics_to_summary_params(config.metrics)
 
 
 @register()
-def get_trend_chart_time_interval(
-    config: Annotated[TrendChartConfig, Field(title="")],
+def get_chart_time_interval(
+    config: Annotated[ChartConfig, Field(title="")],
 ) -> Literal["year", "month", "week", "day", "hour"]:
     return config.time_interval
 
 
 @register()
 def get_chart_mode_category_column(
-    config: Annotated[TrendChartConfig, Field(title="")],
+    config: Annotated[ChartConfig, Field(title="")],
 ) -> str | None:
     if isinstance(config.mode, CategoryBreakdownMode):
         return config.mode.category
@@ -288,7 +288,7 @@ def get_chart_mode_category_column(
 
 @register()
 def get_chart_mode_time_unit(
-    config: Annotated[TrendChartConfig, Field(title="")],
+    config: Annotated[ChartConfig, Field(title="")],
 ) -> str | None:
     if isinstance(config.mode, TimeBreakdownMode):
         return config.mode.unit
@@ -297,7 +297,7 @@ def get_chart_mode_time_unit(
 
 @register()
 def get_chart_mode_spatial_groupers(
-    config: Annotated[TrendChartConfig, Field(title="")],
+    config: Annotated[ChartConfig, Field(title="")],
 ) -> UserDefinedGroupers:
     if isinstance(config.mode, SpatialBreakdownMode):
         return [SpatialGrouper(spatial_index_name=config.mode.spatial_feature_group)]
@@ -425,8 +425,8 @@ def _palette_schema(schema: dict) -> None:
             branch["title"] = "Custom Colors"
 
 
-class TrendChartStyle(BaseModel):
-    """Validated carrier for the trend chart styling choices."""
+class ChartStyle(BaseModel):
+    """Validated carrier for the chart styling choices."""
 
     model_config = ConfigDict(title="")
 
@@ -444,7 +444,7 @@ _ChartTypeAdapter: TypeAdapter = TypeAdapter(ChartTypeStyle)
 
 
 @register()
-def set_trend_chart_style(
+def set_chart_style(
     chart: Annotated[
         Union[ChartTypeStyle, SkipJsonSchema[None]],
         Field(default=None, json_schema_extra=_flat_conditional_chart_schema),
@@ -466,14 +466,14 @@ def set_trend_chart_style(
             description="Optional label for the value axis. Leave empty for no label.",
         ),
     ] = "",
-) -> TrendChartStyle:
+) -> ChartStyle:
     if chart is None:
         chart = BarChartStyle()
     elif isinstance(chart, dict):
         chart = _ChartTypeAdapter.validate_python(chart)
     bar = chart if isinstance(chart, BarChartStyle) else BarChartStyle()
     line = chart if isinstance(chart, LineChartStyle) else LineChartStyle()
-    return TrendChartStyle(
+    return ChartStyle(
         chart_type=chart.chart_type,
         barmode=bar.barmode,
         show_value_labels=bar.show_value_labels,
@@ -487,21 +487,21 @@ def set_trend_chart_style(
 
 @register()
 def get_style_chart_type(
-    style: Annotated[TrendChartStyle, Field(title="")],
+    style: Annotated[ChartStyle, Field(title="")],
 ) -> Literal["bar", "line"]:
     return style.chart_type
 
 
 @register()
 def get_style_barmode(
-    style: Annotated[TrendChartStyle, Field(title="")],
+    style: Annotated[ChartStyle, Field(title="")],
 ) -> Literal["group", "stack"]:
     return style.barmode
 
 
 @register()
 def get_style_palette(
-    style: Annotated[TrendChartStyle, Field(title="")],
+    style: Annotated[ChartStyle, Field(title="")],
 ) -> str | list[str]:
     return style.palette if isinstance(style.palette, str) else list(style.palette)
 
@@ -512,7 +512,7 @@ _VALUE_LABEL_TEXTTEMPLATE = "%{y:,.2~f}"
 
 @register()
 def get_style_plot_style(
-    style: Annotated[TrendChartStyle, Field(title="")],
+    style: Annotated[ChartStyle, Field(title="")],
 ) -> PlotStyle:
     if style.chart_type == "bar":
         if style.show_value_labels:
@@ -530,7 +530,7 @@ def get_style_plot_style(
 
 @register()
 def get_style_layout_style(
-    style: Annotated[TrendChartStyle, Field(title="")],
+    style: Annotated[ChartStyle, Field(title="")],
 ) -> BarLayoutStyle | None:
     if style.y_axis_title.strip():
         return BarLayoutStyle(yaxis=AxisStyle(title=style.y_axis_title.strip()))
