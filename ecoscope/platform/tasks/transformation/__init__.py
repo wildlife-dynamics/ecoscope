@@ -1,3 +1,4 @@
+from ._align_keyed_iterable import align_keyed_iterable_to_reference
 from ._classification import (
     apply_classification,
     apply_color_map,
@@ -5,12 +6,14 @@ from ._classification import (
     classify_seasons,
 )
 from ._column_cleanup import drop_column_prefix, drop_duplicate_columns
+from ._concat import concat_dataframes
 from ._conversion import (
     convert_column_values_to_numeric,
     convert_column_values_to_string,
     convert_values_to_timezone,
 )
 from ._crs import convert_crs
+from ._decompose_datetime import decompose_datetime
 from ._exploding import explode
 from ._extract import extract_column_as_type, extract_value_from_json_column
 from ._filter import filter_df
@@ -25,7 +28,9 @@ from ._filtering import (
 from ._indexing import (
     add_spatial_index,
     add_temporal_index,
+    extract_grouper_index_names,
     extract_spatial_grouper_feature_group_names,
+    rename_grouper_index_columns,
     resolve_spatial_feature_groups_for_spatial_groupers,
 )
 from ._mapping import (
@@ -48,14 +53,17 @@ from ._transpose import transpose
 from ._unit import with_unit
 
 __all__ = [
+    "align_keyed_iterable_to_reference",
     "apply_classification",
     "apply_color_map",
     "classify_is_night",
     "classify_seasons",
+    "concat_dataframes",
     "convert_column_values_to_numeric",
     "convert_column_values_to_string",
     "convert_crs",
     "convert_values_to_timezone",
+    "decompose_datetime",
     "drop_column_prefix",
     "drop_duplicate_columns",
     "explode",
@@ -70,8 +78,10 @@ __all__ = [
     "Coordinate",
     "add_spatial_index",
     "add_temporal_index",
+    "extract_grouper_index_names",
     "extract_spatial_grouper_feature_group_names",
     "resolve_spatial_feature_groups_for_spatial_groupers",
+    "rename_grouper_index_columns",
     "RenameColumn",
     "assign_value",
     "fill_na",

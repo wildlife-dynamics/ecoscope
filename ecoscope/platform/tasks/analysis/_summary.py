@@ -125,15 +125,63 @@ class UniqueSummaryParam(_BaseSummaryParam):
     decimal_places: SkipJsonSchema[None] = None
 
 
+class RatioOperand(BaseModel):
+    aggregator: Annotated[AggOperations, Field(title="Statistic")]
+    column: Annotated[str, Field(title="Column", description="Column to aggregate.")]
+
+
+class RatioSummaryParam(_BaseSummaryParam):
+    """Ratio of two aggregations per group, e.g. events per hour. NA when the denominator is 0."""
+
+    model_config = ConfigDict(title="Ratio")
+    aggregator: Annotated[Literal["ratio"], Field(title="Statistic")]
+    numerator: Annotated[RatioOperand, Field(title="Numerator")]
+    denominator: Annotated[RatioOperand, Field(title="Denominator")]
+    scale: Annotated[
+        float,
+        Field(
+            default=1.0,
+            title="Scale",
+            description="Multiplier applied to the ratio, e.g. 3600 to turn per-second into per-hour.",
+        ),
+    ] = 1.0
+    decimal_places: Annotated[int | SkipJsonSchema[None], Field(default=2, title="Decimal Places")] = 2
+
+
 SummaryParam = Annotated[
     Union[
         StatSummaryParam,
         UniqueSummaryParam,
         CoverageSummaryParam,
         NightDayRatioSummaryParam,
+        RatioSummaryParam,
     ],
     Field(discriminator="aggregator"),
 ]
+
+
+def summarize_column(df, param):
+    result = 0
+    if param.aggregator == "night_day_ratio":
+        result = get_night_day_ratio(df)
+    elif param.aggregator == "coverage_area":
+        result = coverage_area_km2(df, param.swath_width_meters, merged=param.merged)
+    elif param.aggregator == "unique":
+        result = ", ".join(str(value) for value in df[param.column].unique())
+    elif param.aggregator == "ratio":
+        numerator = df[param.numerator.column].agg(param.numerator.aggregator)
+        denominator = df[param.denominator.column].agg(param.denominator.aggregator)
+        result = float("nan") if denominator == 0 else numerator / denominator * param.scale
+    else:
+        result = df[param.column].agg(param.aggregator)
+
+    if isinstance(param, StatSummaryParam) and param.original_unit and param.new_unit:
+        result = with_unit(result, param.original_unit, param.new_unit).value
+
+    if param.decimal_places is not None:
+        result = round(result, param.decimal_places)
+
+    return result
 
 
 @register()
@@ -160,25 +208,6 @@ def summarize_df(
         ),
     ] = False,
 ) -> Annotated[AnyDataFrame, Field(description="Summary Table")]:
-    def summarize_column(df, param):
-        result = 0
-        if param.aggregator == "night_day_ratio":
-            result = get_night_day_ratio(df)
-        elif param.aggregator == "coverage_area":
-            result = coverage_area_km2(df, param.swath_width_meters, merged=param.merged)
-        elif param.aggregator == "unique":
-            result = ", ".join(str(value) for value in df[param.column].unique())
-        else:
-            result = df[param.column].agg(param.aggregator)
-
-        if isinstance(param, StatSummaryParam) and param.original_unit and param.new_unit:
-            result = with_unit(result, param.original_unit, param.new_unit).value
-
-        if param.decimal_places is not None:
-            result = round(result, param.decimal_places)
-
-        return result
-
     def summarize(df, summary_params):
         return pd.Series({param.display_name: summarize_column(df, param) for param in summary_params})
 

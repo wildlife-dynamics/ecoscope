@@ -24,6 +24,11 @@ class Unit(Enum):
     def __str__(self) -> str:
         return self.value
 
+    @property
+    def short_label(self) -> str:
+        """Column-header suffix label: the symbol, except hours/days where a word reads better."""
+        return {"h": "hrs", "d": "days"}.get(self.value, self.value)
+
 
 # Human-readable labels per unit; oneOf const/title pairs render as a labeled
 # dropdown.
