@@ -112,14 +112,18 @@ def _resolve_palette_colors(palette: str | list[str] | None, n: int) -> list[str
 def draw_time_series_chart(
     dataframe: DataFrame[JsonSerializableDataFrameModel],
     x_axis: Annotated[str, Field(description="The dataframe column to plot in the x/time axis.")],
-    time_interval: Annotated[
-        TimeInterval,
-        Field(description="The time bucket for the x axis — how metrics are summarized over time."),
-    ],
     summary_params: Annotated[
         list[SummaryParam],
-        Field(description="The metrics to compute per time bucket, drawn as one series each."),
+        Field(description="The metrics to compute per x-axis bucket, drawn as one series each."),
     ],
+    time_interval: Annotated[
+        TimeInterval | SkipJsonSchema[None],
+        Field(
+            default=None,
+            description="The time bucket for the x axis — how metrics are summarized over time. "
+            "If unset, the raw x_axis values are the buckets (categorical x axis).",
+        ),
+    ] = None,
     category: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -176,8 +180,10 @@ def draw_time_series_chart(
     Generates a time series chart (bar or line) of summary metrics.
 
     Each summary param is computed per time bucket via summarize_column and
-    drawn as one series. With a breakdown, exactly one summary param is
-    allowed and the series are instead:
+    drawn as one series. Without a time_interval, the raw x_axis values are
+    the buckets instead (a categorical x axis, e.g. one bar per subject).
+    With a breakdown, exactly one summary param is allowed and the series
+    are instead:
     - category: one series per value of a column or index level.
     - time_breakdown: one series per period (e.g. per year), overlaid on a
       shared within-period datetime axis (period component rebased away) so
@@ -188,8 +194,8 @@ def draw_time_series_chart(
     Args:
     dataframe (pd.DataFrame): The input dataframe.
     x_axis (str): The dataframe column to plot in the x axis.
-    time_interval (str): The time bucket for the x axis.
-    summary_params (list[SummaryParam]): The metrics to compute per time bucket.
+    summary_params (list[SummaryParam]): The metrics to compute per x-axis bucket.
+    time_interval (str): The time bucket for the x axis; omit to bucket by raw x_axis values.
     category (str): The column or index level to break the single metric down by.
     time_breakdown (str): The period size to break the single metric down by.
     chart_type (str): Render the series as bars or lines.
@@ -206,6 +212,7 @@ def draw_time_series_chart(
     import plotly.graph_objects as go  # type: ignore[import-untyped]
 
     category = category or None
+    time_interval = time_interval or None
     time_breakdown = time_breakdown or None
     if category is not None and time_breakdown is not None:
         raise ValueError("category and time_breakdown are mutually exclusive breakdowns")
@@ -214,19 +221,28 @@ def draw_time_series_chart(
             f"'Compares' requires exactly one metric; {len(summary_params)} selected — "
             "choose Metrics Only or remove extra metric rows."
         )
-    if time_breakdown is not None and INTERVAL_FINENESS[time_interval] <= INTERVAL_FINENESS[time_breakdown]:
-        raise ValueError(
-            f"The Time Interval ({time_interval}) must be smaller than the compared "
-            f"Period ({time_breakdown}) — e.g. a Month interval to compare Years."
-        )
+    if time_breakdown is not None:
+        if time_interval is None:
+            raise ValueError(
+                f"Comparing Periods ({time_breakdown}) requires a Time Interval — "
+                "set one, or remove the time breakdown."
+            )
+        if INTERVAL_FINENESS[time_interval] <= INTERVAL_FINENESS[time_breakdown]:
+            raise ValueError(
+                f"The Time Interval ({time_interval}) must be smaller than the compared "
+                f"Period ({time_breakdown}) — e.g. a Month interval to compare Years."
+            )
 
     layout_kws = layout_style.model_dump(exclude_none=True) if layout_style else {}
     plot_style = plot_style if plot_style else PlotStyle()
 
-    # Rows without a timestamp (e.g. NA-filled after concat) can't be bucketed.
+    # Rows without an x value (e.g. NA-filled after concat) can't be bucketed.
     dataframe = dataframe.loc[dataframe[x_axis].notna()].copy()
-    dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_interval))
-    layout_kws["xaxis_dtick"] = _INTERVAL_DTICKS[time_interval]
+    if time_interval is None:
+        dataframe["truncated_time"] = dataframe[x_axis]
+    else:
+        dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_interval))
+        layout_kws["xaxis_dtick"] = _INTERVAL_DTICKS[time_interval]
     # plotly hides the legend on single-trace figures; the series name is the
     # only place the metric is identified.
     layout_kws.setdefault("showlegend", True)

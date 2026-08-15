@@ -440,6 +440,51 @@ def test_draw_time_series_chart_breakdowns_mutually_exclusive(breakdown_datafram
         )
 
 
+def test_draw_time_series_chart_categorical_x_stacked_bar():
+    """No time_interval: raw x_axis values are the buckets, so a categorical
+    column stacks by category without any time semantics or axis dtick."""
+    dataframe = pd.DataFrame(
+        {
+            "subject": ["Fatu", "Najin", "Fatu", "Najin", "Fatu"],
+            "method": ["visual", "camera", "camera", "visual", "visual"],
+            "events": [2, 3, 5, 1, 4],
+        }
+    )
+    summary_params = [StatSummaryParam(display_name="Sightings", aggregator="sum", column="events")]
+
+    plot = draw_time_series_chart(
+        dataframe=dataframe,
+        x_axis="subject",
+        summary_params=summary_params,
+        category="method",
+        chart_type="bar",
+        barmode="stack",
+        palette=["#111111", "#222222"],
+    )
+
+    assert isinstance(plot, str)
+    assert '"barmode":"stack"' in plot
+    assert '"marker":{"color":"#111111"},"name":"camera"' in plot
+    assert '"marker":{"color":"#222222"},"name":"visual"' in plot
+    assert plot.count('"x":["Fatu","Najin"]') == 2
+    assert '"y":[5,3]' in plot  # camera: Fatu 5, Najin 3
+    assert '"y":[6,1]' in plot  # visual: Fatu 2+4, Najin 1
+    # no time_interval -> no xaxis dtick in the layout (plotly sizes the axis)
+    assert '"xaxis":{"dtick"' not in plot
+
+
+def test_draw_time_series_chart_time_breakdown_requires_time_interval(breakdown_dataframe):
+    summary_params = [StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")]
+
+    with pytest.raises(ValueError, match="requires a Time Interval"):
+        draw_time_series_chart(
+            dataframe=breakdown_dataframe,
+            x_axis="time",
+            summary_params=summary_params,
+            time_breakdown="month",
+        )
+
+
 # ------------------------------------------------------------- config task
 
 
