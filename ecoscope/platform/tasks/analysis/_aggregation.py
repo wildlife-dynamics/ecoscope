@@ -135,4 +135,6 @@ def get_night_day_ratio(
     with iers.conf.set_temp("auto_download", False):
         with iers.conf.set_temp("auto_max_age", None):
             with iers.conf.set_temp("iers_degraded_accuracy", "warn"):
-                return astronomy.get_nightday_ratio(df)
+                # get_nightday_ratio now also reports the number of days calculated in terms of
+                # sunrise/sunsets. At the task level we report only the ratio for now.
+                return astronomy.get_nightday_ratio(df).ratio
