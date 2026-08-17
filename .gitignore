@@ -177,3 +177,4 @@ environment-dev.yml
 uv.lock
 
 .serena
+.claude
