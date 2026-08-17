@@ -61,6 +61,12 @@ def extract_value_as_type(value, output_type: FieldType):
     return None
 
 
+def _extract_value_as_list(value):
+    if value is None:
+        return None
+    return list(value) if isinstance(value, (list, tuple)) else [value]
+
+
 @register()
 def extract_column_as_type(
     df: Annotated[
@@ -81,7 +87,21 @@ def extract_column_as_type(
             )
         ),
     ],
+    fan_out: Annotated[
+        bool,
+        Field(
+            description=(
+                "Only used when output_type is 'series'. If true (default), expand the extracted"
+                " collection into indexed columns prefixed by output_column_name."
+                " If false, store it as a list in a single output_column_name column."
+            )
+        ),
+    ] = True,
 ) -> AnyDataFrame:
+    if output_type == FieldType.SERIES and not fan_out:
+        df[output_column_name] = df[column_name].apply(_extract_value_as_list)
+        return cast(AnyDataFrame, df)
+
     output = df[column_name].apply(lambda x: extract_value_as_type(x, output_type))
     if output_type == FieldType.SERIES:
         output_df = output.add_prefix(output_column_name)
@@ -125,6 +145,16 @@ def extract_value_from_json_column(
             )
         ),
     ],
+    fan_out: Annotated[
+        bool,
+        Field(
+            description=(
+                "Only used when output_type is 'series'. If true (default), expand the extracted"
+                " collection into indexed columns prefixed by output_column_name."
+                " If false, store it as a list in a single output_column_name column."
+            )
+        ),
+    ] = True,
 ) -> AnyDataFrame:
     def extract_value_from_row(row):
         additional = row[column_name] or {}
@@ -140,11 +170,14 @@ def extract_value_from_json_column(
         if value is None:
             return value
 
+        if output_type == FieldType.SERIES and not fan_out:
+            return _extract_value_as_list(value)
+
         return extract_value_as_type(value, output_type)
 
     output = df.apply(extract_value_from_row, axis=1)
 
-    if output_type == FieldType.SERIES:
+    if output_type == FieldType.SERIES and fan_out:
         output_df = output.add_prefix(output_column_name)
         result_df = df.merge(output_df, right_index=True, left_index=True)
     else:
