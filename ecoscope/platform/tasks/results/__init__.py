@@ -1,3 +1,4 @@
+from ._chart import ChartFigure, draw_chart
 from ._dashboard import DashboardJson, gather_dashboard
 from ._ecomap import (
     create_point_layer,
@@ -63,6 +64,8 @@ __all__ = [
     "draw_line_chart",
     "draw_pie_chart",
     "draw_time_series_bar_chart",
+    "draw_chart",
+    "ChartFigure",
     "OutputFiles",
     "gather_output_files",
     "draw_table",

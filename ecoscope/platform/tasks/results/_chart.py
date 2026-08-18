@@ -1,0 +1,352 @@
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
+from wt_registry import register
+
+from ecoscope.platform.annotations import (
+    AdvancedField,
+    DataFrame,
+    JsonSerializableDataFrameModel,
+)
+from ecoscope.platform.tasks.analysis._summary import (
+    SummaryParam,
+    summarize_column,
+)
+from ecoscope.platform.tasks.results._ecoplot import (
+    DAY_IN_MILLISECONDS,
+    HOUR_IN_MILLISECONDS,
+    MONTH_IN_MILLISECONDS,
+    WEEK_IN_MILLISECONDS,
+    BarLayoutStyle,
+    ExportArgs,
+    PlotStyle,
+)
+
+TimeInterval = Literal["year", "month", "week", "day", "hour"]
+TimeBreakdownUnit = Literal["year", "month", "week", "day"]
+
+# Coarse -> fine; a time breakdown needs time_interval strictly finer.
+INTERVAL_FINENESS: dict[str, int] = {"year": 0, "month": 1, "week": 2, "day": 3, "hour": 4}
+
+_INTERVAL_DTICKS = {
+    "year": "M12",
+    "month": "M1",
+    "week": WEEK_IN_MILLISECONDS,
+    "day": DAY_IN_MILLISECONDS,
+    "hour": HOUR_IN_MILLISECONDS,
+}
+
+# 2000 is a leap year, so Feb 29 buckets survive the rebase.
+_REBASE_YEAR = 2000
+
+_PERIOD_LABEL_FORMATS = {
+    "year": "%Y",
+    "month": "%b %Y",
+    "week": "Week of %d %b %Y",
+    "day": "%d %b %Y",
+}
+
+# Keyed by (time_breakdown, time_interval); week intervals are absent — they
+# plot on an integer week-of-period axis instead.
+_WITHIN_PERIOD_TICKFORMATS = {
+    "year": {"month": "%b", "day": "%d %b", "hour": "%d %b %H:00"},
+    "month": {"day": "Day %e", "hour": "%e %H:00"},
+    "week": {"day": "%a", "hour": "%a %H:00"},
+    "day": {"hour": "%H:00"},
+}
+
+
+def _truncate(value, interval: str):
+    """Floor a timestamp to the start of its interval bucket (week = Monday)."""
+    import datetime
+
+    match interval:
+        case "year":
+            return datetime.datetime(value.year, 1, 1)
+        case "month":
+            return datetime.datetime(value.year, value.month, 1)
+        case "week":
+            return datetime.datetime(value.year, value.month, value.day) - datetime.timedelta(int(value.day_of_week))
+        case "day":
+            return datetime.datetime(value.year, value.month, value.day)
+        case "hour":
+            return datetime.datetime(value.year, value.month, value.day, value.hour)
+        case _:
+            raise NotImplementedError(f"Unsupported time_interval: {interval}")
+
+
+def _rebase(bucket, unit: str):
+    """Map a truncated bucket onto a shared within-period datetime axis by
+    dropping the period component, so buckets from different periods overlay."""
+    import datetime
+
+    match unit:
+        case "year":
+            return bucket.replace(year=_REBASE_YEAR)
+        case "month":
+            return bucket.replace(year=_REBASE_YEAR, month=1)
+        case "week":
+            monday = datetime.datetime(_REBASE_YEAR, 1, 3)  # a Monday
+            return monday + datetime.timedelta(days=bucket.weekday(), hours=bucket.hour)
+        case "day":
+            return bucket.replace(year=_REBASE_YEAR, month=1, day=1)
+        case _:
+            raise NotImplementedError(f"Unsupported time_breakdown: {unit}")
+
+
+class ChartFigure(BaseModel):
+    """One drawn series: a summary metric and how to render it."""
+
+    metric: Annotated[SummaryParam, Field(description="The summary metric computed per x-axis bucket.")]
+    chart_type: Annotated[
+        Literal["bar", "line"],
+        Field(default="bar", description="Render this figure as bars or a line."),
+    ] = "bar"
+
+
+def _resolve_palette_colors(palette: str | list[str] | None, n: int) -> list[str] | None:
+    """Palette as css color strings: a hex list passes through; a string is
+    resolved as a named matplotlib colormap sampled over the series count
+    (the same resolution apply_color_map uses)."""
+    if not palette:
+        return None
+    if isinstance(palette, str):
+        from ecoscope.analysis.classifier import resolve_categorical_cmap_colors
+
+        return [f"rgba({r}, {g}, {b}, {a / 255})" for r, g, b, a in resolve_categorical_cmap_colors(palette, max(n, 1))]
+    return list(palette)
+
+
+@register()
+def draw_chart(
+    dataframe: DataFrame[JsonSerializableDataFrameModel],
+    x_axis: Annotated[str, Field(description="The dataframe column to plot in the x/time axis.")],
+    figures: Annotated[
+        list[ChartFigure],
+        Field(description="The figures drawn in the plot — one series each, bars and lines freely mixed."),
+    ],
+    time_interval: Annotated[
+        TimeInterval | SkipJsonSchema[None],
+        Field(
+            default=None,
+            description="The time bucket for the x axis — how metrics are summarized over time. "
+            "If unset, the raw x_axis values are the buckets (categorical x axis).",
+        ),
+    ] = None,
+    category: Annotated[
+        str | SkipJsonSchema[None],
+        Field(
+            default=None,
+            description="The column or index level to break the single metric down into one series per value.",
+        ),
+    ] = None,
+    time_breakdown: Annotated[
+        TimeBreakdownUnit | SkipJsonSchema[None],
+        Field(
+            default=None,
+            description="Break the single metric into one series per period of this size, overlaid on a "
+            "shared within-period axis. Must be coarser than time_interval; mutually exclusive with category.",
+        ),
+    ] = None,
+    barmode: Annotated[
+        Literal["stack", "group"],
+        Field(default="group", description="How to arrange bar series within each time bucket (bar charts only)."),
+    ] = "group",
+    palette: Annotated[
+        str | list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="Series colors: a named matplotlib colormap or a list of colors, cycled in series order.",
+        ),
+    ] = None,
+    plot_style: Annotated[
+        PlotStyle | SkipJsonSchema[None],
+        AdvancedField(default=None, description="Additional style kwargs passed to each trace."),
+    ] = None,
+    layout_style: Annotated[
+        BarLayoutStyle | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="Additional kwargs passed to plotly.go.Figure(layout).",
+        ),
+    ] = None,
+    widget_id: Annotated[
+        str | SkipJsonSchema[None],
+        Field(
+            description="""\
+            The id of the dashboard widget that this tile layer belongs to.
+            If set this MUST match the widget title as defined downstream in create_widget tasks
+            """,
+            exclude=True,
+        ),
+    ] = None,
+) -> Annotated[str, Field()]:
+    """
+    Generates a chart of summary metrics, mixing bar and line figures freely.
+
+    Each figure's metric is computed per x-axis bucket via summarize_column
+    and drawn as one series with the figure's own chart type, sharing the x
+    axis. Without a time_interval, the raw x_axis values are the buckets
+    instead (a categorical x axis, e.g. one bar per subject).
+    With a breakdown, exactly one figure is allowed and the series
+    are instead:
+    - category: one series per value of a column or index level.
+    - time_breakdown: one series per period (e.g. per year), overlaid on a
+      shared within-period datetime axis (period component rebased away) so
+      periods can be compared; time_interval must be strictly finer. Week
+      intervals overlay on an integer week-of-period axis (week 1 = the
+      first 7 days of the period) so week series align across periods.
+
+    Args:
+    dataframe (pd.DataFrame): The input dataframe.
+    x_axis (str): The dataframe column to plot in the x axis.
+    figures (list[ChartFigure]): The figures drawn in the plot — a metric and
+        chart type (bar or line) each.
+    time_interval (str): The time bucket for the x axis; omit to bucket by raw x_axis values.
+    category (str): The column or index level to break the single figure's metric down by.
+    time_breakdown (str): The period size to break the single figure's metric down by.
+    barmode (str): How to arrange bar series within each time bucket (bar figures only).
+    palette (str | list[str]): A named matplotlib colormap or a list of colors, cycled in series order.
+    plot_style (PlotStyle): Style arguments applied to every trace.
+    layout_style (LayoutStyle): Additional kwargs passed to plotly.go.Figure(layout).
+    widget_id (str): The id of the dashboard widget that this tile layer belongs to.
+        If set this MUST match the widget title as defined downstream in create_widget tasks
+
+    Returns:
+    The generated chart html as a string
+    """
+    import plotly.graph_objects as go  # type: ignore[import-untyped]
+
+    category = category or None
+    time_interval = time_interval or None
+    time_breakdown = time_breakdown or None
+    if category is not None and time_breakdown is not None:
+        raise ValueError("category and time_breakdown are mutually exclusive breakdowns")
+    if (category is not None or time_breakdown is not None) and len(figures) != 1:
+        raise ValueError(
+            f"'Compares' requires exactly one metric; {len(figures)} selected — "
+            "choose Metrics Only or remove extra metric rows."
+        )
+    if time_breakdown is not None:
+        if time_interval is None:
+            raise ValueError(
+                f"Comparing Periods ({time_breakdown}) requires a Time Interval — "
+                "set one, or remove the time breakdown."
+            )
+        if INTERVAL_FINENESS[time_interval] <= INTERVAL_FINENESS[time_breakdown]:
+            raise ValueError(
+                f"The Time Interval ({time_interval}) must be smaller than the compared "
+                f"Period ({time_breakdown}) — e.g. a Month interval to compare Years."
+            )
+
+    layout_kws = layout_style.model_dump(exclude_none=True) if layout_style else {}
+    plot_style = plot_style if plot_style else PlotStyle()
+
+    # Rows without an x value (e.g. NA-filled after concat) can't be bucketed.
+    dataframe = dataframe.loc[dataframe[x_axis].notna()].copy()
+    if time_interval is None:
+        dataframe["truncated_time"] = dataframe[x_axis]
+    else:
+        dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_interval))
+        layout_kws["xaxis_dtick"] = _INTERVAL_DTICKS[time_interval]
+    # plotly hides the legend on single-trace figures; the series name is the
+    # only place the metric is identified.
+    layout_kws.setdefault("showlegend", True)
+
+    bar_style = plot_style.model_dump(exclude_none=True)
+    # bar-only styling (period widths, bar value labels) does not apply to lines
+    line_style = plot_style.model_dump(
+        exclude_none=True,
+        exclude={"width", "xperiod", "xperiodalignment", "textposition", "texttemplate"},
+    )
+    line_style.setdefault("mode", "lines+markers")
+
+    def make_trace(chart_type, x, y, name, color):
+        if chart_type == "bar":
+            return go.Bar(x=x, y=y, name=name, marker_color=color, **bar_style)
+        return go.Scatter(x=x, y=y, name=name, line_color=color, marker_color=color, **line_style)
+
+    if time_breakdown is not None:
+        assert time_interval is not None  # validated above: breakdown requires an interval
+        figure = figures[0]
+        param = figure.metric
+        dataframe["period_start"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_breakdown))
+        if time_interval == "week":
+            # Calendar weeks straddle period boundaries, so rebased buckets would
+            # never align across series; week k = days [7(k-1), 7k) of the period.
+            dataframe["truncated_time"] = [
+                (t.replace(tzinfo=None) - p).days // 7 + 1 for t, p in zip(dataframe[x_axis], dataframe["period_start"])
+            ]
+            layout_kws["xaxis_dtick"] = 1
+            layout_kws["xaxis_tickprefix"] = "Week "
+        else:
+            dataframe["truncated_time"] = dataframe["truncated_time"].apply(lambda b: _rebase(b, time_breakdown))
+        series: dict = {}
+        for (period, bucket), group in dataframe.groupby(["period_start", "truncated_time"]):
+            x, y = series.setdefault(period, ([], []))
+            x.append(bucket)
+            y.append(summarize_column(group, param))
+        keys = sorted(series)
+        colors = _resolve_palette_colors(palette, len(keys))
+        traces = [
+            make_trace(
+                figure.chart_type,
+                series[period][0],
+                series[period][1],
+                period.strftime(_PERIOD_LABEL_FORMATS[time_breakdown]),
+                colors[i % len(colors)] if colors else None,
+            )
+            for i, period in enumerate(keys)
+        ]
+        tickformat = _WITHIN_PERIOD_TICKFORMATS[time_breakdown].get(time_interval)
+        if tickformat:
+            layout_kws["xaxis_tickformat"] = tickformat
+            layout_kws["xaxis_hoverformat"] = tickformat
+    elif category is not None:
+        # groupby resolves category as a column or an index level.
+        figure = figures[0]
+        series = {}
+        for (bucket, value), group in dataframe.groupby(["truncated_time", category]):
+            x, y = series.setdefault(value, ([], []))
+            x.append(bucket)
+            y.append(summarize_column(group, figure.metric))
+        # key=str: category values from event details can mix types (ints, strings)
+        keys = sorted(series, key=str)
+        colors = _resolve_palette_colors(palette, len(keys))
+        traces = [
+            make_trace(
+                figure.chart_type,
+                series[value][0],
+                series[value][1],
+                str(value),
+                colors[i % len(colors)] if colors else None,
+            )
+            for i, value in enumerate(keys)
+        ]
+    else:
+        groups = list(dataframe.groupby("truncated_time"))
+        x_values = [bucket for bucket, _ in groups]
+        colors = _resolve_palette_colors(palette, len(figures))
+        traces = [
+            make_trace(
+                figure.chart_type,
+                x_values,
+                [summarize_column(group, figure.metric) for _, group in groups],
+                figure.metric.display_name,
+                colors[i % len(colors)] if colors else None,
+            )
+            for i, figure in enumerate(figures)
+        ]
+
+    bar_traces = [trace for trace in traces if isinstance(trace, go.Bar)]
+    if bar_traces:
+        layout_kws["barmode"] = barmode
+        if time_interval == "month" and (barmode == "stack" or len(bar_traces) == 1):
+            # Month-wide bars are safe only when bars share an x slot; grouped
+            # multi-series bars would overlap neighboring groups.
+            for trace in bar_traces:
+                trace.update(width=MONTH_IN_MILLISECONDS, xperiod="M1", xperiodalignment="start")
+    plot = go.Figure(data=traces, layout=go.Layout(**layout_kws))
+
+    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
