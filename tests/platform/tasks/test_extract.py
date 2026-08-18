@@ -88,6 +88,23 @@ def test_extract_column_as_type():
     assert result_df["extracted_value.end"].tolist() == expected_end
 
 
+def test_extract_column_as_type_series_no_fan_out():
+    df = pd.DataFrame({"lists": [["a", "b"], [], "scalar", None]})
+
+    result_df = extract_column_as_type(
+        df,
+        column_name="lists",
+        output_type=FieldType.SERIES,
+        output_column_name="extracted_value",
+        fan_out=False,
+    )
+    result = result_df["extracted_value"].tolist()
+    assert result[0] == ["a", "b"]
+    assert result[1] == []
+    assert result[2] == ["scalar"]
+    assert result[3] is None
+
+
 def test_extract_value_from_json_column():
     data = {
         "json_column": [
@@ -141,3 +158,38 @@ def test_extract_value_from_json_column():
     )
     assert result_df["extracted_value.start"][0] == "2023-01-01"
     assert result_df["extracted_value.end"][0] == "2023-12-31"
+
+
+def test_extract_value_from_json_column_series_no_fan_out():
+    df = pd.DataFrame(
+        {
+            "json_column": [
+                '{"members": ["a", "b"], "leader": "x"}',
+                '{"members": [], "leader": "y"}',
+                '{"leader": "z"}',
+                '{"members": "solo"}',
+            ]
+        }
+    )
+
+    result_df = extract_value_from_json_column(
+        df,
+        column_name="json_column",
+        field_name_options=["members"],
+        output_type=FieldType.SERIES,
+        output_column_name="members",
+        fan_out=False,
+    )
+    result = result_df["members"].tolist()
+    assert result[0] == ["a", "b"]
+    assert result[1] == []
+    assert result[2] is None
+    assert result[3] == ["solo"]
+
+    exploded = result_df.explode("members", ignore_index=True)
+    members = exploded["members"].tolist()
+    assert members[0] == "a"
+    assert members[1] == "b"
+    assert pd.isna(members[2])
+    assert pd.isna(members[3])
+    assert members[4] == "solo"

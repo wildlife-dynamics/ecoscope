@@ -127,6 +127,17 @@ def apply_classification(
     return dataframe
 
 
+def resolve_categorical_cmap_colors(cmap_name: str, k: int) -> list[tuple[int, int, int, int]]:
+    """k evenly spaced RGBA (0-255 int) colors sampled from a named matplotlib
+    colormap, wrapping when k exceeds the colormap size."""
+    mpl_cmap = mpl.colormaps[cmap_name]
+    if k < mpl_cmap.N:
+        mpl_cmap = mpl_cmap.resampled(max(k, 1))
+    cmap_colors = mpl_cmap(np.arange(k) % mpl_cmap.N)
+    scaled = np.rint(np.asarray(cmap_colors) * 255).astype(int).tolist()
+    return [tuple(row) for row in scaled]
+
+
 def apply_color_map(
     dataframe: pd.DataFrame,
     input_column_name: str,
@@ -165,22 +176,18 @@ def apply_color_map(
         normalized = [rgba[i % len(rgba)] for i in range(k)]
         cmap_series = pd.Series(normalized, index=unique_non_na)
     elif isinstance(cmap, str):
-        mpl_cmap = mpl.colormaps[cmap]
         # numeric vs categorical handling (on non-null values only)
         if pd.api.types.is_numeric_dtype(s.dtype):
+            mpl_cmap = mpl.colormaps[cmap]
             arr = np.asarray(unique_non_na, dtype=float)
             val_min = arr.min()
             val_max = arr.max()
             value_range = 1.0 if val_min == val_max else (val_max - val_min)
             cmap_colors = mpl_cmap((arr - val_min) / value_range)
+            scaled = np.rint(np.asarray(cmap_colors) * 255).astype(int).tolist()
+            color_list = [tuple(row) for row in scaled]
         else:
-            # categorical/string: cycle through the colormap
-            if k < mpl_cmap.N:
-                mpl_cmap = mpl_cmap.resampled(max(k, 1))
-            cmap_colors = mpl_cmap(np.arange(k) % mpl_cmap.N)
-
-        scaled = np.rint(np.asarray(cmap_colors) * 255).astype(int).tolist()
-        color_list = [tuple(row) for row in scaled]
+            color_list = resolve_categorical_cmap_colors(cmap, k)
         cmap_series = pd.Series(color_list, index=unique_non_na)
     elif isinstance(cmap, dict):
         cmap_series = pd.Series({k: hex_to_rgba(v) for k, v in cmap.items()})
