@@ -1,15 +1,65 @@
+import math
 import os
 import warnings
+from dataclasses import dataclass
 
 import ee
 import geopandas as gpd
 import pandas as pd
 import pytest
+from shapely.geometry import LineString, Point
 
 import ecoscope
 from ecoscope import Relocations
 
 os.environ["USE_PYGEOS"] = "0"
+
+
+_METERS_PER_DEGREE = 111_320.0  # approx metres per degree of latitude
+
+
+@dataclass(frozen=True)
+class Segment:
+    """A synthetic trajectory segment for tests: a start point, a time window, a distance,
+    and a bearing.
+
+    ``end_point`` is derived so the drawn line genuinely spans ``dist_meters`` along
+    ``bearing_deg`` (0 = north, 90 = east), keeping the geometry self-consistent with the
+    stated distance rather than using an arbitrary fixed step. Assemble a list of these into
+    a GeoDataFrame with ``build_segments``.
+    """
+
+    start_point: Point
+    start_time: pd.Timestamp
+    end_time: pd.Timestamp
+    dist_meters: float = 1000.0
+    bearing_deg: float = 45.0
+
+    @property
+    def end_point(self) -> Point:
+        span_deg = self.dist_meters / _METERS_PER_DEGREE
+        theta = math.radians(self.bearing_deg)
+        dlat = span_deg * math.cos(theta)
+        dlon = span_deg * math.sin(theta) / math.cos(math.radians(self.start_point.y))
+        return Point(self.start_point.x + dlon, self.start_point.y + dlat)
+
+    def to_row(self) -> dict:
+        return {
+            "segment_start": pd.Timestamp(self.start_time),
+            "segment_end": pd.Timestamp(self.end_time),
+            "geometry": LineString([self.start_point, self.end_point]),
+            "dist_meters": float(self.dist_meters),
+        }
+
+
+def build_segments(segments, crs="EPSG:4326"):
+    """Assemble Segment instances into a trajectory-segment GeoDataFrame."""
+    return gpd.GeoDataFrame([s.to_row() for s in segments], crs=crs)
+
+
+# Named start locations for building synthetic trajectory segments.
+EQUATOR = Point(0.0, 0.0)
+ARCTIC = Point(0.0, 80.0)
 
 
 def pytest_configure(config):
