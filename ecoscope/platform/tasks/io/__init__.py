@@ -39,7 +39,11 @@ from ._persist import (
     persist_text,
 )
 from ._set_connection import set_er_connection, set_gee_connection, set_smart_connection
-from ._smart import get_events_from_smart, get_patrol_observations_from_smart
+from ._smart import (
+    get_events_from_smart,
+    get_patrol_observations_from_smart,
+    get_patrol_trajectory_from_smart,
+)
 from ._spatial_features import (
     EarthRangerSpatialFeatures,
     LocalFileSpatialFeatures,
@@ -92,6 +96,7 @@ __all__ = [
     "set_smart_connection",
     "get_events_from_smart",
     "get_patrol_observations_from_smart",
+    "get_patrol_trajectory_from_smart",
     "LocalFileSpatialFeatures",
     "RemoteFileSpatialFeatures",
     "EarthRangerSpatialFeatures",

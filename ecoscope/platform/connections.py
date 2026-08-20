@@ -205,6 +205,17 @@ class SmartClientProtocol(Protocol):
         station_uuid: str | None = ...,
     ) -> Any: ...
 
+    def get_patrol_trajectory(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+        patrol_mandate: str | None = ...,
+        patrol_transport: str | None = ...,
+        station_uuid: str | None = ...,
+    ) -> Any: ...
+
     def get_events(self, ca_uuid: str, language_uuid: str, start: str, end: str) -> AnyGeoDataFrame: ...
 
 

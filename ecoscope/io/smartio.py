@@ -12,6 +12,15 @@ from ecoscope.relocations import Relocations
 
 logger = logging.getLogger(__name__)
 
+# SMART patrol field names -> ecoscope patrol-observation/trajectory column names.
+# patrol_leg_day_start/end are intentionally NOT renamed here: a patrol spans several
+# leg-days, so the patrol start/end are derived as the earliest/latest leg-day bounds
+# (see _add_patrol_time_bounds) rather than a 1:1 rename of one leg-day's times.
+_PATROL_COLUMN_RENAMES = {
+    "uuid": "patrol_id",
+    "id": "patrol_serial_number",
+}
+
 
 class SmartIO:
     def __init__(self, **kwargs):
@@ -141,6 +150,53 @@ class SmartIO:
 
         return longitudes, latitudes, timestamps
 
+    def _collapse_patrol_members(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        SMART returns one feature per patrol member, each carrying the *full* leg-day
+        track. De-duplicate those features to a single feature per leg-day *before* the
+        tracks are expanded into per-vertex rows; otherwise every physical fix would be
+        replicated once per team member and inflate distance/duration totals by the team
+        size. The full team roster is folded into list-valued leader columns so all
+        members are preserved while the track is counted once.
+
+        De-duplication is keyed at the leg-day level (the unit at which SMART repeats the
+        track per member), not the patrol level, so that genuinely distinct legs of the
+        same patrol are not merged. Trajectories are later grouped per patrol
+        (``patrol_id``). Collapsing pre-expansion avoids creating the per-member
+        duplicate vertices at all.
+        """
+        leader_cols = [c for c in ("patrol_leader_name", "patrol_leader_uuid") if c in gdf.columns]
+        if gdf.empty or not leader_cols:
+            return gdf
+
+        # Members of the same leg-day carry byte-identical tracks. Fall back to the patrol
+        # uuid when leg-day ids are unavailable (e.g. legacy payloads).
+        key = "patrol_leg_day_uuid" if "patrol_leg_day_uuid" in gdf.columns else "uuid"
+        if key not in gdf.columns:
+            return gdf
+
+        rosters = gdf.groupby(key, dropna=False, sort=False)[leader_cols].agg(lambda s: list(pd.unique(s.dropna())))
+        collapsed = gdf.drop_duplicates(subset=key, keep="first").copy()
+        for lc in leader_cols:
+            collapsed[lc] = collapsed[key].map(rosters[lc])
+        return collapsed.reset_index(drop=True)
+
+    def _add_patrol_time_bounds(self, gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        """
+        Derive patrol-level start/end times. A patrol spans several leg-days, each with its
+        own ``patrol_leg_day_start``/``patrol_leg_day_end``; the patrol start is the earliest
+        leg-day start across the patrol and the patrol end is the latest leg-day end.
+        """
+        if "patrol_id" not in gdf.columns:
+            return gdf
+        if "patrol_leg_day_start" in gdf.columns:
+            starts = pd.to_datetime(gdf["patrol_leg_day_start"], utc=True, errors="coerce")
+            gdf["patrol_start_time"] = starts.groupby(gdf["patrol_id"]).transform("min")
+        if "patrol_leg_day_end" in gdf.columns:
+            ends = pd.to_datetime(gdf["patrol_leg_day_end"], utc=True, errors="coerce")
+            gdf["patrol_end_time"] = ends.groupby(gdf["patrol_id"]).transform("max")
+        return gdf
+
     def process_patrols_gdf(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         """
         Process multiple geometries in a vectorized way.
@@ -171,7 +227,9 @@ class SmartIO:
 
             static_data = {col: row[col] for col in df.columns}
             for col, value in static_data.items():
-                coords_data[col] = value
+                # leader columns are list-valued (a folded roster); broadcast the same
+                # list onto every vertex row rather than letting pandas length-match it.
+                coords_data[col] = [value] * len(coords_data) if isinstance(value, list) else value
 
             all_coords.append(coords_data)
 
@@ -184,14 +242,8 @@ class SmartIO:
             geometry=gpd.points_from_xy(x=result["longitude"], y=result["latitude"]),
             crs="EPSG:4326",
         )
-        result_df = result_df.rename(
-            columns={
-                "uuid": "patrol_id",
-                "patrol_leg_day_start": "patrol_start_time",
-                "patrol_leg_day_end": "patrol_end_time",
-                "id": "groupby_col",
-            }
-        )
+        result_df = result_df.rename(columns=_PATROL_COLUMN_RENAMES)
+        result_df = self._add_patrol_time_bounds(result_df)
         result_df["patrol_type__display"] = result_df["patrol_mandate"]
 
         return result_df
@@ -206,6 +258,18 @@ class SmartIO:
         patrol_transport: str | None = None,
         station_uuid: str | None = None,
     ) -> Relocations | None:
+        """
+        Return patrol observations as point Relocations (one row per physical fix).
+
+        .. warning::
+            Do **not** build a trajectory from this output. Relocations are grouped per
+            patrol, so ``Trajectory.from_relocations`` connects consecutive fixes across
+            leg-day (and concurrent-leg) boundaries, inventing bridging segments that
+            over-count a multi-day patrol's distance and duration. Use
+            :meth:`get_patrol_trajectory`, which builds segments directly from the leg-day
+            tracks and never bridges across them. This method is for point-level uses
+            (events, maps, point filtering) only.
+        """
         start_dt = pd.to_datetime(start)
         end_dt = pd.to_datetime(end)
         patrols = self.get_patrols_list(
@@ -220,6 +284,8 @@ class SmartIO:
         )
 
         try:
+            # collapse the per-member duplicate features before expanding their tracks
+            patrols = self._collapse_patrol_members(patrols)
             patrols_df = self.process_patrols_gdf(patrols)
 
             if patrols_df.empty:
@@ -227,7 +293,7 @@ class SmartIO:
 
             patrols_relocs = Relocations.from_gdf(
                 patrols_df,
-                groupby_col="groupby_col",
+                groupby_col="patrol_id",
                 uuid_col="patrol_id",
                 time_col="fixtime",
             )
@@ -240,6 +306,58 @@ class SmartIO:
             return patrols_relocs
         except Exception as e:
             logger.error(f"Error processing patrol data: {e}")
+            return None
+
+    def get_patrol_trajectory(
+        self,
+        ca_uuid: str,
+        language_uuid: str,
+        start: str,
+        end: str,
+        patrol_mandate: str | None = None,
+        patrol_transport: str | None = None,
+        station_uuid: str | None = None,
+    ):
+        """
+        Build one trajectory per patrol directly from the SMART leg-day tracks.
+
+        SMART hands us a continuous timestamped LineString per leg-day, so the trajectory
+        is generated straight from that geometry (no points round-trip). Segments are never
+        formed across leg-days, so a multi-day patrol is a single trajectory of disjoint
+        runs and its distance/duration are not over-counted.
+        """
+        from ecoscope.trajectory import Trajectory
+
+        start_dt = pd.to_datetime(start)
+        end_dt = pd.to_datetime(end)
+        patrols = self.get_patrols_list(
+            ca_uuid=ca_uuid,
+            language_uuid=language_uuid,
+            # SMART API throws error if the start/end time is not at 00:00:00
+            start=pd.Timestamp(start_dt.date()).isoformat(),
+            end=pd.Timestamp(end_dt.date()).isoformat(),
+            patrol_mandate=patrol_mandate,
+            patrol_transport=patrol_transport,
+            station_uuid=station_uuid,
+        )
+
+        try:
+            if patrols is None or patrols.empty:
+                return None
+            # one feature per leg-day track, roster folded into list columns
+            patrols = self._collapse_patrol_members(patrols)
+            patrols = patrols.rename(columns=_PATROL_COLUMN_RENAMES)
+            patrols = self._add_patrol_time_bounds(patrols)
+            patrols["patrol_type__display"] = patrols["patrol_mandate"]
+
+            traj = Trajectory.from_track_geometry(patrols, groupby_col="patrol_id")
+            if traj.gdf.empty:
+                return None
+            traj.gdf.columns = [col.replace("extra__", "") for col in traj.gdf.columns]
+            traj.gdf = clean_time_cols(traj.gdf)
+            return traj
+        except Exception as e:
+            logger.error(f"Error processing patrol trajectory data: {e}")
             return None
 
     def get_events(
