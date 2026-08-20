@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize_scalar  # type: ignore[import-untyped]
 
+from ecoscope import Trajectory
 from ecoscope.analysis.UD.etd_range import grid_size_from_geographic_extent
 from ecoscope.io import raster
 
@@ -18,17 +19,12 @@ logger = logging.getLogger(__name__)
 
 def _extract_points(trajectory_gdf: gpd.GeoDataFrame) -> tuple[np.ndarray, np.ndarray]:
     """Reconstruct the point sequence (xy, t) from a trajectory's LineString
-    segments - each row's geometry is a 2-point LineString from segment_start
-    to segment_end; consecutive segments share an endpoint, so the full point
-    path is the first segment's start point followed by every segment's end
-    point. `t` is UNIX seconds (float)."""
-    starts = np.array([geom.coords[0] for geom in trajectory_gdf.geometry])
-    ends = np.array([geom.coords[-1] for geom in trajectory_gdf.geometry])
-    xy = np.vstack([starts[[0]], ends])
-    t = (
-        pd.concat([trajectory_gdf["segment_start"].iloc[0:1], trajectory_gdf["segment_end"]]).astype("int64").to_numpy()
-        / 1e9
-    )
+    segments, reusing `Trajectory.to_relocations()` - the same canonical
+    trajectory->points conversion `convert_trajectory_to_relocations` uses for
+    MCP - rather than a separate reimplementation. `t` is UNIX seconds (float)."""
+    relocs_gdf = Trajectory(gdf=trajectory_gdf).to_relocations().gdf
+    xy = np.column_stack([relocs_gdf.geometry.x.to_numpy(), relocs_gdf.geometry.y.to_numpy()])
+    t = relocs_gdf["fixtime"].astype("int64").to_numpy() / 1e9
     return xy, t
 
 

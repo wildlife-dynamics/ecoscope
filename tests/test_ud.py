@@ -240,7 +240,14 @@ def test_estimate_motion_variance_raises_with_too_few_fixes():
     # A single segment has no interior fixes at all to leave one out from.
     times = pd.date_range("2024-01-01", periods=2, freq="60s", tz="UTC")
     tiny_gdf = gpd.GeoDataFrame(
-        [{"geometry": LineString([(0, 0), (10, 10)]), "segment_start": times[0], "segment_end": times[1]}],
+        [
+            {
+                "geometry": LineString([(0, 0), (10, 10)]),
+                "segment_start": times[0],
+                "segment_end": times[1],
+                "groupby_col": "s1",
+            }
+        ],
         crs="EPSG:3857",
     )
 
@@ -259,6 +266,7 @@ def test_calculate_bbmm_range_skips_segment_with_nonpositive_time_lag():
             "geometry": LineString([points[i], points[i + 1]]),
             "segment_start": times[i],
             "segment_end": times[i] if i == 2 else times[i + 1],
+            "groupby_col": "s1",
         }
         for i in range(5)
     ]

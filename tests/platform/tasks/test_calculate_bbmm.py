@@ -14,6 +14,11 @@ def trajectory_gdf():
         files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
     )
     gdf = gpd.read_parquet(example_input_df_path)
+    # Filtered to a single subject - this fixture has multiple subjects'
+    # fixes interleaved in time, but calculate_brownian_bridge_range is only
+    # ever called with one already-split subject's trajectory in practice
+    # (see subject_traj_groups in spec.yaml).
+    gdf = gdf[gdf["groupby_col"] == gdf["groupby_col"].iloc[0]]
     # Subsampled to keep this test's runtime low; BBMM's per-segment grid
     # accumulation is considerably slower than ETD's on the same fixture.
     return gdf.iloc[::10].copy()
