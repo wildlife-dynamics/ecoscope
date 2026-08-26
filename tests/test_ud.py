@@ -255,6 +255,55 @@ def test_estimate_motion_variance_raises_with_too_few_fixes():
         estimate_motion_variance(tiny_gdf, location_error=20.0)
 
 
+def test_estimate_motion_variance_warns_at_lower_bound(caplog):
+    # Near-motionless fixes (denning/nesting/brumating-like) push the MLE
+    # below the search range's own lower bound (1.0 m^2/s), which
+    # `minimize_scalar`'s "bounded" method silently clamps to instead of
+    # signaling - the clamp should be surfaced as a warning.
+    times = pd.date_range("2024-01-01", periods=9, freq="60s", tz="UTC")
+    points = [(i * 1e-6, i * 1e-6) for i in range(9)]
+    rows = [
+        {
+            "geometry": LineString([points[i], points[i + 1]]),
+            "segment_start": times[i],
+            "segment_end": times[i + 1],
+            "groupby_col": "s1",
+        }
+        for i in range(8)
+    ]
+    gdf = gpd.GeoDataFrame(rows, crs="EPSG:3857")
+
+    with caplog.at_level("WARNING"):
+        sigma_m2 = estimate_motion_variance(gdf, location_error=20.0)
+
+    assert sigma_m2 == pytest.approx(1.0, abs=1e-2)
+    assert "hit the lower search bound" in caplog.text
+
+
+def test_estimate_motion_variance_warns_at_upper_bound(caplog):
+    # Very large, fast jumps (migratory-soaring-like) push the MLE above the
+    # search range's own upper bound (1,000,000 m^2/s) - same clamp-detection
+    # as the lower-bound case above, at the other end of the range.
+    times = pd.date_range("2024-01-01", periods=9, freq="60s", tz="UTC")
+    points = [(i * 200_000 if i % 2 == 0 else i * 200_000 + 50_000, i * 150_000) for i in range(9)]
+    rows = [
+        {
+            "geometry": LineString([points[i], points[i + 1]]),
+            "segment_start": times[i],
+            "segment_end": times[i + 1],
+            "groupby_col": "s1",
+        }
+        for i in range(8)
+    ]
+    gdf = gpd.GeoDataFrame(rows, crs="EPSG:3857")
+
+    with caplog.at_level("WARNING"):
+        sigma_m2 = estimate_motion_variance(gdf, location_error=20.0)
+
+    assert sigma_m2 == pytest.approx(1_000_000.0, rel=1e-3)
+    assert "hit the upper search bound" in caplog.text
+
+
 def test_calculate_bbmm_range_skips_segment_with_nonpositive_time_lag():
     # Segment index 2's segment_end duplicates its own segment_start, giving
     # it a zero time lag - it should be silently skipped, not raise or corrupt

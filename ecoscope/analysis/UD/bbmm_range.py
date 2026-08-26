@@ -74,12 +74,32 @@ def estimate_motion_variance(trajectory_gdf: gpd.GeoDataFrame, location_error: f
     midpoints = _compute_midpoints(trajectory_gdf)
     if midpoints.empty:
         raise ValueError("Not enough interior fixes with valid time gaps to estimate motion variance.")
+
+    # This search range comfortably covers typical terrestrial/avian trackers,
+    # but a genuinely near-motionless animal (denning, nesting, brumating) or
+    # a genuinely very fast/wide-ranging one (migratory soaring) can have a
+    # true MLE outside it - `minimize_scalar`'s "bounded" method has no way to
+    # signal that, it just returns the nearest bound as if it were the
+    # optimum, so that has to be detected here instead.
+    lower_bound, upper_bound = 1.0, 1_000_000.0
     result = minimize_scalar(
         _neg_log_likelihood,
-        bounds=(1.0, 1_000_000.0),
+        bounds=(lower_bound, upper_bound),
         method="bounded",
         args=(midpoints, location_error),
     )
+    if result.x <= lower_bound * 1.001:
+        logger.warning(
+            f"Estimated Brownian motion variance (sigma_m^2) hit the lower search bound ({lower_bound:.0f} "
+            "m^2/s) - this animal's movement may be too sedentary (e.g. denning, nesting, brumating) for the "
+            "search range to capture the true value, so the BBMM result may be too diffuse/underconfident."
+        )
+    elif result.x >= upper_bound * 0.999:
+        logger.warning(
+            f"Estimated Brownian motion variance (sigma_m^2) hit the upper search bound ({upper_bound:.0f} "
+            "m^2/s) - this animal's movement may be too fast/wide-ranging (e.g. migratory soaring) for the "
+            "search range to capture the true value, so the BBMM result may be too tight/overconfident."
+        )
     logger.info(f"Estimated Brownian motion variance (sigma_m^2) = {result.x:.2f} m^2/s (from {len(midpoints)} fixes)")
     return float(result.x)
 
