@@ -2,7 +2,7 @@ import hashlib
 import json
 import logging
 import os
-from typing import Annotated, Optional, TypeAlias
+from typing import Annotated, Callable, Optional, TypeAlias
 from urllib.parse import urlparse
 
 import numpy as np  # type: ignore[import-untyped]
@@ -134,6 +134,43 @@ def export_geotiff(
     )
 
 
+def _generate_utilization_distribution_raster(
+    task_name: str,
+    label: str,
+    trajectory_gdf: TrajectoryAnnotation,
+    compute_raster: Callable[[], Optional[RasterData]],
+    output_dir: str,
+    filename: str,
+    group_key: CompositeFilter | None,
+    grid_cell_size_note: str,
+    band_count: int = 1,
+    dtype: str = "float32",
+    nodata: float | str = "nan",
+) -> str:
+    """Shared validate -> compute -> export -> log skeleton for
+    `generate_etd_raster`/`generate_bbmm_raster`. The two tasks only differ
+    in how the `RasterData` itself is computed (`compute_raster`, deferred so
+    it isn't called before the emptiness check below) and in the export
+    dtype/nodata/band_count - everything else was identical copy-paste.
+    """
+    if trajectory_gdf is None or trajectory_gdf.empty:
+        raise ValueError(f"{task_name}: `trajectory_gdf` is empty.")
+
+    raster_data = compute_raster()
+
+    if raster_data is None or raster_data.data is None or raster_data.data.size == 0:
+        raise ValueError(
+            f"{task_name}: no raster data was generated - the trajectory extent may be too small "
+            f"relative to the {grid_cell_size_note}."
+        )
+
+    output_path = _build_output_path(output_dir, filename, group_key)
+    export_geotiff(raster_data, output_path, band_count=band_count, dtype=dtype, nodata=nodata)
+
+    logger.info(f"{label} raster written to: {output_path}")
+    return output_path
+
+
 @register()
 def generate_etd_raster(
     trajectory_gdf: TrajectoryAnnotation,
@@ -155,55 +192,47 @@ def generate_etd_raster(
     )
     from ecoscope.io.raster import RasterProfile  # type: ignore[import-untyped]
 
-    if trajectory_gdf is None or trajectory_gdf.empty:
-        raise ValueError("generate_etd_raster: `trajectory_gdf` is empty.")
-
     etd_params = combined_params.get_etd_params()
-    auto_scale_or_custom_cell_size = etd_params["auto_scale_or_custom_cell_size"] or AutoScaleGridCellSize()
 
-    if isinstance(auto_scale_or_custom_cell_size, CustomGridCellSize):
-        if auto_scale_or_custom_cell_size.grid_cell_size is None:
-            raise ValueError("generate_etd_raster: grid_cell_size must be set when Grid Cell Size is 'Customize'.")
-        pixel_size = auto_scale_or_custom_cell_size.grid_cell_size
-    else:
-        pixel_size = grid_size_from_geographic_extent(trajectory_gdf, scale_factor=500)
+    def compute_raster() -> RasterData:
+        auto_scale_or_custom_cell_size = etd_params["auto_scale_or_custom_cell_size"] or AutoScaleGridCellSize()
 
-    raster_profile = RasterProfile(
-        pixel_size=pixel_size,
-        crs=etd_params["crs"],
-        nodata_value=etd_params["nodata_value"],
-        band_count=etd_params["band_count"],
-    )
+        if isinstance(auto_scale_or_custom_cell_size, CustomGridCellSize):
+            if auto_scale_or_custom_cell_size.grid_cell_size is None:
+                raise ValueError("generate_etd_raster: grid_cell_size must be set when Grid Cell Size is 'Customize'.")
+            pixel_size = auto_scale_or_custom_cell_size.grid_cell_size
+        else:
+            pixel_size = grid_size_from_geographic_extent(trajectory_gdf, scale_factor=500)
 
-    trajectory_gdf = trajectory_gdf.sort_values("segment_start")
-    output_path = _build_output_path(output_dir, filename, group_key)
-
-    raster_data = calculate_etd_range(
-        trajectory=trajectory_gdf,
-        max_speed_kmhr=etd_params["max_speed_factor"] * trajectory_gdf["speed_kmhr"].max(),
-        raster_profile=raster_profile,
-        expansion_factor=etd_params["expansion_factor"],
-    )
-
-    if raster_data is None or raster_data.data is None or raster_data.data.size == 0:
-        raise ValueError(
-            "generate_etd_raster: no raster data was generated - the trajectory extent may be too small "
-            "relative to the configured grid cell size."
+        raster_profile = RasterProfile(
+            pixel_size=pixel_size,
+            crs=etd_params["crs"],
+            nodata_value=etd_params["nodata_value"],
+            band_count=etd_params["band_count"],
+        )
+        return calculate_etd_range(
+            trajectory=trajectory_gdf.sort_values("segment_start"),
+            max_speed_kmhr=etd_params["max_speed_factor"] * trajectory_gdf["speed_kmhr"].max(),
+            raster_profile=raster_profile,
+            expansion_factor=etd_params["expansion_factor"],
         )
 
-    # dtype="float64" (not export_geotiff's own "float32" default) matches this
-    # task's original written-file precision exactly, from before it shared
-    # export_geotiff with generate_bbmm_raster.
-    export_geotiff(
-        raster_data,
-        output_path,
+    return _generate_utilization_distribution_raster(
+        task_name="generate_etd_raster",
+        label="ETD",
+        trajectory_gdf=trajectory_gdf,
+        compute_raster=compute_raster,
+        output_dir=output_dir,
+        filename=filename,
+        group_key=group_key,
+        grid_cell_size_note="configured grid cell size",
         band_count=etd_params["band_count"],
+        # Not export_geotiff's own "float32" default - matches this task's
+        # original written-file precision exactly, from before it shared
+        # export_geotiff with generate_bbmm_raster.
         dtype="float64",
         nodata=etd_params["nodata_value"],
     )
-
-    logger.info(f"ETD raster written to: {output_path}")
-    return output_path
 
 
 @register()
@@ -229,19 +258,13 @@ def generate_bbmm_raster(
         calculate_bbmm_range,  # type: ignore[import-untyped]
     )
 
-    if trajectory_gdf is None or trajectory_gdf.empty:
-        raise ValueError("generate_bbmm_raster: `trajectory_gdf` is empty.")
-
-    raster_data = calculate_bbmm_range(trajectory_gdf, **combined_params.get_bbmm_params())
-
-    if raster_data is None or raster_data.data is None or raster_data.data.size == 0:
-        raise ValueError(
-            "generate_bbmm_raster: no raster data was generated - the trajectory extent may be too small "
-            "relative to the estimated grid cell size."
-        )
-
-    output_path = _build_output_path(output_dir, filename, group_key)
-    export_geotiff(raster_data, output_path)
-
-    logger.info(f"BBMM raster written to: {output_path}")
-    return output_path
+    return _generate_utilization_distribution_raster(
+        task_name="generate_bbmm_raster",
+        label="BBMM",
+        trajectory_gdf=trajectory_gdf,
+        compute_raster=lambda: calculate_bbmm_range(trajectory_gdf, **combined_params.get_bbmm_params()),
+        output_dir=output_dir,
+        filename=filename,
+        group_key=group_key,
+        grid_cell_size_note="estimated grid cell size",
+    )
