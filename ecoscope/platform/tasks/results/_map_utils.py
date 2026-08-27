@@ -1,4 +1,3 @@
-import hashlib
 import io
 import json
 import re
@@ -13,7 +12,7 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
-from ecoscope.platform.serde import _persist_bytes
+from ecoscope.platform.serde import _persist_bytes, _read_path_if_file_exists
 
 OpacityAnnotation = Annotated[
     float,
@@ -303,14 +302,26 @@ def persist_geoarrow_for_pydeck(
     Intended for use with the maps created by this module, use
     `tasks.io.persist_df(filetype='geoparquet')` instead when writing for
     standard WKB-expecting consumers (e.g. QGIS, PostGIS)
+
+    When the filename is generated from the gdf content hash, a target that
+    already exists is returned as-is rather than re-encoded and rewritten.
     """
 
-    if not filename:
-        try:
-            hash_input = bytes(pd.util.hash_pandas_object(gdf).values)
-        except (TypeError, ValueError):
-            hash_input = f"{gdf.shape}{gdf.head(5).to_dict()}".encode()
-        filename = hashlib.sha256(hash_input).hexdigest()[:7]
+    content_addressed = not filename
+    if content_addressed:
+        # Local import: keeps `results` from pulling in `io/__init__` (and
+        # `_earthranger`) at import time, matching this module's lazy-import style.
+        from ecoscope.platform.tasks.io._persist import _hash_df
+
+        # `_geoarrow` qualifier: `persist_df(filetype="geoparquet")` derives its
+        # name from the same `_hash_df` but writes WKB, not geoarrow. Without the
+        # qualifier both target `<hash>.parquet` and the skip below would hand
+        # back one encoding in place of the other.
+        filename = f"{_hash_df(gdf)}_geoarrow"
+    target = f"{filename}.parquet"
+
+    if content_addressed and (existing := _read_path_if_file_exists(root_path, target)) is not None:
+        return existing
 
     gdf = gpd.GeoDataFrame(gdf).copy()
     _iso_format_timestamp_columns(gdf)
@@ -319,4 +330,4 @@ def persist_geoarrow_for_pydeck(
     _stringify_mixed_json(gdf)
     buffer = io.BytesIO()
     gdf.to_parquet(buffer, index=False, geometry_encoding="geoarrow")
-    return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
+    return _persist_bytes(buffer.getvalue(), root_path, target)
