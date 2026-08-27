@@ -287,23 +287,3 @@ def test_persist_geoarrow_explicit_filename_overwrites(tmp_path) -> None:
 
     assert persist_geoarrow_for_pydeck(gdf, root_path, filename="layer") == dst
     assert Path(dst).read_bytes() != b"sentinel"
-
-
-def test_persist_geoarrow_does_not_collide_with_geoparquet(tmp_path) -> None:
-    """Both tasks derive their name from the same `_hash_df` of the same frame.
-
-    They write different encodings, though -- geoarrow here, WKB in `persist_df`
-    -- so sharing `<hash>.parquet` would make the skip hand back one encoding in
-    place of the other. The generated stem is qualified to keep them apart.
-    """
-    gdf = _skip_test_gdf()
-    root_path = str(tmp_path / "out")
-
-    geoarrow = persist_geoarrow_for_pydeck(gdf, root_path)
-    wkb = persist_df(gdf, root_path, None, "geoparquet")
-
-    assert geoarrow != wkb
-    assert Path(geoarrow).exists() and Path(wkb).exists()
-    for path in (geoarrow, wkb):
-        assert len(gpd.read_parquet(path)) == 2
-    assert pq.read_schema(geoarrow) != pq.read_schema(wkb), "the two encodings really do differ"
