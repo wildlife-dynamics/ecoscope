@@ -13,6 +13,7 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.serde import _persist_bytes, _read_path_if_file_exists
+from ecoscope.platform.tasks.io._persist import _hash_df
 
 OpacityAnnotation = Annotated[
     float,
@@ -309,15 +310,7 @@ def persist_geoarrow_for_pydeck(
 
     content_addressed = not filename
     if content_addressed:
-        # Local import: keeps `results` from pulling in `io/__init__` (and
-        # `_earthranger`) at import time, matching this module's lazy-import style.
-        from ecoscope.platform.tasks.io._persist import _hash_df
-
-        # `_geoarrow` qualifier: `persist_df(filetype="geoparquet")` derives its
-        # name from the same `_hash_df` but writes WKB, not geoarrow. Without the
-        # qualifier both target `<hash>.parquet` and the skip below would hand
-        # back one encoding in place of the other.
-        filename = f"{_hash_df(gdf)}_geoarrow"
+        filename = f"{_hash_df(gdf)}"
     target = f"{filename}.parquet"
 
     if content_addressed and (existing := _read_path_if_file_exists(root_path, target)) is not None:

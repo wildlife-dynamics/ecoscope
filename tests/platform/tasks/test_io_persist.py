@@ -116,6 +116,64 @@ def test_persist_json_accepts_basemodel(tmp_path):
     assert loaded["views"] == {"@@type": "MapView"}
 
 
+def test_persist_text_generated_filename_skips_rewrite(tmp_path):
+    root_path = str(tmp_path / "test")
+
+    dst = persist_text("<div>map</div>", root_path)
+    Path(dst).write_text("sentinel")
+
+    assert persist_text("<div>map</div>", root_path) == dst
+    assert Path(dst).read_text() == "sentinel", "existing target must not be rewritten"
+
+
+def test_persist_text_generated_filename_with_suffix_skips_rewrite(tmp_path):
+    """`content_addressed` is captured before `filename_suffix` mutates the name.
+
+    The suffix is a per-task constant, so hash + suffix is still fully determined
+    by the content.
+    """
+    root_path = str(tmp_path / "test")
+
+    dst = persist_text("<div>map</div>", root_path, filename_suffix="v2")
+    assert dst.endswith("_v2.html")
+    Path(dst).write_text("sentinel")
+
+    assert persist_text("<div>map</div>", root_path, filename_suffix="v2") == dst
+    assert Path(dst).read_text() == "sentinel"
+
+
+def test_persist_text_explicit_filename_overwrites(tmp_path):
+    root_path = str(tmp_path / "test")
+    persist_text("first", root_path, "map.html")
+    dst = persist_text("second", root_path, "map.html")
+
+    assert Path(dst).read_text() == "second"
+
+
+def test_persist_json_generated_filename_skips_rewrite(tmp_path):
+    root_path = str(tmp_path / "test")
+
+    dst = persist_json({"a": 1}, root_path)
+    Path(dst).write_text("sentinel")
+
+    assert persist_json({"a": 1}, root_path) == dst
+    assert Path(dst).read_text() == "sentinel"
+
+
+def test_persist_json_extensionless_explicit_filename_overwrites(tmp_path):
+    """The `elif not Path(filename).suffix` branch must not read as content-addressed.
+
+    It appends `.json` to a *caller-supplied* stem, so the resulting name still
+    says nothing about the content.
+    """
+    root_path = str(tmp_path / "test")
+    persist_json({"a": 1}, root_path, filename="map")
+    dst = persist_json({"a": 2}, root_path, filename="map")
+
+    assert dst.endswith("map.json")
+    assert json.loads(Path(dst).read_text()) == {"a": 2}
+
+
 class TestPersistDfForResultsDownload:
     """Tests for persist_grouped_dfs_for_results_download."""
 
@@ -198,67 +256,3 @@ class TestPersistDfForResultsDownload:
 
         assert persist_grouped_dfs_for_results_download(**args) == [dst]
         assert Path(dst).read_text() == "sentinel"
-
-
-# ---------------------------------------------------------------------------
-# Skip-if-exists for content-addressed filenames. See the module docstring of
-# the equivalent block in test_persist.py for the production failure these pin.
-# ---------------------------------------------------------------------------
-
-
-def test_persist_text_generated_filename_skips_rewrite(tmp_path):
-    root_path = str(tmp_path / "test")
-
-    dst = persist_text("<div>map</div>", root_path)
-    Path(dst).write_text("sentinel")
-
-    assert persist_text("<div>map</div>", root_path) == dst
-    assert Path(dst).read_text() == "sentinel", "existing target must not be rewritten"
-
-
-def test_persist_text_generated_filename_with_suffix_skips_rewrite(tmp_path):
-    """`content_addressed` is captured before `filename_suffix` mutates the name.
-
-    The suffix is a per-task constant, so hash + suffix is still fully determined
-    by the content.
-    """
-    root_path = str(tmp_path / "test")
-
-    dst = persist_text("<div>map</div>", root_path, filename_suffix="v2")
-    assert dst.endswith("_v2.html")
-    Path(dst).write_text("sentinel")
-
-    assert persist_text("<div>map</div>", root_path, filename_suffix="v2") == dst
-    assert Path(dst).read_text() == "sentinel"
-
-
-def test_persist_text_explicit_filename_overwrites(tmp_path):
-    root_path = str(tmp_path / "test")
-    persist_text("first", root_path, "map.html")
-    dst = persist_text("second", root_path, "map.html")
-
-    assert Path(dst).read_text() == "second"
-
-
-def test_persist_json_generated_filename_skips_rewrite(tmp_path):
-    root_path = str(tmp_path / "test")
-
-    dst = persist_json({"a": 1}, root_path)
-    Path(dst).write_text("sentinel")
-
-    assert persist_json({"a": 1}, root_path) == dst
-    assert Path(dst).read_text() == "sentinel"
-
-
-def test_persist_json_extensionless_explicit_filename_overwrites(tmp_path):
-    """The `elif not Path(filename).suffix` branch must not read as content-addressed.
-
-    It appends `.json` to a *caller-supplied* stem, so the resulting name still
-    says nothing about the content.
-    """
-    root_path = str(tmp_path / "test")
-    persist_json({"a": 1}, root_path, filename="map")
-    dst = persist_json({"a": 2}, root_path, filename="map")
-
-    assert dst.endswith("map.json")
-    assert json.loads(Path(dst).read_text()) == {"a": 2}

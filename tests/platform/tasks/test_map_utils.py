@@ -243,17 +243,6 @@ def test_persist_geoarrow_for_pydeck_skips_non_color_object_columns(tmp_path) ->
     assert schema.field("ragged").type != pa.list_(pa.uint8(), 4)
 
 
-# ---------------------------------------------------------------------------
-# Skip-if-exists for content-addressed filenames.
-#
-# `persist_geoarrow_for_pydeck` is one of the two tasks observed failing in
-# production: several grouped views render the same small or empty layer, so
-# they derive the same content hash and the second write tries to overwrite the
-# first -- which fails on a gs:// root, where replacing an object needs a delete
-# permission the workflow service account does not have.
-# ---------------------------------------------------------------------------
-
-
 def _skip_test_gdf() -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(
         {"a": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]},
