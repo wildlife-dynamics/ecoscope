@@ -24,7 +24,7 @@ from ecoscope.platform.schemas import (
     SpatialFeaturesGroup,
     SubjectGroupObservationsGDF,
 )
-from ecoscope.platform.serde import _persist_bytes
+from ecoscope.platform.serde import _persist_bytes, _read_path_if_file_exists
 from ecoscope.platform.tasks.filter._filter import TimeRange
 from ecoscope.platform.tasks.io._persist import (
     _fallback_to_empty_grouped,
@@ -1253,6 +1253,9 @@ def download_grouped_event_attachments(
     `split_groups` — and writes each event's files to
     `output_dir/<attachments_subdir>/<key_hash>_<event_id>/<filename>`.
 
+    A file already present at the target path is left alone: it is neither
+    refetched nor rewritten.
+
     `<key_hash>` is a short sha256 hash of the encoded group key, computed
     by the same helper used by `persist_grouped_dfs_for_results_download`,
     so the FE can match downloaded attachments to the dashboard view they
@@ -1310,12 +1313,18 @@ def download_grouped_event_attachments(
                 filename = result["filename"]
                 basename = Path(filename).name
 
-                response = client._get(  # type: ignore[attr-defined]
-                    f"activity/event/{event_id}/file/{file_id}/original/{filename}",
-                    return_response=True,
-                )
+                # Each event has its own folder, so a name clash here means a
+                # second attachment on this event sharing a filename. Keep the
+                # first: overwriting it would fail anyway on a `gs://` root,
+                # where replacing an object needs a delete permission the
+                # workflow service account does not have.
+                if _read_path_if_file_exists(event_dir, basename) is None:
+                    response = client._get(  # type: ignore[attr-defined]
+                        f"activity/event/{event_id}/file/{file_id}/original/{filename}",
+                        return_response=True,
+                    )
 
-                _persist_bytes(response.content, event_dir, basename)
+                    _persist_bytes(response.content, event_dir, basename)
 
                 downloaded_paths.append(f"{attachments_subdir}/{event_dir_name}/{basename}")
 
