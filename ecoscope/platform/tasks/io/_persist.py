@@ -186,11 +186,28 @@ def _filetype_extension(filetype: FileType) -> str:
         case "csv" | "gpkg" | "geojson" | "json":
             return filetype
         case "geoparquet" | "parquet":
-            # Deliberately shared: for a frame with geometry both branches below
-            # emit identical bytes.
+            # Deliberately shared: `_require_geometry` below rejects the one case
+            # where the two branches diverge, so whenever both are reachable for a
+            # given frame they emit identical bytes.
             return "parquet"
         case _:
             raise NotImplementedError(f"Unsupported file type: {filetype}")
+
+
+def _has_geometry(df: AnyDataFrame) -> bool:
+    """Whether `df` carries at least one geometry-dtype column."""
+    import geopandas as gpd  # type: ignore[import-untyped]
+
+    return any(isinstance(dtype, gpd.array.GeometryDtype) for dtype in df.dtypes)
+
+
+def _require_geometry(df: AnyDataFrame, filetype: FileType) -> None:
+    """Raise unless `df` has geometry, for filetypes that cannot encode without it."""
+    if not _has_geometry(df):
+        raise ValueError(
+            f"filetype {filetype!r} requires at least one geometry column, "
+            f"but none of the {len(df.columns)} column(s) has geometry dtype"
+        )
 
 
 def _persist_df(
@@ -216,6 +233,9 @@ def _persist_df(
         filename = _hash_df(df)
     target = f"{filename}.{_filetype_extension(filetype)}"
 
+    if filetype == "geoparquet":
+        _require_geometry(df, filetype)
+
     if content_addressed and (existing := _read_path_if_file_exists(root_path, target)) is not None:
         return existing
 
@@ -236,8 +256,7 @@ def _persist_df(
             return _persist_bytes(buffer.getvalue(), root_path, target)
         case "parquet":
             buffer = io.BytesIO()
-            has_geom = any(isinstance(df[col].dtype, gpd.array.GeometryDtype) for col in df.columns)
-            if has_geom:
+            if _has_geometry(df):
                 gpd.GeoDataFrame(df).to_parquet(buffer, index=False)
             else:
                 df.to_parquet(buffer, index=False)

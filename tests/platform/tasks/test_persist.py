@@ -283,3 +283,46 @@ def test_persist_df_wrapper_sanitize_changes_the_filename(tmp_path):
     sanitized = persist_df_wrapper(df=df, root_path=root_path, filetypes=["csv"], sanitize=True)
 
     assert plain != sanitized
+
+
+def test_persist_df_geoparquet_without_geometry_raises(tmp_path):
+    """geopandas does not raise here -- it writes `primary_column: null` metadata
+    that only a later `gpd.read_parquet` rejects. `_require_geometry` makes it loud.
+    """
+    with pytest.raises(ValueError, match="requires at least one geometry column"):
+        persist_df(pd.DataFrame({"A": [1]}), str(tmp_path / "test"), None, "geoparquet")
+
+
+@pytest.mark.parametrize("filetypes", [["parquet", "geoparquet"], ["geoparquet", "parquet"]])
+def test_persist_df_wrapper_geoparquet_without_geometry_raises_either_order(tmp_path, filetypes):
+    """`parquet` and `geoparquet` share `<hash>.parquet`.
+
+    Without the guard, list order decided the outcome: parquet-first wrote a clean
+    plain parquet and the geoparquet encode was skipped, geoparquet-first wrote the
+    unreadable one and the plain encode was skipped -- same returned path, different
+    content. The guard rejects the frame the same way whichever order it arrives in.
+    """
+    with pytest.raises(ValueError, match="requires at least one geometry column"):
+        persist_df_wrapper(df=pd.DataFrame({"A": [1]}), root_path=str(tmp_path / "test"), filetypes=filetypes)
+
+
+def test_persist_df_geoparquet_guard_runs_before_the_skip(tmp_path):
+    """The guard must precede the skip probe, or an existing `<hash>.parquet` left
+    by the `parquet` branch would let a geometry-less geoparquet call return it.
+    """
+    df = pd.DataFrame({"A": [1]})
+    root_path = str(tmp_path / "test")
+
+    plain = persist_df(df, root_path, None, "parquet")
+    assert Path(plain).exists(), "the shared target must already be on disk"
+
+    with pytest.raises(ValueError, match="requires at least one geometry column"):
+        persist_df(df, root_path, None, "geoparquet")
+
+
+def test_persist_df_geoparquet_with_geometry_still_writes(tmp_path):
+    gdf = gpd.GeoDataFrame({"A": [1], "geometry": [Point(0, 0)]})
+    dst = persist_df(gdf, str(tmp_path / "test"), None, "geoparquet")
+
+    assert dst.endswith(".parquet")
+    assert len(gpd.read_parquet(dst)) == 1
