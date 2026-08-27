@@ -66,20 +66,9 @@ def _get_path(root_path: str, filename: str):
 
 
 def _read_path_if_file_exists(root_path: str, filename: str) -> str | None:
-    """The read path for `filename` under `root_path`, if it is already a usable file.
+    """Return the read path for `filename` under `root_path`, if it already exists and is a usable file.
 
-    Lets a caller skip a redundant write and still hand back the same path
-    `_persist_text` / `_persist_bytes` would have returned. Only safe for callers
-    whose `filename` fully determines the content (content-addressed / hash-derived
-    names), since the existing bytes stand in for the ones not written.
-
-    None when the target is absent, is not a regular file, or is an empty local
-    file (the usual artifact of a crash mid-write; local writes are not atomic,
-    GCS uploads are).
-
-    `is_file()` rather than `exists()`: on GS a bare prefix match reports as
-    existing, and locally a directory would too -- which would silently skip a
-    write that should raise.
+    Returns None when the target is absent, is not a regular file, or is an empty local file.
 
     Note: as with `_get_path`, resolving a local `root_path` creates the directory
     as a side effect.
