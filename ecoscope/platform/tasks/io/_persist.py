@@ -365,8 +365,17 @@ def persist_df_wrapper(
             geom_name = df.geometry.name
             attrs = df.drop(columns=[geom_name])
             attrs = cast(gpd.GeoDataFrame, sanitize_for_arrow(attrs))
-            # let geopandas handle geometry encoding
-            df_new = cast(AnyDataFrame, attrs.join(df[[geom_name]]))
+            # Reattach geometry positionally rather than via `.join`. `sanitize`
+            # preserves row order and count, so column-assignment aligns 1:1.
+            # A `.join` aligns on the index, and these frames routinely carry a
+            # non-unique index (e.g. per-observation `id` repeated across
+            # trajectory segments) which makes join do a many-to-many cartesian
+            # merge that explodes memory (1.6M rows -> tens of millions+).
+            attrs[geom_name] = df[geom_name].to_numpy()
+            df_new = cast(
+                AnyDataFrame,
+                gpd.GeoDataFrame(attrs, geometry=geom_name, crs=df.geometry.crs),
+            )
         else:
             df_new = cast(AnyDataFrame, sanitize_for_arrow(df))
     else:
