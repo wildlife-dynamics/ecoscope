@@ -1314,10 +1314,9 @@ def download_grouped_event_attachments(
                 basename = Path(filename).name
 
                 # Each event has its own folder, so a name clash here means a
-                # second attachment on this event sharing a filename. Keep the
-                # first: overwriting it would fail anyway on a `gs://` root,
-                # where replacing an object needs a delete permission the
-                # workflow service account does not have.
+                # second attachment on this event sharing a filename.
+                # Shouldn't be possible due to upstream conventions, but
+                # handling defensively here by skipping the duplicated write.
                 if _read_path_if_file_exists(event_dir, basename) is None:
                     response = client._get(  # type: ignore[attr-defined]
                         f"activity/event/{event_id}/file/{file_id}/original/{filename}",
