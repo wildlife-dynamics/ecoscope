@@ -310,7 +310,7 @@ def persist_geoarrow_for_pydeck(
 
     content_addressed = not filename
     if content_addressed:
-        filename = f"{_hash_df(gdf)}"
+        filename = f"{_hash_df(gdf)}"  # type: ignore[arg-type] mypy doesn't see that `AnyGeoDataFrame` is a subset of `AnyDataFrame`
     target = f"{filename}.parquet"
 
     if content_addressed and (existing := _read_path_if_file_exists(root_path, target)) is not None:
