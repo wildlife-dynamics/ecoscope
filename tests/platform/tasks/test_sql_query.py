@@ -584,3 +584,77 @@ def test_sanitize_geodataframe_preserves_geometry_with_complex_columns():
     assert len(result) == 2
     assert result["geometry"].iloc[0].equals(Point(1, 1))
     assert result["tags"].iloc[0] == '["z"]'
+
+
+def test_sanitize_geodataframe_with_repeat_index_does_not_duplicate_rows():
+    """Regression: geometry was reattached with `attrs.join(df[[geom_name]])`.
+
+    `.join` aligns on the index, so a frame carrying a non-unique index (as
+    grouped/exploded frames routinely do) got a cartesian expansion -- three
+    rows in, five rows out, with geometry smeared across the wrong attributes.
+    Reattaching positionally keeps the frame the shape it arrived in.
+    """
+    gdf = gpd.GeoDataFrame(
+        {
+            "name": ["A", "B", "C"],
+            "tags": [["x", "y"], ["z"], []],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        index=[0, 0, 1],
+        crs="EPSG:4326",
+    )
+
+    result = apply_sql_query(gdf, "")
+
+    assert isinstance(result, gpd.GeoDataFrame)
+    assert result.crs == gdf.crs
+    assert len(result) == 3
+    assert list(result.index) == [0, 0, 1]
+    assert list(result["name"]) == ["A", "B", "C"]
+    # Each row keeps the geometry it came in with
+    assert [g.equals(e) for g, e in zip(result["geometry"], gdf["geometry"])] == [True] * 3
+    assert result["tags"].iloc[0] == '["x", "y"]'
+
+
+def test_sanitize_geodataframe_with_repeat_index_queries_the_original_rows():
+    """The row explosion happened before the query ran, so a filtering query on a
+    repeat-index frame matched rows that never existed in the input."""
+    gdf = gpd.GeoDataFrame(
+        {
+            "name": ["A", "B", "C"],
+            "value": [10, 20, 30],
+            "tags": [["x"], ["y"], ["z"]],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        index=[0, 0, 1],
+        crs="EPSG:4326",
+    )
+
+    result = apply_sql_query(gdf, "SELECT name, value, geometry FROM df WHERE value > 15")
+
+    assert isinstance(result, gpd.GeoDataFrame)
+    assert len(result) == 2
+    assert list(result["name"]) == ["B", "C"]
+    assert result["geometry"].iloc[0].equals(Point(1, 1))
+    assert result["geometry"].iloc[1].equals(Point(2, 2))
+
+
+def test_sanitize_geodataframe_with_non_default_geometry_name():
+    """The reattach must use the frame's own geometry column name, not `geometry`."""
+    gdf = gpd.GeoDataFrame(
+        {
+            "tags": [["x"], ["y"]],
+            "geom": [Point(0, 0), Point(1, 1)],
+        },
+        geometry="geom",
+        index=[7, 7],
+        crs="EPSG:4326",
+    )
+
+    result = apply_sql_query(gdf, "")
+
+    assert isinstance(result, gpd.GeoDataFrame)
+    assert result.geometry.name == "geom"
+    assert result.crs == gdf.crs
+    assert len(result) == 2
+    assert result["geom"].iloc[1].equals(Point(1, 1))
