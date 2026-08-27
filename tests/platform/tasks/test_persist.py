@@ -1,8 +1,13 @@
+from pathlib import Path
+from unittest import mock
+
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
+import pytest
 from shapely.geometry import Point
 
-from ecoscope.platform.tasks.io import persist_df
+from ecoscope.platform.tasks.io import persist_df, persist_df_wrapper
+from ecoscope.platform.tasks.io._persist import _hash_df
 
 
 def test_persist_df_auto_filename_hashable(tmp_path):
@@ -121,3 +126,160 @@ def test_persist_df_geojson(tmp_path):
     assert dst.endswith(".geojson")
     gdf_read = gpd.read_file(dst)
     pd.testing.assert_frame_equal(gdf_read[["A", "geometry"]], gdf, check_dtype=False)
+
+
+# ---------------------------------------------------------------------------
+# Skip-if-exists for content-addressed filenames.
+#
+# The production failure these pin: within one workflow run two tasks produce
+# byte-identical output, so they derive the same content hash and the second
+# write overwrites the first. On a gs:// root that overwrite fails outright,
+# because replacing an object needs a delete permission the workflow service
+# account does not have.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("filetype", ["csv", "gpkg", "parquet", "geoparquet"])
+def test_persist_df_auto_filename_skips_rewrite(tmp_path, filetype):
+    gdf = gpd.GeoDataFrame(
+        {"A": [1, 2, 3], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
+    )
+    root_path = str(tmp_path / "test")
+
+    dst = persist_df(gdf, root_path, None, filetype)
+    Path(dst).write_bytes(b"sentinel")
+
+    assert persist_df(gdf, root_path, None, filetype) == dst
+    assert Path(dst).read_bytes() == b"sentinel", "existing target must not be rewritten"
+
+
+def test_persist_df_auto_filename_skips_serialization(tmp_path):
+    """Not just the write -- the encode is skipped too."""
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    root_path = str(tmp_path / "test")
+
+    dst = persist_df(df, root_path, None, "csv")
+
+    with mock.patch.object(pd.DataFrame, "to_csv", side_effect=AssertionError("should not serialize")):
+        assert persist_df(df, root_path, None, "csv") == dst
+
+
+def test_persist_df_explicit_filename_still_overwrites(tmp_path):
+    """A caller-supplied name does not determine its content, so it must not skip."""
+    root_path = str(tmp_path / "test")
+    persist_df(pd.DataFrame({"A": [1]}), root_path, "data", "csv")
+    dst = persist_df(pd.DataFrame({"A": [2]}), root_path, "data", "csv")
+
+    assert pd.read_csv(dst, index_col=0)["A"].tolist() == [2]
+
+
+@pytest.mark.parametrize(
+    ("filetype", "extension"),
+    [
+        ("csv", ".csv"),
+        ("gpkg", ".gpkg"),
+        ("geoparquet", ".parquet"),
+        ("parquet", ".parquet"),
+        ("geojson", ".geojson"),
+        ("json", ".json"),
+    ],
+)
+def test_persist_df_extension_per_filetype(tmp_path, filetype, extension):
+    gdf = gpd.GeoDataFrame({"A": [1], "geometry": [Point(0, 0)]})
+    dst = persist_df(gdf, str(tmp_path / "test"), "data", filetype)
+
+    assert dst.endswith(extension)
+
+
+def test_persist_df_unsupported_filetype_raises(tmp_path):
+    # Raised while resolving the extension, i.e. before any serialization.
+    with pytest.raises(NotImplementedError, match="Unsupported file type"):
+        persist_df(pd.DataFrame({"A": [1]}), str(tmp_path / "test"), "data", "xlsx")
+
+
+def test_persist_df_hash_covers_column_labels(tmp_path):
+    """Regression: `hash_pandas_object` hashes only values, never column labels.
+
+    With column-mapping tasks upstream of persist, a rename used to yield the
+    same filename for different content -- and under skip the second frame would
+    silently serve the first's file.
+    """
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    root_path = str(tmp_path / "test")
+
+    assert persist_df(df, root_path, None, "csv") != persist_df(df.rename(columns={"A": "Z"}), root_path, None, "csv")
+
+
+def test_persist_df_hash_covers_all_rows_for_unhashable_frames(tmp_path):
+    """Regression: the fallback used to hash only shape + `head(5)`.
+
+    Object columns holding lists/dicts (grouped event exports) take that path, so
+    two frames agreeing on shape and first rows collided.
+    """
+    root_path = str(tmp_path / "test")
+    rows = [{"k": i} for i in range(30)]
+    a = pd.DataFrame({"details": rows})
+    b = pd.DataFrame({"details": [*rows[:25], {"k": 999}, *rows[26:]]})
+
+    assert a.shape == b.shape
+    assert a.head(5).to_dict() == b.head(5).to_dict(), "must differ only past the old sample window"
+    assert persist_df(a, root_path, None, "csv") != persist_df(b, root_path, None, "csv")
+
+
+def test_persist_df_hash_distinguishes_int_from_str_in_mixed_column(tmp_path):
+    """The unhashable fallback coerces with `repr`, not `str`.
+
+    `str` would render 1 and "1" identically, collapsing two different frames
+    onto one filename.
+    """
+    root_path = str(tmp_path / "test")
+    a = pd.DataFrame({"x": [["l"], 1, "z"]})
+    b = pd.DataFrame({"x": [["l"], "1", "z"]})
+
+    assert persist_df(a, root_path, None, "csv") != persist_df(b, root_path, None, "csv")
+
+
+def test_hash_df_hot_path_avoids_the_per_column_fallback(tmp_path):
+    """Ordinary frames must take the single whole-frame hash.
+
+    The fallback feeds sha256 one array per column instead of one for the frame;
+    that is affordable only because ordinary frames never reach it.
+    """
+    df = pd.DataFrame({"s": ["a", "b"], "i": [1, 2], "f": [1.5, 2.5]})
+    real = pd.util.hash_pandas_object
+    calls = []
+
+    def counting(obj, **kwargs):
+        calls.append(obj)
+        return real(obj, **kwargs)
+
+    with mock.patch.object(pd.util, "hash_pandas_object", counting):
+        _hash_df(df)
+
+    assert len(calls) == 1
+
+
+def test_persist_df_wrapper_auto_filename_skips_rewrite(tmp_path):
+    df = pd.DataFrame({"A": [1, 2, 3]})
+    root_path = str(tmp_path / "test")
+
+    (dst,) = persist_df_wrapper(df=df, root_path=root_path, filetypes=["csv"])
+    Path(dst).write_bytes(b"sentinel")
+
+    assert persist_df_wrapper(df=df, root_path=root_path, filetypes=["csv"]) == [dst]
+    assert Path(dst).read_bytes() == b"sentinel"
+
+
+def test_persist_df_wrapper_sanitize_changes_the_filename(tmp_path):
+    """Regression: the hash was taken of `df` while `df_new` was written.
+
+    `sanitize=True` and `sanitize=False` therefore shared a name for different
+    bytes, so under skip one would serve the other's file.
+    """
+    df = pd.DataFrame({"tags": [["a", "b"], ["c"]]})
+    root_path = str(tmp_path / "test")
+
+    plain = persist_df_wrapper(df=df, root_path=root_path, filetypes=["csv"], sanitize=False)
+    sanitized = persist_df_wrapper(df=df, root_path=root_path, filetypes=["csv"], sanitize=True)
+
+    assert plain != sanitized

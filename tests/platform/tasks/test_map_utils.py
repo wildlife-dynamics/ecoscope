@@ -1,3 +1,6 @@
+from pathlib import Path
+from unittest import mock
+
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pyarrow as pa
@@ -6,6 +9,8 @@ import pytest
 from pydantic import ValidationError
 from shapely.geometry import Point
 
+from ecoscope.platform.tasks.io import persist_df
+from ecoscope.platform.tasks.results import _map_utils
 from ecoscope.platform.tasks.results._map_utils import (
     DEFAULT_TILE_LAYER_PRESETS,
     TileLayer,
@@ -236,3 +241,80 @@ def test_persist_geoarrow_for_pydeck_skips_non_color_object_columns(tmp_path) ->
     # (list/struct/binary), but it must NOT be uint8 fixed-size-list.
     assert schema.field("ragged").type != pa.list_(pa.uint8(), 3)
     assert schema.field("ragged").type != pa.list_(pa.uint8(), 4)
+
+
+# ---------------------------------------------------------------------------
+# Skip-if-exists for content-addressed filenames.
+#
+# `persist_geoarrow_for_pydeck` is one of the two tasks observed failing in
+# production: several grouped views render the same small or empty layer, so
+# they derive the same content hash and the second write tries to overwrite the
+# first -- which fails on a gs:// root, where replacing an object needs a delete
+# permission the workflow service account does not have.
+# ---------------------------------------------------------------------------
+
+
+def _skip_test_gdf() -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(
+        {"a": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]},
+        crs="EPSG:4326",
+    )
+
+
+def test_persist_geoarrow_generated_filename_skips_rewrite(tmp_path) -> None:
+    gdf = _skip_test_gdf()
+    root_path = str(tmp_path / "out")
+
+    dst = persist_geoarrow_for_pydeck(gdf, root_path)
+    Path(dst).write_bytes(b"sentinel")
+
+    assert persist_geoarrow_for_pydeck(gdf, root_path) == dst
+    assert Path(dst).read_bytes() == b"sentinel", "existing target must not be rewritten"
+
+
+def test_persist_geoarrow_identical_layers_share_one_file_without_rewriting(tmp_path) -> None:
+    """The grouped-views scenario that triggered the production failure.
+
+    Two views yielding byte-identical layers legitimately map to one
+    content-addressed file; the second call must return it rather than rewrite
+    it. Booby-trapping the write models the gs:// 403 directly -- on the real
+    bucket the second write is what fails, not the second hash.
+    """
+    root_path = str(tmp_path / "out")
+    view_a, view_b = _skip_test_gdf(), _skip_test_gdf()
+
+    first = persist_geoarrow_for_pydeck(view_a, root_path)
+
+    with mock.patch.object(_map_utils, "_persist_bytes", side_effect=AssertionError("must not attempt a second write")):
+        assert persist_geoarrow_for_pydeck(view_b, root_path) == first
+
+
+def test_persist_geoarrow_explicit_filename_overwrites(tmp_path) -> None:
+    root_path = str(tmp_path / "out")
+    gdf = _skip_test_gdf()
+
+    dst = persist_geoarrow_for_pydeck(gdf, root_path, filename="layer")
+    Path(dst).write_bytes(b"sentinel")
+
+    assert persist_geoarrow_for_pydeck(gdf, root_path, filename="layer") == dst
+    assert Path(dst).read_bytes() != b"sentinel"
+
+
+def test_persist_geoarrow_does_not_collide_with_geoparquet(tmp_path) -> None:
+    """Both tasks derive their name from the same `_hash_df` of the same frame.
+
+    They write different encodings, though -- geoarrow here, WKB in `persist_df`
+    -- so sharing `<hash>.parquet` would make the skip hand back one encoding in
+    place of the other. The generated stem is qualified to keep them apart.
+    """
+    gdf = _skip_test_gdf()
+    root_path = str(tmp_path / "out")
+
+    geoarrow = persist_geoarrow_for_pydeck(gdf, root_path)
+    wkb = persist_df(gdf, root_path, None, "geoparquet")
+
+    assert geoarrow != wkb
+    assert Path(geoarrow).exists() and Path(wkb).exists()
+    for path in (geoarrow, wkb):
+        assert len(gpd.read_parquet(path)) == 2
+    assert pq.read_schema(geoarrow) != pq.read_schema(wkb), "the two encodings really do differ"
