@@ -189,12 +189,9 @@ def apply_sql_query(
             geom_name = df.geometry.name
             original_crs = df.crs  # type: ignore[assignment]
             attrs = sanitize_for_arrow(df.drop(columns=[geom_name]))
-            # Reattach geometry positionally rather than via `.join`. `sanitize`
-            # preserves row order and count, so column-assignment aligns 1:1. A
-            # `.join` aligns on the index, and these frames routinely carry a
-            # non-unique index (e.g. per-observation `id` repeated across
-            # trajectory segments) which makes join do a many-to-many cartesian
-            # merge that explodes row count and memory.
+            # Reattach geometry positionally rather than via `.join`.
+            # which aligns on the index, and creates duplication in
+            # cases where frames carry non-unique indexes
             attrs[geom_name] = df[geom_name].to_numpy()
             df = gpd.GeoDataFrame(attrs, geometry=geom_name, crs=original_crs)
         else:
