@@ -141,6 +141,8 @@ jobs:
     - build-for-prefix
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v7
       - name: Download built conda artifacts
@@ -157,8 +159,6 @@ jobs:
           for file in /tmp/ecoscope/release/artifacts/**/*.conda; do
             rattler-build upload prefix -c ecoscope-workflows "$file"
           done
-        env:
-          PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
 
   publish-to-pypi:
     name: Publish to PyPI
