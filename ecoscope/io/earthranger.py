@@ -919,6 +919,7 @@ class EarthRangerIO(ERClient):
             A patrol type UUID or a list of UUIDs
         patrol_type_value:
             A patrol type value or a list of patrol type values
+            An empty list is treated as all active patrol types, None applies no patrol type filter
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
@@ -951,12 +952,15 @@ class EarthRangerIO(ERClient):
             filter["patrol_type"] = params["patrol_type"]
         if patrol_type_value_list is not None:
             patrol_types = self.get_patrol_types()
-            matching_rows = patrol_types[patrol_types["value"].isin(patrol_type_value_list)]
-            missing_values = set(patrol_type_value_list) - set(matching_rows["value"])
-            if missing_values:
-                raise ValueError(f"Failed to find IDs for values: {missing_values}")
+            if patrol_type_value_list:
+                matching_rows = patrol_types[patrol_types["value"].isin(patrol_type_value_list)]
+                missing_values = set(patrol_type_value_list) - set(matching_rows["value"])
+                if missing_values:
+                    raise ValueError(f"Failed to find IDs for values: {missing_values}")
 
-            filter["patrol_type"] = matching_rows.index.tolist()
+                filter["patrol_type"] = matching_rows.index.tolist()
+            else:
+                filter["patrol_type"] = patrol_types.index.tolist()
         if filter.get("date_range", False):
             filter["patrols_overlap_daterange"] = patrols_overlap_daterange
 
@@ -1000,6 +1004,7 @@ class EarthRangerIO(ERClient):
             A patrol type UUID or a list of UUIDs
         patrol_type_value:
             A patrol type value or a list of patrol type values
+            An empty list is treated as all active patrol types, None applies no patrol type filter
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
@@ -1086,6 +1091,7 @@ class EarthRangerIO(ERClient):
             A patrol type UUID or a list of UUIDs
         patrol_type_value:
             A patrol type value or a list of patrol type values
+            An empty list is treated as all active patrol types, None applies no patrol type filter
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
