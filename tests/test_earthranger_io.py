@@ -220,6 +220,67 @@ def test_get_patrols_patrol_type_value_filter(
     sent_filter = json.loads(get_objects_mock.mock_calls[0].kwargs["filter"])
     assert sent_filter["patrol_type"] == expected_patrol_type_filter
     assert patrol_types_mock.called == expect_lookup
+    if expect_lookup:
+        assert patrol_types_mock.mock_calls[0].kwargs == {"include_inactive": False}
+
+
+@pytest.mark.parametrize(
+    "kwargs, expected_include_inactive",
+    [
+        ({}, False),
+        ({"include_inactive": False}, False),
+        ({"include_inactive": True}, True),
+    ],
+)
+@patch("ecoscope.io.earthranger.EarthRangerIO._get")
+def test_get_patrol_types_include_inactive(get_mock, kwargs, expected_include_inactive, er_io):
+    get_mock.return_value = [
+        {"id": "id-a", "value": "a", "is_active": True},
+        {"id": "id-b", "value": "b", "is_active": False},
+    ]
+
+    patrol_types = er_io.get_patrol_types(**kwargs)
+
+    assert get_mock.mock_calls[0].kwargs["params"]["include_inactive"] is expected_include_inactive
+    assert patrol_types.index.tolist() == ["id-a", "id-b"]
+
+
+@patch("ecoscope.io.earthranger.EarthRangerIO._get")
+def test_get_patrol_types_empty(get_mock, er_io):
+    get_mock.return_value = []
+
+    assert er_io.get_patrol_types().empty
+
+
+@pytest.mark.parametrize("patrol_type_value", [[], ["a"]])
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_objects_multithreaded")
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_patrol_types")
+def test_get_patrols_raises_when_no_active_patrol_types(patrol_types_mock, get_objects_mock, patrol_type_value, er_io):
+    """
+    Without any active patrol types there is nothing to enumerate, and an empty patrol_type
+    filter would mean "every patrol type" rather than "none of them".
+    """
+    patrol_types_mock.return_value = pd.DataFrame()
+
+    with pytest.raises(ValueError, match="no active patrol types"):
+        er_io.get_patrols(since="2017-01-01", until="2017-04-01", patrol_type_value=patrol_type_value)
+
+    assert not get_objects_mock.called
+
+
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_objects_multithreaded")
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_patrol_types")
+def test_get_patrols_with_both_patrol_type_and_value_raises(patrol_types_mock, get_objects_mock, er_io):
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        er_io.get_patrols(
+            since="2017-01-01",
+            until="2017-04-01",
+            patrol_type="1e2ec4dc-9c65-4b1f-8a1e-1b3a5b4c7d9e",
+            patrol_type_value="a",
+        )
+
+    assert not patrol_types_mock.called
+    assert not get_objects_mock.called
 
 
 def test_get_patrols_overlap_daterange_filters(er_io):
