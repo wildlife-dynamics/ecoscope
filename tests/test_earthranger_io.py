@@ -187,6 +187,41 @@ def test_get_patrols_with_invalid_type_value(er_io):
         er_io.get_patrols(since="2017-01-01", until="2017-04-01", patrol_type_value="invalid")
 
 
+@pytest.mark.parametrize(
+    "patrol_type_value, expected_patrol_type_filter, expect_lookup",
+    [
+        (None, [], False),
+        ([], ["id-a", "id-b"], True),
+        (["a"], ["id-a"], True),
+        ("a", ["id-a"], True),
+    ],
+)
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_objects_multithreaded")
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_patrol_types")
+def test_get_patrols_patrol_type_value_filter(
+    patrol_types_mock,
+    get_objects_mock,
+    patrol_type_value,
+    expected_patrol_type_filter,
+    expect_lookup,
+    er_io,
+):
+    """
+    An empty patrol_type_value list means "all patrol types", enumerated from the
+    patrol types lookup, while None applies no patrol type filter at all.
+    """
+    patrol_types_mock.return_value = pd.DataFrame(
+        [{"id": "id-a", "value": "a"}, {"id": "id-b", "value": "b"}]
+    ).set_index("id")
+    get_objects_mock.return_value = {}
+
+    er_io.get_patrols(since="2017-01-01", until="2017-04-01", patrol_type_value=patrol_type_value)
+
+    sent_filter = json.loads(get_objects_mock.mock_calls[0].kwargs["filter"])
+    assert sent_filter["patrol_type"] == expected_patrol_type_filter
+    assert patrol_types_mock.called == expect_lookup
+
+
 def test_get_patrols_overlap_daterange_filters(er_io):
     since_str = "2017-02-05"
     until_str = "2017-03-01"
