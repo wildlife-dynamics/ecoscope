@@ -326,3 +326,52 @@ def test_persist_df_geoparquet_with_geometry_still_writes(tmp_path):
 
     assert dst.endswith(".parquet")
     assert len(gpd.read_parquet(dst)) == 1
+
+
+def test_persist_df_wrapper_sanitize_preserves_geodataframe(tmp_path):
+    """The sanitize branch splits geometry off, sanitizes the attributes and
+    reattaches -- the round trip must come back a GeoDataFrame with its CRS."""
+    gdf = gpd.GeoDataFrame(
+        {
+            "name": ["A", "B"],
+            "tags": [["x", "y"], ["z"]],
+            "geometry": [Point(0, 0), Point(1, 1)],
+        },
+        crs="EPSG:4326",
+    )
+
+    dst = persist_df_wrapper(df=gdf, root_path=str(tmp_path / "test"), filetypes=["geoparquet"], sanitize=True)[0]
+
+    written = gpd.read_parquet(dst)
+    assert written.crs == gdf.crs
+    assert len(written) == 2
+    assert written["tags"].iloc[0] == '["x", "y"]'
+    assert written["geometry"].iloc[1].equals(Point(1, 1))
+
+
+def test_persist_df_wrapper_sanitize_geodataframe_with_repeat_index(tmp_path):
+    """Regression: geometry was reattached with `attrs.join(df[[geom_name]])`.
+
+    `.join` aligns on the index, so a frame carrying a non-unique index (as
+    grouped/exploded frames routinely do) got a cartesian expansion and we
+    persisted more rows than we were handed, with geometry paired to the
+    wrong attributes.
+    """
+    gdf = gpd.GeoDataFrame(
+        {
+            "name": ["A", "B", "C"],
+            "tags": [["x", "y"], ["z"], []],
+            "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)],
+        },
+        index=[0, 0, 1],
+        crs="EPSG:4326",
+    )
+
+    dst = persist_df_wrapper(df=gdf, root_path=str(tmp_path / "test"), filetypes=["geoparquet"], sanitize=True)[0]
+
+    written = gpd.read_parquet(dst)
+    assert written.crs == gdf.crs
+    assert len(written) == 3
+    assert list(written["name"]) == ["A", "B", "C"]
+    # Each row keeps the geometry it came in with
+    assert [g.equals(e) for g, e in zip(written["geometry"], gdf["geometry"])] == [True] * 3

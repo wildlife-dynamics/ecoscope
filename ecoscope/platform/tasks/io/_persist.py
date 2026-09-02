@@ -370,8 +370,14 @@ def persist_df_wrapper(
             geom_name = df.geometry.name
             attrs = df.drop(columns=[geom_name])
             attrs = cast(gpd.GeoDataFrame, sanitize_for_arrow(attrs))
-            # let geopandas handle geometry encoding
-            df_new = cast(AnyDataFrame, attrs.join(df[[geom_name]]))
+            # Reattach geometry positionally rather than via `.join`.
+            # which aligns on the index, and creates duplication in
+            # cases where frames carry non-unique indexes
+            attrs[geom_name] = df[geom_name].to_numpy()
+            df_new = cast(
+                AnyDataFrame,
+                gpd.GeoDataFrame(attrs, geometry=geom_name, crs=df.geometry.crs),
+            )
         else:
             df_new = cast(AnyDataFrame, sanitize_for_arrow(df))
     else:
