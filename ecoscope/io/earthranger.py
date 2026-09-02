@@ -891,8 +891,22 @@ class EarthRangerIO(ERClient):
 
         return events_gdf
 
-    def get_patrol_types(self) -> pd.DataFrame:
-        df = pd.DataFrame(self._get("activity/patrols/types"))
+    def get_patrol_types(self, include_inactive: bool = False, **addl_kwargs) -> pd.DataFrame:
+        """
+        Return dataframe of ER patrol types, indexed by UUID.
+
+        Parameters
+        ----------
+        include_inactive: bool, default False
+            Whether to include inactive patrol types
+
+        Returns
+        -------
+        patrol_types : pd.DataFrame
+            DataFrame of patrol types, empty if the site has none
+        """
+        params = clean_kwargs(addl_kwargs, include_inactive=include_inactive)
+        df = pd.DataFrame(self._get("activity/patrols/types", params=params))
         if not df.empty:
             df = df.set_index("id")
         return df
@@ -917,8 +931,13 @@ class EarthRangerIO(ERClient):
             Upper time range
         patrol_type:
             A patrol type UUID or a list of UUIDs
+            Mutually exclusive with patrol_type_value
         patrol_type_value:
             A patrol type value or a list of patrol type values
+            An empty list is treated as all active patrol types, enumerated from `get_patrol_types`;
+            a ValueError is raised if the site has no active patrol types
+            None applies no patrol type filter
+            Mutually exclusive with patrol_type
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
@@ -933,6 +952,8 @@ class EarthRangerIO(ERClient):
         """
 
         patrol_type_value_list = [patrol_type_value] if isinstance(patrol_type_value, str) else patrol_type_value
+        if patrol_type is not None and patrol_type_value_list is not None:
+            raise ValueError("patrol_type and patrol_type_value are mutually exclusive, provide only one")
         params = clean_kwargs(
             addl_kwargs,
             status=status,
@@ -950,13 +971,18 @@ class EarthRangerIO(ERClient):
         if patrol_type is not None:
             filter["patrol_type"] = params["patrol_type"]
         if patrol_type_value_list is not None:
-            patrol_types = self.get_patrol_types()
-            matching_rows = patrol_types[patrol_types["value"].isin(patrol_type_value_list)]
-            missing_values = set(patrol_type_value_list) - set(matching_rows["value"])
-            if missing_values:
-                raise ValueError(f"Failed to find IDs for values: {missing_values}")
+            patrol_types = self.get_patrol_types(include_inactive=False)
+            if patrol_types.empty:
+                raise ValueError("EarthRanger returned no active patrol types to filter on")
+            if patrol_type_value_list:
+                matching_rows = patrol_types[patrol_types["value"].isin(patrol_type_value_list)]
+                missing_values = set(patrol_type_value_list) - set(matching_rows["value"])
+                if missing_values:
+                    raise ValueError(f"Failed to find IDs for values: {missing_values}")
 
-            filter["patrol_type"] = matching_rows.index.tolist()
+                filter["patrol_type"] = matching_rows.index.tolist()
+            else:
+                filter["patrol_type"] = patrol_types.index.tolist()
         if filter.get("date_range", False):
             filter["patrols_overlap_daterange"] = patrols_overlap_daterange
 
@@ -998,8 +1024,13 @@ class EarthRangerIO(ERClient):
             Upper time range
         patrol_type:
             A patrol type UUID or a list of UUIDs
+            Mutually exclusive with patrol_type_value
         patrol_type_value:
             A patrol type value or a list of patrol type values
+            An empty list is treated as all active patrol types, enumerated from `get_patrol_types`;
+            a ValueError is raised if the site has no active patrol types
+            None applies no patrol type filter
+            Mutually exclusive with patrol_type
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
@@ -1084,8 +1115,13 @@ class EarthRangerIO(ERClient):
             Upper time range
         patrol_type:
             A patrol type UUID or a list of UUIDs
+            Mutually exclusive with patrol_type_value
         patrol_type_value:
             A patrol type value or a list of patrol type values
+            An empty list is treated as all active patrol types, enumerated from `get_patrol_types`;
+            a ValueError is raised if the site has no active patrol types
+            None applies no patrol type filter
+            Mutually exclusive with patrol_type
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
