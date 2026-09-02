@@ -281,6 +281,15 @@ def _stringify_mixed_json(df):
             df[col] = df[col].map(lambda v: None if v is None else json.dumps(v, default=str))
 
 
+# Prefixed onto generated (content-addressed) geoarrow filenames.
+#
+# `_hash_df` is shared with `tasks.io.persist_df`, whose `geoparquet` branch
+# writes the *same* gdf to `<hash>.parquet` as WKB, and it's possible for a spec
+# to use both. The prefix explicitly flags a geoarrow-encoded file whose content
+# hash may be the same as that of a WKB-encoded file from the same workflow.
+GEOARROW_FILENAME_PREFIX = "geoarrow_"
+
+
 @register()
 def persist_geoarrow_for_pydeck(
     gdf: Annotated[AnyGeoDataFrame, Field(description="GeoDataframe to persist as GeoArrow-encoded parquet")],
@@ -306,11 +315,14 @@ def persist_geoarrow_for_pydeck(
 
     When the filename is generated from the gdf content hash, a target that
     already exists is returned as-is rather than re-encoded and rewritten.
+    Generated names carry a `geoarrow_` prefix, because the content hash alone
+    is not enough to tell the two encodings of a gdf apart — see
+    `GEOARROW_FILENAME_PREFIX`.
     """
 
     content_addressed = not filename
     if content_addressed:
-        filename = f"{_hash_df(gdf)}"  # type: ignore[arg-type] # mypy doesn't see that `AnyGeoDataFrame` is a subset of `AnyDataFrame`
+        filename = f"{GEOARROW_FILENAME_PREFIX}{_hash_df(gdf)}"  # type: ignore[arg-type] # mypy doesn't see that `AnyGeoDataFrame` is a subset of `AnyDataFrame`
     target = f"{filename}.parquet"
 
     if content_addressed and (existing := _read_path_if_file_exists(root_path, target)) is not None:

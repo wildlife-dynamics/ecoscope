@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from unittest import mock
 
@@ -13,6 +14,7 @@ from ecoscope.platform.tasks.io import persist_df
 from ecoscope.platform.tasks.results import _map_utils
 from ecoscope.platform.tasks.results._map_utils import (
     DEFAULT_TILE_LAYER_PRESETS,
+    GEOARROW_FILENAME_PREFIX,
     TileLayer,
     custom_tile_layer_json_schema,
     make_preset_or_custom_json_schema_extra,
@@ -276,6 +278,37 @@ def test_persist_geoarrow_identical_layers_share_one_file_without_rewriting(tmp_
 
     with mock.patch.object(_map_utils, "_persist_bytes", side_effect=AssertionError("must not attempt a second write")):
         assert persist_geoarrow_for_pydeck(view_b, root_path) == first
+
+
+def _geometry_encoding(path: str) -> str:
+    """`"point"` for a geoarrow-encoded gdf, `"WKB"` for the standard encoding."""
+    return json.loads(pq.read_schema(path).metadata[b"geo"])["columns"]["geometry"]["encoding"]
+
+
+@pytest.mark.parametrize("geoarrow_first", [True, False])
+def test_persist_geoarrow_target_does_not_collide_with_geoparquet(tmp_path, geoarrow_first) -> None:
+    """Both tasks hash the same gdf with `_hash_df` and both write `.parquet`.
+
+    Without `GEOARROW_FILENAME_PREFIX` they share one target, so whichever ran
+    second skipped its write and returned the other's file: WKB handed to a
+    geoarrow layer, or geoarrow handed to QGIS, decided by task order. The
+    docstrings point specs at both tasks, so one `root_path` holding both is a
+    supported arrangement, not a misuse.
+    """
+    gdf = _points_gdf()
+    root_path = str(tmp_path / "out")
+
+    if geoarrow_first:
+        arrow_path = persist_geoarrow_for_pydeck(gdf, root_path)
+        wkb_path = persist_df(gdf, root_path, None, "geoparquet")
+    else:
+        wkb_path = persist_df(gdf, root_path, None, "geoparquet")
+        arrow_path = persist_geoarrow_for_pydeck(gdf, root_path)
+
+    assert arrow_path != wkb_path
+    assert Path(arrow_path).name.startswith(GEOARROW_FILENAME_PREFIX)
+    assert _geometry_encoding(arrow_path) == "point", "the pydeck consumer must get geoarrow"
+    assert _geometry_encoding(wkb_path) == "WKB", "the QGIS/PostGIS consumer must get WKB"
 
 
 def test_persist_geoarrow_explicit_filename_overwrites(tmp_path) -> None:

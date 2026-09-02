@@ -123,10 +123,15 @@ ResultsFileType = Literal["csv", "gpkg", "geoparquet", "parquet"]
 def _hash_df(df: AnyDataFrame) -> str:
     """Return a 7-char sha256 hash of a dataframe's contents.
 
-    Covers every row and the index, plus column names and dtypes, so the hash
-    fully determines the bytes any given filetype will serialize. Shared by
-    `persist_df`, `persist_df_wrapper` and `persist_geoarrow_for_pydeck` so all
-    three derive identical content-based filenames.
+    Covers every row and the index, plus column names and dtypes, so equal
+    frames hash equally and unequal frames don't. Shared by `persist_df`,
+    `persist_df_wrapper` and `persist_geoarrow_for_pydeck`.
+
+    It identifies the *content*, not the bytes on disk: the same frame encoded
+    two ways hashes the same. A caller that skips writing an existing target
+    therefore owes the rest of the name — extension is usually enough, but
+    `persist_geoarrow_for_pydeck` also needs `GEOARROW_FILENAME_PREFIX`, since
+    its geoarrow parquet would otherwise collide with `persist_df`'s WKB one.
     """
     import numpy as np
     import pandas as pd
