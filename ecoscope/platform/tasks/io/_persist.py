@@ -143,7 +143,14 @@ def _hash_df(df: AnyDataFrame) -> str:
             # Cells pandas can't hash (lists/dicts in event details). `repr`
             # rather than `str`: in a mixed column `str` collapses 1 and "1"
             # to the same text, and a filename collision serves wrong bytes.
-            return pd.util.hash_pandas_object(obj.map(repr), index=False).values
+            try:
+                return pd.util.hash_pandas_object(obj.map(repr), index=False).values
+            except Exception as e:
+                # Fail loudly if we hit a value whose own `__repr__` fails.
+                label = obj.name if isinstance(obj, pd.Series) else "<index>"
+                raise TypeError(
+                    f"cannot content-hash column {label!r}: values are neither hashable nor reprable"
+                ) from e
 
     digest = hashlib.sha256()
     try:

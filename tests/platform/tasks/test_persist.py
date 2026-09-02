@@ -239,6 +239,34 @@ def test_persist_df_hash_distinguishes_int_from_str_in_mixed_column(tmp_path):
     assert persist_df(a, root_path, None, "csv") != persist_df(b, root_path, None, "csv")
 
 
+def test_hash_df_raises_clearly_when_values_are_neither_hashable_nor_reprable():
+    """The fallback's own `repr` can fail; the error must name the column.
+
+    There is no honest name to write under in that case -- a type-derived
+    placeholder collides across distinct values and an `id`-derived one changes
+    per process, either of which would make skip-if-exists serve wrong bytes --
+    so `_hash_df` raises rather than inventing a hash. Object-dtype hashing is
+    forced to fail here so the test pins our wrapping, not pandas' internals.
+    """
+
+    class Unreprable:
+        def __repr__(self):
+            raise RuntimeError("boom")
+
+    df = pd.DataFrame({"bad": [Unreprable()]})
+    real = pd.util.hash_pandas_object
+
+    def failing_on_object_dtype(obj, **kwargs):
+        dtypes = obj.dtypes if isinstance(obj, pd.DataFrame) else [obj.dtype]
+        if any(dtype == object for dtype in dtypes):
+            raise TypeError("unhashable type")
+        return real(obj, **kwargs)
+
+    with mock.patch.object(pd.util, "hash_pandas_object", failing_on_object_dtype):
+        with pytest.raises(TypeError, match="cannot content-hash column 'bad'"):
+            _hash_df(df)
+
+
 def test_hash_df_hot_path_avoids_the_per_column_fallback(tmp_path):
     """Ordinary frames must take the single whole-frame hash.
 
