@@ -65,6 +65,22 @@ def _get_path(root_path: str, filename: str):
     return write_path, read_path
 
 
+def _read_path_if_file_exists(root_path: str, filename: str) -> str | None:
+    """Return the read path for `filename` under `root_path`, if it already exists and is a usable file.
+
+    Returns None when the target is absent, is not a regular file, or is an empty local file.
+
+    Note: as with `_get_path`, resolving a local `root_path` creates the directory
+    as a side effect.
+    """
+    write_path, read_path = _get_path(root_path, filename)
+    if not write_path.is_file():
+        return None
+    if isinstance(write_path, Path) and write_path.stat().st_size == 0:
+        return None
+    return read_path
+
+
 def _persist_text(text: str, root_path: str, filename: str) -> str:
     write_path, read_path = _get_path(root_path, filename)
 

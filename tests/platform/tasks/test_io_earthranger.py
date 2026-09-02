@@ -1610,6 +1610,61 @@ class TestDownloadGroupedEventAttachments:
         assert attachment_path.exists()
         assert result == [f"custom/{expected_dirname}/attachment.jpg"]
 
+    def test_same_named_attachments_on_one_event_keep_the_first(self, output_dir, tmp_path):
+        # Each event has its own folder, so a clash means two attachments on this
+        # event share a filename. The first is kept and the second is not written:
+        # overwriting would fail anyway on gs://, where replacing an object needs
+        # a delete permission the workflow service account does not have.
+        class DuplicateNameClient(DummyEarthRangerClient):
+            def _get(self, url, return_response=False):
+                self.calls.append((url, return_response))
+                if url.endswith("/files"):
+                    return {
+                        "results": [
+                            {"id": "file-1", "filename": "image.jpg"},
+                            {"id": "file-2", "filename": "image.jpg"},
+                        ]
+                    }
+                if return_response:
+                    return DummyResponse(url.rsplit("/file/", 1)[1].split("/")[0].encode())
+                return {"results": []}
+
+        client = DuplicateNameClient()
+        event_id = "evt-dupe"
+        key = (("event_type", "=", "carcass"),)
+        expected_dirname = f"{_hash_grouper_key(key)}_{event_id}"
+
+        result = download_grouped_event_attachments(
+            client=client,
+            grouped_event_gdfs=[(key, self._make_df(event_id))],
+            output_dir=output_dir,
+        )
+
+        assert result == [f"attachments/{expected_dirname}/image.jpg"] * 2
+        assert (tmp_path / result[0]).read_bytes() == b"file-1", "the first attachment must survive"
+        fetched = [url for url, _ in client.calls if "/original/" in url]
+        assert len(fetched) == 1, "the colliding second attachment must not be downloaded"
+
+    def test_existing_attachment_is_neither_refetched_nor_rewritten(self, output_dir, tmp_path):
+        event_id = "evt-repeat"
+        key = (("event_type", "=", "carcass"),)
+        expected_dirname = f"{_hash_grouper_key(key)}_{event_id}"
+        args = dict(grouped_event_gdfs=[(key, self._make_df(event_id))], output_dir=output_dir)
+
+        first = download_grouped_event_attachments(client=DummyEarthRangerClient(), **args)
+        assert first == [f"attachments/{expected_dirname}/attachment.jpg"]
+
+        # Sentinel proves the second run leaves the existing file alone.
+        (tmp_path / first[0]).write_bytes(b"sentinel")
+
+        client2 = DummyEarthRangerClient()
+        second = download_grouped_event_attachments(client=client2, **args)
+
+        assert second == first
+        assert (tmp_path / first[0]).read_bytes() == b"sentinel"
+        refetches = [url for url, _ in client2.calls if "/original/" in url]
+        assert not refetches, "an attachment already on disk must not be refetched"
+
     def test_none_key_group_is_skipped(self, dummy_er_client, output_dir, tmp_path):
         key = (("event_type", "=", "carcass"),)
         result = download_grouped_event_attachments(

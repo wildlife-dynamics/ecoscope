@@ -11,7 +11,7 @@ from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 from ecoscope.platform.indexes import CompositeFilter
-from ecoscope.platform.serde import _persist_bytes, _persist_text
+from ecoscope.platform.serde import _persist_bytes, _persist_text, _read_path_if_file_exists
 from ecoscope.platform.tasks.transformation._sanitize import sanitize_for_arrow
 
 
@@ -43,8 +43,13 @@ def persist_text(
         ),
     ] = None,
 ) -> Annotated[str, Field(description="Path to persisted text")]:
-    """Persist text to a file or cloud storage object."""
+    """Persist text to a file or cloud storage object.
 
+    When the filename is generated from a hash of the text, a target that
+    already exists is returned as-is rather than rewritten.
+    """
+
+    content_addressed = not filename
     if not filename:
         # generate a filename if none is explicitly provided
         filename = hashlib.sha256(text.encode()).hexdigest()[:7] + ".html"
@@ -52,6 +57,8 @@ def persist_text(
         filepath = Path(filename)
         filename = f"{filepath.stem}_{filename_suffix}{filepath.suffix}"
 
+    if content_addressed and (existing := _read_path_if_file_exists(root_path, filename)) is not None:
+        return existing
     return _persist_text(text, root_path, filename)
 
 
@@ -81,12 +88,17 @@ def persist_json(
         ),
     ] = None,
 ) -> Annotated[str, Field(description="Path to persisted JSON")]:
-    """Serialize JSON-shaped data and persist to a file or cloud storage object."""
+    """Serialize JSON-shaped data and persist to a file or cloud storage object.
+
+    When the filename is generated from a hash of the payload, a target that
+    already exists is returned as-is rather than rewritten.
+    """
     if isinstance(data, BaseModel):
         payload = data.model_dump_json()
     else:
         payload = json.dumps(data)
 
+    content_addressed = not filename
     if not filename:
         filename = hashlib.sha256(payload.encode()).hexdigest()[:7] + ".json"
     elif not Path(filename).suffix:
@@ -95,6 +107,8 @@ def persist_json(
         filepath = Path(filename)
         filename = f"{filepath.stem}_{filename_suffix}{filepath.suffix}"
 
+    if content_addressed and (existing := _read_path_if_file_exists(root_path, filename)) is not None:
+        return existing
     return _persist_text(payload, root_path, filename)
 
 
@@ -109,26 +123,46 @@ ResultsFileType = Literal["csv", "gpkg", "geoparquet", "parquet"]
 def _hash_df(df: AnyDataFrame) -> str:
     """Return a 7-char sha256 hash of a dataframe's contents.
 
-    Falls back to hashing the shape + first rows when the frame holds unhashable
-    values. Shared by `persist_df` and `persist_df_wrapper` so both derive
-    identical content-based filenames.
+    Covers every row and the index, plus column names and dtypes, so equal
+    frames hash equally and unequal frames don't. Shared by `persist_df`,
+    `persist_df_wrapper` and `persist_geoarrow_for_pydeck`.
+
+    It identifies the *content*, not the bytes on disk: the same frame encoded
+    two ways hashes the same. A caller that skips writing an existing target
+    therefore owes the rest of the name — extension is usually enough, but
+    `persist_geoarrow_for_pydeck` also needs `GEOARROW_FILENAME_PREFIX`, since
+    its geoarrow parquet would otherwise collide with `persist_df`'s WKB one.
     """
     import numpy as np
     import pandas as pd
 
-    # Use a hash of the dataframe content; avoids issues with unhashable types.
+    def _fallback_hash(obj):
+        try:
+            return pd.util.hash_pandas_object(obj, index=False).values
+        except (TypeError, ValueError, AttributeError):
+            # Cells pandas can't hash (lists/dicts in event details). `repr`
+            # rather than `str`: in a mixed column `str` collapses 1 and "1"
+            # to the same text, and a filename collision serves wrong bytes.
+            try:
+                return pd.util.hash_pandas_object(obj.map(repr), index=False).values
+            except Exception as e:
+                # Fail loudly if we hit a value whose own `__repr__` fails.
+                label = obj.name if isinstance(obj, pd.Series) else "<index>"
+                raise TypeError(
+                    f"cannot content-hash column {label!r}: values are neither hashable nor reprable"
+                ) from e
+
+    digest = hashlib.sha256()
     try:
-        hash_values = pd.util.hash_pandas_object(df).values
-        # Convert to bytes - handle both ndarray and ExtensionArray
-        if isinstance(hash_values, np.ndarray):
-            hash_input = hash_values.tobytes()
-        else:
-            hash_input = np.asarray(hash_values).tobytes()
+        digest.update(np.ascontiguousarray(pd.util.hash_pandas_object(df).values))
     except (TypeError, ValueError, AttributeError):
-        # Fallback for unhashable types: use shape and first few rows
-        content = f"{df.shape}{df.head(5).to_dict()}"
-        hash_input = content.encode()
-    return hashlib.sha256(hash_input).hexdigest()[:7]
+        # Only now, and only for the columns that genuinely fail, pay per-column
+        # costs. Every row still contributes; hashing a `head(5)` sample here
+        # let two frames sharing shape and first rows collide.
+        for obj in (df.index, *(df.iloc[:, i] for i in range(len(df.columns)))):
+            digest.update(np.ascontiguousarray(_fallback_hash(obj)))
+    digest.update(json.dumps([[str(c), str(dt)] for c, dt in zip(df.columns, df.dtypes)]).encode())
+    return digest.hexdigest()[:7]
 
 
 @register()
@@ -146,41 +180,106 @@ def persist_df(
     ] = None,
     filetype: Annotated[FileType, Field(description="The output format")] = "csv",
 ) -> Annotated[str, Field(description="Path to persisted data")]:
-    """Persist dataframe to a file or cloud storage object."""
+    """Persist dataframe to a file or cloud storage object.
+
+    When the filename is generated from the df content hash, a target that
+    already exists is returned as-is rather than serialized and rewritten.
+    """
+    return _persist_df(df, root_path, filename, filetype, content_addressed=not filename)
+
+
+def _filetype_extension(filetype: FileType) -> str:
+    """On-disk extension for `filetype`.
+
+    Resolved before serializing so the target name is known up front, which is
+    what lets `_persist_df` skip the encode as well as the write.
+    """
+    match filetype:
+        case "csv" | "gpkg" | "geojson" | "json":
+            return filetype
+        case "geoparquet" | "parquet":
+            # Deliberately shared: `_require_geometry` below rejects the one case
+            # where the two branches diverge, so whenever both are reachable for a
+            # given frame they emit identical bytes.
+            return "parquet"
+        case _:
+            raise NotImplementedError(f"Unsupported file type: {filetype}")
+
+
+def _has_geometry(df: AnyDataFrame) -> bool:
+    """Whether `df` carries at least one geometry-dtype column."""
+    import geopandas as gpd  # type: ignore[import-untyped]
+
+    return any(isinstance(dtype, gpd.array.GeometryDtype) for dtype in df.dtypes)
+
+
+def _require_geometry(df: AnyDataFrame, filetype: FileType) -> None:
+    """Raise unless `df` has geometry, for filetypes that cannot encode without it."""
+    if not _has_geometry(df):
+        raise ValueError(
+            f"filetype {filetype!r} requires at least one geometry column, "
+            f"but none of the {len(df.columns)} column(s) has geometry dtype"
+        )
+
+
+def _persist_df(
+    df: AnyDataFrame,
+    root_path: str,
+    filename: str | None,
+    filetype: FileType,
+    *,
+    content_addressed: bool,
+) -> str:
+    """Implementation behind `persist_df`, with the skip-if-exists policy exposed.
+
+    `content_addressed` must only be True when `filename` is derived from a hash
+    of `df`, because it lets an existing target stand in for the write. Kept
+    private and keyword-only so the registered `persist_df` signature stays the
+    whole public contract, and so no spec can pair an explicit filename with a
+    skip.
+    """
     import geopandas as gpd  # type: ignore[import-untyped]
 
     if not filename:
         # generate a filename if none is explicitly provided
         filename = _hash_df(df)
-    if filetype == "csv":
-        csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer)
-        return _persist_text(csv_buffer.getvalue(), root_path, f"{filename}.{filetype}")
-    elif filetype == "gpkg":
-        buffer = io.BytesIO()
-        gdf = gpd.GeoDataFrame(df)
-        gdf.to_file(buffer, driver="GPKG")
-        return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.{filetype}")
-    elif filetype == "geoparquet":
-        buffer = io.BytesIO()
-        gdf = gpd.GeoDataFrame(df)
-        gdf.to_parquet(buffer, index=False)
-        return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
-    elif filetype == "parquet":
-        buffer = io.BytesIO()
-        has_geom = any(isinstance(df[col].dtype, gpd.array.GeometryDtype) for col in df.columns)
-        if has_geom:
-            gpd.GeoDataFrame(df).to_parquet(buffer, index=False)
-        else:
-            df.to_parquet(buffer, index=False)
-        return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
-    elif filetype == "geojson":
-        gdf = gpd.GeoDataFrame(df)
-        return _persist_text(gdf.to_json(), root_path, f"{filename}.{filetype}")
-    elif filetype == "json":
-        return _persist_text(df.to_json(), root_path, f"{filename}.{filetype}")
-    else:
-        raise ValueError(f"Unsupported file type: {filetype}")
+    target = f"{filename}.{_filetype_extension(filetype)}"
+
+    if filetype == "geoparquet":
+        _require_geometry(df, filetype)
+
+    if content_addressed and (existing := _read_path_if_file_exists(root_path, target)) is not None:
+        return existing
+
+    match filetype:
+        case "csv":
+            csv_buffer = io.StringIO()
+            df.to_csv(csv_buffer)
+            return _persist_text(csv_buffer.getvalue(), root_path, target)
+        case "gpkg":
+            buffer = io.BytesIO()
+            gdf = gpd.GeoDataFrame(df)
+            gdf.to_file(buffer, driver="GPKG")
+            return _persist_bytes(buffer.getvalue(), root_path, target)
+        case "geoparquet":
+            buffer = io.BytesIO()
+            gdf = gpd.GeoDataFrame(df)
+            gdf.to_parquet(buffer, index=False)
+            return _persist_bytes(buffer.getvalue(), root_path, target)
+        case "parquet":
+            buffer = io.BytesIO()
+            if _has_geometry(df):
+                gpd.GeoDataFrame(df).to_parquet(buffer, index=False)
+            else:
+                df.to_parquet(buffer, index=False)
+            return _persist_bytes(buffer.getvalue(), root_path, target)
+        case "geojson":
+            gdf = gpd.GeoDataFrame(df)
+            return _persist_text(gdf.to_json(), root_path, target)
+        case "json":
+            return _persist_text(df.to_json(), root_path, target)
+        case _:
+            raise NotImplementedError(f"Unsupported file type: {filetype}")
 
 
 def _fallback_to_empty(df: AnyDataFrame | SkipSentinel) -> AnyDataFrame:
@@ -198,17 +297,6 @@ def persist_df_wrapper(
         SkippedDependencyFallback(_fallback_to_empty),
     ],
     root_path: Annotated[str, Field(description="Root path to persist text to")],
-    filename: Annotated[
-        str | SkipJsonSchema[None],
-        Field(
-            description="""\
-            Optional filename to persist text to within the `root_path`.
-            If not provided, a filename will be generated based on a hash of the df content.
-            """,
-            default=None,
-            exclude=True,
-        ),
-    ] = None,
     filetypes: Annotated[
         list[ResultsFileType] | SkipJsonSchema[None],
         Field(
@@ -243,9 +331,12 @@ def persist_df_wrapper(
 
     Builds on `persist_df` by adding optional data sanitization (for Arrow-based
     formats like Parquet/GeoParquet), multi-filetype output, and a
-    `SkippedDependencyFallback`. When sanitize=True, complex Python objects
-    (lists, dicts, sets) are converted to JSON strings, data types are
-    normalized, and mixed-type columns are handled.
+    `SkippedDependencyFallback`. Filenames are always derived from a hash of the
+    (post-sanitization) content, so a target that already exists is returned
+    as-is rather than reserialized and rewritten.
+
+    When sanitize=True, complex Python objects (lists, dicts, sets) are converted
+    to JSON strings, data types are normalized, and mixed-type columns are handled.
 
     The sanitization process:
     - Converts bytes to UTF-8 strings
@@ -257,7 +348,6 @@ def persist_df_wrapper(
     Args:
         df: DataFrame or GeoDataFrame to save
         root_path: Directory where the file will be saved
-        filename: Optional filename (without path). If None, generates hash-based name.
         filetypes: A list of output formats - "csv", "gpkg", "geoparquet", or "parquet"
         sanitize: Whether to sanitize data for Arrow compatibility (default: False)
 
@@ -274,7 +364,6 @@ def persist_df_wrapper(
         >>> path = persist_df_wrapper(
         ...     df=df,
         ...     root_path="/output",
-        ...     filename="data.csv",
         ...     filetypes=["csv"],
         ...     sanitize=True  # Converts lists/dicts to JSON strings
         ... )
@@ -288,23 +377,29 @@ def persist_df_wrapper(
             geom_name = df.geometry.name
             attrs = df.drop(columns=[geom_name])
             attrs = cast(gpd.GeoDataFrame, sanitize_for_arrow(attrs))
-            # let geopandas handle geometry encoding
-            df_new = cast(AnyDataFrame, attrs.join(df[[geom_name]]))
+            # Reattach geometry positionally rather than via `.join`.
+            # which aligns on the index, and creates duplication in
+            # cases where frames carry non-unique indexes
+            attrs[geom_name] = df[geom_name].to_numpy()
+            df_new = cast(
+                AnyDataFrame,
+                gpd.GeoDataFrame(attrs, geometry=geom_name, crs=df.geometry.crs),
+            )
         else:
             df_new = cast(AnyDataFrame, sanitize_for_arrow(df))
     else:
         df_new = df
 
-    filehash = _hash_df(df)
+    filehash = _hash_df(df_new)
     filename = f"{filename_prefix}_{filehash}" if filename_prefix else filehash
 
-    paths = [persist_df(df_new, root_path, filename, filetype) for filetype in filetypes]
+    paths = [_persist_df(df_new, root_path, filename, filetype, content_addressed=True) for filetype in filetypes]
 
     return paths
 
 
 def _hash_grouper_key(composite_filter: CompositeFilter) -> str:
-    """Return a 7-char sha256 hash of the JSON-encoded grouper key.
+    """Return a 6-char sha256 hash of the JSON-encoded grouper key.
 
     The CompositeFilter is first reduced to a `{column: value}` dict, e.g.
     `(("patrol_type", "=", "Routine Patrol"),)` -> `{"patrol_type": "Routine Patrol"}`,
@@ -331,7 +426,7 @@ def persist_grouped_dfs_for_results_download(
         Field(
             description=(
                 "A keyed iterable of (group key, dataframe) tuples as produced by `split_groups`. "
-                "Each dataframe is persisted to its own file(s) with a 7-char "
+                "Each dataframe is persisted to its own file(s) with a 6-char "
                 "hash of the associated group key embedded in the filename."
             ),
         ),
@@ -373,13 +468,16 @@ def persist_grouped_dfs_for_results_download(
     """Persist grouped or ungrouped dataframes for FE results-download.
 
     Delegates to `persist_df_wrapper` per dataframe, prefixing the filename
-    with a 7-char sha256 hash of the encoded group key so the FE can match
+    with a 6-char sha256 hash of the encoded group key so the FE can match
     files to dashboard views. Final filename layout:
 
         [<filename_prefix>_]<key_hash>_<df_hash>.<extension>
 
     Each group's own CompositeFilter is hashed. Groups with a `None` key (e.g.
     the SkippedDependencyFallback sentinel) or an empty dataframe are skipped.
+
+    Inherits `persist_df_wrapper`'s content-addressed naming: a file that already
+    exists at the target path is returned as-is rather than rewritten.
     """
     paths: list[str] = []
     for composite_filter, df in grouped_dfs:

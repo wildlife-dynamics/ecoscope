@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+from unittest import mock
+
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pyarrow as pa
@@ -6,8 +10,11 @@ import pytest
 from pydantic import ValidationError
 from shapely.geometry import Point
 
+from ecoscope.platform.tasks.io import persist_df
+from ecoscope.platform.tasks.results import _map_utils
 from ecoscope.platform.tasks.results._map_utils import (
     DEFAULT_TILE_LAYER_PRESETS,
+    GEOARROW_FILENAME_PREFIX,
     TileLayer,
     custom_tile_layer_json_schema,
     make_preset_or_custom_json_schema_extra,
@@ -236,3 +243,80 @@ def test_persist_geoarrow_for_pydeck_skips_non_color_object_columns(tmp_path) ->
     # (list/struct/binary), but it must NOT be uint8 fixed-size-list.
     assert schema.field("ragged").type != pa.list_(pa.uint8(), 3)
     assert schema.field("ragged").type != pa.list_(pa.uint8(), 4)
+
+
+def _skip_test_gdf() -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(
+        {"a": [1, 2], "geometry": [Point(0, 0), Point(1, 1)]},
+        crs="EPSG:4326",
+    )
+
+
+def test_persist_geoarrow_generated_filename_skips_rewrite(tmp_path) -> None:
+    gdf = _skip_test_gdf()
+    root_path = str(tmp_path / "out")
+
+    dst = persist_geoarrow_for_pydeck(gdf, root_path)
+    Path(dst).write_bytes(b"sentinel")
+
+    assert persist_geoarrow_for_pydeck(gdf, root_path) == dst
+    assert Path(dst).read_bytes() == b"sentinel", "existing target must not be rewritten"
+
+
+def test_persist_geoarrow_identical_layers_share_one_file_without_rewriting(tmp_path) -> None:
+    """The grouped-views scenario that triggered the production failure.
+
+    Two views yielding byte-identical layers legitimately map to one
+    content-addressed file; the second call must return it rather than rewrite
+    it. Booby-trapping the write models the gs:// 403 directly -- on the real
+    bucket the second write is what fails, not the second hash.
+    """
+    root_path = str(tmp_path / "out")
+    view_a, view_b = _skip_test_gdf(), _skip_test_gdf()
+
+    first = persist_geoarrow_for_pydeck(view_a, root_path)
+
+    with mock.patch.object(_map_utils, "_persist_bytes", side_effect=AssertionError("must not attempt a second write")):
+        assert persist_geoarrow_for_pydeck(view_b, root_path) == first
+
+
+def _geometry_encoding(path: str) -> str:
+    """`"point"` for a geoarrow-encoded gdf, `"WKB"` for the standard encoding."""
+    return json.loads(pq.read_schema(path).metadata[b"geo"])["columns"]["geometry"]["encoding"]
+
+
+@pytest.mark.parametrize("geoarrow_first", [True, False])
+def test_persist_geoarrow_target_does_not_collide_with_geoparquet(tmp_path, geoarrow_first) -> None:
+    """Both tasks hash the same gdf with `_hash_df` and both write `.parquet`.
+
+    Without `GEOARROW_FILENAME_PREFIX` they share one target, so whichever ran
+    second skipped its write and returned the other's file: WKB handed to a
+    geoarrow layer, or geoarrow handed to QGIS, decided by task order. The
+    docstrings point specs at both tasks, so one `root_path` holding both is a
+    supported arrangement, not a misuse.
+    """
+    gdf = _points_gdf()
+    root_path = str(tmp_path / "out")
+
+    if geoarrow_first:
+        arrow_path = persist_geoarrow_for_pydeck(gdf, root_path)
+        wkb_path = persist_df(gdf, root_path, None, "geoparquet")
+    else:
+        wkb_path = persist_df(gdf, root_path, None, "geoparquet")
+        arrow_path = persist_geoarrow_for_pydeck(gdf, root_path)
+
+    assert arrow_path != wkb_path
+    assert Path(arrow_path).name.startswith(GEOARROW_FILENAME_PREFIX)
+    assert _geometry_encoding(arrow_path) == "point", "the pydeck consumer must get geoarrow"
+    assert _geometry_encoding(wkb_path) == "WKB", "the QGIS/PostGIS consumer must get WKB"
+
+
+def test_persist_geoarrow_explicit_filename_overwrites(tmp_path) -> None:
+    root_path = str(tmp_path / "out")
+    gdf = _skip_test_gdf()
+
+    dst = persist_geoarrow_for_pydeck(gdf, root_path, filename="layer")
+    Path(dst).write_bytes(b"sentinel")
+
+    assert persist_geoarrow_for_pydeck(gdf, root_path, filename="layer") == dst
+    assert Path(dst).read_bytes() != b"sentinel"

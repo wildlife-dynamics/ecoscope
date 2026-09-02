@@ -1,4 +1,3 @@
-import hashlib
 import io
 import json
 import re
@@ -13,7 +12,8 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
-from ecoscope.platform.serde import _persist_bytes
+from ecoscope.platform.serde import _persist_bytes, _read_path_if_file_exists
+from ecoscope.platform.tasks.io._persist import _hash_df
 
 OpacityAnnotation = Annotated[
     float,
@@ -281,6 +281,15 @@ def _stringify_mixed_json(df):
             df[col] = df[col].map(lambda v: None if v is None else json.dumps(v, default=str))
 
 
+# Prefixed onto generated (content-addressed) geoarrow filenames.
+#
+# `_hash_df` is shared with `tasks.io.persist_df`, whose `geoparquet` branch
+# writes the *same* gdf to `<hash>.parquet` as WKB, and it's possible for a spec
+# to use both. The prefix explicitly flags a geoarrow-encoded file whose content
+# hash may be the same as that of a WKB-encoded file from the same workflow.
+GEOARROW_FILENAME_PREFIX = "geoarrow_"
+
+
 @register()
 def persist_geoarrow_for_pydeck(
     gdf: Annotated[AnyGeoDataFrame, Field(description="GeoDataframe to persist as GeoArrow-encoded parquet")],
@@ -303,14 +312,21 @@ def persist_geoarrow_for_pydeck(
     Intended for use with the maps created by this module, use
     `tasks.io.persist_df(filetype='geoparquet')` instead when writing for
     standard WKB-expecting consumers (e.g. QGIS, PostGIS)
+
+    When the filename is generated from the gdf content hash, a target that
+    already exists is returned as-is rather than re-encoded and rewritten.
+    Generated names carry a `geoarrow_` prefix, because the content hash alone
+    is not enough to tell the two encodings of a gdf apart — see
+    `GEOARROW_FILENAME_PREFIX`.
     """
 
-    if not filename:
-        try:
-            hash_input = bytes(pd.util.hash_pandas_object(gdf).values)
-        except (TypeError, ValueError):
-            hash_input = f"{gdf.shape}{gdf.head(5).to_dict()}".encode()
-        filename = hashlib.sha256(hash_input).hexdigest()[:7]
+    content_addressed = not filename
+    if content_addressed:
+        filename = f"{GEOARROW_FILENAME_PREFIX}{_hash_df(gdf)}"  # type: ignore[arg-type] # mypy doesn't see that `AnyGeoDataFrame` is a subset of `AnyDataFrame`
+    target = f"{filename}.parquet"
+
+    if content_addressed and (existing := _read_path_if_file_exists(root_path, target)) is not None:
+        return existing
 
     gdf = gpd.GeoDataFrame(gdf).copy()
     _iso_format_timestamp_columns(gdf)
@@ -319,4 +335,4 @@ def persist_geoarrow_for_pydeck(
     _stringify_mixed_json(gdf)
     buffer = io.BytesIO()
     gdf.to_parquet(buffer, index=False, geometry_encoding="geoarrow")
-    return _persist_bytes(buffer.getvalue(), root_path, f"{filename}.parquet")
+    return _persist_bytes(buffer.getvalue(), root_path, target)
