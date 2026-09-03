@@ -2,7 +2,6 @@ import logging
 from collections.abc import Collection
 from typing import Annotated, Literal, cast, get_args
 
-import pandas as pd
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
@@ -109,12 +108,12 @@ def map_values_with_unit(
 RenameDuplicateStrategy = Literal["overwrite", "skip", "error"]
 
 
-def _active_geometry_name(df: pd.DataFrame) -> str | None:
+def _active_geometry_name(df: AnyDataFrame) -> str | None:
     """
     The name of the frame's active geometry column, or None if it has none.
 
     Args:
-        df (pd.DataFrame): The DataFrame to inspect.
+        df (AnyDataFrame): The DataFrame to inspect.
 
     Returns:
         str | None: The active geometry column name.
@@ -151,10 +150,10 @@ def _find_rename_collisions(columns: Collection[str], mapping: dict[str, str]) -
 
 
 def _safe_rename_columns(
-    df: pd.DataFrame,
+    df: AnyDataFrame,
     rename_columns: dict[str, str],
     duplicate_strategy: RenameDuplicateStrategy = "skip",
-) -> pd.DataFrame:
+) -> AnyDataFrame:
     """
     Rename columns, resolving new names that are already taken so that the renames never introduce
     duplicate column labels.
@@ -168,7 +167,7 @@ def _safe_rename_columns(
     name. Use `drop_duplicate_columns` to resolve those first.
 
     Args:
-        df (pd.DataFrame): The DataFrame to rename columns on.
+        df (AnyDataFrame): The DataFrame to rename columns on.
         rename_columns (dict[str, str]): Mapping of existing column name to new column name.
         duplicate_strategy (RenameDuplicateStrategy): How to resolve a new name that is already
             taken, either by a column that isn't being renamed or by an earlier entry in
@@ -178,7 +177,7 @@ def _safe_rename_columns(
             - "error": raise ValueError
 
     Returns:
-        pd.DataFrame: The DataFrame with columns renamed.
+        AnyDataFrame: The DataFrame with columns renamed.
 
     Raises:
         ValueError: If a column being renamed has a duplicated label, if `duplicate_strategy` is
@@ -207,7 +206,7 @@ def _safe_rename_columns(
                 f"Renaming columns {mapping} would create duplicate columns: "
                 f"{sorted(set(collisions.values()))}. Existing columns: {list(df.columns)}"
             )
-        return df.rename(columns=mapping)
+        return cast(AnyDataFrame, df.rename(columns=mapping))
 
     if duplicate_strategy == "skip":
         # Skipping a rename leaves its original name occupied, which can collide with a rename
@@ -218,7 +217,7 @@ def _safe_rename_columns(
             mapping = {old: new for old, new in mapping.items() if old not in collisions}
         if skipped:
             logger.warning(f"Not renaming columns whose new name is already taken: {skipped}")
-        return df.rename(columns=mapping)
+        return cast(AnyDataFrame, df.rename(columns=mapping))
 
     # "overwrite": track which column will hold each name, so that the last rename to a given
     # name wins and whatever held it - an untouched column, or a column renamed earlier - goes.
@@ -245,9 +244,9 @@ def _safe_rename_columns(
         if "geometry" in to_drop:
             logger.warning("'geometry' is being overwritten by a rename, which may affect spatial operations.")
         logger.warning(f"Overwriting existing columns: {to_drop}")
-        df = df.drop(columns=to_drop)
+        df = cast(AnyDataFrame, df.drop(columns=to_drop))
 
-    return df.rename(columns=resolved)
+    return cast(AnyDataFrame, df.rename(columns=resolved))
 
 
 class RenameColumn(BaseModel):
@@ -336,7 +335,7 @@ def map_columns(
             raise KeyError(
                 f"Columns {list(rename_columns.keys())} not all found in DataFrame. Existing columns: {df.columns}"
             )
-        df = _safe_rename_columns(df, rename_columns, duplicate_strategy)  # type: ignore[assignment]
+        df = _safe_rename_columns(df, rename_columns, duplicate_strategy)
 
     return cast(AnyDataFrame, df)
 
@@ -362,7 +361,7 @@ def title_case_columns_by_prefix(
     """
 
     mapping = {col: col.removeprefix(prefix).replace("_", " ").title() for col in df.columns if col.startswith(prefix)}
-    df = _safe_rename_columns(df, mapping)  # type: ignore[assignment]
+    df = _safe_rename_columns(df, mapping)
 
     return cast(AnyDataFrame, df)
 
@@ -441,7 +440,7 @@ def strip_prefix_from_column_names(
         AnyDataFrame: The updated DataFrame.
     """
     mapping = {col: col.removeprefix(prefix) for col in df.columns}
-    df = _safe_rename_columns(df, mapping)  # type: ignore[assignment]
+    df = _safe_rename_columns(df, mapping)
     return cast(AnyDataFrame, df)
 
 
