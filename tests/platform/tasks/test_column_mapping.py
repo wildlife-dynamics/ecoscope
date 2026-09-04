@@ -180,16 +180,16 @@ def test_reorder_columns():
     ]
 
 
-def test_rename_columns_skips_collision_by_default(sample_dataframe, caplog):
-    """By default a rename onto an existing column is skipped, rather than creating duplicate labels."""
+def test_rename_columns_suffixes_collision_by_default(sample_dataframe, caplog):
+    """By default a rename onto an existing column is suffixed, rather than creating duplicate labels."""
     with caplog.at_level(logging.WARNING):
         result_df = map_columns(sample_dataframe, drop_columns=[], retain_columns=[], rename_columns={"A": "B"})
 
-    assert "Not renaming columns whose new name is already taken: {'A': 'B'}" in caplog.text
-    assert list(result_df.columns) == ["A", "B", "C"]
+    assert "Suffixing columns whose new name is already taken: {'A': 'B_1'}" in caplog.text
+    assert list(result_df.columns) == ["B_1", "B", "C"]
     assert result_df.columns.is_unique
     assert isinstance(result_df["B"], pd.Series)
-    assert result_df["A"].to_list() == [1, 2, 3]
+    assert result_df["B_1"].to_list() == [1, 2, 3]
     assert result_df["B"].to_list() == [4, 5, 6]
 
 
@@ -206,6 +206,33 @@ def test_rename_columns_duplicate_overwrite(sample_dataframe):
     assert result_df.columns.is_unique
     assert isinstance(result_df["B"], pd.Series)
     assert result_df["B"].to_list() == [1, 2, 3]
+
+
+def test_rename_columns_suffix_skips_taken_suffixes():
+    """The _1 suffix can itself be taken, so keep incrementing until the name is free."""
+    df = pd.DataFrame({"A": [1], "B": [2], "B_1": [3], "B_2": [4]})
+
+    result_df = map_columns(
+        df, drop_columns=[], retain_columns=[], rename_columns={"A": "B"}, duplicate_strategy="suffix"
+    )
+    assert list(result_df.columns) == ["B_3", "B", "B_1", "B_2"]
+    assert result_df.columns.is_unique
+    assert result_df["B_3"].to_list() == [1]
+
+
+def test_rename_columns_shared_new_name_suffix(sample_dataframe):
+    """Two columns renamed to the same name get distinct suffixes."""
+    result_df = map_columns(
+        sample_dataframe,
+        drop_columns=[],
+        retain_columns=[],
+        rename_columns={"A": "Z", "B": "Z"},
+        duplicate_strategy="suffix",
+    )
+    assert list(result_df.columns) == ["Z", "Z_1", "C"]
+    assert result_df.columns.is_unique
+    assert result_df["Z"].to_list() == [1, 2, 3]
+    assert result_df["Z_1"].to_list() == [4, 5, 6]
 
 
 def test_rename_columns_duplicate_error(sample_dataframe):
@@ -237,7 +264,7 @@ def test_rename_columns_duplicate_skip_cascades(sample_dataframe):
     assert result_df["C"].to_list() == [7, 8, 9]
 
 
-@pytest.mark.parametrize("duplicate_strategy", ["overwrite", "skip", "error"])
+@pytest.mark.parametrize("duplicate_strategy", ["skip", "suffix", "overwrite", "error"])
 def test_rename_columns_swap_is_not_a_duplicate(sample_dataframe, duplicate_strategy):
     """Swapping two column names does not create duplicates, under any strategy."""
     result_df = map_columns(
@@ -273,6 +300,7 @@ def test_rename_columns_shared_new_name_skip(sample_dataframe):
         drop_columns=[],
         retain_columns=[],
         rename_columns={"A": "Z", "B": "Z"},
+        duplicate_strategy="skip",
     )
     assert list(result_df.columns) == ["Z", "B", "C"]
     assert result_df["Z"].to_list() == [1, 2, 3]
@@ -303,12 +331,12 @@ def test_rename_columns_missing_column_is_not_a_duplicate(sample_dataframe):
     assert result_df["B"].to_list() == [4, 5, 6]
 
 
-def test_rename_columns_with_list_skips_collision(sample_dataframe):
+def test_rename_columns_with_list_suffixes_collision(sample_dataframe):
     """Duplicates are resolved the same way when renames are given as a list."""
     rename_list = [RenameColumn(original_name="A", new_name="B")]
     result_df = map_columns(sample_dataframe, drop_columns=[], retain_columns=[], rename_columns=rename_list)
-    assert list(result_df.columns) == ["A", "B", "C"]
-    assert result_df["A"].to_list() == [1, 2, 3]
+    assert list(result_df.columns) == ["B_1", "B", "C"]
+    assert result_df["B_1"].to_list() == [1, 2, 3]
     assert result_df["B"].to_list() == [4, 5, 6]
 
 
@@ -366,8 +394,8 @@ def test_rename_columns_overwriting_active_geometry_raises(sample_geodataframe, 
         )
 
 
-def test_rename_columns_skips_active_geometry_by_default(sample_geodataframe):
-    """The default strategy leaves the active geometry, and so the frame's spatial-ness, intact."""
+def test_rename_columns_default_preserves_active_geometry(sample_geodataframe):
+    """The default strategy drops nothing, so the frame keeps its geometry and CRS."""
     result_gdf = map_columns(
         sample_geodataframe, drop_columns=[], retain_columns=[], rename_columns={"the_geom": "geometry"}
     )
@@ -375,7 +403,7 @@ def test_rename_columns_skips_active_geometry_by_default(sample_geodataframe):
     assert isinstance(result_gdf, gpd.GeoDataFrame)
     assert result_gdf.active_geometry_name == "geometry"
     assert result_gdf.crs == "EPSG:4326"
-    assert list(result_gdf.columns) == ["A", "the_geom", "geometry"]
+    assert list(result_gdf.columns) == ["A", "geometry_1", "geometry"]
 
 
 def test_rename_columns_overwrite_preserves_geodataframe(sample_geodataframe):
@@ -407,7 +435,7 @@ def test_rename_columns_geometry_can_be_replaced_by_dropping_it_first(sample_geo
 
 
 def test_title_case_columns_by_prefix_collision():
-    """A column whose title cased name is already taken keeps its original name."""
+    """A title cased name that is already taken is suffixed, so neither column is lost."""
     df = pd.DataFrame(
         data={
             "Another Value": [1, 2, 3],
@@ -416,9 +444,10 @@ def test_title_case_columns_by_prefix_collision():
     )
 
     df = title_case_columns_by_prefix(df, prefix="extra__")
-    assert df.columns.to_list() == ["Another Value", "extra__another_value"]
+    assert df.columns.to_list() == ["Another Value", "Another Value_1"]
     assert df.columns.is_unique
     assert df["Another Value"].to_list() == [1, 2, 3]
+    assert df["Another Value_1"].to_list() == [4, 5, 6]
 
 
 def test_strip_prefix_from_column_names():
@@ -429,10 +458,43 @@ def test_strip_prefix_from_column_names():
 
 
 def test_strip_prefix_from_column_names_collision():
-    """A column whose stripped name is already taken keeps its prefix."""
+    """A stripped name that is already taken is suffixed, so neither column is lost."""
     df = pd.DataFrame(data={"extra__a": [1, 2, 3], "a": [4, 5, 6]})
 
     df = strip_prefix_from_column_names(df, prefix="extra__")
-    assert df.columns.to_list() == ["extra__a", "a"]
+    assert df.columns.to_list() == ["a_1", "a"]
     assert df.columns.is_unique
+    assert df["a_1"].to_list() == [1, 2, 3]
     assert df["a"].to_list() == [4, 5, 6]
+
+
+@pytest.mark.parametrize(
+    ("duplicate_strategy", "expected"),
+    [
+        ("suffix", ["a_1", "a"]),
+        ("skip", ["extra__a", "a"]),
+        ("overwrite", ["a"]),
+    ],
+)
+def test_strip_prefix_from_column_names_duplicate_strategy(duplicate_strategy, expected):
+    """The strategy is a task parameter, so a workflow can pick a different one."""
+    df = pd.DataFrame(data={"extra__a": [1, 2, 3], "a": [4, 5, 6]})
+
+    df = strip_prefix_from_column_names(df, prefix="extra__", duplicate_strategy=duplicate_strategy)
+    assert df.columns.to_list() == expected
+    assert df.columns.is_unique
+
+
+def test_strip_prefix_from_column_names_duplicate_strategy_error():
+    df = pd.DataFrame(data={"extra__a": [1, 2, 3], "a": [4, 5, 6]})
+
+    with pytest.raises(ValueError, match=r"would create duplicate columns: \['a'\]"):
+        strip_prefix_from_column_names(df, prefix="extra__", duplicate_strategy="error")
+
+
+def test_title_case_columns_by_prefix_duplicate_strategy():
+    """The strategy is a task parameter here too."""
+    df = pd.DataFrame(data={"Another Value": [1, 2, 3], "extra__another_value": [4, 5, 6]})
+
+    df = title_case_columns_by_prefix(df, prefix="extra__", duplicate_strategy="skip")
+    assert df.columns.to_list() == ["Another Value", "extra__another_value"]
