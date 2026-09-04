@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
 from ecoscope.platform.schemas import (
     PatrolObservationsGDF,
     SubjectGroupObservationsGDF,
@@ -153,3 +153,18 @@ def relocations_to_trajectory(
         raise ValueError("No Trajectory data left after applying segment filter")
 
     return traj.gdf
+
+
+@register()
+def convert_trajectory_to_relocations(trajectory_gdf: TrajectoryGDF) -> AnyGeoDataFrame:
+    """Recover the point relocations a trajectory was built from.
+
+    Some home-range methods (e.g. MCP) work directly on point fixes and
+    never need a trajectory's segment/time-lag structure - this lets such
+    methods reuse a trajectory that's already been fetched/filtered/grouped
+    upstream, instead of re-fetching relocations through a separate pipeline
+    branch.
+    """
+    from ecoscope.trajectory import Trajectory
+
+    return Trajectory(gdf=trajectory_gdf).to_relocations().gdf

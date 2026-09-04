@@ -7,11 +7,17 @@ import geopandas.testing
 import numpy as np
 import pandas as pd
 import pytest
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 
 import ecoscope
 from ecoscope.analysis.percentile import get_percentile_area
-from ecoscope.analysis.UD import calculate_etd_range, grid_size_from_geographic_extent
+from ecoscope.analysis.UD import (
+    calculate_bbmm_range,
+    calculate_etd_range,
+    calculate_mcp_range,
+    grid_size_from_geographic_extent,
+)
+from ecoscope.analysis.UD.bbmm_range import estimate_motion_variance
 
 
 @pytest.fixture
@@ -162,3 +168,179 @@ def test_grid_size_from_geographic_extent(movebank_relocations, aoi_gdf, sample_
     relocs_cell_size = grid_size_from_geographic_extent(relocs_gdf)
 
     assert aoi_gdf_cell_size < sample_observations_cell_size < relocs_cell_size
+
+
+def test_calculate_mcp_range_area_increases_with_percentile(movebank_relocations):
+    result = calculate_mcp_range(
+        relocations=movebank_relocations,
+        percentile_levels=[50.0, 90.0],
+        crs="ESRI:102022",
+        subject_id="Salif Keita",
+    )
+
+    assert list(result.columns) == ["subject_id", "percentile", "actual_percentile", "geometry"]
+    assert (result["subject_id"] == "Salif Keita").all()
+    assert result.crs.to_string() == "ESRI:102022"
+
+    area_by_percentile = result.set_index("percentile").area
+    assert area_by_percentile[90.0] > area_by_percentile[50.0]
+
+
+def test_calculate_mcp_range_accepts_geodataframe_directly(movebank_relocations):
+    from_relocations = calculate_mcp_range(relocations=movebank_relocations, percentile_levels=[90.0])
+    from_gdf = calculate_mcp_range(relocations=movebank_relocations.gdf, percentile_levels=[90.0])
+
+    geopandas.testing.assert_geodataframe_equal(from_relocations, from_gdf)
+
+
+def test_calculate_mcp_range_skips_percentile_with_too_few_fixes(movebank_relocations):
+    tiny_gdf = movebank_relocations.gdf.iloc[:5].copy()
+
+    result = calculate_mcp_range(relocations=tiny_gdf, percentile_levels=[90.0, 10.0])
+
+    # 10% of 5 fixes rounds down to 0, well under the 3-fix minimum for a hull.
+    assert list(result["percentile"]) == [90.0]
+
+
+def test_calculate_bbmm_range_returns_normalized_raster(synthetic_traj):
+    result = calculate_bbmm_range(synthetic_traj.gdf, crs="EPSG:3857")
+
+    assert isinstance(result, ecoscope.io.raster.RasterData)
+    assert result.data.shape[0] > 0 and result.data.shape[1] > 0
+    assert not np.all(result.data == 0)
+    # Normalized to integrate to ~1 over the grid.
+    pixel_size = grid_size_from_geographic_extent(synthetic_traj.gdf.to_crs("EPSG:3857"), scale_factor=500)
+    assert result.data.sum() * pixel_size * pixel_size == pytest.approx(1.0, abs=0.05)
+
+
+def test_calculate_bbmm_range_percentile_area_increases_with_percentile(synthetic_traj):
+    raster_data = calculate_bbmm_range(synthetic_traj.gdf, crs="EPSG:3857")
+    result = get_percentile_area(percentile_levels=[50.0, 90.0], raster_data=raster_data, subject_id="s1")
+
+    area_by_percentile = result.set_index("percentile").area
+    assert area_by_percentile[90.0] > area_by_percentile[50.0]
+
+
+def test_calculate_bbmm_range_excludes_segments_beyond_max_data_gap(synthetic_traj):
+    # Every segment in synthetic_traj is a 1-hour (3600s) gap; excluding anything
+    # under that drops every segment, leaving an all-zero (not normalized) surface
+    # rather than raising a division error.
+    result = calculate_bbmm_range(synthetic_traj.gdf, crs="EPSG:3857", max_data_gap_seconds=1000.0)
+
+    assert np.all(result.data == 0)
+
+
+def test_estimate_motion_variance_returns_positive_value(synthetic_traj):
+    sigma_m2 = estimate_motion_variance(synthetic_traj.gdf.to_crs("EPSG:3857"), location_error=20.0)
+
+    assert sigma_m2 > 0
+
+
+def test_estimate_motion_variance_raises_with_too_few_fixes():
+    # A single segment has no interior fixes at all to leave one out from.
+    times = pd.date_range("2024-01-01", periods=2, freq="60s", tz="UTC")
+    tiny_gdf = gpd.GeoDataFrame(
+        [
+            {
+                "geometry": LineString([(0, 0), (10, 10)]),
+                "segment_start": times[0],
+                "segment_end": times[1],
+                "groupby_col": "s1",
+            }
+        ],
+        crs="EPSG:3857",
+    )
+
+    with pytest.raises(ValueError, match="Not enough interior fixes"):
+        estimate_motion_variance(tiny_gdf, location_error=20.0)
+
+
+def test_estimate_motion_variance_warns_at_lower_bound(caplog):
+    # Near-motionless fixes (denning/nesting/brumating-like) push the MLE
+    # below the search range's own lower bound (1.0 m^2/s), which
+    # `minimize_scalar`'s "bounded" method silently clamps to instead of
+    # signaling - the clamp should be surfaced as a warning.
+    times = pd.date_range("2024-01-01", periods=9, freq="60s", tz="UTC")
+    points = [(i * 1e-6, i * 1e-6) for i in range(9)]
+    rows = [
+        {
+            "geometry": LineString([points[i], points[i + 1]]),
+            "segment_start": times[i],
+            "segment_end": times[i + 1],
+            "groupby_col": "s1",
+        }
+        for i in range(8)
+    ]
+    gdf = gpd.GeoDataFrame(rows, crs="EPSG:3857")
+
+    with caplog.at_level("WARNING"):
+        sigma_m2 = estimate_motion_variance(gdf, location_error=20.0)
+
+    assert sigma_m2 == pytest.approx(1.0, abs=1e-2)
+    assert "hit the lower search bound" in caplog.text
+
+
+def test_estimate_motion_variance_warns_at_upper_bound(caplog):
+    # Very large, fast jumps (migratory-soaring-like) push the MLE above the
+    # search range's own upper bound (1,000,000 m^2/s) - same clamp-detection
+    # as the lower-bound case above, at the other end of the range.
+    times = pd.date_range("2024-01-01", periods=9, freq="60s", tz="UTC")
+    points = [(i * 200_000 if i % 2 == 0 else i * 200_000 + 50_000, i * 150_000) for i in range(9)]
+    rows = [
+        {
+            "geometry": LineString([points[i], points[i + 1]]),
+            "segment_start": times[i],
+            "segment_end": times[i + 1],
+            "groupby_col": "s1",
+        }
+        for i in range(8)
+    ]
+    gdf = gpd.GeoDataFrame(rows, crs="EPSG:3857")
+
+    with caplog.at_level("WARNING"):
+        sigma_m2 = estimate_motion_variance(gdf, location_error=20.0)
+
+    assert sigma_m2 == pytest.approx(1_000_000.0, rel=1e-3)
+    assert "hit the upper search bound" in caplog.text
+
+
+def test_calculate_bbmm_range_skips_segment_with_nonpositive_time_lag():
+    # Segment index 2's segment_end duplicates its own segment_start, giving
+    # it a zero time lag - it should be silently skipped, not raise or corrupt
+    # the surface built from the other (valid) segments.
+    times = pd.date_range("2024-01-01", periods=6, freq="60s", tz="UTC")
+    points = [(0, 0), (10, 10), (20, 20), (20, 20), (30, 30), (40, 40)]
+    rows = [
+        {
+            "geometry": LineString([points[i], points[i + 1]]),
+            "segment_start": times[i],
+            "segment_end": times[i] if i == 2 else times[i + 1],
+            "groupby_col": "s1",
+        }
+        for i in range(5)
+    ]
+    gdf = gpd.GeoDataFrame(rows, crs="EPSG:3857")
+
+    result = calculate_bbmm_range(gdf, crs="EPSG:3857", location_error=20.0)
+
+    assert result.data.shape[0] > 0 and result.data.shape[1] > 0
+
+
+def test_calculate_bbmm_range_skips_segment_outside_grid_window(synthetic_traj):
+    # `pad` (window_padding_sigma * sigma + pixel_size) always reaches at least
+    # one real pixel center in practice, so this branch is effectively
+    # unreachable with real data - shrink the grid `_build_grid` returns to an
+    # empty one instead, forcing every segment's own local window to miss it.
+    import ecoscope.analysis.UD.bbmm_range as bbmm_module
+
+    real_build_grid = bbmm_module._build_grid
+
+    def empty_grid(*args, **kwargs):
+        profile, col_centers, row_centers = real_build_grid(*args, **kwargs)
+        return profile, col_centers[:0], row_centers[:0]
+
+    with patch.object(bbmm_module, "_build_grid", side_effect=empty_grid):
+        result = calculate_bbmm_range(synthetic_traj.gdf, crs="EPSG:3857")
+
+    # Every segment was skipped, so nothing was accumulated onto the grid.
+    assert np.all(result.data == 0)
