@@ -31,7 +31,7 @@ def map_values(
 ) -> AnyDataFrame:
     match missing_values:
         case "preserve":
-            df[column_name] = df[column_name].map(value_map).fillna(df7[column_name])
+            df[column_name] = df[column_name].map(value_map).fillna(df[column_name])
         case "remove":
             df[column_name] = df[column_name].map(value_map)
         case "replace":
