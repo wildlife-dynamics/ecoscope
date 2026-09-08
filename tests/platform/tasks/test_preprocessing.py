@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from ecoscope.platform.tasks.preprocessing import (
     TrajectorySegmentFilter,
+    convert_trajectory_to_relocations,
     process_relocations,
     relocations_to_trajectory,
 )
@@ -145,3 +146,20 @@ def test_traj_segment_filter_maximum_greater_than_minimum():
             max_speed_kmhr=6,
             min_speed_kmhr=7,
         )
+
+
+def test_convert_trajectory_to_relocations():
+    from ecoscope.trajectory import Trajectory
+
+    example_input_df_path = (
+        files("ecoscope.platform.tasks.preprocessing") / "relocations-to-trajectory.example-return.parquet"
+    )
+    trajectory_gdf = gpd.read_parquet(example_input_df_path)
+
+    result = convert_trajectory_to_relocations(trajectory_gdf)
+
+    assert (result.geom_type == "Point").all()
+    assert len(result) > len(trajectory_gdf)  # more fixes recovered than segments (fixes minus one per subject)
+
+    expected = Trajectory(gdf=trajectory_gdf).to_relocations().gdf
+    pd.testing.assert_frame_equal(result, expected)

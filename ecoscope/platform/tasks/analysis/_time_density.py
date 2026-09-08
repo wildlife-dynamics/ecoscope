@@ -74,6 +74,9 @@ def _coerce_percentile_strings_to_floats(list: list):
 
 ETD_DEFAULT_PERCENTILES = ["50", "60", "70", "80", "90", "99.999"]
 LTD_DEFAULT_PERCENTILES = ["50", "60", "70", "80", "90", "100"]
+# Shared by MCP and BBMM (_mcp.py/_bbmm.py) - unlike ETD/LTD above, they use
+# the same default percentile levels, so it's one constant, not two.
+DEFAULT_PERCENTILES = ["50", "60", "70", "80", "90", "95", "99.999"]
 UDPercentiles = Literal["50", "60", "70", "80", "90", "95", "99", "99.999", "100"]
 TrajectoryAnnotation: TypeAlias = Annotated[
     AnyGeoDataFrame,
