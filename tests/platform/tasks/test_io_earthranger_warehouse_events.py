@@ -1170,9 +1170,9 @@ def test_get_events_via_warehouse_client_unset_event_states_forwards_none(event_
 
 
 @requires_dwh_events
-def test_get_events_via_warehouse_client_warns_when_state_filter_is_ignored():
+def test_get_events_via_warehouse_client_post_filters_unhonoured_state_filter():
     """A warehouse API predating the `state` filter answers with every state and no
-    error, so the task warns rather than silently returning unfiltered events."""
+    error, so the client-side pass is what keeps the result correct."""
     mock_legacy_client = MagicMock()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
@@ -1185,39 +1185,91 @@ def test_get_events_via_warehouse_client_warns_when_state_filter_is_ignored():
         "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
         return_value=mock_warehouse_client,
     ):
-        with patch("ecoscope.platform.tasks.io._earthranger.logger") as mock_logger:
-            get_events(
-                client=mock_legacy_client,
-                time_range=_EVENT_TIME_RANGE,
-                event_types=[],
-                event_states=["active"],
-                raise_on_empty=False,
-            )
+        result = get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=[],
+            event_states=["active"],
+            raise_on_empty=False,
+        )
 
-    mock_logger.warning.assert_called_once()
-    assert mock_logger.warning.call_args.args[1] == ["new"]
+    assert result["state"].tolist() == ["active"]
 
 
 @requires_dwh_events
-def test_get_events_via_warehouse_client_no_warning_when_state_filter_honoured():
+def test_get_events_via_warehouse_client_post_filter_is_a_noop_when_honoured():
+    """Against an API that filters server-side every row already matches, so the
+    client-side pass changes nothing."""
     mock_legacy_client = MagicMock()
     mock_warehouse_client = MagicMock()
-    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(states=("active",))
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
+        event_type_values=("hwc_rep", "fire_rep"),
+        event_category_values=("monitoring", "monitoring"),
+        states=("active", "active"),
+    )
 
     with patch(
         "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
         return_value=mock_warehouse_client,
     ):
-        with patch("ecoscope.platform.tasks.io._earthranger.logger") as mock_logger:
+        result = get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=[],
+            event_states=["active"],
+            raise_on_empty=False,
+        )
+
+    assert len(result) == 2
+
+
+@requires_dwh_events
+def test_get_events_via_warehouse_client_post_filter_survives_event_columns_subset():
+    """`state` is not in DefaultEventColumns, so the filter has to run before the subset."""
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
+        event_type_values=("hwc_rep", "fire_rep"),
+        event_category_values=("monitoring", "monitoring"),
+        states=("active", "new"),
+    )
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=[],
+            event_columns=["serial_number", "event_type"],
+            event_states=["active"],
+            raise_on_empty=False,
+        )
+
+    assert "state" not in result.columns
+    assert result["event_type"].tolist() == ["hwc_rep"]
+
+
+@requires_dwh_events
+def test_get_events_via_warehouse_client_post_filter_can_trip_raise_on_empty():
+    """A state filter that removes every row is an empty result, not a silent pass."""
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(states=("new",))
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        with pytest.raises(ValueError, match="No data returned from EarthRanger"):
             get_events(
                 client=mock_legacy_client,
                 time_range=_EVENT_TIME_RANGE,
                 event_types=["hwc_rep"],
                 event_states=["active"],
-                raise_on_empty=False,
+                raise_on_empty=True,
             )
-
-    mock_logger.warning.assert_not_called()
 
 
 @pytest.mark.parametrize(

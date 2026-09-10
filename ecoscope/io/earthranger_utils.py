@@ -177,10 +177,7 @@ def unpack_events_from_patrols_df(
     for _, row in patrols_df.iterrows():
         for segment in row.get("patrol_segments", []):
             for event in segment.get("events", []):
-                # `None` and `[]` both mean "no filter", matching how the ER API and the
-                # task layer treat an unset selection. `event_state` is a Sequence rather
-                # than a list so callers can pass a narrower element type (list is
-                # invariant, so list[EventStateOptions] would not satisfy list[str]).
+                # `None` and `[]` both mean "no filter".
                 if (event_type is None or event_type == [] or event.get("event_type") in event_type) and (
                     event_state is None or event_state == [] or event.get("state") in event_state
                 ):

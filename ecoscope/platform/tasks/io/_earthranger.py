@@ -51,13 +51,6 @@ def _dwh_events_enabled() -> bool:
     patrol-only shape, whose missing ``patrol_segments`` column then fails
     PatrolsDFSchema. Turn this off when pointing at such a deployment.
 
-    The same caveat applies to the `event_states` filter on `get_events`: the warehouse
-    path applies it server-side, so against an API build that predates the `state` query
-    param the filter is a silent no-op and every state comes back. There is no shape
-    signal for that (the table is valid either way), so `get_events` only logs a warning
-    when it spots states outside the request. Turn this off to route event reads through
-    the EarthRanger API, which filters correctly.
-
     Read from the environment on every call (like
     `_make_warehouse_client_from_env`) so the switch can be flipped without
     re-importing this module.
@@ -157,10 +150,6 @@ PatrolStatusField = AdvancedField(
 )
 PatrolStatusAnnotation = Annotated[list[PatrolStatus] | SkipJsonSchema[None], PatrolStatusField]
 
-# Kept as a local literal rather than imported from io-core's `EventState`: this module
-# imports io-core lazily (see `_make_warehouse_client_from_env`) so the warehouse stays an
-# optional dependency, and `PatrolStatus` above likewise duplicates `EarthRangerIO`'s
-# `StatusOptions`.
 EventState = Literal["new", "active", "resolved", "review"]
 EventStateField = AdvancedField(
     default=None,
@@ -813,24 +802,13 @@ def get_events(
         events_df["location"] = [
             None if g is None else {"latitude": g.centroid.y, "longitude": g.centroid.x} for g in events_df["geometry"]
         ]
-        # `event_states` is applied server-side (the warehouse has no client-side filter),
-        # so a warehouse API that predates the `state` query param answers with a perfectly
-        # valid table of every state and nothing else signals it -- unlike the
-        # `include_events` coupling in `_dwh_events_enabled`, where an old server returns a
-        # detectably different shape. Warn rather than filter: the request was made
-        # server-side by design, and silently repairing it here would hide the mismatch.
-        # Runs before the `event_columns` subset below, since `state` is not in
-        # `DefaultEventColumns` and would otherwise already be dropped.
+        # DWH support for the event state filter is WIP - this is defensive against a live
+        # API that doesn't yet support it. Must run before the `event_columns` subset
+        # (`state` may not be selected) and before `raise_on_empty`.
         if event_states and not events_df.empty:
-            unexpected = set(events_df["state"].unique()) - set(event_states)
-            if unexpected:
-                logger.warning(
-                    "DWH get_events returned event state(s) %s outside the requested filter %s - "
-                    "the warehouse API may not support server-side state filtering yet. Set "
-                    "DWH_EVENTS_ENABLED=false to route event reads through the EarthRanger API.",
-                    sorted(unexpected),
-                    event_states,
-                )
+            matches_state = events_df["state"].isin(event_states)
+            if not matches_state.all():
+                events_df = events_df[matches_state]
         # The warehouse serves fewer columns than the full EventColumns vocabulary.
         # Fail with a clear error (rather than a bare KeyError from the subset below)
         # if a selection names a column the warehouse cannot provide.

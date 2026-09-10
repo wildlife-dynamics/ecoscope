@@ -643,8 +643,6 @@ def test_patrol_events_combined():
         "status": [
             "done"  # Since status is None in the task args we expect the default value here
         ],
-        # Unlike status, an unset event state stays None: no state filter, i.e. events
-        # of every state (see `set_event_state`).
         "event_state": None,
         # We expect this to be inverted since this is checked against the core lib
         "drop_null_geometry": not patrol_events_args["include_null_geometry"],
