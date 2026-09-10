@@ -20,6 +20,7 @@ from ecoscope.platform.tasks.io import (
     get_events,
     get_patrol_events,
     get_patrols,
+    unpack_events_from_patrols_df,
 )
 from ecoscope.platform.tasks.io._earthranger import _dwh_events_enabled
 
@@ -43,6 +44,7 @@ def _make_events_arrow_table(
     event_times=None,
     event_details=None,
     details_type=None,
+    states=None,
 ):
     """Build a pa.Table matching EVENTS_SCHEMA_V1 with one row per event type.
 
@@ -90,7 +92,7 @@ def _make_events_arrow_table(
             "event_type_value": list(event_type_values),
             "event_category_value": list(event_category_values),
             "title": ["title"] * n,
-            "state": ["active"] * n,
+            "state": list(states) if states is not None else ["active"] * n,
             "priority": pa.array([0] * n, type=pa.int64()),
             "event_time": pa.array(event_time_values, type=pa.timestamp("ns", tz="UTC")),
             "end_time": pa.array([None] * n, type=pa.timestamp("ns", tz="UTC")),
@@ -108,7 +110,7 @@ def _make_events_arrow_table(
     )
 
 
-def _make_nested_patrols_arrow_table(event_times=("2015-02-01",), event_type="hwc_rep"):
+def _make_nested_patrols_arrow_table(event_times=("2015-02-01",), event_type="hwc_rep", states=None):
     """Build a pa.Table matching PATROLS_WITH_EVENTS_NESTED_SCHEMA_V1 (one patrol,
     one segment, one event per provided event_time)."""
     import datetime as dt
@@ -125,7 +127,7 @@ def _make_nested_patrols_arrow_table(event_times=("2015-02-01",), event_type="hw
             "event_time": dt.datetime.fromisoformat(t).replace(tzinfo=dt.timezone.utc),
             "priority": 0,
             "title": "title",
-            "state": "active",
+            "state": states[i] if states is not None else "active",
             "updated_at": t,
             "created_at": t,
             "geometry": Point(36.8 + i, -1.3).wkb,
@@ -1105,3 +1107,243 @@ def test_dwh_events_kill_switch_falls_back_to_legacy_client(monkeypatch, task, m
     getattr(mock_legacy_client, task.__name__).assert_called_once()
     getattr(mock_warehouse_client, method).assert_not_called()
     assert result.empty
+
+
+# ---------------------------------------------------------------------------
+# Event state filter (`event_states`)
+#
+# Plain events filter SERVER-SIDE on both backends, so a mocked client returns
+# whatever the fixture holds regardless of the filter -- these tests assert the
+# kwarg is forwarded, not that rows are dropped. Patrol events are the exception:
+# neither the ER patrol endpoint nor the warehouse can filter nested events, so
+# `unpack_events_from_patrols_df` filters them client-side and those tests CAN
+# assert on rows.
+# ---------------------------------------------------------------------------
+
+
+@requires_dwh_events
+def test_get_events_via_warehouse_client_forwards_event_states():
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=["hwc_rep"],
+            event_states=["active", "resolved"],
+            raise_on_empty=False,
+        )
+
+    assert mock_warehouse_client.get_events.call_args.kwargs["state"] == ["active", "resolved"]
+
+
+@requires_dwh_events
+@pytest.mark.parametrize("event_states", [None, []], ids=["unset", "empty-list"])
+def test_get_events_via_warehouse_client_unset_event_states_forwards_none(event_states):
+    """An unset (or empty) selection means all states, so no filter reaches the client.
+
+    `[]` must coerce to None rather than pass through: an empty list would serialize
+    to an empty query param instead of being dropped.
+    """
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=["hwc_rep"],
+            event_states=event_states,
+            raise_on_empty=False,
+        )
+
+    assert mock_warehouse_client.get_events.call_args.kwargs["state"] is None
+
+
+@requires_dwh_events
+def test_get_events_via_warehouse_client_warns_when_state_filter_is_ignored():
+    """A warehouse API predating the `state` filter answers with every state and no
+    error, so the task warns rather than silently returning unfiltered events."""
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
+        event_type_values=("hwc_rep", "fire_rep"),
+        event_category_values=("monitoring", "monitoring"),
+        states=("active", "new"),
+    )
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        with patch("ecoscope.platform.tasks.io._earthranger.logger") as mock_logger:
+            get_events(
+                client=mock_legacy_client,
+                time_range=_EVENT_TIME_RANGE,
+                event_types=[],
+                event_states=["active"],
+                raise_on_empty=False,
+            )
+
+    mock_logger.warning.assert_called_once()
+    assert mock_logger.warning.call_args.args[1] == ["new"]
+
+
+@requires_dwh_events
+def test_get_events_via_warehouse_client_no_warning_when_state_filter_honoured():
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(states=("active",))
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        with patch("ecoscope.platform.tasks.io._earthranger.logger") as mock_logger:
+            get_events(
+                client=mock_legacy_client,
+                time_range=_EVENT_TIME_RANGE,
+                event_types=["hwc_rep"],
+                event_states=["active"],
+                raise_on_empty=False,
+            )
+
+    mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "event_states, expected",
+    [(["resolved"], ["resolved"]), (None, None), ([], None)],
+    ids=["selected", "unset", "empty-list"],
+)
+def test_get_events_legacy_client_forwards_event_states(event_states, expected):
+    """The ER-API path forwards under the same `state` kwarg name as the DWH path."""
+    mock_legacy_client = MagicMock()
+    mock_legacy_client.get_event_types.return_value = pd.DataFrame({"id": ["id-1"], "value": ["hwc_rep"]})
+    mock_legacy_client.get_events.return_value = pd.DataFrame()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=None,
+    ):
+        get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=["hwc_rep"],
+            event_states=event_states,
+            raise_on_empty=False,
+        )
+
+    assert mock_legacy_client.get_events.call_args.kwargs["state"] == expected
+
+
+@requires_dwh_events
+def test_get_patrol_events_via_warehouse_client_filters_by_event_state():
+    """Nested patrol events are filtered client-side, so rows really are dropped."""
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_patrols.return_value = _make_nested_patrols_arrow_table(
+        event_times=("2015-02-01", "2015-02-02"),
+        states=("active", "resolved"),
+    )
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_patrol_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            patrol_types=["ecoscope_patrol"],
+            event_types=[],
+            status=None,
+            event_states=["active"],
+            raise_on_empty=False,
+        )
+
+    assert result["state"].tolist() == ["active"]
+    _assert_valid_events_gdf(result)
+
+
+@requires_dwh_events
+def test_get_patrol_events_via_warehouse_client_unset_event_states_keeps_all():
+    mock_legacy_client = MagicMock()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_patrols.return_value = _make_nested_patrols_arrow_table(
+        event_times=("2015-02-01", "2015-02-02"),
+        states=("active", "resolved"),
+    )
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=mock_warehouse_client,
+    ):
+        result = get_patrol_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            patrol_types=["ecoscope_patrol"],
+            event_types=[],
+            status=None,
+            raise_on_empty=False,
+        )
+
+    assert sorted(result["state"].tolist()) == ["active", "resolved"]
+
+
+def test_get_patrol_events_legacy_client_forwards_event_state():
+    mock_legacy_client = MagicMock()
+    mock_legacy_client.get_patrol_events.return_value = pd.DataFrame()
+
+    with patch(
+        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
+        return_value=None,
+    ):
+        get_patrol_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            patrol_types=["ecoscope_patrol"],
+            event_types=[],
+            status=None,
+            event_states=["resolved"],
+            raise_on_empty=False,
+        )
+
+    assert mock_legacy_client.get_patrol_events.call_args.kwargs["event_state"] == ["resolved"]
+
+
+@pytest.mark.parametrize(
+    "event_states, expected",
+    [(["resolved"], ["resolved"]), (None, None)],
+    ids=["selected", "unset"],
+)
+def test_unpack_events_from_patrols_df_task_forwards_event_state(event_states, expected):
+    """The standalone unpack task reaches the same client-side filter as get_patrol_events."""
+    patrols_df = pd.DataFrame(
+        {
+            "id": ["patrol-1"],
+            "state": ["done"],
+            "serial_number": pd.array([1], dtype="int64"),
+            "patrol_segments": [[]],
+        }
+    )
+    mock_helper = MagicMock(return_value=pd.DataFrame())
+
+    with patch("ecoscope.io.earthranger_utils.unpack_events_from_patrols_df", mock_helper):
+        unpack_events_from_patrols_df(
+            patrols_df=patrols_df,
+            event_types=[],
+            time_range=_EVENT_TIME_RANGE,
+            event_states=event_states,
+            raise_on_empty=False,
+        )
+
+    assert mock_helper.call_args.kwargs["event_state"] == expected
