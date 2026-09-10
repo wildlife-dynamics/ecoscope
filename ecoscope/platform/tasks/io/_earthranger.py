@@ -51,6 +51,13 @@ def _dwh_events_enabled() -> bool:
     patrol-only shape, whose missing ``patrol_segments`` column then fails
     PatrolsDFSchema. Turn this off when pointing at such a deployment.
 
+    The same caveat applies to the `event_states` filter on `get_events`: the warehouse
+    path applies it server-side, so against an API build that predates the `state` query
+    param the filter is a silent no-op and every state comes back. There is no shape
+    signal for that (the table is valid either way), so `get_events` only logs a warning
+    when it spots states outside the request. Turn this off to route event reads through
+    the EarthRanger API, which filters correctly.
+
     Read from the environment on every call (like
     `_make_warehouse_client_from_env`) so the switch can be flipped without
     re-importing this module.
@@ -149,6 +156,19 @@ PatrolStatusField = AdvancedField(
     json_schema_extra={"uniqueItems": True},
 )
 PatrolStatusAnnotation = Annotated[list[PatrolStatus] | SkipJsonSchema[None], PatrolStatusField]
+
+# Kept as a local literal rather than imported from io-core's `EventState`: this module
+# imports io-core lazily (see `_make_warehouse_client_from_env`) so the warehouse stays an
+# optional dependency, and `PatrolStatus` above likewise duplicates `EarthRangerIO`'s
+# `StatusOptions`.
+EventState = Literal["new", "active", "resolved", "review"]
+EventStateField = AdvancedField(
+    default=None,
+    title="Event State",
+    description="Choose to analyze events with a certain state. If left empty, events of all states will be analyzed",
+    json_schema_extra={"uniqueItems": True},
+)
+EventStateAnnotation = Annotated[list[EventState] | SkipJsonSchema[None], EventStateField]
 AppendCategorySelectionAnnotation = Annotated[AppendCategorySelection, AdvancedField(default="duplicates")]
 TimeRangeAnnotation = Annotated[TimeRange, Field(description="Time range filter")]
 PatrolTypesAnnotation = Annotated[
@@ -358,6 +378,7 @@ class CombinedPatrolAndEventsParams:
     patrol_types: PatrolTypesAnnotation
     event_types: EventTypesAnnotation
     status: PatrolStatusAnnotation | None = None
+    event_states: EventStateAnnotation | None = None
     include_patrol_details: IncludePatrolDetailsAnnotation = True
     raise_on_empty: RaiseOnEmptyAnnotation = True
     include_null_geometry: IncludeNullGeometryAnnotation = True
@@ -384,6 +405,7 @@ class CombinedPatrolAndEventsParams:
             "patrol_types": self.patrol_types,
             "event_types": self.event_types,
             "status": self.status,
+            "event_states": self.event_states,
             "include_null_geometry": self.include_null_geometry,
             "truncate_to_time_range": self.truncate_to_time_range,
             "raise_on_empty": self.raise_on_empty,
@@ -414,6 +436,7 @@ class CombinedPatrolAndEventsParams:
         return {
             "event_types": self.event_types,
             "time_range": self.time_range,
+            "event_states": self.event_states,
             "include_null_geometry": self.include_null_geometry,
             "truncate_to_time_range": self.truncate_to_time_range,
             "raise_on_empty": self.raise_on_empty,
@@ -430,12 +453,22 @@ def set_patrol_status(
 
 
 @register()
+def set_event_state(
+    event_states: EventStateAnnotation = None,
+) -> EventStateAnnotation:
+    # Deliberately unlike `set_patrol_status`, which substitutes ["done"]: an unset event
+    # state means "all states", so every existing events workflow keeps its current output.
+    return event_states
+
+
+@register()
 def set_patrols_and_patrol_events_params(
     client: str,
     time_range: TimeRangeAnnotation,
     patrol_types: PatrolTypesAnnotation,
     event_types: EventTypesAnnotation,
     status: PatrolStatusAnnotation = None,
+    event_states: EventStateAnnotation = None,
     include_patrol_details: IncludePatrolDetailsAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
     include_null_geometry: IncludeNullGeometryAnnotation = True,
@@ -452,6 +485,7 @@ def set_patrols_and_patrol_events_params(
         patrol_types=patrol_types,
         event_types=event_types,
         status=status,
+        event_states=event_states,
         include_patrol_details=include_patrol_details,
         raise_on_empty=raise_on_empty,
         include_null_geometry=include_null_geometry,
@@ -617,6 +651,7 @@ def get_patrol_events(
     patrol_types: PatrolTypesAnnotation,
     event_types: EventTypesAnnotation,
     status: PatrolStatusAnnotation = None,
+    event_states: EventStateAnnotation = None,
     include_null_geometry: IncludeNullGeometryAnnotation = True,
     truncate_to_time_range: TruncateToTimeRangeAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
@@ -658,6 +693,7 @@ def get_patrol_events(
             patrols_df=patrols_df,
             event_type=event_types,
             drop_null_geometry=not include_null_geometry,
+            event_state=event_states,
         )
     else:
         events = client.get_patrol_events(
@@ -666,6 +702,7 @@ def get_patrol_events(
             patrol_type_value=patrol_types,
             event_type=event_types,
             status=status,
+            event_state=event_states,
             drop_null_geometry=not include_null_geometry,
             sub_page_size=sub_page_size,
             patrols_overlap_daterange=patrols_overlap_daterange,
@@ -700,6 +737,7 @@ def get_events(
     time_range: TimeRangeAnnotation,
     event_types: EventTypesAnnotation,
     event_columns: EventColumnsAnnotation = None,
+    event_states: EventStateAnnotation = None,
     include_null_geometry: IncludeNullGeometryAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
     include_details: IncludeDetailsAnnotation = False,
@@ -734,6 +772,7 @@ def get_events(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
             event_type=event_types,
+            state=event_states or None,
             drop_null_geometry=not include_null_geometry,
             include_details=include_details,
             include_updates=include_updates,
@@ -774,6 +813,24 @@ def get_events(
         events_df["location"] = [
             None if g is None else {"latitude": g.centroid.y, "longitude": g.centroid.x} for g in events_df["geometry"]
         ]
+        # `event_states` is applied server-side (the warehouse has no client-side filter),
+        # so a warehouse API that predates the `state` query param answers with a perfectly
+        # valid table of every state and nothing else signals it -- unlike the
+        # `include_events` coupling in `_dwh_events_enabled`, where an old server returns a
+        # detectably different shape. Warn rather than filter: the request was made
+        # server-side by design, and silently repairing it here would hide the mismatch.
+        # Runs before the `event_columns` subset below, since `state` is not in
+        # `DefaultEventColumns` and would otherwise already be dropped.
+        if event_states and not events_df.empty:
+            unexpected = set(events_df["state"].unique()) - set(event_states)
+            if unexpected:
+                logger.warning(
+                    "DWH get_events returned event state(s) %s outside the requested filter %s - "
+                    "the warehouse API may not support server-side state filtering yet. Set "
+                    "DWH_EVENTS_ENABLED=false to route event reads through the EarthRanger API.",
+                    sorted(unexpected),
+                    event_states,
+                )
         # The warehouse serves fewer columns than the full EventColumns vocabulary.
         # Fail with a clear error (rather than a bare KeyError from the subset below)
         # if a selection names a column the warehouse cannot provide.
@@ -802,6 +859,7 @@ def get_events(
                 since=time_range.since.isoformat(),
                 until=time_range.until.isoformat(),
                 event_type=event_type_ids,
+                state=event_states or None,
                 drop_null_geometry=not include_null_geometry,
                 include_details=include_details,
                 include_updates=include_updates,
@@ -984,6 +1042,7 @@ def unpack_events_from_patrols_df(
     patrols_df: PatrolsDF,
     event_types: EventTypesAnnotation,
     time_range: TimeRangeAnnotation,
+    event_states: EventStateAnnotation = None,
     include_null_geometry: IncludeNullGeometryAnnotation = True,
     truncate_to_time_range: TruncateToTimeRangeAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
@@ -996,6 +1055,7 @@ def unpack_events_from_patrols_df(
         patrols_df=patrols_df,
         event_type=event_types,
         drop_null_geometry=not include_null_geometry,
+        event_state=event_states,
     )
 
     if raise_on_empty and patrol_events.empty:
@@ -1052,6 +1112,7 @@ class CombinedEventsAndDetailsParams:
     analysis_field_unit: AnalysisFieldUnitAnnotation
     category_field: CategoryFieldAnnotation = ""
     category_field_label: CategoryFieldLabelAnnotation = ""
+    event_states: EventStateAnnotation | None = None
     include_null_geometry: IncludeNullGeometryAnnotation = True
     raise_on_empty: RaiseOnEmptyAnnotation = True
     include_details: IncludeDetailsAnnotation = False
@@ -1065,6 +1126,7 @@ class CombinedEventsAndDetailsParams:
             "time_range": self.time_range,
             "event_types": [self.event_type],
             "event_columns": self.event_columns,
+            "event_states": self.event_states,
             "include_null_geometry": self.include_null_geometry,
             "raise_on_empty": self.raise_on_empty,
             "include_details": self.include_details,
@@ -1085,6 +1147,7 @@ def set_event_details_params(
     event_columns: EventColumnsAnnotation = DefaultEventColumns,
     category_field: CategoryFieldAnnotation = "",
     category_field_label: CategoryFieldLabelAnnotation = "",
+    event_states: EventStateAnnotation = None,
     include_null_geometry: IncludeNullGeometryAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
     include_details: IncludeDetailsAnnotation = True,
@@ -1105,6 +1168,7 @@ def set_event_details_params(
         analysis_field_unit=analysis_field_unit,
         category_field=category_field,
         category_field_label=category_field_label,
+        event_states=event_states,
         include_null_geometry=include_null_geometry,
         raise_on_empty=raise_on_empty,
         include_details=include_details,
