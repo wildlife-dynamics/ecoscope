@@ -15,6 +15,7 @@ from wt_task.skip import SkippedDependencyFallback
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, EmptyDataFrame
 from ecoscope.platform.connections import EarthRangerClient
 from ecoscope.platform.indexes import CompositeFilter
+from ecoscope.platform.jsonschema import labeled_literal_items
 from ecoscope.platform.schemas import (
     EventGDF,
     EventsWithDisplayNamesGDF,
@@ -146,7 +147,7 @@ PatrolStatusField = AdvancedField(
     description=(
         "Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed"
     ),
-    json_schema_extra={"uniqueItems": True},
+    json_schema_extra={"uniqueItems": True, **labeled_literal_items(PatrolStatus)},
 )
 PatrolStatusAnnotation = Annotated[list[PatrolStatus] | SkipJsonSchema[None], PatrolStatusField]
 
@@ -155,7 +156,7 @@ EventStateField = AdvancedField(
     default=None,
     title="Event State",
     description="Choose to analyze events with a certain state. If left empty, events of all states will be analyzed",
-    json_schema_extra={"uniqueItems": True},
+    json_schema_extra={"uniqueItems": True, **labeled_literal_items(EventState)},
 )
 EventStateAnnotation = Annotated[list[EventState] | SkipJsonSchema[None], EventStateField]
 AppendCategorySelectionAnnotation = Annotated[AppendCategorySelection, AdvancedField(default="duplicates")]
