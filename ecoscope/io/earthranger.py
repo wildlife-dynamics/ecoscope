@@ -38,6 +38,7 @@ EventSortOptions = Literal[
     "-serial_number",
 ]
 StatusOptions = Literal["scheduled", "active", "overdue", "done", "cancelled"]
+EventStateOptions = Literal["new", "active", "resolved", "review"]
 ApiVersionSelection = Literal["v1", "v2", "both"]
 AppendCategorySelection = Literal["duplicates", "always", "never"]
 
@@ -680,7 +681,7 @@ class EarthRangerIO(ERClient):
         bbox: BoundingBox | None = None,
         sort_by: EventSortOptions | None = None,
         patrol_segment: str | None = None,
-        state: list[StatusOptions] | None = None,
+        state: list[EventStateOptions] | None = None,
         event_type: list[str] | None = None,
         include_updates: bool = False,
         include_details: bool = False,
@@ -717,7 +718,8 @@ class EarthRangerIO(ERClient):
         patrol_segment
             ID of patrol segment to filter on
         state
-            Comma-separated list of 'scheduled'/'active'/'overdue'/'done'/'cancelled'
+            List of event states to filter on: 'new'/'active'/'resolved'/'review'
+            None (default) applies no state filter
         event_type
             Comma-separated list of event type uuids
         include_updates
@@ -1009,6 +1011,7 @@ class EarthRangerIO(ERClient):
         patrol_type_value: str | list[str] | None = None,
         event_type: list[str] | None = None,
         status: list[StatusOptions] | None = None,
+        event_state: list[EventStateOptions] | None = None,
         force_point_geometry: bool = True,
         drop_null_geometry: bool = True,
         sub_page_size: int | None = None,
@@ -1034,6 +1037,9 @@ class EarthRangerIO(ERClient):
         status
             'scheduled'/'active'/'overdue'/'done'/'cancelled'
             Accept a status string or a list of statuses
+        event_state
+            'new'/'active'/'resolved'/'review'
+            Only events in one of these states are returned; None (default) applies no filter
         force_point_geometry: bool, default True
             If true, non point geometry (ie polys) will be converted to a single point via Shape.centroid
         drop_null_geometry: bool, default True
@@ -1058,7 +1064,13 @@ class EarthRangerIO(ERClient):
             **addl_kwargs,
         )
 
-        return unpack_events_from_patrols_df(patrol_df, event_type, force_point_geometry, drop_null_geometry)
+        return unpack_events_from_patrols_df(
+            patrols_df=patrol_df,
+            event_type=event_type,
+            force_point_geometry=force_point_geometry,
+            drop_null_geometry=drop_null_geometry,
+            event_state=event_state,
+        )
 
     def get_patrol_segments_from_patrol_id(self, patrol_id: str, **addl_kwargs) -> pd.DataFrame:
         """

@@ -2,7 +2,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ecoscope.io.earthranger_utils import decode_raw_event_details, normalize_column
+from ecoscope.io.earthranger_utils import (
+    decode_raw_event_details,
+    normalize_column,
+    unpack_events_from_patrols_df,
+)
 from ecoscope.io.utils import clean_time_cols
 
 
@@ -193,3 +197,71 @@ def test_decode_raw_event_details_feeds_normalize_column():
     normalize_column(df, "event_details")
 
     assert df["event_details__species"].tolist() == ["elephant", np.nan]
+
+
+def _patrols_df_with_events(events):
+    """One patrol, one segment, carrying the given events."""
+    return pd.DataFrame(
+        [
+            {
+                "id": "p1",
+                "serial_number": 1,
+                "patrol_segments": [
+                    {
+                        "id": "seg1",
+                        "patrol_type": "ecoscope_patrol",
+                        "time_range": {"start_time": "2015-02-01T00:00:00+00:00"},
+                        "leader": {"name": "eco_1"},
+                        "events": events,
+                    }
+                ],
+            }
+        ]
+    )
+
+
+def _event(event_id, event_type, state, day):
+    return {
+        "id": event_id,
+        "event_type": event_type,
+        "state": state,
+        "geojson": {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [36.8, -1.3]},
+            "properties": {"datetime": f"2015-02-{day}T00:00:00+00:00"},
+        },
+    }
+
+
+@pytest.fixture
+def mixed_patrol_events():
+    return _patrols_df_with_events(
+        [
+            _event("e1", "hwc_rep", "active", "01"),
+            _event("e2", "hwc_rep", "resolved", "02"),
+            _event("e3", "fire_rep", "active", "03"),
+            _event("e4", "fire_rep", "resolved", "04"),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    "event_state, expected",
+    [
+        (None, ["e1", "e2", "e3", "e4"]),
+        ([], ["e1", "e2", "e3", "e4"]),
+        (["active"], ["e1", "e3"]),
+        (["active", "resolved"], ["e1", "e2", "e3", "e4"]),
+        (["new"], []),
+    ],
+    ids=["none-keeps-all", "empty-keeps-all", "single", "multiple", "no-match"],
+)
+def test_unpack_events_from_patrols_df_event_state(mixed_patrol_events, event_state, expected):
+    result = unpack_events_from_patrols_df(mixed_patrol_events, event_state=event_state)
+    assert (result["id"].tolist() if len(result) else []) == expected
+
+
+def test_unpack_events_from_patrols_df_event_type_and_state_are_anded(mixed_patrol_events):
+    """Both filters must hold, so this keeps only the resolved hwc_rep event."""
+    result = unpack_events_from_patrols_df(mixed_patrol_events, event_type=["hwc_rep"], event_state=["resolved"])
+    assert result["id"].tolist() == ["e2"]

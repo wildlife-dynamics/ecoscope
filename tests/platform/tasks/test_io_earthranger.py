@@ -643,6 +643,7 @@ def test_patrol_events_combined():
         "status": [
             "done"  # Since status is None in the task args we expect the default value here
         ],
+        "event_state": None,
         # We expect this to be inverted since this is checked against the core lib
         "drop_null_geometry": not patrol_events_args["include_null_geometry"],
         "sub_page_size": 100,
@@ -1146,6 +1147,7 @@ def test_event_details_params_emitters(client):
         "time_range": input_time_range,
         "event_types": [input_event_type],
         "event_columns": input_event_columns,
+        "event_states": None,
         "include_null_geometry": True,
         "raise_on_empty": True,
         "include_details": True,
@@ -2344,3 +2346,40 @@ def test_process_events_details_example_return_parquet():
     assert "Name of collared elephant" in details
     assert "Herd Type" in details
     assert details["Herd Type"] == "Bull Only"
+
+
+@pytest.mark.parametrize(
+    "task_func, field, expected",
+    [
+        (
+            get_events,
+            "event_states",
+            [
+                {"const": "new", "title": "New"},
+                {"const": "active", "title": "Active"},
+                {"const": "resolved", "title": "Resolved"},
+                {"const": "review", "title": "Review"},
+            ],
+        ),
+        (
+            get_patrols,
+            "status",
+            [
+                {"const": "active", "title": "Active"},
+                {"const": "overdue", "title": "Overdue"},
+                {"const": "done", "title": "Done"},
+                {"const": "cancelled", "title": "Cancelled"},
+            ],
+        ),
+    ],
+)
+def test_state_and_status_render_as_labeled_options(task_func, field, expected):
+    """The multi-select shows title cased versions of the raw value."""
+    from wt_registry.jsonschema import jsonschema_from_task_func
+
+    schema = jsonschema_from_task_func(task_func)["properties"][field]
+
+    assert schema["type"] == "array"
+    assert schema["uniqueItems"] is True
+    assert "enum" not in schema["items"]
+    assert schema["items"]["oneOf"] == expected

@@ -1,5 +1,6 @@
 import json
 import logging
+from collections.abc import Sequence
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
@@ -170,12 +171,16 @@ def unpack_events_from_patrols_df(
     event_type: list[str] | None = None,
     force_point_geometry: bool = True,
     drop_null_geometry: bool = True,
+    event_state: Sequence[str] | None = None,
 ) -> gpd.GeoDataFrame:
     events = []
     for _, row in patrols_df.iterrows():
         for segment in row.get("patrol_segments", []):
             for event in segment.get("events", []):
-                if event_type is None or event_type == [] or event.get("event_type") in event_type:
+                # `None` and `[]` both mean "no filter".
+                if (event_type is None or event_type == [] or event.get("event_type") in event_type) and (
+                    event_state is None or event_state == [] or event.get("state") in event_state
+                ):
                     event["patrol_id"] = row.get("id")
                     event["patrol_serial_number"] = row.get("serial_number")
                     event["patrol_segment_id"] = segment.get("id")
