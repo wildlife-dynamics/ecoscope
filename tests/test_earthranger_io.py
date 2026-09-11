@@ -794,7 +794,7 @@ def test_page_size_override_with_subjects(get_objects_mock, set_sub_page_size, e
     ["v1", "v2", "both"],
 )
 def test_get_event_types_api_version(er_events_io, api_version):
-    known_v1_event_type = "fe77a01d-a11f-4608-b6c6-2caf6f0b838d"
+    known_v1_event_type = "ea3ea31f-f745-47f0-8362-0bbf563669ea"
     known_v2_event_type = "8081cb2c-e145-41ad-9726-b8f9d1ce3907"
     event_types = er_events_io.get_event_types(api_version=api_version)
 
