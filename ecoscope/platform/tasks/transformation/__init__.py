@@ -31,7 +31,9 @@ from ._indexing import (
     extract_grouper_index_names,
     extract_spatial_grouper_feature_group_names,
     rename_grouper_index_columns,
+    rename_value_grouper_columns_to_name,
     resolve_spatial_feature_groups_for_spatial_groupers,
+    trend_groupby_columns,
 )
 from ._mapping import (
     RenameColumn,
@@ -83,6 +85,8 @@ __all__ = [
     "extract_spatial_grouper_feature_group_names",
     "resolve_spatial_feature_groups_for_spatial_groupers",
     "rename_grouper_index_columns",
+    "rename_value_grouper_columns_to_name",
+    "trend_groupby_columns",
     "RenameColumn",
     "assign_value",
     "fill_na",

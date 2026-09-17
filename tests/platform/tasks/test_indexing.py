@@ -17,7 +17,9 @@ from ecoscope.platform.tasks.transformation import (
     add_temporal_index,
     extract_grouper_index_names,
     rename_grouper_index_columns,
+    rename_value_grouper_columns_to_name,
     resolve_spatial_feature_groups_for_spatial_groupers,
+    trend_groupby_columns,
 )
 
 # --- Temporal indexing tests (from core) ---
@@ -381,6 +383,44 @@ def test_rename_grouper_index_columns_all_grouper_passthrough():
     df = pd.DataFrame({"value": [1]})
     result = rename_grouper_index_columns(df, groupers=AllGrouper())
     pd.testing.assert_frame_equal(result, df)
+
+
+def test_rename_value_grouper_columns_to_name():
+    vg = ValueGrouper(index_name="subject_name")
+    df = pd.DataFrame({"subject_name": ["Fitz"], "value": [1]})
+
+    result = rename_value_grouper_columns_to_name(df, groupers=[vg])
+
+    assert list(result.columns) == ["name", "value"]
+
+
+def test_rename_value_grouper_columns_to_name_ignores_non_value_groupers():
+    tg = TemporalGrouper(temporal_index=Month())
+    df = pd.DataFrame({"value": [1]})
+
+    result = rename_value_grouper_columns_to_name(df, groupers=[tg])
+
+    pd.testing.assert_frame_equal(result, df)
+
+
+def test_rename_value_grouper_columns_to_name_all_grouper_passthrough():
+    df = pd.DataFrame({"value": [1]})
+    result = rename_value_grouper_columns_to_name(df, groupers=AllGrouper())
+    pd.testing.assert_frame_equal(result, df)
+
+
+def test_trend_groupby_columns():
+    vg = ValueGrouper(index_name="subject_name")
+    assert trend_groupby_columns("period", groupers=[vg]) == ["period", "name"]
+
+
+def test_trend_groupby_columns_all_grouper():
+    assert trend_groupby_columns("period", groupers=AllGrouper()) == ["period"]
+
+
+def test_trend_groupby_columns_ignores_non_value_groupers():
+    tg = TemporalGrouper(temporal_index=Month())
+    assert trend_groupby_columns("period", groupers=[tg]) == ["period"]
 
 
 def test_add_spatial_index_mixed_groupers_ignores_non_spatial(example_events, example_regions):
