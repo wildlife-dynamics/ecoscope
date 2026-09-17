@@ -22,7 +22,11 @@ from ._density_weighting import (
 )
 from ._mcp import calculate_minimum_convex_polygon
 from ._patrol_density import set_patrol_weighting_spec
-from ._patrol_summary import set_encounter_rate_metrics, set_event_aggregation, set_patrol_summary_metrics
+from ._patrol_summary import (
+    set_encounter_rate_metrics,
+    set_event_aggregation,
+    set_patrol_summary_metrics,
+)
 from ._raster import BbmmRasterArgs, generate_bbmm_raster, generate_etd_raster
 from ._summary import aggregate_over_rows, summarize_df
 from ._time_density import (
@@ -32,12 +36,36 @@ from ._time_density import (
     calculate_linear_time_density,
 )
 from ._track_density import calculate_classified_track_density
+from ._trend_analysis import (
+    GammTrendModel,
+    GamTrendModel,
+    GlmTrendModel,
+    LinearTrendModel,
+    TrendModel,
+    fit_trend_model,
+    predict_trend_model,
+    set_trend_model,
+)
 
 __all__ = [
-    "calculate_brownian_bridge_range",
-    "calculate_minimum_convex_polygon",
+    "BbmmRasterArgs",
+    "GamTrendModel",
+    "GammTrendModel",
+    "GlmTrendModel",
+    "LinearTrendModel",
+    "TimeDensityReturnGDF",
+    "TimeDensityReturnGDFSchema",
+    "TrendModel",
+    "aggregate_over_rows",
     "apply_arithmetic_operation",
     "apply_arithmetic_operation_over_rows",
+    "calculate_brownian_bridge_range",
+    "calculate_classified_track_density",
+    "calculate_elliptical_time_density",
+    "calculate_feature_density",
+    "calculate_linear_time_density",
+    "calculate_minimum_convex_polygon",
+    "create_meshgrid",
     "dataframe_column_first_unique",
     "dataframe_column_max",
     "dataframe_column_mean",
@@ -46,25 +74,19 @@ __all__ = [
     "dataframe_column_percentile",
     "dataframe_column_sum",
     "dataframe_count",
-    "get_night_day_ratio",
-    "calculate_classified_track_density",
-    "calculate_feature_density",
-    "create_meshgrid",
+    "fit_trend_model",
+    "generate_bbmm_raster",
+    "generate_etd_raster",
     "get_density_colormap",
     "get_density_legend_title",
+    "get_night_day_ratio",
     "get_weighting_column",
     "normalize_density_units",
-    "aggregate_over_rows",
+    "predict_trend_model",
     "set_encounter_rate_metrics",
     "set_event_aggregation",
-    "set_patrol_weighting_spec",
     "set_patrol_summary_metrics",
+    "set_patrol_weighting_spec",
+    "set_trend_model",
     "summarize_df",
-    "TimeDensityReturnGDF",
-    "TimeDensityReturnGDFSchema",
-    "calculate_elliptical_time_density",
-    "calculate_linear_time_density",
-    "generate_etd_raster",
-    "generate_bbmm_raster",
-    "BbmmRasterArgs",
 ]
