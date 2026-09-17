@@ -80,6 +80,34 @@ def test_fit_and_predict_gam_trend(linear_dataframe):
     assert predictions["y"].isna().all()
 
 
+@pytest.mark.parametrize("alpha", ["", None])
+def test_gam_alpha_left_empty_selects_automatically(linear_dataframe, alpha):
+    """alpha is `float | None` with a `_empty_string_to_none` BeforeValidator
+    (see GamSmoothingSettings) - a defensive backstop in case "" ever
+    reaches this code, alongside the actual fix for RJSF/AJV rejecting an
+    empty field (json_schema_extra=_nullable_advanced, which compiles to
+    the flat `type: ["number", "null"]` shorthand rather than pydantic's
+    own `anyOf` form). Both "" and None must mean "leave empty, select
+    automatically"."""
+    model_params = fit_trend_model(
+        linear_dataframe,
+        GamTrendModel(smoothing_settings=GamSmoothingSettings(alpha=alpha)),
+        time_column="year",
+        value_column="value",
+    )
+    assert model_params["metrics"]["aic"] is not None
+
+
+def test_gam_alpha_accepts_numeric_string(linear_dataframe):
+    """A filled-in RJSF number field can submit a numeric string too - the
+    _empty_string_to_none BeforeValidator normalizes it to a real float."""
+    model = GamTrendModel(smoothing_settings=GamSmoothingSettings(alpha="1.5"))
+    assert model.smoothing_settings.alpha == 1.5
+
+    model_params = fit_trend_model(linear_dataframe, model, time_column="year", value_column="value")
+    assert model_params["model"]["smoothing_settings"]["alpha"] == 1.5
+
+
 def test_fit_and_predict_gamm_trend_without_name_column_uses_constant_site(linear_dataframe):
     """No "name" column (e.g. a caller outside this workflow) falls back to
     a single constant site rather than raising - GAMM's random effect is

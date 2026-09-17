@@ -3,6 +3,7 @@ from typing import Annotated, Any, Literal, TypeAlias, cast
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -23,6 +24,44 @@ def _advanced_titled_enum(*options: tuple[str, str]):
         schema["ecoscope:advanced"] = True
 
     return apply
+
+
+def _nullable_advanced(json_type: str):
+    """Field-level json_schema_extra: mark advanced and rewrite pydantic's
+    `anyOf: [{type: X}, {type: null}]` into the flat `type: [X, "null"]`
+    array-of-types shorthand - equivalent JSON Schema, but the form this
+    pipeline's RJSF/AJV setup actually needs to treat a number field as
+    genuinely optional (confirmed via LocalFileSpatialFeatures.layer's
+    existing working `type: ["string", "null"]` override; pydantic's own
+    `anyOf` form does not work here). `AdvancedField` can't take a callable
+    json_schema_extra (see `_advanced_titled_enum`), so this sets
+    `ecoscope:advanced` itself instead of going through `AdvancedField`.
+    """
+
+    def apply(schema: dict) -> None:
+        schema.pop("anyOf", None)
+        schema["type"] = [json_type, "null"]
+        schema["ecoscope:advanced"] = True
+
+    return apply
+
+
+def _empty_string_to_none(number_type: type):
+    """BeforeValidator factory for a field typed `X | None` (see e.g.
+    GamSmoothingSettings.alpha). Runs before pydantic's own type
+    validation, normalizing an empty or numeric string into a real
+    None/number - a defensive backstop in case a caller submits "" or a
+    numeric string instead of a real number.
+    """
+
+    def validate(value: Any) -> Any:
+        if value is None or value == "":
+            return None
+        if isinstance(value, str):
+            return number_type(value)
+        return value
+
+    return validate
 
 
 # `ecoscope.analysis.trend_analysis` pulls in statsmodels/scikit-learn/scipy
@@ -98,11 +137,13 @@ class GamFamilySettings(BaseModel):
 class GamSmoothingSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
     alpha: Annotated[
-        float | SkipJsonSchema[None],
-        AdvancedField(
-            None,
+        float | None,
+        BeforeValidator(_empty_string_to_none(float)),
+        Field(
+            default=None,
             title="Smoothing Parameter (Alpha)",
             description="Fixed smoothing strength. Leave empty to select automatically via cross-validation.",
+            json_schema_extra=_nullable_advanced("number"),
         ),
     ] = None
     metric: Annotated[
@@ -130,10 +171,7 @@ class GamSplineSettings(BaseModel):
             6,
             title="Spline Degrees of Freedom",
             description="Number of basis functions for the spline. Higher values allow more "
-            "flexible curves but risk overfitting - and if this meets or exceeds the number of "
-            "data points, the fit perfectly interpolates every point (no residual degrees of "
-            "freedom left), so no confidence interval can be computed at all (NaN, no band "
-            "shown). Keep this comfortably below your expected number of time points.",
+            "flexible curves but risk overfitting.",
         ),
     ] = 6
     degree: Annotated[
@@ -144,20 +182,27 @@ class GamSplineSettings(BaseModel):
 
 class GamBoundsSettings(BaseModel):
     model_config = ConfigDict(extra="ignore")
+    # Excluded rather than exposed: unlike alpha/tune/random_seed, these are
+    # edge-case tuning knobs almost nobody needs to override, and "infer
+    # from the data range" (the None default) is what GAMRegressor.fit
+    # itself does whenever these aren't given - not worth exposing a
+    # nullable-number field in the form for. Always None; never shown.
     lower_bound: Annotated[
         float | SkipJsonSchema[None],
-        AdvancedField(
-            None,
+        Field(
+            default=None,
             title="Lower Knot Bound",
             description="Lower bound for spline knot placement. Leave empty to infer from the data range.",
+            exclude=True,
         ),
     ] = None
     upper_bound: Annotated[
         float | SkipJsonSchema[None],
-        AdvancedField(
-            None,
+        Field(
+            default=None,
             title="Upper Knot Bound",
             description="Upper bound for spline knot placement. Leave empty to infer from the data range.",
+            exclude=True,
         ),
     ] = None
 
@@ -210,11 +255,13 @@ class GammMcmcSettings(BaseModel):
         AdvancedField(500, title="Posterior Draws", description="Number of posterior samples to draw per chain."),
     ] = 500
     tune: Annotated[
-        int | SkipJsonSchema[None],
-        AdvancedField(
-            None,
+        int | None,
+        BeforeValidator(_empty_string_to_none(int)),
+        Field(
+            default=None,
             title="MCMC Tuning Steps",
             description="Number of MCMC tuning steps. Leave empty to default to the same value as Posterior Draws.",
+            json_schema_extra=_nullable_advanced("integer"),
         ),
     ] = None
     chains: Annotated[
@@ -222,11 +269,13 @@ class GammMcmcSettings(BaseModel):
         AdvancedField(2, title="MCMC Chains", description="Number of independent MCMC chains to run."),
     ] = 2
     random_seed: Annotated[
-        int | SkipJsonSchema[None],
-        AdvancedField(
-            None,
+        int | None,
+        BeforeValidator(_empty_string_to_none(int)),
+        Field(
+            default=None,
             title="Random Seed",
             description="Seed for the MCMC sampler. Leave empty for a non-deterministic fit.",
+            json_schema_extra=_nullable_advanced("integer"),
         ),
     ] = None
 
@@ -286,9 +335,12 @@ class GamTrendModel(BaseModel):
         GamSplineSettings,
         AdvancedField(GamSplineSettings(), title="Spline Shape"),
     ] = GamSplineSettings()
+    # Both of GamBoundsSettings' own fields are excluded (see its docstring) -
+    # nothing left to show, so the wrapper itself is excluded too, rather
+    # than rendering an empty "Knot Bounds" section.
     bounds_settings: Annotated[
         GamBoundsSettings,
-        AdvancedField(GamBoundsSettings(), title="Knot Bounds"),
+        AdvancedField(GamBoundsSettings(), title="Knot Bounds", exclude=True),
     ] = GamBoundsSettings()
 
     def get_params(self) -> dict:
