@@ -20,6 +20,7 @@ from ._density_weighting import (
     get_weighting_column,
     normalize_density_units,
 )
+from ._hansen_forest_change import create_forest_layers, extract_forest_cover_trends
 from ._mcp import calculate_minimum_convex_polygon
 from ._patrol_density import set_patrol_weighting_spec
 from ._patrol_summary import (
@@ -65,6 +66,7 @@ __all__ = [
     "calculate_feature_density",
     "calculate_linear_time_density",
     "calculate_minimum_convex_polygon",
+    "create_forest_layers",
     "create_meshgrid",
     "dataframe_column_first_unique",
     "dataframe_column_max",
@@ -74,6 +76,7 @@ __all__ = [
     "dataframe_column_percentile",
     "dataframe_column_sum",
     "dataframe_count",
+    "extract_forest_cover_trends",
     "fit_trend_model",
     "generate_bbmm_raster",
     "generate_etd_raster",

@@ -1,11 +1,29 @@
-from typing import Annotated, Literal, TypeAlias, cast
+from typing import Annotated, Any, Literal, TypeAlias, cast
 
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
+
+
+def _advanced_titled_enum(*options: tuple[str, str]):
+    """Field-level json_schema_extra: mark advanced and swap a Literal's bare
+    enum for labeled options - same technique as `_unit.labeled_units`, but
+    `AdvancedField` can't take a callable (it merges json_schema_extra via
+    `|`, which only works for dicts), so this sets `ecoscope:advanced`
+    itself instead of going through `AdvancedField`.
+    """
+
+    def apply(schema: dict) -> None:
+        schema.pop("enum", None)
+        schema["oneOf"] = [{"const": value, "title": title} for value, title in options]
+        schema["ecoscope:advanced"] = True
+
+    return apply
+
 
 # `ecoscope.analysis.trend_analysis` pulls in statsmodels/scikit-learn/scipy
 # (and, for GAMM, bambi) - optional dependencies of the `ecoscope` package
@@ -14,13 +32,217 @@ from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 # than every task in `ecoscope.platform.tasks` (this module is imported
 # eagerly by `ecoscope.platform.tasks.analysis.__init__`).
 
+# Every non-discriminator field below lives inside its own small settings
+# model rather than directly on the variant class. `wt_registry`'s schema
+# generator drops the pydantic `discriminator` keyword for function
+# parameters (a workaround gap for https://github.com/pydantic/pydantic/issues/9404),
+# so this union compiles down to a bare `anyOf` - the same shape as
+# home-range's `HomeRangeMethodArgs`, and subject to the same RJSF
+# field-blanking bug documented in that repo's
+# docs/rjsf-anyof-switch-blanking-bug.md: a bare scalar field inside an
+# anyOf branch is permanently blanked (not reset to its default) the first
+# time a user switches the dropdown away from that branch and back. Giving
+# every field real nested `properties` of its own (wrapping it) makes it
+# self-heal instead. No docstring on any wrapper class deliberately -
+# pydantic renders a model's docstring as its schema "description", which
+# would leak this implementation note into the rendered form.
+
+
+class AddInterceptSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    add_intercept: Annotated[
+        bool,
+        AdvancedField(
+            True,
+            title="Add Intercept",
+            description="Whether to fit a y-intercept term. Disable to force the line through the origin.",
+        ),
+    ] = True
+
+
+class GlmFamilySettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    family: Annotated[
+        Literal["gaussian", "poisson", "binomial", "gamma"],
+        Field(
+            default="gaussian",
+            title="Distribution Family",
+            description="Distribution assumed for the response variable.",
+            json_schema_extra=_advanced_titled_enum(
+                ("gaussian", "Gaussian"),
+                ("poisson", "Poisson"),
+                ("binomial", "Binomial"),
+                ("gamma", "Gamma"),
+            ),
+        ),
+    ] = "gaussian"
+
+
+class GamFamilySettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    family: Annotated[
+        Literal["gaussian", "poisson", "binomial"],
+        Field(
+            default="gaussian",
+            title="Distribution Family",
+            description="Distribution assumed for the response variable.",
+            json_schema_extra=_advanced_titled_enum(
+                ("gaussian", "Gaussian"),
+                ("poisson", "Poisson"),
+                ("binomial", "Binomial"),
+            ),
+        ),
+    ] = "gaussian"
+
+
+class GamSmoothingSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    alpha: Annotated[
+        float | SkipJsonSchema[None],
+        AdvancedField(
+            None,
+            title="Smoothing Parameter (Alpha)",
+            description="Fixed smoothing strength. Leave empty to select automatically via cross-validation.",
+        ),
+    ] = None
+    metric: Annotated[
+        Literal["aic", "bic", "euclidean", "mse", "r_squared"],
+        Field(
+            default="aic",
+            title="Alpha Selection Metric",
+            description="Used only when Alpha is left empty.",
+            json_schema_extra=_advanced_titled_enum(
+                ("aic", "AIC"),
+                ("bic", "BIC"),
+                ("euclidean", "Euclidean Distance"),
+                ("mse", "MSE"),
+                ("r_squared", "R-Squared"),
+            ),
+        ),
+    ] = "aic"
+
+
+class GamSplineSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    degree_of_freedom: Annotated[
+        int,
+        AdvancedField(
+            6,
+            title="Spline Degrees of Freedom",
+            description="Number of basis functions for the spline. Higher values allow more "
+            "flexible curves but risk overfitting - and if this meets or exceeds the number of "
+            "data points, the fit perfectly interpolates every point (no residual degrees of "
+            "freedom left), so no confidence interval can be computed at all (NaN, no band "
+            "shown). Keep this comfortably below your expected number of time points.",
+        ),
+    ] = 6
+    degree: Annotated[
+        int,
+        AdvancedField(3, title="Spline Degree", description="Polynomial degree of each spline segment (3 = cubic)."),
+    ] = 3
+
+
+class GamBoundsSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    lower_bound: Annotated[
+        float | SkipJsonSchema[None],
+        AdvancedField(
+            None,
+            title="Lower Knot Bound",
+            description="Lower bound for spline knot placement. Leave empty to infer from the data range.",
+        ),
+    ] = None
+    upper_bound: Annotated[
+        float | SkipJsonSchema[None],
+        AdvancedField(
+            None,
+            title="Upper Knot Bound",
+            description="Upper bound for spline knot placement. Leave empty to infer from the data range.",
+        ),
+    ] = None
+
+
+class GammFamilySettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    family: Annotated[
+        Literal["gaussian", "poisson", "gamma", "bernoulli"],
+        Field(
+            default="gaussian",
+            title="Distribution Family",
+            description="Distribution assumed for the response variable.",
+            json_schema_extra=_advanced_titled_enum(
+                ("gaussian", "Gaussian"),
+                ("poisson", "Poisson"),
+                ("gamma", "Gamma"),
+                ("bernoulli", "Bernoulli"),
+            ),
+        ),
+    ] = "gaussian"
+
+
+class GammSplineSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    degree_of_freedom: Annotated[
+        int,
+        AdvancedField(
+            10,
+            title="Spline Degrees of Freedom",
+            description="Number of basis functions for the spline. Higher values allow more "
+            "flexible curves but risk overfitting.",
+        ),
+    ] = 10
+
+
+class GammMcmcSettings(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    inference_method: Annotated[
+        Literal["mcmc", "laplace"],
+        Field(
+            default="mcmc",
+            title="Inference Method",
+            description="MCMC is the reliable default for models with random effects; "
+            "Laplace is faster when it converges but may fail for some model specifications.",
+            json_schema_extra=_advanced_titled_enum(("mcmc", "MCMC"), ("laplace", "Laplace")),
+        ),
+    ] = "mcmc"
+    draws: Annotated[
+        int,
+        AdvancedField(500, title="Posterior Draws", description="Number of posterior samples to draw per chain."),
+    ] = 500
+    tune: Annotated[
+        int | SkipJsonSchema[None],
+        AdvancedField(
+            None,
+            title="MCMC Tuning Steps",
+            description="Number of MCMC tuning steps. Leave empty to default to the same value as Posterior Draws.",
+        ),
+    ] = None
+    chains: Annotated[
+        int,
+        AdvancedField(2, title="MCMC Chains", description="Number of independent MCMC chains to run."),
+    ] = 2
+    random_seed: Annotated[
+        int | SkipJsonSchema[None],
+        AdvancedField(
+            None,
+            title="Random Seed",
+            description="Seed for the MCMC sampler. Leave empty for a non-deterministic fit.",
+        ),
+    ] = None
+
 
 class LinearTrendModel(BaseModel):
     """Ordinary least squares. No smoothing - a single straight-line trend."""
 
     model_config = ConfigDict(title="Linear Regression")
     model: Annotated[Literal["linear"], Field(default="linear", title="Model")] = "linear"
-    add_intercept: Annotated[bool, AdvancedField(True, title="Add Intercept")] = True
+    intercept_settings: Annotated[
+        AddInterceptSettings,
+        AdvancedField(AddInterceptSettings(), title="Add Intercept"),
+    ] = AddInterceptSettings()
+
+    def get_params(self) -> dict:
+        return {"add_intercept": self.intercept_settings.add_intercept}
 
 
 class GlmTrendModel(BaseModel):
@@ -29,11 +251,20 @@ class GlmTrendModel(BaseModel):
 
     model_config = ConfigDict(title="Generalized Linear Model (GLM)")
     model: Annotated[Literal["glm"], Field(default="glm", title="Model")] = "glm"
-    family: Annotated[
-        Literal["gaussian", "poisson", "binomial", "gamma"],
-        AdvancedField("gaussian", title="Distribution Family"),
-    ] = "gaussian"
-    add_intercept: Annotated[bool, AdvancedField(True, title="Add Intercept")] = True
+    family_settings: Annotated[
+        GlmFamilySettings,
+        AdvancedField(GlmFamilySettings(), title="Distribution Family"),
+    ] = GlmFamilySettings()
+    intercept_settings: Annotated[
+        AddInterceptSettings,
+        AdvancedField(AddInterceptSettings(), title="Add Intercept"),
+    ] = AddInterceptSettings()
+
+    def get_params(self) -> dict:
+        return {
+            "family": self.family_settings.family,
+            "add_intercept": self.intercept_settings.add_intercept,
+        }
 
 
 class GamTrendModel(BaseModel):
@@ -43,54 +274,73 @@ class GamTrendModel(BaseModel):
 
     model_config = ConfigDict(title="Generalized Additive Model (GAM)")
     model: Annotated[Literal["gam"], Field(default="gam", title="Model")] = "gam"
-    family: Annotated[
-        Literal["gaussian", "poisson", "binomial"],
-        AdvancedField("gaussian", title="Distribution Family"),
-    ] = "gaussian"
-    alpha: Annotated[
-        float | None,
-        AdvancedField(
-            None,
-            title="Smoothing Parameter (Alpha)",
-            description="Fixed smoothing strength. Leave empty to select automatically via cross-validation.",
-        ),
-    ] = None
-    metric: Annotated[
-        Literal["aic", "bic", "euclidean", "mse", "r_squared"],
-        AdvancedField("aic", title="Alpha Selection Metric", description="Used only when Alpha is left empty."),
-    ] = "aic"
-    degree_of_freedom: Annotated[int, AdvancedField(20, title="Spline Degrees of Freedom")] = 20
-    degree: Annotated[int, AdvancedField(3, title="Spline Degree")] = 3
-    lower_bound: Annotated[float | None, AdvancedField(None, title="Lower Knot Bound")] = None
-    upper_bound: Annotated[float | None, AdvancedField(None, title="Upper Knot Bound")] = None
+    family_settings: Annotated[
+        GamFamilySettings,
+        AdvancedField(GamFamilySettings(), title="Distribution Family"),
+    ] = GamFamilySettings()
+    smoothing_settings: Annotated[
+        GamSmoothingSettings,
+        AdvancedField(GamSmoothingSettings(), title="Smoothing"),
+    ] = GamSmoothingSettings()
+    spline_settings: Annotated[
+        GamSplineSettings,
+        AdvancedField(GamSplineSettings(), title="Spline Shape"),
+    ] = GamSplineSettings()
+    bounds_settings: Annotated[
+        GamBoundsSettings,
+        AdvancedField(GamBoundsSettings(), title="Knot Bounds"),
+    ] = GamBoundsSettings()
+
+    def get_params(self) -> dict:
+        return {
+            "family": self.family_settings.family,
+            "alpha": self.smoothing_settings.alpha,
+            "metric": self.smoothing_settings.metric,
+            "degree_of_freedom": self.spline_settings.degree_of_freedom,
+            "degree": self.spline_settings.degree,
+            "lower_bound": self.bounds_settings.lower_bound,
+            "upper_bound": self.bounds_settings.upper_bound,
+        }
 
 
 class GammTrendModel(BaseModel):
     """Bayesian generalized additive mixed model with per-site random
-    effects. Accounts for repeated measurements at the same site, at the
-    cost of MCMC sampling - both fitting and (since a fitted estimator can't
-    cross a task boundary) every downstream prediction refit this model from
-    scratch, making it substantially slower than the other three."""
+    effects. A workflow fits this once across every site's combined data
+    (site_ids derived automatically from a "name" column if present - see
+    fit_trend_model), then predicts each site's own group-specific curve
+    from that shared fit (see predict_trend_model's `dataframe` parameter) -
+    unlike the other three models, which each fit and predict independently
+    per site. Mainly useful here for its Bayesian credible intervals rather
+    than frequentist confidence intervals, at the added cost of MCMC
+    sampling - both fitting and (since a fitted estimator can't cross a task
+    boundary) every downstream prediction refit this model from scratch,
+    making it substantially slower than the other three."""
 
     model_config = ConfigDict(title="Generalized Additive Mixed Model (GAMM)")
     model: Annotated[Literal["gamm"], Field(default="gamm", title="Model")] = "gamm"
-    site_id_column: Annotated[
-        str,
-        Field(
-            title="Site/Group Column",
-            description="Column identifying which site or group each row belongs to, fitted as a random effect.",
-        ),
-    ]
-    family: Annotated[
-        Literal["gaussian", "poisson", "gamma", "bernoulli"],
-        AdvancedField("gaussian", title="Distribution Family"),
-    ] = "gaussian"
-    degree_of_freedom: Annotated[int, AdvancedField(10, title="Spline Degrees of Freedom")] = 10
-    inference_method: Annotated[Literal["mcmc", "laplace"], AdvancedField("mcmc", title="Inference Method")] = "mcmc"
-    draws: Annotated[int, AdvancedField(500, title="Posterior Draws")] = 500
-    tune: Annotated[int | None, AdvancedField(None, title="MCMC Tuning Steps")] = None
-    chains: Annotated[int, AdvancedField(2, title="MCMC Chains")] = 2
-    random_seed: Annotated[int | None, AdvancedField(None, title="Random Seed")] = None
+    family_settings: Annotated[
+        GammFamilySettings,
+        AdvancedField(GammFamilySettings(), title="Distribution Family"),
+    ] = GammFamilySettings()
+    spline_settings: Annotated[
+        GammSplineSettings,
+        AdvancedField(GammSplineSettings(), title="Spline Shape"),
+    ] = GammSplineSettings()
+    mcmc_settings: Annotated[
+        GammMcmcSettings,
+        AdvancedField(GammMcmcSettings(), title="MCMC Sampling"),
+    ] = GammMcmcSettings()
+
+    def get_params(self) -> dict:
+        return {
+            "family": self.family_settings.family,
+            "degree_of_freedom": self.spline_settings.degree_of_freedom,
+            "inference_method": self.mcmc_settings.inference_method,
+            "draws": self.mcmc_settings.draws,
+            "tune": self.mcmc_settings.tune,
+            "chains": self.mcmc_settings.chains,
+            "random_seed": self.mcmc_settings.random_seed,
+        }
 
 
 TrendModel: TypeAlias = Annotated[
@@ -105,7 +355,14 @@ _TREND_MODEL_TYPES: dict[str, type[BaseModel]] = {
     "gamm": GammTrendModel,
 }
 
-_DEFAULT_TREND_MODEL: dict = {"model": "gam"}
+# RJSF's MultiSchemaField only expands a partial default (e.g. {"model": "gam"})
+# into its full set of nested field defaults inside onOptionChange - i.e. only
+# when the user actually interacts with the dropdown. On first form load, the
+# literal default below is used as-is, with no such expansion. So this must be
+# the FULLY expanded dict (every nested settings field included), or every
+# advanced field under the default-selected model renders empty until the user
+# touches the dropdown at least once.
+_DEFAULT_TREND_MODEL: dict = GamTrendModel().model_dump()
 
 
 def _build_regressor(model: TrendModel):
@@ -117,36 +374,39 @@ def _build_regressor(model: TrendModel):
     )
 
     if isinstance(model, LinearTrendModel):
-        return LinearRegressionRegressor(add_intercept=model.add_intercept)
+        return LinearRegressionRegressor(**model.get_params())
     if isinstance(model, GlmTrendModel):
-        return GLMRegressor(family=model.family, add_intercept=model.add_intercept)
+        return GLMRegressor(**model.get_params())
     if isinstance(model, GamTrendModel):
+        params = model.get_params()
         return GAMRegressor(
-            alpha=model.alpha,
-            degree_of_freedom=model.degree_of_freedom,
-            degree=model.degree,
-            family=model.family,
+            alpha=params["alpha"],
+            degree_of_freedom=params["degree_of_freedom"],
+            degree=params["degree"],
+            family=params["family"],
         )
+    params = model.get_params()
     return GAMMRegressor(
-        degree_of_freedom=model.degree_of_freedom,
-        inference_method=model.inference_method,
-        draws=model.draws,
-        tune=model.tune,
-        chains=model.chains,
-        family=model.family,
-        random_seed=model.random_seed,
+        degree_of_freedom=params["degree_of_freedom"],
+        inference_method=params["inference_method"],
+        draws=params["draws"],
+        tune=params["tune"],
+        chains=params["chains"],
+        family=params["family"],
+        random_seed=params["random_seed"],
     )
 
 
 def _fit_regressor(model: TrendModel, X: np.ndarray, y: np.ndarray, site_ids: np.ndarray | None):
     regressor = _build_regressor(model)
     if isinstance(model, GamTrendModel):
+        params = model.get_params()
         return regressor.fit(
             X,
             y,
-            lower_bound=model.lower_bound,
-            upper_bound=model.upper_bound,
-            metric=model.metric,
+            lower_bound=params["lower_bound"],
+            upper_bound=params["upper_bound"],
+            metric=params["metric"],
         )
     if isinstance(model, GammTrendModel):
         return regressor.fit(X, y, site_ids)
@@ -169,6 +429,24 @@ def set_trend_model(
 
 
 @register()
+def is_gamm_trend_model(*args: Any) -> bool:
+    """skipif condition: True if any arg is a GammTrendModel.
+
+    GAMM fits once across every site's combined data (see GammTrendModel's
+    docstring), unlike the other 3 models which each fit independently per
+    site - so a workflow wires two separate fit branches (per-site, and one
+    combined across sites) and uses this (and its inverse) to run only the
+    one that matches the selection.
+    """
+    return any(isinstance(a, GammTrendModel) for a in args)
+
+
+@register()
+def is_not_gamm_trend_model(*args: Any) -> bool:
+    return not is_gamm_trend_model(*args)
+
+
+@register()
 def fit_trend_model(
     dataframe: Annotated[AnyDataFrame, Field(description="DataFrame containing time series data")],
     model: TrendModel,
@@ -184,9 +462,13 @@ def fit_trend_model(
 
     site_ids = None
     if isinstance(model, GammTrendModel):
-        if model.site_id_column not in dataframe.columns:
-            raise ValueError(f"site_id_column {model.site_id_column!r} not found in dataframe")
-        site_ids = dataframe[model.site_id_column].to_numpy()
+        # GAMMRegressor requires site_ids. Use the "name" column if
+        # extract_forest_cover_trends propagated one (see its own
+        # docstring) - real cross-site variance when `dataframe` spans
+        # multiple sites (a combined fit), a single repeated value
+        # otherwise - or a constant placeholder if "name" isn't present at
+        # all.
+        site_ids = dataframe["name"].to_numpy() if "name" in dataframe.columns else np.zeros(len(y))
 
     regressor = _fit_regressor(model, X, y, site_ids)
 
@@ -212,9 +494,36 @@ def fit_trend_model(
 @register()
 def predict_trend_model(
     model_params: Annotated[dict, Field(description="Model parameters from fit_trend_model")],
+    dataframe: Annotated[
+        # None must come first: with AnyDataFrame first, pydantic's union
+        # validation coerces an explicit `dataframe=None` (always passed
+        # explicitly once this parameter is used in any mapvalues() call -
+        # see wt_task's _get_defaults) into an EMPTY DataFrame via pandera's
+        # DataFrame[Schema] validator, rather than preserving None.
+        SkipJsonSchema[None] | AnyDataFrame,
+        Field(
+            default=None,
+            description="Predict at this dataframe's own time/value columns instead of the original "
+            "training data - e.g. a single site's own rows, to get that site's group-specific "
+            "prediction out of a GAMM model fit combined across multiple sites (matched via this "
+            "dataframe's own 'name' column, if present, against a value in that fit's site_ids). "
+            "Takes precedence over time_values if both are given.",
+            exclude=True,
+        ),
+    ] = None,
+    time_column: Annotated[
+        str, Field(description="Column name containing time/date values, if `dataframe` is given")
+    ] = "time",
+    value_column: Annotated[
+        str, Field(description="Column name containing observed values, if `dataframe` is given")
+    ] = "value",
     time_values: Annotated[
-        list[float] | None,
-        Field(default=None, description="Time values for prediction. If None, uses original training times."),
+        list[float] | SkipJsonSchema[None],
+        Field(
+            default=None,
+            description="Time values for prediction, if `dataframe` is not given. "
+            "If neither is given, uses original training times.",
+        ),
     ] = None,
     include_ci: Annotated[bool, Field(default=True, description="Include confidence intervals")] = True,
 ) -> AnyDataFrame:
@@ -227,15 +536,30 @@ def predict_trend_model(
 
     regressor = _fit_regressor(model, X, y, site_ids)
 
-    predict_at = np.asarray(time_values) if time_values is not None else X
-    observed = y if time_values is None else np.full(len(predict_at), np.nan)
+    predict_site_id = None
+    if dataframe is not None:
+        predict_at, observed = _prepare_xy(dataframe, time_column, value_column)
+        if "name" in dataframe.columns:
+            predict_site_id = dataframe["name"].iloc[0]
+    elif time_values is not None:
+        predict_at = np.asarray(time_values)
+        observed = np.full(len(predict_at), np.nan)
+    else:
+        predict_at = X
+        observed = y
+
+    predict_kwargs: dict = {}
+    if isinstance(model, GammTrendModel) and predict_site_id is not None:
+        predict_kwargs["site_ids"] = np.full(len(predict_at), predict_site_id)
 
     if include_ci:
-        mean, ci_lower, ci_upper = regressor.predict_with_ci(predict_at)
+        mean, ci_lower, ci_upper = regressor.predict_with_ci(predict_at, **predict_kwargs)
         result = pd.DataFrame(
             {"y": observed, "time": predict_at, "predicted": mean, "ci_lower": ci_lower, "ci_upper": ci_upper}
         )
     else:
-        result = pd.DataFrame({"y": observed, "time": predict_at, "predicted": regressor.predict(predict_at)})
+        result = pd.DataFrame(
+            {"y": observed, "time": predict_at, "predicted": regressor.predict(predict_at, **predict_kwargs)}
+        )
 
     return cast(AnyDataFrame, result)

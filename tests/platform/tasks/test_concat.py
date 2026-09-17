@@ -105,3 +105,14 @@ def test_concat_all_skipped_returns_empty_df() -> None:
     result = concat_dataframes(_drop_skip_sentinels([SKIP_SENTINEL, SKIP_SENTINEL]))
 
     assert result.empty
+
+
+def test_drop_skip_sentinels_unwraps_keyed_pairs() -> None:
+    """A mapvalues'd result referenced directly (not through another
+    map/mapvalues) is a list of (key, value) pairs, not plain values."""
+    df1 = pd.DataFrame({"a": [1]})
+    df2 = pd.DataFrame({"a": [2]})
+
+    result = _drop_skip_sentinels([(("name", "=", "A"), df1), (("name", "=", "B"), df2), SKIP_SENTINEL])
+
+    assert result == [df1, df2]
