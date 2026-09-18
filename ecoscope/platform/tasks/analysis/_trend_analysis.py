@@ -474,8 +474,11 @@ def _prepare_xy(dataframe: pd.DataFrame, time_column: str, value_column: str) ->
         # intercept is added (condition number ~1e19, beyond float64
         # precision) - days (~1e4-1e5) keep it well-conditioned while still
         # being a fixed, deterministic transform (no per-dataset state to
-        # keep in sync between fit and predict).
-        X = dataframe[time_column].to_numpy().astype("datetime64[s]").astype(np.int64) / 86400.0
+        # keep in sync between fit and predict). Converts via the Series
+        # itself (not `.to_numpy()`) so a timezone-aware column converts
+        # cleanly to UTC nanoseconds instead of numpy warning about dropped
+        # timezone info.
+        X = dataframe[time_column].astype("int64").to_numpy() / 1e9 / 86400.0
     return X, y
 
 
@@ -546,6 +549,10 @@ def fit_trend_model(
         "y": y.tolist(),
         "site_ids": site_ids.tolist() if site_ids is not None else None,
         "metrics": metrics,
+        # Whether `time_column` was a datetime column, so predict_trend_model
+        # knows to convert its "time" output back from the days-since-epoch
+        # _prepare_xy fits on into a real timestamp (see _prepare_xy).
+        "time_is_datetime": bool(pd.api.types.is_datetime64_any_dtype(dataframe[time_column])),
     }
 
 
@@ -619,5 +626,14 @@ def predict_trend_model(
         result = pd.DataFrame(
             {"y": observed, "time": predict_at, "predicted": regressor.predict(predict_at, **predict_kwargs)}
         )
+
+    if model_params.get("time_is_datetime"):
+        # predict_at is in days-since-epoch (see _prepare_xy) - convert back
+        # to a real timestamp so "time" isn't a bare number a caller has to
+        # know the unit of (and previously, before _prepare_xy switched to
+        # days for numerical stability, silently mis-happened to work only
+        # because raw nanoseconds-since-epoch is pd.to_datetime's own
+        # default unit).
+        result["time"] = pd.to_datetime(result["time"], unit="D")
 
     return cast(AnyDataFrame, result)

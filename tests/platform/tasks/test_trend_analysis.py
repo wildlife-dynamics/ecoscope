@@ -97,10 +97,21 @@ def test_fit_and_predict_linear_trend_with_datetime_time_column(linear_dataframe
     dated_dataframe = linear_dataframe.assign(date=pd.to_datetime(linear_dataframe["year"], format="%Y"))
 
     model_params = fit_trend_model(dated_dataframe, LinearTrendModel(), time_column="date", value_column="value")
+    # Regression check: nanoseconds-since-epoch (the previous unit) makes the
+    # OLS design matrix numerically singular once an intercept is added -
+    # r_squared silently collapses to near-zero on this otherwise-clean
+    # linear series without a well-conditioned unit (see _prepare_xy).
     assert model_params["metrics"]["r_squared"] > 0.9
+    assert model_params["time_is_datetime"] is True
 
     predictions = predict_trend_model(model_params)
     assert len(predictions) == len(dated_dataframe)
+    # "time" must round-trip back to real timestamps, not the raw
+    # days-since-epoch numbers _prepare_xy fits on internally.
+    assert pd.api.types.is_datetime64_any_dtype(predictions["time"])
+    pd.testing.assert_series_equal(
+        predictions["time"], dated_dataframe["date"], check_names=False, check_freq=False
+    )
 
 
 def test_fit_and_predict_glm_trend(linear_dataframe):
