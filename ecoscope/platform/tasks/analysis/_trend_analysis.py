@@ -637,3 +637,34 @@ def predict_trend_model(
         result["time"] = pd.to_datetime(result["time"], unit="D")
 
     return cast(AnyDataFrame, result)
+
+
+@register()
+def get_trend_model_fit_summary(
+    model_params: Annotated[dict, Field(description="Model parameters from fit_trend_model")],
+    model: Annotated[
+        TrendModel,
+        Field(
+            description="The same model passed to fit_trend_model - not read from model_params directly "
+            "(a plain dict) so that is_gamm_trend_model/is_not_gamm_trend_model skipif conditions, which "
+            "type-check the real model object, work on this task too.",
+            exclude=True,
+        ),
+    ],
+) -> Annotated[
+    AnyDataFrame,
+    Field(
+        description="Fit parameter summary (e.g. coefficient/std error/p-value/CI for Linear/GLM/GAM, or "
+        "posterior mean/sd/hdi/r_hat for GAMM) - the direct output of the underlying statsmodels or "
+        "pymc/bambi fit, one row per model parameter."
+    ),
+]:
+    """Refit from `model_params` (a fitted estimator can't cross a task
+    boundary; see `fit_trend_model`) and return its own fit parameter
+    summary - e.g. to persist for inspection alongside the trend chart."""
+    X = np.asarray(model_params["X"])
+    y = np.asarray(model_params["y"])
+    site_ids = np.asarray(model_params["site_ids"]) if model_params.get("site_ids") is not None else None
+
+    regressor = _fit_regressor(model, X, y, site_ids)
+    return cast(AnyDataFrame, regressor.summary())

@@ -44,6 +44,7 @@ from ._trend_analysis import (
     LinearTrendModel,
     TrendModel,
     fit_trend_model,
+    get_trend_model_fit_summary,
     predict_trend_model,
     set_trend_model,
 )
@@ -83,6 +84,7 @@ __all__ = [
     "get_density_colormap",
     "get_density_legend_title",
     "get_night_day_ratio",
+    "get_trend_model_fit_summary",
     "get_weighting_column",
     "normalize_density_units",
     "predict_trend_model",
