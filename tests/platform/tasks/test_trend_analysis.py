@@ -15,6 +15,8 @@ from ecoscope.platform.tasks.analysis._trend_analysis import (
     LinearTrendModel,
     TrendModel,
     fit_trend_model,
+    is_gamm_trend_model,
+    is_not_gamm_trend_model,
     predict_trend_model,
     set_trend_model,
 )
@@ -42,6 +44,42 @@ def test_trend_model_discriminated_union_validates_by_model_field():
     assert glm.family_settings.family == "poisson"
 
 
+def test_is_gamm_trend_model():
+    assert is_gamm_trend_model(GammTrendModel()) is True
+    assert is_gamm_trend_model(LinearTrendModel(), GammTrendModel()) is True
+    assert is_gamm_trend_model(LinearTrendModel(), GamTrendModel()) is False
+    assert is_gamm_trend_model() is False
+
+
+def test_is_not_gamm_trend_model():
+    assert is_not_gamm_trend_model(GammTrendModel()) is False
+    assert is_not_gamm_trend_model(LinearTrendModel()) is True
+
+
+def test_advanced_titled_enum_schema():
+    """GlmFamilySettings.family uses _advanced_titled_enum to swap the bare
+    enum for labeled oneOf options."""
+    schema = GlmFamilySettings.model_json_schema()["properties"]["family"]
+    assert "enum" not in schema
+    assert schema["oneOf"] == [
+        {"const": "gaussian", "title": "Gaussian"},
+        {"const": "poisson", "title": "Poisson"},
+        {"const": "binomial", "title": "Binomial"},
+        {"const": "gamma", "title": "Gamma"},
+    ]
+    assert schema["ecoscope:advanced"] is True
+
+
+def test_nullable_advanced_schema():
+    """GamSmoothingSettings.alpha uses _nullable_advanced to rewrite
+    pydantic's `anyOf` nullable-number form into the flat array-of-types
+    shorthand this project's RJSF/AJV setup needs (see its own docstring)."""
+    schema = GamSmoothingSettings.model_json_schema()["properties"]["alpha"]
+    assert "anyOf" not in schema
+    assert schema["type"] == ["number", "null"]
+    assert schema["ecoscope:advanced"] is True
+
+
 def test_fit_and_predict_linear_trend(linear_dataframe):
     model_params = fit_trend_model(linear_dataframe, LinearTrendModel(), time_column="year", value_column="value")
     assert model_params["model"]["model"] == "linear"
@@ -50,6 +88,19 @@ def test_fit_and_predict_linear_trend(linear_dataframe):
     predictions = predict_trend_model(model_params)
     assert list(predictions.columns) == ["y", "time", "predicted", "ci_lower", "ci_upper"]
     assert len(predictions) == len(linear_dataframe)
+
+
+def test_fit_and_predict_linear_trend_with_datetime_time_column(linear_dataframe):
+    """_prepare_xy converts a datetime `time_column` to numeric (e.g.
+    speedmap-trend's `period_start`) before fitting - a plain numeric time
+    column like `year` never exercises that conversion."""
+    dated_dataframe = linear_dataframe.assign(date=pd.to_datetime(linear_dataframe["year"], format="%Y"))
+
+    model_params = fit_trend_model(dated_dataframe, LinearTrendModel(), time_column="date", value_column="value")
+    assert model_params["metrics"]["r_squared"] > 0.9
+
+    predictions = predict_trend_model(model_params)
+    assert len(predictions) == len(dated_dataframe)
 
 
 def test_fit_and_predict_glm_trend(linear_dataframe):

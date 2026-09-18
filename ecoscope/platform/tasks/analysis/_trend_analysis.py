@@ -469,7 +469,13 @@ def _prepare_xy(dataframe: pd.DataFrame, time_column: str, value_column: str) ->
     X = dataframe[time_column].to_numpy()
     y = dataframe[value_column].to_numpy()
     if pd.api.types.is_datetime64_any_dtype(dataframe[time_column]):
-        X = pd.to_numeric(dataframe[time_column]).to_numpy()
+        # Days (not raw nanoseconds) since the epoch: nanosecond timestamps
+        # (~1e18) make the OLS/GLM design matrix numerically singular once an
+        # intercept is added (condition number ~1e19, beyond float64
+        # precision) - days (~1e4-1e5) keep it well-conditioned while still
+        # being a fixed, deterministic transform (no per-dataset state to
+        # keep in sync between fit and predict).
+        X = dataframe[time_column].to_numpy().astype("datetime64[s]").astype(np.int64) / 86400.0
     return X, y
 
 
