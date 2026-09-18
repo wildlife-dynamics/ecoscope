@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timezone
 from importlib.resources import files
+from unittest.mock import MagicMock, patch
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pytest
@@ -16,6 +17,21 @@ from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.results._pydeck import BitmapLayerDefinition
 
 _HANSEN_IMAGE = "UMD/hansen/global_forest_change_2024_v1_12"
+
+
+class _ChainMock:
+    """Stands in for an `ee.Image`: every attribute access and call just
+    returns itself, so an arbitrarily long/unknown `ee` method chain (like
+    `extract_forest_cover_trends`'s `.select(...).updateMask(...)...`) never
+    errors - without needing a real, initialized Earth Engine session.
+    `getInfo` is set explicitly (real attributes shadow `__getattr__`) so its
+    return values can be controlled."""
+
+    def __getattr__(self, name):
+        return self
+
+    def __call__(self, *args, **kwargs):
+        return self
 
 
 def test_parse_year_range_none():
@@ -120,6 +136,22 @@ def test_extract_forest_cover_trends_propagates_name_column(client, roi):
         "name",
     ]
     assert (result["name"] == "Mara / Serengeti").all()
+
+
+def test_extract_forest_cover_trends_returns_empty_when_no_loss_groups(roi):
+    """If Earth Engine finds no loss pixels at all in `aoi` (e.g. a region
+    with zero forest loss), reduceRegion's "groups" list comes back empty -
+    return an empty DataFrame with the right columns rather than erroring.
+    Mocked (not `@pytest.mark.io`) since it's impractical to guarantee a
+    real region with exactly zero loss."""
+    chain = _ChainMock()
+    chain.getInfo = MagicMock(side_effect=[{"treecover2000": 1000.0}, {"groups": []}])
+
+    with patch("ee.Image", chain), patch("ee.FeatureCollection", MagicMock()), patch("ee.Reducer", MagicMock()):
+        result = extract_forest_cover_trends(client=None, aoi=roi, image=_HANSEN_IMAGE)
+
+    assert list(result.columns) == ["year", "loss_area", "cumsum_loss_area", "survival_area", "cumsum_loss_pct"]
+    assert result.empty
 
 
 @pytest.mark.io
