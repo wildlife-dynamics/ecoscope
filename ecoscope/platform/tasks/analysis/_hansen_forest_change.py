@@ -13,6 +13,7 @@ from ecoscope.platform.tasks.results._pydeck import (
     LegendSegment,
     LegendValue,
 )
+from ecoscope.platform.tasks.transformation._crs import ensure_wgs84
 
 logger = logging.getLogger(__name__)
 
@@ -24,18 +25,6 @@ def _parse_year_range(time_range: TimeRange | None) -> tuple[int | None, int | N
     if time_range is None:
         return None, None
     return time_range.since.year, time_range.until.year
-
-
-def _ensure_wgs84(aoi: AnyGeoDataFrame) -> AnyGeoDataFrame:
-    """Return `aoi` reprojected to EPSG:4326, assuming WGS84 (with a warning)
-    if it has no CRS set - `.to_crs()` itself raises on a CRS-less
-    GeoDataFrame rather than assuming one."""
-    if aoi.crs is None:
-        logger.warning("`aoi` has no CRS set; assuming WGS84.")
-        return aoi.set_crs(4326)  # type: ignore[operator]
-    if aoi.crs.to_epsg() != 4326:
-        return aoi.to_crs(4326)  # type: ignore[operator]
-    return aoi
 
 
 def _make_treecover_mask(gfc, tree_cover_threshold: float):
@@ -68,7 +57,7 @@ def extract_forest_cover_trends(
     """
     import ee
 
-    aoi = _ensure_wgs84(aoi)
+    aoi = ensure_wgs84(aoi)
     feat_coll = ee.FeatureCollection(aoi.__geo_interface__)
     gfc = ee.Image(image)
     start_year, end_year = _parse_year_range(time_range)
@@ -145,7 +134,7 @@ def create_forest_layers(
     import ee
     import requests
 
-    roi_gdf = _ensure_wgs84(aoi)
+    roi_gdf = ensure_wgs84(aoi)
     roi_geometry = roi_gdf.dissolve().geometry.iloc[0]  # type: ignore[operator]
     ee_geometry = ee.Geometry(roi_geometry.__geo_interface__)
 

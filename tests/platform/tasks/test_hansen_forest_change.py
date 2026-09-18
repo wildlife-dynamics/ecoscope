@@ -5,14 +5,13 @@ from unittest.mock import MagicMock, patch
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pytest
-from shapely.geometry import Polygon
 
 from ecoscope.platform.connections import EarthEngineConnection
 from ecoscope.platform.tasks.analysis import (
     create_forest_layers,
     extract_forest_cover_trends,
 )
-from ecoscope.platform.tasks.analysis._hansen_forest_change import _ensure_wgs84, _parse_year_range
+from ecoscope.platform.tasks.analysis._hansen_forest_change import _parse_year_range
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.results._pydeck import BitmapLayerDefinition
 
@@ -45,35 +44,6 @@ def test_parse_year_range_extracts_calendar_years():
         timezone=UTC_TIMEZONEINFO,
     )
     assert _parse_year_range(time_range) == (2010, 2020)
-
-
-def _square(x: float, y: float) -> Polygon:
-    return Polygon([(x, y), (x + 1, y), (x + 1, y + 1), (x, y + 1)])
-
-
-def test_ensure_wgs84_assumes_wgs84_when_crs_missing():
-    gdf = gpd.GeoDataFrame({"geometry": [_square(0, 0)]})
-    assert gdf.crs is None
-
-    result = _ensure_wgs84(gdf)
-
-    assert result.crs.to_epsg() == 4326
-
-
-def test_ensure_wgs84_reprojects_non_wgs84_crs():
-    gdf = gpd.GeoDataFrame({"geometry": [_square(0, 0)]}, crs="EPSG:3857")
-
-    result = _ensure_wgs84(gdf)
-
-    assert result.crs.to_epsg() == 4326
-
-
-def test_ensure_wgs84_passthrough_when_already_wgs84():
-    gdf = gpd.GeoDataFrame({"geometry": [_square(0, 0)]}, crs="EPSG:4326")
-
-    result = _ensure_wgs84(gdf)
-
-    assert result is gdf
 
 
 @pytest.fixture

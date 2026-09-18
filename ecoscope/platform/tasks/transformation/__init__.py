@@ -12,7 +12,7 @@ from ._conversion import (
     convert_column_values_to_string,
     convert_values_to_timezone,
 )
-from ._crs import convert_crs
+from ._crs import convert_crs, ensure_wgs84
 from ._decompose_datetime import decompose_datetime
 from ._exploding import explode
 from ._extract import extract_column_as_type, extract_value_from_json_column
@@ -65,6 +65,7 @@ __all__ = [
     "convert_column_values_to_numeric",
     "convert_column_values_to_string",
     "convert_crs",
+    "ensure_wgs84",
     "convert_values_to_timezone",
     "decompose_datetime",
     "drop_column_prefix",
