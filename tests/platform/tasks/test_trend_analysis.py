@@ -109,9 +109,7 @@ def test_fit_and_predict_linear_trend_with_datetime_time_column(linear_dataframe
     # "time" must round-trip back to real timestamps, not the raw
     # days-since-epoch numbers _prepare_xy fits on internally.
     assert pd.api.types.is_datetime64_any_dtype(predictions["time"])
-    pd.testing.assert_series_equal(
-        predictions["time"], dated_dataframe["date"], check_names=False, check_freq=False
-    )
+    pd.testing.assert_series_equal(predictions["time"], dated_dataframe["date"], check_names=False, check_freq=False)
 
 
 def test_fit_and_predict_glm_trend(linear_dataframe):
