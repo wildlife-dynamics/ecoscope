@@ -15,6 +15,7 @@ from ecoscope.platform.tasks.analysis._trend_analysis import (
     LinearTrendModel,
     TrendModel,
     fit_trend_model,
+    get_trend_model_fit_summary,
     is_gamm_trend_model,
     is_not_gamm_trend_model,
     predict_trend_model,
@@ -241,3 +242,36 @@ def test_predict_gamm_from_combined_fit_gives_each_site_its_own_curve(multi_site
     # Site B was generated ~80 units higher than Site A - its group-specific
     # prediction should reflect that, not collapse to the same population curve.
     assert (predictions_b["predicted"].mean() - predictions_a["predicted"].mean()) > 30
+
+
+@pytest.mark.parametrize(
+    "model",
+    [LinearTrendModel(), GlmTrendModel(), GamTrendModel()],
+    ids=["linear", "glm", "gam"],
+)
+def test_get_trend_model_fit_summary_statsmodels_models(linear_dataframe, model):
+    """Linear/GLM/GAM all fit via statsmodels - one row per coefficient,
+    with a p-value/confidence interval (frequentist statistics), unlike
+    GAMM's Bayesian posterior summary below."""
+    model_params = fit_trend_model(linear_dataframe, model, time_column="year", value_column="value")
+    summary = get_trend_model_fit_summary(model_params, model=model)
+
+    assert len(summary) > 0
+    assert list(summary.columns) == ["parameter", "coefficient", "std_error", "p_value", "ci_lower", "ci_upper"]
+    assert summary["ci_lower"].le(summary["ci_upper"]).all()
+
+
+def test_get_trend_model_fit_summary_gamm_model(linear_dataframe):
+    """GAMM's fit is Bayesian (MCMC) - a posterior summary (mean/sd/hdi/
+    r_hat), not the frequentist coefficient/p-value/CI shape above."""
+    model = GammTrendModel(
+        spline_settings=GammSplineSettings(degree_of_freedom=3),
+        mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
+    )
+    model_params = fit_trend_model(linear_dataframe, model, time_column="year", value_column="value")
+    summary = get_trend_model_fit_summary(model_params, model=model)
+
+    assert len(summary) > 0
+    assert "parameter" in summary.columns
+    assert "mean" in summary.columns
+    assert "r_hat" in summary.columns

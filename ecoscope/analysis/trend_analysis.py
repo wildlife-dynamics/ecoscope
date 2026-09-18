@@ -105,6 +105,27 @@ class _TrendRegressorBase(BaseEstimator, RegressorMixin):
             return float(bic_llf)
         return float(self._res_.bic)
 
+    def summary(self) -> pd.DataFrame:
+        """Fit parameter summary (coefficient, std error, p-value, 95% CI)
+        from the underlying statsmodels fit - the direct output of its own
+        `.fit()` call. Overridden by GAMMRegressor, whose fit is Bayesian
+        (no p-values/statsmodels result to summarize this way)."""
+        self._check_is_fitted()
+        res = self._res_
+        params = np.asarray(res.params)
+        names = list(getattr(res.model, "exog_names", None) or [f"param_{i}" for i in range(len(params))])
+        conf_int = np.asarray(res.conf_int())
+        return pd.DataFrame(
+            {
+                "parameter": names,
+                "coefficient": params,
+                "std_error": np.asarray(res.bse),
+                "p_value": np.asarray(res.pvalues),
+                "ci_lower": conf_int[:, 0],
+                "ci_upper": conf_int[:, 1],
+            }
+        )
+
 
 class GAMMRegressor(_TrendRegressorBase):
     """
@@ -365,6 +386,15 @@ class GAMMRegressor(_TrendRegressorBase):
         import arviz as az  # type: ignore[import-not-found,import-untyped]
 
         return az.loo(self._idata_)
+
+    def summary(self) -> pd.DataFrame:
+        """Posterior parameter summary (mean, sd, hdi_3%, hdi_97%, ess_bulk,
+        ess_tail, r_hat per parameter) from the fitted MCMC/Laplace trace -
+        the direct output of pymc's own fit, via ArviZ."""
+        self._check_is_fitted()
+        import arviz as az  # type: ignore[import-not-found,import-untyped]
+
+        return az.summary(self._idata_).reset_index(names="parameter")
 
 
 class GAMRegressor(_TrendRegressorBase):
