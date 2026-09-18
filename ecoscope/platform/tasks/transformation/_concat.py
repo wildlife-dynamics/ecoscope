@@ -11,8 +11,18 @@ from ecoscope.platform.annotations import AnyDataFrame
 
 
 def _drop_skip_sentinels(dfs: list[Any]) -> list[Any]:
-    """Drop any SkipSentinel values from the list of dataframes."""
-    return [df for df in dfs if not isinstance(df, SkipSentinel)]
+    """Drop any SkipSentinel values, and unwrap (key, dataframe) pairs.
+
+    A mapvalues'd task's result, referenced directly (not through another
+    map/mapvalues operation - see wt_task's `_create_mapvalues_kwargs_iterable`),
+    is a list of (key, value) pairs rather than a plain list of values. This
+    runs before per-item validation against `dfs`'s `list[AnyDataFrame]`
+    type, so unwrapping here (rather than in `concat_dataframes` itself)
+    keeps that type honest instead of silently mis-concatenating each
+    (key, dataframe) tuple as if it were itself a 2-row/2-column dataframe.
+    """
+    unwrapped = [item[1] if isinstance(item, tuple) and len(item) == 2 else item for item in dfs]
+    return [df for df in unwrapped if not isinstance(df, SkipSentinel)]
 
 
 @register()

@@ -9,6 +9,7 @@ from ecoscope.platform.indexes import (
     SpatialGrouper,
     TemporalGrouper,
     UserDefinedGroupers,
+    ValueGrouper,
 )
 from ecoscope.platform.schemas import (
     EmptyDataFrame,
@@ -96,6 +97,51 @@ def extract_grouper_index_names(
     if isinstance(groupers, AllGrouper):
         return []
     return [grouper.index_name for grouper in groupers]
+
+
+@register()
+def rename_value_grouper_columns_to_name(
+    df: AnyDataFrame,
+    groupers: Annotated[
+        AllGrouper | UserDefinedGroupers,
+        Field(description="Groupers currently applied to `df`.", exclude=True),
+    ],
+) -> AnyDataFrame:
+    """Rename any active ValueGrouper's index_name column to the literal
+    "name" column - the convention `fit_trend_model`/`predict_trend_model`
+    use to derive a GAMM trend model's per-site random effect for a
+    combined fit across sites/groups (see
+    ecoscope.platform.tasks.analysis._trend_analysis). A no-op for
+    AllGrouper, and for TemporalGrouper/SpatialGrouper (their index_name is
+    a dataframe index level rather than a plain column - out of scope here).
+    """
+    if isinstance(groupers, AllGrouper):
+        return df
+    rename_map = {grouper.index_name: "name" for grouper in groupers if isinstance(grouper, ValueGrouper)}
+    return cast(AnyDataFrame, df.rename(columns=rename_map)) if rename_map else df
+
+
+@register()
+def trend_groupby_columns(
+    bucket_column: Annotated[str, Field(description="Time-bucket column to always group a trend summary by.")],
+    groupers: Annotated[
+        AllGrouper | UserDefinedGroupers,
+        Field(description="Groupers currently applied to the trend dataframe.", exclude=True),
+    ],
+) -> Annotated[
+    list[str],
+    Field(
+        description="""\
+        `bucket_column` alone, or with "name" appended when a ValueGrouper is
+        active (see rename_value_grouper_columns_to_name) - tagging each
+        summarized row with the group identity a GAMM trend model needs for
+        combined-fit site pooling.
+        """
+    ),
+]:
+    if not isinstance(groupers, AllGrouper) and any(isinstance(grouper, ValueGrouper) for grouper in groupers):
+        return [bucket_column, "name"]
+    return [bucket_column]
 
 
 @register()

@@ -29,6 +29,13 @@ def set_bool_var(
 
 
 @register()
+def set_float_var(
+    var: Annotated[float, Field(title="")],
+) -> float:
+    return var
+
+
+@register()
 def set_list_of_string_vars(
     vars: Annotated[list[str], Field(title="")],
 ) -> list[str]:

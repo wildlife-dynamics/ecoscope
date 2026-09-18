@@ -12,7 +12,7 @@ from ._conversion import (
     convert_column_values_to_string,
     convert_values_to_timezone,
 )
-from ._crs import convert_crs
+from ._crs import convert_crs, ensure_wgs84
 from ._decompose_datetime import decompose_datetime
 from ._exploding import explode
 from ._extract import extract_column_as_type, extract_value_from_json_column
@@ -31,7 +31,9 @@ from ._indexing import (
     extract_grouper_index_names,
     extract_spatial_grouper_feature_group_names,
     rename_grouper_index_columns,
+    rename_value_grouper_columns_to_name,
     resolve_spatial_feature_groups_for_spatial_groupers,
+    trend_groupby_columns,
 )
 from ._mapping import (
     RenameColumn,
@@ -63,6 +65,7 @@ __all__ = [
     "convert_column_values_to_numeric",
     "convert_column_values_to_string",
     "convert_crs",
+    "ensure_wgs84",
     "convert_values_to_timezone",
     "decompose_datetime",
     "drop_column_prefix",
@@ -83,6 +86,8 @@ __all__ = [
     "extract_spatial_grouper_feature_group_names",
     "resolve_spatial_feature_groups_for_spatial_groupers",
     "rename_grouper_index_columns",
+    "rename_value_grouper_columns_to_name",
+    "trend_groupby_columns",
     "RenameColumn",
     "assign_value",
     "fill_na",
