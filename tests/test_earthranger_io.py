@@ -113,9 +113,9 @@ def test_get_subjectgroup_observations(er_io):
 
 def test_get_events(er_events_io):
     events = er_events_io.get_events(
-        event_type=["e00ce1f6-f9f1-48af-93c9-fb89ec493b8a"],
-        since="2023-11-15",
-        until="2023-11-16",
+        event_type=["6c90e5f5-ae8e-4e7f-a8dd-26e5d2909a74"],
+        since="2026-09-24",
+        until="2026-09-25",
     )
     assert not events.empty
     check_time_is_parsed(events)
