@@ -170,8 +170,9 @@ def test_get_patrols_with_type_value(er_io):
 
 def test_get_patrols_with_type_value_list(er_io):
     patrol_type_value_list = ["ecoscope_patrol", "MEP_Distance_Survey_Patrol"]
-    patrols = er_io.get_patrols(since="2024-01-01", until="2024-04-01", patrol_type_value=patrol_type_value_list)
+    patrols = er_io.get_patrols(since="2015-01-01", until="2015-04-01", patrol_type_value=patrol_type_value_list)
 
+    assert not patrols.empty
     patrol_types = [
         segment["patrol_type"]
         for segments in patrols["patrol_segments"]
