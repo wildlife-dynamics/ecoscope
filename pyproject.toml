@@ -31,6 +31,9 @@ dependencies = [
   "pyarrow>=20",
   "pyproj>=3.3",
   "rasterio>=1.3",
+  # pandasql's. 2.1's pyproject keeps a legacy `mssql_pymssql` alias colliding
+  # with `mssql-pymssql`, so uv can't parse its sdist
+  "sqlalchemy<2.1",
   "tqdm>=4",
 ]
 

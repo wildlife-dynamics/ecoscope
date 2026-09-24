@@ -9,10 +9,9 @@ import ecoscope.analysis.UD as UD  # type: ignore[import-untyped]
 from ecoscope.io.raster import RasterData
 from ecoscope.platform.tasks.analysis._raster import (
     BbmmRasterArgs,
-    _build_output_path,
     _filename_prefix_from_group_key,
     _hash_grouper_key,
-    _remove_file_scheme,
+    _output_filename,
     export_geotiff,
     generate_bbmm_raster,
     generate_etd_raster,
@@ -53,49 +52,32 @@ def test_filename_prefix_from_group_key_present():
     assert _filename_prefix_from_group_key(group_key) == _hash_grouper_key(group_key)
 
 
-@pytest.mark.parametrize(
-    "path,expected",
-    [
-        ("/plain/path", "/plain/path"),
-        ("file:///abs/path", "/abs/path"),
-        ("file://localhost/abs/path", "/abs/path"),
-        # no path component - urlparse puts the content in netloc instead
-        ("file://onlyhost", "onlyhost"),
-    ],
-)
-def test_remove_file_scheme(path, expected):
-    assert _remove_file_scheme(path) == expected
+def test_output_filename_no_group_key():
+    assert _output_filename("etd_raster", None) == "etd_raster.tif"
 
 
-def test_remove_file_scheme_windows(monkeypatch):
-    monkeypatch.setattr("os.name", "nt")
-    assert _remove_file_scheme("file:///C:/Users/Admin/file.tif") == "C:\\Users\\Admin\\file.tif"
-
-
-def test_build_output_path_no_group_key(tmp_path):
-    output_path = _build_output_path(str(tmp_path), "etd_raster", None)
-    assert output_path == str(tmp_path / "etd_raster.tif")
-
-
-def test_build_output_path_with_group_key(tmp_path):
+def test_output_filename_with_group_key():
     group_key = (("subject_name", "=", "eco1"),)
-    output_path = _build_output_path(str(tmp_path), "etd_raster", group_key)
-    prefix = _hash_grouper_key(group_key)
-    assert output_path == str(tmp_path / f"{prefix}_etd_raster.tif")
+    assert _output_filename("etd_raster", group_key) == f"{_hash_grouper_key(group_key)}_etd_raster.tif"
 
 
-def test_build_output_path_creates_dir(tmp_path):
+def test_export_geotiff_creates_missing_output_dir(tmp_path):
+    data = np.array([[1.0, 2.0]], dtype="float32")
+    raster_data = RasterData(data=data, crs="EPSG:3857", transform=rio.Affine.identity())
     output_dir = tmp_path / "nested" / "dir"
-    _build_output_path(str(output_dir), "etd_raster", None)
-    assert output_dir.is_dir()
+
+    export_geotiff(raster_data, str(output_dir), "out.tif")
+
+    assert (output_dir / "out.tif").is_file()
 
 
 def test_export_geotiff_writes_file_with_nan_nodata(tmp_path):
     data = np.array([[1.0, 0.0], [np.nan, 2.0]], dtype="float32")
     raster_data = RasterData(data=data, crs="EPSG:3857", transform=rio.Affine.identity())
-    output_path = str(tmp_path / "out.tif")
 
-    export_geotiff(raster_data, output_path)
+    output_path = export_geotiff(raster_data, str(tmp_path), "out.tif")
+
+    assert output_path == str(tmp_path / "out.tif")
 
     with rio.open(output_path) as src:
         assert src.count == 1
@@ -111,9 +93,8 @@ def test_export_geotiff_writes_file_with_nan_nodata(tmp_path):
 def test_export_geotiff_numeric_nodata(tmp_path):
     data = np.array([[1.0, -9999.0]], dtype="float32")
     raster_data = RasterData(data=data, crs="EPSG:3857", transform=rio.Affine.identity())
-    output_path = str(tmp_path / "out.tif")
 
-    export_geotiff(raster_data, output_path, nodata=-9999.0)
+    output_path = export_geotiff(raster_data, str(tmp_path), "out.tif", nodata=-9999.0)
 
     with rio.open(output_path) as src:
         assert src.nodata == -9999.0
