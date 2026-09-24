@@ -1,9 +1,7 @@
 import hashlib
 import json
 import logging
-import os
 from typing import Annotated, Callable, Optional, TypeAlias
-from urllib.parse import urlparse
 
 import numpy as np  # type: ignore[import-untyped]
 from pydantic import Field
@@ -12,6 +10,7 @@ from wt_registry import register
 from ecoscope.io.raster import RasterData  # type: ignore[import-untyped]
 from ecoscope.platform.annotations import AdvancedField  # type: ignore[import-untyped]
 from ecoscope.platform.indexes import CompositeFilter  # type: ignore[import-untyped]
+from ecoscope.platform.serde import _persist_bytes  # type: ignore[import-untyped]
 from ecoscope.platform.tasks.analysis._time_density import (  # type: ignore[import-untyped]
     AutoScaleGridCellSize,
     CustomGridCellSize,
@@ -69,50 +68,33 @@ def _filename_prefix_from_group_key(group_key: CompositeFilter | None) -> str | 
     return _hash_grouper_key(group_key) if group_key else None
 
 
-def _remove_file_scheme(path: str) -> str:
-    """Remove a file:// scheme prefix from a path if present."""
-    if not path.startswith("file://"):
-        return path
-
-    parsed = urlparse(path)
-
-    if parsed.scheme == "file" and parsed.path:
-        path = parsed.path
-    elif parsed.scheme == "file":
-        path = parsed.netloc
-
-    if os.name == "nt":
-        # Remove leading slash before drive letter: /C:/path -> C:/path
-        if path.startswith("/") and len(path) > 2 and path[2] in (":", "|"):
-            path = path[1:]
-
-        path = path.replace("/", "\\")
-        path = path.replace("|", ":")
-
-    return path
-
-
-def _build_output_path(output_dir: str, filename: str, group_key: CompositeFilter | None) -> str:
-    output_dir = _remove_file_scheme(output_dir)
-    os.makedirs(output_dir, exist_ok=True)
+def _output_filename(filename: str, group_key: CompositeFilter | None) -> str:
     prefix = _filename_prefix_from_group_key(group_key)
-    full_filename = f"{prefix}_{filename}.tif" if prefix else f"{filename}.tif"
-    return os.path.join(output_dir, full_filename)
+    return f"{prefix}_{filename}.tif" if prefix else f"{filename}.tif"
 
 
 def export_geotiff(
     raster_data: RasterData,
-    output_path: str,
+    output_dir: str,
+    filename: str,
     band_count: int = 1,
     dtype: str = "float32",
     nodata: float | str = "nan",
-) -> None:
-    """Write a utilization-distribution surface to disk as a GeoTIFF.
+) -> str:
+    """Persist a utilization-distribution surface as a GeoTIFF under `output_dir`, returning its read path.
 
     Cells with no computed density (never touched by any segment's window,
     or exactly zero) are masked to `nodata` so they render as transparent
     background in GIS tools, not a solid zero fill.
+
+    Encoded in memory and handed to `_persist_bytes` as a finished blob rather
+    than written through a path: GDAL's GTiff driver needs random-access
+    writes, which the `/vsigs/` path rasterio turns a `gs://` `output_dir` into
+    does not support. It also gives this task the same local/`file://`/`gs://`
+    handling - and the same https read path - as every other persisted result.
     """
+    import rasterio as rio  # type: ignore[import-untyped]
+
     from ecoscope.io.raster import RasterPy  # type: ignore[import-untyped]
 
     nodata_value: float = float("nan") if nodata == "nan" else float(nodata)
@@ -121,17 +103,19 @@ def export_geotiff(
     ndarray[np.isnan(ndarray) | (ndarray == 0)] = nodata_value
 
     rows, columns = ndarray.shape
-    RasterPy.write(
-        ndarray,
-        fp=output_path,
-        columns=columns,
-        rows=rows,
-        band_count=band_count,
-        dtype=dtype,
-        crs=raster_data.crs,
-        transform=raster_data.transform,
-        nodata=nodata_value,
-    )
+    with rio.MemoryFile() as memfile:
+        RasterPy.write(
+            ndarray,
+            fp=memfile,
+            columns=columns,
+            rows=rows,
+            band_count=band_count,
+            dtype=dtype,
+            crs=raster_data.crs,
+            transform=raster_data.transform,
+            nodata=nodata_value,
+        )
+        return _persist_bytes(memfile.read(), output_dir, filename)
 
 
 def _generate_utilization_distribution_raster(
@@ -164,8 +148,14 @@ def _generate_utilization_distribution_raster(
             f"relative to the {grid_cell_size_note}."
         )
 
-    output_path = _build_output_path(output_dir, filename, group_key)
-    export_geotiff(raster_data, output_path, band_count=band_count, dtype=dtype, nodata=nodata)
+    output_path = export_geotiff(
+        raster_data,
+        output_dir,
+        _output_filename(filename, group_key),
+        band_count=band_count,
+        dtype=dtype,
+        nodata=nodata,
+    )
 
     logger.info(f"{label} raster written to: {output_path}")
     return output_path

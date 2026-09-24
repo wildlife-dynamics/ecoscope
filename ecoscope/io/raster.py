@@ -156,8 +156,10 @@ class RasterPy:
         indexes: int = 1,
         **kwargs,
     ) -> None:
+        # pass fp positionally: rasterio's env decorator falls back to `args[0]`
+        # when the `fp` keyword is falsy, and an empty MemoryFile is falsy.
         with rio.open(
-            fp=fp,
+            fp,
             mode="w",
             driver=driver,
             height=rows,
