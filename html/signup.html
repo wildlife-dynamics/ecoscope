@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ecoscope</title>
+<title>Sign up | Ecoscope</title>
 <link rel="preload" href="fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="favicon.ico" sizes="any">
@@ -12,10 +12,8 @@
 <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="prefetch" href="platform-sdk/" as="document">
-<link rel="prefetch" href="docs/" as="document">
 </head>
-<body>
+<body class="signup-page">
 
 <header>
   <div class="container">
@@ -72,125 +70,12 @@
   </div>
 </header>
 
-<section class="hero">
-  <div class="hero-overlay"></div>
-  <div class="container hero-content">
-    <div class="hero-text">
-      <h1>Ecoscope</h1>
-      <p>A free and open-source data analytics and reporting platform designed to turn conservation data into action.</p>
-      <div class="hero-ctas">
-        <a href="https://app.ecoscope.io/login" class="btn-login-hero">Log in</a>
-        <a href="signup.html" class="btn-download-hero">Sign up</a>
-      </div>
-    </div>
-    <div class="hero-image">
-      <img src="backgrounds/website-ecoscope-hero-heatmap.png" alt="Home range and speed analysis visualizations">
-    </div>
+<main class="signup">
+  <div class="container signup-content">
+    <script src="https://js.hsforms.net/forms/embed/5910970.js" defer></script>
+    <div class="hs-form-frame" data-region="na1" data-form-id="54431a96-5ffb-40be-afc9-04349819a1cf" data-portal-id="5910970"></div>
   </div>
-</section>
-
-<section class="insights">
-  <div class="container">
-    <div class="insights-grid">
-      <div class="insights-image">
-        <img src="backgrounds/patrol-outputs.png" alt="Patrol tracks, events, and analytics dashboard" loading="lazy" decoding="async">
-      </div>
-      <div class="insights-text">
-        <h2>Insights in minutes, not weeks</h2>
-        <p>Conservation teams collect more data than ever, but turning it into insight is still a struggle. Ecoscope cuts time spent wrangling spreadsheets, bridges the gap between data collection and decision-making, and frees up more time for the field.</p>
-        <a href="signup.html" class="btn-green">Sign up</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="offerings">
-  <div class="container">
-    <h2>What Ecoscope offers conservationists</h2>
-    <div class="offerings-top-row">
-      <a href="https://app.ecoscope.io/login" class="offering-card">
-        <div class="offering-card-body">
-          <h3>Web App</h3>
-          <p>Run workflows in your browser, with nothing to install. Pull in raw data, run in-depth analyses, and generate visualizations that reveal patterns in minutes &mdash; so teams can monitor trends and spot risks at a glance.</p>
-        </div>
-        <div class="offering-card-image">
-          <img src="backgrounds/ecoscope-day-night.webp" alt="Web app advanced analysis visualization" loading="lazy" decoding="async">
-        </div>
-      </a>
-      <a href="https://app.ecoscope.io/download" class="offering-card">
-        <div class="offering-card-body">
-          <h3>Desktop App</h3>
-          <p>Run Ecoscope locally, on your own hardware. Primarily intended for developers.</p>
-        </div>
-        <div class="offering-card-image">
-          <img src="backgrounds/patrol-dashboard.webp" alt="Desktop app Patrols Dashboard with statistics and charts" loading="lazy" decoding="async">
-        </div>
-      </a>
-    </div>
-    <div class="offerings-bottom-row">
-      <a href="https://earthranger-support.helpjuice.com/en_US/ecoscope" target="_blank" rel="noopener noreferrer" class="offering-icon-card">
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M11 18h2v-2h-2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4"/></svg>
-        <div>
-          <h3>Help Center</h3>
-          <p>Learn to use the apps and troubleshoot issues.</p>
-        </div>
-      </a>
-      <a href="platform-sdk/" class="offering-icon-card">
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6z"/></svg>
-        <div>
-          <h3>Build Your Own</h3>
-          <p>For advanced users: create and run custom analytical workflows from Ecoscope's pre-built components.</p>
-        </div>
-      </a>
-      <a href="https://community.earthranger.com/c/ecoscope/16" target="_blank" rel="noopener noreferrer" class="offering-icon-card">
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 14H6l-2 2V4h16z"/></svg>
-        <div>
-          <h3>Community</h3>
-          <p>Join the conversation. Ask questions, share workflows, and connect with other Ecoscope users.</p>
-        </div>
-      </a>
-      <a href="https://support.earthranger.com/en_US/ecoscope-getting-help/ecoscope-migration-guide" target="_blank" rel="noopener noreferrer" class="offering-icon-card">
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#0fcb8c" class="icon-no-shrink"><path d="M9 3v2H5v14h14v-4h2v6H3V3zm9 0h3v3h-2V4.415l-8.293 8.292-1.414-1.414L17.585 3H16V1h5v5h-2V4.415z"/></svg>
-        <div>
-          <h3>Export Data</h3>
-          <p>Export EarthRanger data directly from Ecoscope Web or Desktop to start your analysis your own way.</p>
-        </div>
-      </a>
-    </div>
-  </div>
-</section>
-
-<section class="collaboration">
-  <div class="container">
-    <div class="collaboration-grid">
-      <div class="collaboration-text">
-        <h2>Made possible by collaboration</h2>
-        <p>Ecoscope was first envisioned by Dr. Jake Wall in the effort to understand and protect African elephants. It&#8217;s a free and open-source platform led by Wildlife Dynamics and EarthRanger, supported by Allen Family Philanthropies, Mara Elephant Project, Save the Elephants, and Elephants Alive.</p>
-        <p>Get in touch to support Ecoscope through donations, collaboration, or partnerships.</p>
-        <a href="https://docs.google.com/forms/d/e/1FAIpQLSe6mMSvZH7JlIID2yjKUvPN4Cl4eddlZVZGrikHKvA21HdF1g/viewform" target="_blank" rel="noopener noreferrer" class="btn-green">Get in touch</a>
-      </div>
-      <div class="collaboration-image">
-        <img src="backgrounds/ER used in collaring 2019 credit adam bannister-p-1600.jpg" alt="EarthRanger used in elephant collaring operation" loading="lazy" decoding="async">
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="testimonial">
-  <div class="container">
-    <blockquote>
-      <p>&ldquo;Ecoscope has changed the game entirely; at the click of the button we can make sense of it all, seeing patterns and trends that help us to design more effective conservation responses.&rdquo;</p>
-      <footer>&ndash; Craig Millar, Big Life Foundation</footer>
-    </blockquote>
-  </div>
-</section>
-
-<section class="acknowledgments">
-  <div class="container">
-    <h2>Acknowledgments</h2>
-    <p>We thank the many individuals and organizations who have contributed to the development of Ecoscope. In particular: Jake Wall, Charles Stern, Alex Morling, Yun Wu, Ray R, Marcos Davidovich, Mariano Martinez, Tiffany Wong, Jes Lefcourt, Chris Jones, Chris Doehring, Juan Lescano, Anderson Arendt, Tevin Temu, Eric Gitonga, Rodney Omukuti, Peter Kulits, Zakaria Hussein, Catherine Villeneuve, Lydia Tiller, Harry Williams, India Taylor-Smith, Anil Patel, Holly Dublin, George Wittemyer, Allen Family Philanthropies, Allen Institute for Artificial Intelligence, Google Earth Outreach, Mara Elephant Project, Save the Elephants, and Elephants Alive.</p>
-  </div>
-</section>
+</main>
 
 <footer class="site-footer">
   <div class="container">
