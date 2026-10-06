@@ -48,7 +48,7 @@ def _nullable_advanced(json_type: str):
 
 def _empty_string_to_none(number_type: type):
     """BeforeValidator factory for a field typed `X | None` (see e.g.
-    GamSmoothingSettings.alpha). Runs before pydantic's own type
+    GammMcmcSettings.tune). Runs before pydantic's own type
     validation, normalizing an empty or numeric string into a real
     None/number - a defensive backstop in case a caller submits "" or a
     numeric string instead of a real number.
@@ -97,114 +97,6 @@ class AddInterceptSettings(BaseModel):
             description="Whether to fit a y-intercept term. Disable to force the line through the origin.",
         ),
     ] = True
-
-
-class GlmFamilySettings(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    family: Annotated[
-        Literal["gaussian", "poisson", "binomial", "gamma"],
-        Field(
-            default="gaussian",
-            title="Distribution Family",
-            description="Distribution assumed for the response variable.",
-            json_schema_extra=_advanced_titled_enum(
-                ("gaussian", "Gaussian"),
-                ("poisson", "Poisson"),
-                ("binomial", "Binomial"),
-                ("gamma", "Gamma"),
-            ),
-        ),
-    ] = "gaussian"
-
-
-class GamFamilySettings(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    family: Annotated[
-        Literal["gaussian", "poisson", "binomial"],
-        Field(
-            default="gaussian",
-            title="Distribution Family",
-            description="Distribution assumed for the response variable.",
-            json_schema_extra=_advanced_titled_enum(
-                ("gaussian", "Gaussian"),
-                ("poisson", "Poisson"),
-                ("binomial", "Binomial"),
-            ),
-        ),
-    ] = "gaussian"
-
-
-class GamSmoothingSettings(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    alpha: Annotated[
-        float | None,
-        BeforeValidator(_empty_string_to_none(float)),
-        Field(
-            default=None,
-            title="Smoothing Parameter (Alpha)",
-            description="Fixed smoothing strength. Leave empty to select automatically via cross-validation.",
-            json_schema_extra=_nullable_advanced("number"),
-        ),
-    ] = None
-    metric: Annotated[
-        Literal["aic", "bic", "euclidean", "mse", "r_squared"],
-        Field(
-            default="aic",
-            title="Alpha Selection Metric",
-            description="Used only when Alpha is left empty.",
-            json_schema_extra=_advanced_titled_enum(
-                ("aic", "AIC"),
-                ("bic", "BIC"),
-                ("euclidean", "Euclidean Distance"),
-                ("mse", "MSE"),
-                ("r_squared", "R-Squared"),
-            ),
-        ),
-    ] = "aic"
-
-
-class GamSplineSettings(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    degree_of_freedom: Annotated[
-        int,
-        AdvancedField(
-            6,
-            title="Spline Degrees of Freedom",
-            description="Number of basis functions for the spline. Higher values allow more "
-            "flexible curves but risk overfitting.",
-        ),
-    ] = 6
-    degree: Annotated[
-        int,
-        AdvancedField(3, title="Spline Degree", description="Polynomial degree of each spline segment (3 = cubic)."),
-    ] = 3
-
-
-class GamBoundsSettings(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    # Excluded rather than exposed: unlike alpha/tune/random_seed, these are
-    # edge-case tuning knobs almost nobody needs to override, and "infer
-    # from the data range" (the None default) is what GAMRegressor.fit
-    # itself does whenever these aren't given - not worth exposing a
-    # nullable-number field in the form for. Always None; never shown.
-    lower_bound: Annotated[
-        float | SkipJsonSchema[None],
-        Field(
-            default=None,
-            title="Lower Knot Bound",
-            description="Lower bound for spline knot placement. Leave empty to infer from the data range.",
-            exclude=True,
-        ),
-    ] = None
-    upper_bound: Annotated[
-        float | SkipJsonSchema[None],
-        Field(
-            default=None,
-            title="Upper Knot Bound",
-            description="Upper bound for spline knot placement. Leave empty to infer from the data range.",
-            exclude=True,
-        ),
-    ] = None
 
 
 class GammFamilySettings(BaseModel):
@@ -294,64 +186,38 @@ class LinearTrendModel(BaseModel):
         return {"add_intercept": self.intercept_settings.add_intercept}
 
 
-class GlmTrendModel(BaseModel):
-    """Generalized linear model. Baseline for comparison against the smoothed
-    models below - not recommended as the final trend line."""
-
-    model_config = ConfigDict(title="Generalized Linear Model (GLM)")
-    model: Annotated[Literal["glm"], Field(default="glm", title="Model")] = "glm"
-    family_settings: Annotated[
-        GlmFamilySettings,
-        AdvancedField(GlmFamilySettings(), title="Distribution Family"),
-    ] = GlmFamilySettings()
-    intercept_settings: Annotated[
-        AddInterceptSettings,
-        AdvancedField(AddInterceptSettings(), title="Add Intercept"),
-    ] = AddInterceptSettings()
-
-    def get_params(self) -> dict:
-        return {
-            "family": self.family_settings.family,
-            "add_intercept": self.intercept_settings.add_intercept,
-        }
-
-
 class GamTrendModel(BaseModel):
-    """Generalized additive model via B-splines. Smooths the trend rather
-    than fitting a straight line; the recommended default for most trend
-    charts."""
+    """Bayesian generalized additive model via B-splines, fit with PyMC
+    (through Bambi). Smooths the trend rather than fitting a straight line;
+    the recommended default for most trend charts. Like GammTrendModel but
+    with no per-site random effect - fits and predicts independently per
+    site rather than pooling across sites (see GammTrendModel's docstring
+    for when that pooling applies)."""
 
     model_config = ConfigDict(title="Generalized Additive Model (GAM)")
     model: Annotated[Literal["gam"], Field(default="gam", title="Model")] = "gam"
     family_settings: Annotated[
-        GamFamilySettings,
-        AdvancedField(GamFamilySettings(), title="Distribution Family"),
-    ] = GamFamilySettings()
-    smoothing_settings: Annotated[
-        GamSmoothingSettings,
-        AdvancedField(GamSmoothingSettings(), title="Smoothing"),
-    ] = GamSmoothingSettings()
+        GammFamilySettings,
+        AdvancedField(GammFamilySettings(), title="Distribution Family"),
+    ] = GammFamilySettings()
     spline_settings: Annotated[
-        GamSplineSettings,
-        AdvancedField(GamSplineSettings(), title="Spline Shape"),
-    ] = GamSplineSettings()
-    # Both of GamBoundsSettings' own fields are excluded (see its docstring) -
-    # nothing left to show, so the wrapper itself is excluded too, rather
-    # than rendering an empty "Knot Bounds" section.
-    bounds_settings: Annotated[
-        GamBoundsSettings,
-        AdvancedField(GamBoundsSettings(), title="Knot Bounds", exclude=True),
-    ] = GamBoundsSettings()
+        GammSplineSettings,
+        AdvancedField(GammSplineSettings(), title="Spline Shape"),
+    ] = GammSplineSettings()
+    mcmc_settings: Annotated[
+        GammMcmcSettings,
+        AdvancedField(GammMcmcSettings(), title="MCMC Sampling"),
+    ] = GammMcmcSettings()
 
     def get_params(self) -> dict:
         return {
             "family": self.family_settings.family,
-            "alpha": self.smoothing_settings.alpha,
-            "metric": self.smoothing_settings.metric,
             "degree_of_freedom": self.spline_settings.degree_of_freedom,
-            "degree": self.spline_settings.degree,
-            "lower_bound": self.bounds_settings.lower_bound,
-            "upper_bound": self.bounds_settings.upper_bound,
+            "inference_method": self.mcmc_settings.inference_method,
+            "draws": self.mcmc_settings.draws,
+            "tune": self.mcmc_settings.tune,
+            "chains": self.mcmc_settings.chains,
+            "random_seed": self.mcmc_settings.random_seed,
         }
 
 
@@ -361,12 +227,12 @@ class GammTrendModel(BaseModel):
     (site_ids derived automatically from a "name" column if present - see
     fit_trend_model), then predicts each site's own group-specific curve
     from that shared fit (see predict_trend_model's `dataframe` parameter) -
-    unlike the other three models, which each fit and predict independently
-    per site. Mainly useful here for its Bayesian credible intervals rather
-    than frequentist confidence intervals, at the added cost of MCMC
-    sampling - both fitting and (since a fitted estimator can't cross a task
-    boundary) every downstream prediction refit this model from scratch,
-    making it substantially slower than the other three."""
+    unlike Linear and GAM, which each fit and predict independently per
+    site. Both this and GAM are Bayesian (fit via PyMC/Bambi), giving
+    genuine credible intervals rather than frequentist confidence intervals,
+    at the added cost of MCMC sampling - both fitting and (since a fitted
+    estimator can't cross a task boundary) every downstream prediction refit
+    this model from scratch, making it substantially slower than Linear."""
 
     model_config = ConfigDict(title="Generalized Additive Mixed Model (GAMM)")
     model: Annotated[Literal["gamm"], Field(default="gamm", title="Model")] = "gamm"
@@ -396,13 +262,12 @@ class GammTrendModel(BaseModel):
 
 
 TrendModel: TypeAlias = Annotated[
-    LinearTrendModel | GlmTrendModel | GamTrendModel | GammTrendModel,
+    LinearTrendModel | GamTrendModel | GammTrendModel,
     Field(discriminator="model"),
 ]
 
 _TREND_MODEL_TYPES: dict[str, type[BaseModel]] = {
     "linear": LinearTrendModel,
-    "glm": GlmTrendModel,
     "gam": GamTrendModel,
     "gamm": GammTrendModel,
 }
@@ -421,24 +286,14 @@ def _build_regressor(model: TrendModel):
     from ecoscope.analysis.trend_analysis import (  # type: ignore[import-untyped]
         GAMMRegressor,
         GAMRegressor,
-        GLMRegressor,
         LinearRegressionRegressor,
     )
 
     if isinstance(model, LinearTrendModel):
         return LinearRegressionRegressor(**model.get_params())
-    if isinstance(model, GlmTrendModel):
-        return GLMRegressor(**model.get_params())
-    if isinstance(model, GamTrendModel):
-        params = model.get_params()
-        return GAMRegressor(
-            alpha=params["alpha"],
-            degree_of_freedom=params["degree_of_freedom"],
-            degree=params["degree"],
-            family=params["family"],
-        )
     params = model.get_params()
-    return GAMMRegressor(
+    regressor_cls = GAMMRegressor if isinstance(model, GammTrendModel) else GAMRegressor
+    return regressor_cls(
         degree_of_freedom=params["degree_of_freedom"],
         inference_method=params["inference_method"],
         draws=params["draws"],
@@ -451,15 +306,6 @@ def _build_regressor(model: TrendModel):
 
 def _fit_regressor(model: TrendModel, X: np.ndarray, y: np.ndarray, site_ids: np.ndarray | None):
     regressor = _build_regressor(model)
-    if isinstance(model, GamTrendModel):
-        params = model.get_params()
-        return regressor.fit(
-            X,
-            y,
-            lower_bound=params["lower_bound"],
-            upper_bound=params["upper_bound"],
-            metric=params["metric"],
-        )
     if isinstance(model, GammTrendModel):
         return regressor.fit(X, y, site_ids)
     return regressor.fit(X, y)
@@ -494,7 +340,7 @@ def is_gamm_trend_model(*args: Any) -> bool:
     """skipif condition: True if any arg is a GammTrendModel.
 
     GAMM fits once across every site's combined data (see GammTrendModel's
-    docstring), unlike the other 3 models which each fit independently per
+    docstring), unlike Linear and GAM which each fit independently per
     site - so a workflow wires two separate fit branches (per-site, and one
     combined across sites) and uses this (and its inverse) to run only the
     one that matches the selection.
@@ -654,9 +500,9 @@ def get_trend_model_fit_summary(
 ) -> Annotated[
     AnyDataFrame,
     Field(
-        description="Fit parameter summary (e.g. coefficient/std error/p-value/CI for Linear/GLM/GAM, or "
-        "posterior mean/sd/hdi/r_hat for GAMM) - the direct output of the underlying statsmodels or "
-        "pymc/bambi fit, one row per model parameter."
+        description="Fit parameter summary (coefficient/std error/p-value/CI for Linear, or posterior "
+        "mean/sd/hdi/r_hat for GAM/GAMM) - the direct output of the underlying statsmodels or pymc/bambi "
+        "fit, one row per model parameter."
     ),
 ]:
     """Refit from `model_params` (a fitted estimator can't cross a task
