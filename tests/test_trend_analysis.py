@@ -101,10 +101,19 @@ def test_gamm_regressor_r_squared_and_mse(fitted_gamm):
     assert r2 <= 1.0
 
 
-def test_gamm_regressor_aic_bic_raise(fitted_gamm):
-    """GAMM has no frequentist AIC/BIC — point callers at waic/loo."""
+def test_gamm_regressor_loo(fitted_gamm):
+    """GAMM's Bayesian fit exposes ArviZ LOO (PSIS-LOO-CV) in place of aic/bic -
+    requires compute_log_likelihood() to have been called during fit()."""
     gamm, *_ = fitted_gamm
-    with pytest.raises(NotImplementedError, match="waic"):
+    loo = gamm.loo()
+    assert loo is not None
+
+
+def test_gamm_regressor_aic_bic_raise(fitted_gamm):
+    """GAMM has no frequentist AIC/BIC — point callers at loo() (ArviZ 1.0+
+    dropped waic() outright in favor of PSIS-LOO)."""
+    gamm, *_ = fitted_gamm
+    with pytest.raises(NotImplementedError, match="loo"):
         gamm.aic()
     with pytest.raises(NotImplementedError, match="loo"):
         gamm.bic()
@@ -182,12 +191,20 @@ def test_gam_regressor_r_squared_and_mse(fitted_gam):
 
 
 def test_gam_regressor_aic_bic_raise(fitted_gam):
-    """GAM has no frequentist AIC/BIC — point callers at waic/loo."""
+    """GAM has no frequentist AIC/BIC — point callers at loo() (ArviZ 1.0+
+    dropped waic() outright in favor of PSIS-LOO)."""
     gam, *_ = fitted_gam
-    with pytest.raises(NotImplementedError, match="waic"):
+    with pytest.raises(NotImplementedError, match="loo"):
         gam.aic()
     with pytest.raises(NotImplementedError, match="loo"):
         gam.bic()
+
+
+def test_gam_regressor_loo(fitted_gam):
+    """GAM's Bayesian fit exposes ArviZ LOO (PSIS-LOO-CV) in place of aic/bic."""
+    gam, *_ = fitted_gam
+    loo = gam.loo()
+    assert loo is not None
 
 
 def test_gam_regressor_invalid_inference_method():

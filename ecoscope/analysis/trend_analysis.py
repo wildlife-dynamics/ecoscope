@@ -227,6 +227,8 @@ class GAMMRegressor(_TrendRegressorBase):
                 chains=self.chains,
                 random_seed=self.random_seed,
             )
+        # Bambi doesn't compute this by default - loo() needs it.
+        self._model_.compute_log_likelihood(self._idata_)
 
         return self
 
@@ -357,17 +359,10 @@ class GAMMRegressor(_TrendRegressorBase):
         )
 
     def aic(self) -> float:
-        raise NotImplementedError("GAMM is Bayesian; use waic() or loo() instead of aic().")
+        raise NotImplementedError("GAMM is Bayesian; use loo() instead of aic().")
 
     def bic(self) -> float:
-        raise NotImplementedError("GAMM is Bayesian; use waic() or loo() instead of bic().")
-
-    def waic(self):
-        """Return ArviZ WAIC (Watanabe–Akaike information criterion)."""
-        self._check_is_fitted()
-        import arviz as az  # type: ignore[import-not-found,import-untyped]
-
-        return az.waic(self._idata_)
+        raise NotImplementedError("GAMM is Bayesian; use loo() instead of bic().")
 
     def loo(self):
         """Return ArviZ LOO (leave-one-out cross-validation)."""
@@ -497,6 +492,8 @@ class GAMRegressor(_TrendRegressorBase):
                 chains=self.chains,
                 random_seed=self.random_seed,
             )
+        # Bambi doesn't compute this by default - loo() needs it.
+        self._model_.compute_log_likelihood(self._idata_)
 
         return self
 
@@ -575,17 +572,10 @@ class GAMRegressor(_TrendRegressorBase):
         )
 
     def aic(self) -> float:
-        raise NotImplementedError("GAM is Bayesian; use waic() or loo() instead of aic().")
+        raise NotImplementedError("GAM is Bayesian; use loo() instead of aic().")
 
     def bic(self) -> float:
-        raise NotImplementedError("GAM is Bayesian; use waic() or loo() instead of bic().")
-
-    def waic(self):
-        """Return ArviZ WAIC (Watanabe–Akaike information criterion)."""
-        self._check_is_fitted()
-        import arviz as az  # type: ignore[import-not-found,import-untyped]
-
-        return az.waic(self._idata_)
+        raise NotImplementedError("GAM is Bayesian; use loo() instead of bic().")
 
     def loo(self):
         """Return ArviZ LOO (leave-one-out cross-validation)."""
