@@ -745,9 +745,3 @@ readthedocs-flyout {
 .signup-content {
   max-width: 640px;
 }
-
-.signup h2 {
-  margin-bottom: 1.5rem;
-  font-size: 1.875rem;
-  font-weight: 700;
-}
