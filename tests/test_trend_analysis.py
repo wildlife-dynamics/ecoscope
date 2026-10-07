@@ -1,5 +1,7 @@
 """Tests for trend analysis module."""
 
+import sys
+
 import numpy as np
 import pytest
 
@@ -211,3 +213,14 @@ def test_gam_regressor_invalid_inference_method():
     """inference_method is validated at init."""
     with pytest.raises(ValueError, match="inference_method"):
         trend_analysis.GAMRegressor(inference_method="nuts")
+
+
+def test_gam_regressor_fit_without_bambi_raises(sample_data, monkeypatch):
+    """fit() surfaces a clear error if the optional bambi dependency is missing -
+    setting sys.modules["bambi"] = None makes `import bambi` raise
+    ModuleNotFoundError, per Python's own import system (PEP 328/sys.modules docs)."""
+    X, y = sample_data
+    monkeypatch.setitem(sys.modules, "bambi", None)
+    gam = trend_analysis.GAMRegressor(degree_of_freedom=5)
+    with pytest.raises(ModuleNotFoundError, match="bambi"):
+        gam.fit(X, y)
