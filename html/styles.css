@@ -736,17 +736,18 @@ readthedocs-flyout {
   display: none !important;
 }
 
-.signup-page header {
-  background: var(--brand-text-primary);
-}
-
 .signup {
   background: var(--brand-background-primary);
   color: var(--brand-text-primary);
-  padding: 160px 0 80px;
-  min-height: 70vh;
+  padding: 5rem 0;
 }
 
 .signup-content {
   max-width: 640px;
+}
+
+.signup h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.875rem;
+  font-weight: 700;
 }
