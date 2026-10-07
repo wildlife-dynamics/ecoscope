@@ -152,6 +152,28 @@ def test_gam_regressor_fit_predict(fitted_gam):
     assert all(np.isfinite(predictions))
 
 
+def test_gam_regressor_laplace_inference(sample_data):
+    """laplace is the other supported inference_method besides mcmc."""
+    pytest.importorskip("bambi")
+    X, y = sample_data
+    gam = trend_analysis.GAMRegressor(degree_of_freedom=5, inference_method="laplace")
+    gam.fit(X, y)
+    predictions = gam.predict(X)
+    assert len(predictions) == len(y)
+    assert all(np.isfinite(predictions))
+
+
+def test_gam_regressor_mcmc_defaults_tune_to_draws(sample_data):
+    """tune defaults to draws when left unset (mcmc only)."""
+    pytest.importorskip("bambi")
+    X, y = sample_data
+    gam = trend_analysis.GAMRegressor(degree_of_freedom=5, draws=100, chains=1, random_seed=42)
+    gam.fit(X, y)
+    predictions = gam.predict(X)
+    assert len(predictions) == len(y)
+    assert all(np.isfinite(predictions))
+
+
 def test_linear_regression_fit_predict(sample_data):
     """Test LinearRegressionRegressor fit and predict."""
     X, y = sample_data
