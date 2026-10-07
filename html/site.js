@@ -46,7 +46,7 @@ function hasPrefetchLink(href) {
 function prefetchSameSitePage(href) {
   var url;
 
-  if (!href) {
+  if (!href || href.charAt(0) === '#') {
     return;
   }
 

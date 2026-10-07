@@ -735,3 +735,13 @@ header nav {
 readthedocs-flyout {
   display: none !important;
 }
+
+.signup {
+  background: var(--brand-background-primary);
+  color: var(--brand-text-primary);
+  padding: 5rem 0;
+}
+
+.signup-content {
+  max-width: 640px;
+}
