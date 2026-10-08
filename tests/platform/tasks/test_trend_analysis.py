@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-from pydantic import TypeAdapter
-
 from ecoscope.platform.tasks.analysis._trend_analysis import (
     GammFamilySettings,
     GammMcmcSettings,
@@ -18,6 +16,7 @@ from ecoscope.platform.tasks.analysis._trend_analysis import (
     predict_trend_model,
     set_trend_model,
 )
+from pydantic import TypeAdapter
 
 
 @pytest.fixture(scope="module")
@@ -244,9 +243,7 @@ def test_get_trend_model_fit_summary_tags_name_for_single_group(multi_site_dataf
         spline_settings=GammSplineSettings(degree_of_freedom=3),
         mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
     )
-    combined_params = fit_trend_model(
-        multi_site_dataframe, combined_model, time_column="year", value_column="value"
-    )
+    combined_params = fit_trend_model(multi_site_dataframe, combined_model, time_column="year", value_column="value")
     combined_summary = get_trend_model_fit_summary(combined_params, model=combined_model)
     assert "name" not in combined_summary.columns
 

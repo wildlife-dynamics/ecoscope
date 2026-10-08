@@ -408,9 +408,7 @@ def fit_trend_model(
         # (e.g. GAMM's own combined-across-groups fit) - there's no single
         # name to attribute a shared fit to.
         "name": (
-            dataframe["name"].iloc[0]
-            if "name" in dataframe.columns and dataframe["name"].nunique() == 1
-            else None
+            dataframe["name"].iloc[0] if "name" in dataframe.columns and dataframe["name"].nunique() == 1 else None
         ),
     }
 
