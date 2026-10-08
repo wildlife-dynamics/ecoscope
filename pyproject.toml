@@ -173,6 +173,8 @@ packages = [
 ecoscope = "ecoscope.platform.tasks"
 [project.entry-points."wt_task.mock_loaders"]
 parquet = "ecoscope.platform.mock_loaders:load_parquet"
+[project.entry-points."wt_task.codecs"]
+ecoscope = "ecoscope.platform.codecs:codecs"
 
 [tool.setuptools_scm]
 write_to = "ecoscope/_version.py"

@@ -10,6 +10,7 @@ from wt_registry import register
 from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
+from ecoscope.platform.codecs import digest_dataframe, has_geometry
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.serde import _persist_bytes, _persist_text, _read_path_if_file_exists
 from ecoscope.platform.tasks.transformation._sanitize import sanitize_for_arrow
@@ -19,7 +20,15 @@ from ecoscope.platform.tasks.transformation._sanitize import sanitize_for_arrow
 # because in the end to end test that tag is used to determine which tasks to mock.
 # Ultimately, we should make the mocking process less brittle, but to get his PR merged,
 # I'm going to leave this as is for now.
-@register()
+# Tagged `no-cache`: the value these return is a *path*, and the thing that makes
+# it true is a file in the results store. Serving one from the step cache hands
+# back the path without checking that the file is still there, so a rotated or
+# re-provisioned results root yields a dashboard pointing at nothing. They are
+# also already their own content-addressed cache, with the right invalidation
+# (`_read_path_if_file_exists`) -- warm, they hash the payload and skip the
+# write -- so caching the step buys a file-existence check's worth of time and
+# gives up the check. The tag costs one step each; dependents still cache.
+@register(tags=["no-cache"])
 def persist_text(
     text: Annotated[str, Field(description="Text to persist")],
     root_path: Annotated[str, Field(description="Root path to persist text to")],
@@ -62,7 +71,7 @@ def persist_text(
     return _persist_text(text, root_path, filename)
 
 
-@register()
+@register(tags=["no-cache"])
 def persist_json(
     data: Annotated[
         dict[str, Any] | BaseModel,
@@ -121,51 +130,23 @@ ResultsFileType = Literal["csv", "gpkg", "geoparquet", "parquet"]
 
 
 def _hash_df(df: AnyDataFrame) -> str:
-    """Return a 7-char sha256 hash of a dataframe's contents.
+    """Return a 7-char content hash of a dataframe, for use in a filename.
 
-    Covers every row and the index, plus column names and dtypes, so equal
-    frames hash equally and unequal frames don't. Shared by `persist_df`,
-    `persist_df_wrapper` and `persist_geoarrow_for_pydeck`.
+    The truncation lives here rather than in `digest_dataframe` because it is a
+    property of the filename, not of the content identity: the cache needs the
+    full sha256, and widening the shared digest while truncating at the caller
+    keeps the names the same shape.
 
     It identifies the *content*, not the bytes on disk: the same frame encoded
     two ways hashes the same. A caller that skips writing an existing target
-    therefore owes the rest of the name — extension is usually enough, but
+    therefore owes the rest of the name -- extension is usually enough, but
     `persist_geoarrow_for_pydeck` also needs `GEOARROW_FILENAME_PREFIX`, since
     its geoarrow parquet would otherwise collide with `persist_df`'s WKB one.
     """
-    import numpy as np
-    import pandas as pd
-
-    def _fallback_hash(obj):
-        try:
-            return pd.util.hash_pandas_object(obj, index=False).values
-        except (TypeError, ValueError, AttributeError):
-            # Cells pandas can't hash (lists/dicts in event details). `repr`
-            # rather than `str`: in a mixed column `str` collapses 1 and "1"
-            # to the same text, and a filename collision serves wrong bytes.
-            try:
-                return pd.util.hash_pandas_object(obj.map(repr), index=False).values
-            except Exception as e:
-                # Fail loudly if we hit a value whose own `__repr__` fails.
-                label = obj.name if isinstance(obj, pd.Series) else "<index>"
-                raise TypeError(
-                    f"cannot content-hash column {label!r}: values are neither hashable nor reprable"
-                ) from e
-
-    digest = hashlib.sha256()
-    try:
-        digest.update(np.ascontiguousarray(pd.util.hash_pandas_object(df).values))
-    except (TypeError, ValueError, AttributeError):
-        # Only now, and only for the columns that genuinely fail, pay per-column
-        # costs. Every row still contributes; hashing a `head(5)` sample here
-        # let two frames sharing shape and first rows collide.
-        for obj in (df.index, *(df.iloc[:, i] for i in range(len(df.columns)))):
-            digest.update(np.ascontiguousarray(_fallback_hash(obj)))
-    digest.update(json.dumps([[str(c), str(dt)] for c, dt in zip(df.columns, df.dtypes)]).encode())
-    return digest.hexdigest()[:7]
+    return digest_dataframe(df)[:7]
 
 
-@register()
+@register(tags=["no-cache"])
 def persist_df(
     df: Annotated[AnyDataFrame, Field(description="Dataframe to persist")],
     root_path: Annotated[str, Field(description="Root path to persist text to")],
@@ -206,16 +187,9 @@ def _filetype_extension(filetype: FileType) -> str:
             raise NotImplementedError(f"Unsupported file type: {filetype}")
 
 
-def _has_geometry(df: AnyDataFrame) -> bool:
-    """Whether `df` carries at least one geometry-dtype column."""
-    import geopandas as gpd  # type: ignore[import-untyped]
-
-    return any(isinstance(dtype, gpd.array.GeometryDtype) for dtype in df.dtypes)
-
-
 def _require_geometry(df: AnyDataFrame, filetype: FileType) -> None:
     """Raise unless `df` has geometry, for filetypes that cannot encode without it."""
-    if not _has_geometry(df):
+    if not has_geometry(df):
         raise ValueError(
             f"filetype {filetype!r} requires at least one geometry column, "
             f"but none of the {len(df.columns)} column(s) has geometry dtype"
@@ -268,7 +242,7 @@ def _persist_df(
             return _persist_bytes(buffer.getvalue(), root_path, target)
         case "parquet":
             buffer = io.BytesIO()
-            if _has_geometry(df):
+            if has_geometry(df):
                 gpd.GeoDataFrame(df).to_parquet(buffer, index=False)
             else:
                 df.to_parquet(buffer, index=False)
@@ -289,7 +263,7 @@ def _fallback_to_empty(df: AnyDataFrame | SkipSentinel) -> AnyDataFrame:
     return cast(AnyDataFrame, pd.DataFrame({"empty_event": []})) if isinstance(df, SkipSentinel) else df
 
 
-@register()
+@register(tags=["no-cache"])
 def persist_df_wrapper(
     df: Annotated[
         AnyDataFrame,
@@ -419,7 +393,7 @@ def _fallback_to_empty_grouped(
     return [(key, _fallback_to_empty(df)) for key, df in iterable]
 
 
-@register()
+@register(tags=["no-cache"])
 def persist_grouped_dfs_for_results_download(
     grouped_dfs: Annotated[
         list[tuple[CompositeFilter | None, AnyDataFrame]],
