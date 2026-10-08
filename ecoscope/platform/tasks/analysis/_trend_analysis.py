@@ -510,6 +510,19 @@ def get_trend_model_fit_summary(
             exclude=True,
         ),
     ],
+    dataframe: Annotated[
+        # None must come first - see predict_trend_model's own identical note.
+        SkipJsonSchema[None] | AnyDataFrame,
+        Field(
+            default=None,
+            description="Not used to compute the summary itself (which always reflects the full fit "
+            "regardless of which group's dataframe is passed) - only lets a workflow map this task over "
+            "every group's own dataframe (mirroring predict_trend_model's own `dataframe` parameter) so "
+            "a combined-across-groups fit's single summary (e.g. GAMM's) can be shown under every group's "
+            "own dashboard view instead of one permanently-unfiltered table.",
+            exclude=True,
+        ),
+    ] = None,
 ) -> Annotated[
     AnyDataFrame,
     Field(

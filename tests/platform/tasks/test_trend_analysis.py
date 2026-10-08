@@ -251,6 +251,24 @@ def test_get_trend_model_fit_summary_tags_name_for_single_group(multi_site_dataf
     assert "name" not in combined_summary.columns
 
 
+def test_get_trend_model_fit_summary_dataframe_param_does_not_change_content(multi_site_dataframe):
+    """The optional `dataframe` param exists only so a workflow can map this
+    task over every group's own dataframe (mirroring predict_trend_model) -
+    e.g. to show a combined-across-groups fit's one summary under every
+    group's own dashboard view. It must not change the computed summary."""
+    model = GammTrendModel(
+        spline_settings=GammSplineSettings(degree_of_freedom=3),
+        mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1, random_seed=42),
+    )
+    model_params = fit_trend_model(multi_site_dataframe, model, time_column="year", value_column="value")
+
+    summary_without_dataframe = get_trend_model_fit_summary(model_params, model=model)
+    site_b = multi_site_dataframe[multi_site_dataframe["name"] == "Site B"]
+    summary_with_dataframe = get_trend_model_fit_summary(model_params, model=model, dataframe=site_b)
+
+    pd.testing.assert_frame_equal(summary_without_dataframe, summary_with_dataframe)
+
+
 def test_get_trend_model_fit_summary_linear_model(linear_dataframe):
     """Linear fits via statsmodels - one row per coefficient, with a
     p-value/confidence interval (frequentist statistics), unlike GAM/GAMM's
