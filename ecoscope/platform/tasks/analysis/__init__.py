@@ -40,7 +40,6 @@ from ._track_density import calculate_classified_track_density
 from ._trend_analysis import (
     GammTrendModel,
     GamTrendModel,
-    GlmTrendModel,
     LinearTrendModel,
     TrendModel,
     fit_trend_model,
@@ -53,7 +52,6 @@ __all__ = [
     "BbmmRasterArgs",
     "GamTrendModel",
     "GammTrendModel",
-    "GlmTrendModel",
     "LinearTrendModel",
     "TimeDensityReturnGDF",
     "TimeDensityReturnGDFSchema",

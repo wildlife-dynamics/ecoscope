@@ -4,14 +4,11 @@ import pytest
 from pydantic import TypeAdapter
 
 from ecoscope.platform.tasks.analysis._trend_analysis import (
+    GammFamilySettings,
     GammMcmcSettings,
     GammSplineSettings,
     GammTrendModel,
-    GamSmoothingSettings,
-    GamSplineSettings,
     GamTrendModel,
-    GlmFamilySettings,
-    GlmTrendModel,
     LinearTrendModel,
     TrendModel,
     fit_trend_model,
@@ -40,9 +37,9 @@ def test_set_trend_model_default():
 def test_trend_model_discriminated_union_validates_by_model_field():
     adapter: TypeAdapter = TypeAdapter(TrendModel)
     assert isinstance(adapter.validate_python({"model": "linear"}), LinearTrendModel)
-    glm = adapter.validate_python({"model": "glm", "family_settings": {"family": "poisson"}})
-    assert isinstance(glm, GlmTrendModel)
-    assert glm.family_settings.family == "poisson"
+    gam = adapter.validate_python({"model": "gam", "family_settings": {"family": "poisson"}})
+    assert isinstance(gam, GamTrendModel)
+    assert gam.family_settings.family == "poisson"
 
 
 def test_is_gamm_trend_model():
@@ -58,26 +55,27 @@ def test_is_not_gamm_trend_model():
 
 
 def test_advanced_titled_enum_schema():
-    """GlmFamilySettings.family uses _advanced_titled_enum to swap the bare
-    enum for labeled oneOf options."""
-    schema = GlmFamilySettings.model_json_schema()["properties"]["family"]
+    """GammFamilySettings.family (shared by GamTrendModel and
+    GammTrendModel) uses _advanced_titled_enum to swap the bare enum for
+    labeled oneOf options."""
+    schema = GammFamilySettings.model_json_schema()["properties"]["family"]
     assert "enum" not in schema
     assert schema["oneOf"] == [
         {"const": "gaussian", "title": "Gaussian"},
         {"const": "poisson", "title": "Poisson"},
-        {"const": "binomial", "title": "Binomial"},
         {"const": "gamma", "title": "Gamma"},
+        {"const": "bernoulli", "title": "Bernoulli"},
     ]
     assert schema["ecoscope:advanced"] is True
 
 
 def test_nullable_advanced_schema():
-    """GamSmoothingSettings.alpha uses _nullable_advanced to rewrite
-    pydantic's `anyOf` nullable-number form into the flat array-of-types
-    shorthand this project's RJSF/AJV setup needs (see its own docstring)."""
-    schema = GamSmoothingSettings.model_json_schema()["properties"]["alpha"]
+    """GammMcmcSettings.tune uses _nullable_advanced to rewrite pydantic's
+    `anyOf` nullable-number form into the flat array-of-types shorthand this
+    project's RJSF/AJV setup needs (see its own docstring)."""
+    schema = GammMcmcSettings.model_json_schema()["properties"]["tune"]
     assert "anyOf" not in schema
-    assert schema["type"] == ["number", "null"]
+    assert schema["type"] == ["integer", "null"]
     assert schema["ecoscope:advanced"] is True
 
 
@@ -113,60 +111,25 @@ def test_fit_and_predict_linear_trend_with_datetime_time_column(linear_dataframe
     pd.testing.assert_series_equal(predictions["time"], dated_dataframe["date"], check_names=False, check_freq=False)
 
 
-def test_fit_and_predict_glm_trend(linear_dataframe):
-    model_params = fit_trend_model(
-        linear_dataframe,
-        GlmTrendModel(family_settings=GlmFamilySettings(family="gaussian")),
-        time_column="year",
-        value_column="value",
-    )
-    predictions = predict_trend_model(model_params, include_ci=False)
-    assert list(predictions.columns) == ["y", "time", "predicted"]
-
-
 def test_fit_and_predict_gam_trend(linear_dataframe):
+    """GAM is now Bayesian (PyMC/Bambi), like GAMM - no frequentist aic/bic,
+    and no per-site pooling (see GamTrendModel's docstring)."""
+    pytest.importorskip("bambi")
     model_params = fit_trend_model(
         linear_dataframe,
         GamTrendModel(
-            smoothing_settings=GamSmoothingSettings(alpha=1.0),
-            spline_settings=GamSplineSettings(degree_of_freedom=5, degree=2),
+            spline_settings=GammSplineSettings(degree_of_freedom=5),
+            mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1, random_seed=42),
         ),
         time_column="year",
         value_column="value",
     )
-    assert model_params["metrics"]["aic"] is not None
+    assert model_params["model"]["model"] == "gam"
+    assert "aic" not in model_params["metrics"]  # GAM is Bayesian; aic/bic don't apply.
 
     predictions = predict_trend_model(model_params, time_values=[2000.0, 2010.0])
     assert list(predictions["time"]) == [2000.0, 2010.0]
     assert predictions["y"].isna().all()
-
-
-@pytest.mark.parametrize("alpha", ["", None])
-def test_gam_alpha_left_empty_selects_automatically(linear_dataframe, alpha):
-    """alpha is `float | None` with a `_empty_string_to_none` BeforeValidator
-    (see GamSmoothingSettings) - a defensive backstop in case "" ever
-    reaches this code, alongside the actual fix for RJSF/AJV rejecting an
-    empty field (json_schema_extra=_nullable_advanced, which compiles to
-    the flat `type: ["number", "null"]` shorthand rather than pydantic's
-    own `anyOf` form). Both "" and None must mean "leave empty, select
-    automatically"."""
-    model_params = fit_trend_model(
-        linear_dataframe,
-        GamTrendModel(smoothing_settings=GamSmoothingSettings(alpha=alpha)),
-        time_column="year",
-        value_column="value",
-    )
-    assert model_params["metrics"]["aic"] is not None
-
-
-def test_gam_alpha_accepts_numeric_string(linear_dataframe):
-    """A filled-in RJSF number field can submit a numeric string too - the
-    _empty_string_to_none BeforeValidator normalizes it to a real float."""
-    model = GamTrendModel(smoothing_settings=GamSmoothingSettings(alpha="1.5"))
-    assert model.smoothing_settings.alpha == 1.5
-
-    model_params = fit_trend_model(linear_dataframe, model, time_column="year", value_column="value")
-    assert model_params["model"]["smoothing_settings"]["alpha"] == 1.5
 
 
 def test_fit_and_predict_gamm_trend_without_name_column_uses_constant_site(linear_dataframe):
@@ -244,15 +207,71 @@ def test_predict_gamm_from_combined_fit_gives_each_site_its_own_curve(multi_site
     assert (predictions_b["predicted"].mean() - predictions_a["predicted"].mean()) > 30
 
 
-@pytest.mark.parametrize(
-    "model",
-    [LinearTrendModel(), GlmTrendModel(), GamTrendModel()],
-    ids=["linear", "glm", "gam"],
-)
-def test_get_trend_model_fit_summary_statsmodels_models(linear_dataframe, model):
-    """Linear/GLM/GAM all fit via statsmodels - one row per coefficient,
-    with a p-value/confidence interval (frequentist statistics), unlike
-    GAMM's Bayesian posterior summary below."""
+def test_fit_trend_model_tags_name_for_single_group_only(multi_site_dataframe):
+    """fit_trend_model's "name" field identifies a single-group fit (for
+    get_trend_model_fit_summary to tag its output with) - None for a fit
+    spanning more than one group, like GAMM's own combined-across-groups fit."""
+    site_a = multi_site_dataframe[multi_site_dataframe["name"] == "Site A"]
+    single_group_params = fit_trend_model(site_a, LinearTrendModel(), time_column="year", value_column="value")
+    assert single_group_params["name"] == "Site A"
+
+    combined_params = fit_trend_model(
+        multi_site_dataframe,
+        GammTrendModel(
+            spline_settings=GammSplineSettings(degree_of_freedom=3),
+            mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
+        ),
+        time_column="year",
+        value_column="value",
+    )
+    assert combined_params["name"] is None
+
+
+def test_get_trend_model_fit_summary_tags_name_for_single_group(multi_site_dataframe):
+    """Per-group fit summaries (e.g. GAM/Linear, each fit independently per
+    site) get a leading "name" column so they stay identifiable once
+    concatenated into one combined table - unlike GAMM's combined-across-
+    groups summary, which has no single name to attribute rows to."""
+    site_a = multi_site_dataframe[multi_site_dataframe["name"] == "Site A"]
+    model = LinearTrendModel()
+    model_params = fit_trend_model(site_a, model, time_column="year", value_column="value")
+    summary = get_trend_model_fit_summary(model_params, model=model)
+
+    assert list(summary.columns)[0] == "name"
+    assert (summary["name"] == "Site A").all()
+
+    combined_model = GammTrendModel(
+        spline_settings=GammSplineSettings(degree_of_freedom=3),
+        mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
+    )
+    combined_params = fit_trend_model(multi_site_dataframe, combined_model, time_column="year", value_column="value")
+    combined_summary = get_trend_model_fit_summary(combined_params, model=combined_model)
+    assert "name" not in combined_summary.columns
+
+
+def test_get_trend_model_fit_summary_dataframe_param_does_not_change_content(multi_site_dataframe):
+    """The optional `dataframe` param exists only so a workflow can map this
+    task over every group's own dataframe (mirroring predict_trend_model) -
+    e.g. to show a combined-across-groups fit's one summary under every
+    group's own dashboard view. It must not change the computed summary."""
+    model = GammTrendModel(
+        spline_settings=GammSplineSettings(degree_of_freedom=3),
+        mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1, random_seed=42),
+    )
+    model_params = fit_trend_model(multi_site_dataframe, model, time_column="year", value_column="value")
+
+    summary_without_dataframe = get_trend_model_fit_summary(model_params, model=model)
+    site_b = multi_site_dataframe[multi_site_dataframe["name"] == "Site B"]
+    summary_with_dataframe = get_trend_model_fit_summary(model_params, model=model, dataframe=site_b)
+
+    pd.testing.assert_frame_equal(summary_without_dataframe, summary_with_dataframe)
+
+
+def test_get_trend_model_fit_summary_linear_model(linear_dataframe):
+    """Linear fits via statsmodels - one row per coefficient, with a
+    p-value/confidence interval (frequentist statistics), unlike GAM/GAMM's
+    Bayesian posterior summary below."""
+    model = LinearTrendModel()
     model_params = fit_trend_model(linear_dataframe, model, time_column="year", value_column="value")
     summary = get_trend_model_fit_summary(model_params, model=model)
 
@@ -261,13 +280,24 @@ def test_get_trend_model_fit_summary_statsmodels_models(linear_dataframe, model)
     assert summary["ci_lower"].le(summary["ci_upper"]).all()
 
 
-def test_get_trend_model_fit_summary_gamm_model(linear_dataframe):
-    """GAMM's fit is Bayesian (MCMC) - a posterior summary (mean/sd/hdi/
-    r_hat), not the frequentist coefficient/p-value/CI shape above."""
-    model = GammTrendModel(
-        spline_settings=GammSplineSettings(degree_of_freedom=3),
-        mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
-    )
+@pytest.mark.parametrize(
+    "model",
+    [
+        GamTrendModel(
+            spline_settings=GammSplineSettings(degree_of_freedom=3),
+            mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
+        ),
+        GammTrendModel(
+            spline_settings=GammSplineSettings(degree_of_freedom=3),
+            mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
+        ),
+    ],
+    ids=["gam", "gamm"],
+)
+def test_get_trend_model_fit_summary_bayesian_models(linear_dataframe, model):
+    """GAM and GAMM both fit via PyMC/Bambi - a posterior summary (mean/sd/
+    hdi/r_hat), not the frequentist coefficient/p-value/CI shape above."""
+    pytest.importorskip("bambi")
     model_params = fit_trend_model(linear_dataframe, model, time_column="year", value_column="value")
     summary = get_trend_model_fit_summary(model_params, model=model)
 
