@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
+from pydantic import TypeAdapter
+
 from ecoscope.platform.tasks.analysis._trend_analysis import (
     GammFamilySettings,
     GammMcmcSettings,
@@ -16,7 +18,6 @@ from ecoscope.platform.tasks.analysis._trend_analysis import (
     predict_trend_model,
     set_trend_model,
 )
-from pydantic import TypeAdapter
 
 
 @pytest.fixture(scope="module")
