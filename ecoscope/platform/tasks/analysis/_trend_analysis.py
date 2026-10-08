@@ -399,6 +399,19 @@ def fit_trend_model(
         # knows to convert its "time" output back from the days-since-epoch
         # _prepare_xy fits on into a real timestamp (see _prepare_xy).
         "time_is_datetime": bool(pd.api.types.is_datetime64_any_dtype(dataframe[time_column])),
+        # The single group this fit belongs to, for every model (not just
+        # GAMM's site_ids, which only exists for the combined-fit case) -
+        # lets get_trend_model_fit_summary tag its output so per-group
+        # summaries can be told apart after concatenation (see e.g.
+        # speed-trend's per-group Trend Model Fit Parameters table for
+        # Linear/GAM). None whenever `dataframe` spans more than one group
+        # (e.g. GAMM's own combined-across-groups fit) - there's no single
+        # name to attribute a shared fit to.
+        "name": (
+            dataframe["name"].iloc[0]
+            if "name" in dataframe.columns and dataframe["name"].nunique() == 1
+            else None
+        ),
     }
 
 
@@ -513,4 +526,16 @@ def get_trend_model_fit_summary(
     site_ids = np.asarray(model_params["site_ids"]) if model_params.get("site_ids") is not None else None
 
     regressor = _fit_regressor(model, X, y, site_ids)
-    return cast(AnyDataFrame, regressor.summary())
+    summary = regressor.summary()
+
+    name = model_params.get("name")
+    if name is not None:
+        # Single-group fit (see fit_trend_model's own "name" field) - tag
+        # every row so per-group summaries stay identifiable once
+        # concatenated into one combined table. Omitted entirely for a
+        # combined-across-groups fit (GAMM), which has no single name to
+        # attribute to.
+        summary = summary.copy()
+        summary.insert(0, "name", name)
+
+    return cast(AnyDataFrame, summary)

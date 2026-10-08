@@ -207,6 +207,50 @@ def test_predict_gamm_from_combined_fit_gives_each_site_its_own_curve(multi_site
     assert (predictions_b["predicted"].mean() - predictions_a["predicted"].mean()) > 30
 
 
+def test_fit_trend_model_tags_name_for_single_group_only(multi_site_dataframe):
+    """fit_trend_model's "name" field identifies a single-group fit (for
+    get_trend_model_fit_summary to tag its output with) - None for a fit
+    spanning more than one group, like GAMM's own combined-across-groups fit."""
+    site_a = multi_site_dataframe[multi_site_dataframe["name"] == "Site A"]
+    single_group_params = fit_trend_model(site_a, LinearTrendModel(), time_column="year", value_column="value")
+    assert single_group_params["name"] == "Site A"
+
+    combined_params = fit_trend_model(
+        multi_site_dataframe,
+        GammTrendModel(
+            spline_settings=GammSplineSettings(degree_of_freedom=3),
+            mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
+        ),
+        time_column="year",
+        value_column="value",
+    )
+    assert combined_params["name"] is None
+
+
+def test_get_trend_model_fit_summary_tags_name_for_single_group(multi_site_dataframe):
+    """Per-group fit summaries (e.g. GAM/Linear, each fit independently per
+    site) get a leading "name" column so they stay identifiable once
+    concatenated into one combined table - unlike GAMM's combined-across-
+    groups summary, which has no single name to attribute rows to."""
+    site_a = multi_site_dataframe[multi_site_dataframe["name"] == "Site A"]
+    model = LinearTrendModel()
+    model_params = fit_trend_model(site_a, model, time_column="year", value_column="value")
+    summary = get_trend_model_fit_summary(model_params, model=model)
+
+    assert list(summary.columns)[0] == "name"
+    assert (summary["name"] == "Site A").all()
+
+    combined_model = GammTrendModel(
+        spline_settings=GammSplineSettings(degree_of_freedom=3),
+        mcmc_settings=GammMcmcSettings(draws=100, tune=100, chains=1),
+    )
+    combined_params = fit_trend_model(
+        multi_site_dataframe, combined_model, time_column="year", value_column="value"
+    )
+    combined_summary = get_trend_model_fit_summary(combined_params, model=combined_model)
+    assert "name" not in combined_summary.columns
+
+
 def test_get_trend_model_fit_summary_linear_model(linear_dataframe):
     """Linear fits via statsmodels - one row per coefficient, with a
     p-value/confidence interval (frequentist statistics), unlike GAM/GAMM's
