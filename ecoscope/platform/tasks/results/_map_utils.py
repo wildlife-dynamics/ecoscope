@@ -94,9 +94,11 @@ class TileLayer(BaseModel):
     @field_validator("layer_name", mode="before")
     def _tile_layer_name_from_string(v: Any):
         if isinstance(v, str):
-            for layer_name in DEFAULT_TILE_LAYER_PRESETS.keys():
-                if layer_name == v:
-                    return v
+            # "" is this field's own default and the sentinel for a custom-URL
+            # layer, which `set_url` below already leaves alone. Rejecting it
+            # left a custom layer unable to validate its own `model_dump`.
+            if v == "" or v in DEFAULT_TILE_LAYER_PRESETS:
+                return v
             raise ValueError(
                 f"String input must match one of: {[layer_name for layer_name in DEFAULT_TILE_LAYER_PRESETS.keys()]}"
             )

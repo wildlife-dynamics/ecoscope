@@ -66,9 +66,10 @@ def assert_same(a, b):
         assert b == a
 
 
-def execute(events, params=None):
+def execute(events, params=None, groupers=None):
     """Run the chain once, returning each step's value, hit flag and digest."""
     values, hits = {}, {}
+    groupers = [ValueGrouper(index_name="event_type")] if groupers is None else groupers
     steps = [
         (
             # Params rather than a closure: a source task's inputs reach its key
@@ -87,8 +88,14 @@ def execute(events, params=None):
             lambda: sort_values(values["events"], column_name="time"),
         ),
         (
-            spec("groupers", "ecoscope.platform.tasks.groupby._groupby", "set_groupers"),
-            lambda: set_groupers([ValueGrouper(index_name="event_type")]),
+            CacheSpec(
+                task_instance_id="groupers",
+                anchor="ecoscope.platform.tasks.groupby._groupby",
+                function="set_groupers",
+                recipe="recipe-set_groupers",
+                params={"groupers": [g.index_name for g in groupers]},
+            ),
+            lambda: set_groupers(groupers),
         ),
         (
             spec(
@@ -130,19 +137,41 @@ def test_the_frame_steps_hit_on_the_second_run(cache_env, events):
     assert digests["events"] is not None
 
 
-def test_uncacheability_propagates_from_set_groupers(cache_env, events):
-    """`set_groupers` returns `list[ValueGrouper | ...]`, which no codec claims.
+def test_the_grouped_subtree_caches(cache_env, events):
+    """The grouper codec is what unblocks everything below `set_groupers`.
 
-    So the grouped subtree below it cannot cache, whatever the keyed-iterable
-    codec does -- a key that silently omitted an unknown input would collide
-    across genuinely different runs. Pinned because the fix is a grouper codec,
-    and this test is what will tell you it worked.
+    Its output is an input to `split_groups`, so before it could be digested
+    the whole grouped branch recorded itself uncacheable -- a key that silently
+    omitted an unknown input would collide across genuinely different runs.
     """
-    _, _, digests = execute(events)
+    _, _, cold_digests = execute(events)
+    _, warm_hits, warm_digests = execute(events)
 
-    assert digests["groupers"] is None
-    assert digests["split"] is None
-    assert digests["merged"] is None
+    assert all(cold_digests[step] is not None for step in ("groupers", "split", "merged"))
+    assert cold_digests == warm_digests
+    assert all(warm_hits.values()), "every step must serve from cache on the second run"
+
+
+def test_the_ungrouped_subtree_caches(cache_env, events):
+    """A blank `groupers` is a bare `AllGrouper`, not an empty list.
+
+    So the workflows with no groupers at all need the single-value codec, and
+    would otherwise be the ones that cache least.
+    """
+    _, _, cold_digests = execute(events, groupers=[])
+    _, warm_hits, warm_digests = execute(events, groupers=[])
+
+    assert cold_digests["groupers"] is not None
+    assert cold_digests == warm_digests
+    assert all(warm_hits.values())
+
+
+def test_a_changed_grouper_reaches_the_grouped_subtree(cache_env, events):
+    execute(events)
+    _, hits, _ = execute(events, groupers=[])
+
+    assert hits["sorted"], "the frame branch is untouched by a grouper change"
+    assert not hits["split"], "a changed grouper digest must reach its dependents"
 
 
 def test_a_changed_param_misses_but_cuts_off_early(cache_env, events):

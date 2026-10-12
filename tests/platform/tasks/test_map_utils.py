@@ -34,6 +34,17 @@ def test_tile_layer_unknown_preset_raises() -> None:
         TileLayer(layer_name="bogus")
 
 
+@pytest.mark.parametrize("layer_name", ["", "TERRAIN"])
+def test_tile_layer_validates_its_own_dump(layer_name: str) -> None:
+    """`""` is the default, so refusing it made a custom layer unreconstructable.
+
+    The step cache reconstructs `base_map_defs` this way, and before this a
+    custom-URL layer could not be stored at all.
+    """
+    layer = TileLayer(layer_name=layer_name) if layer_name else TileLayer(url="https://example.com/{z}/{x}/{y}.png")
+    assert TileLayer.model_validate(layer.model_dump(mode="json")) == layer
+
+
 def test_tile_layer_non_string_layer_name_falls_through() -> None:
     # passing a non-string value hits the `return v` fallthrough in the
     # before-mode field validator, after which the str type-check rejects it

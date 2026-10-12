@@ -7,24 +7,34 @@ however it was encoded. Everything here is one of those two halves.
 
 import json
 import warnings
+from typing import Any
 
 import geopandas as gpd
 import pandas as pd
 import pyarrow as pa
 import pytest
+from pandas.testing import assert_frame_equal
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_serializer
 from shapely.geometry import Point
 from wt_task.cache import get_registry
 from wt_task.skip import SKIP_SENTINEL
 
+from ecoscope.platform import codecs as codecs_module
 from ecoscope.platform.codecs import (
     ARROW_CODEC_ID,
     FRAME_CODEC_ID,
+    GROUPER_CODEC_ID,
+    GROUPERS_CODEC_ID,
     GUARD_CODEC_ID,
     KEYED_CODEC_ID,
+    MODEL_CODEC_ID,
+    MODELS_CODEC_ID,
     UNDIGESTIBLE,
     digest_dataframe,
 )
-from ecoscope.platform.indexes import SpatialGrouper
+from ecoscope.platform.indexes import AllGrouper, Month, SpatialGrouper, TemporalGrouper, ValueGrouper, Year
+from ecoscope.platform.tasks.filter._filter import TimeRange, TimezoneInfo
+from ecoscope.platform.tasks.results._map_utils import TileLayer
 
 
 @pytest.fixture
@@ -326,22 +336,351 @@ def test_ordinary_lists_still_fall_through_to_json(registry, value):
 
 
 # --------------------------------------------------------------------------- #
+# groupers
+# --------------------------------------------------------------------------- #
+
+
+def resolved_grouper(regions=None):
+    grouper = SpatialGrouper(spatial_index_name="regions")
+    grouper.resolve(regions if regions is not None else spatial_regions())
+    return grouper
+
+
+def spatial_regions(name="a"):
+    return gpd.GeoDataFrame({"r": [name]}, geometry=[Point(0, 0)], crs="EPSG:4326")
+
+
+GROUPERS = [
+    AllGrouper(),
+    ValueGrouper(index_name="event_type"),
+    ValueGrouper(index_name="event_type", help_text="pick one"),
+    TemporalGrouper(temporal_index=Month()),
+    TemporalGrouper(temporal_index=Year()),
+    SpatialGrouper(spatial_index_name="regions"),
+]
+
+
+def test_a_bare_all_grouper_is_claimed(registry):
+    """`set_groupers` returns `AllGrouper()`, not `[]`, when `groupers` is blank.
+
+    So the ungrouped case needs the single-value codec; without it the whole
+    grouped subtree stays uncacheable in exactly the workflows that have no
+    groupers at all.
+    """
+    assert registry.for_value(AllGrouper()).codec_id == GROUPER_CODEC_ID
+
+
+@pytest.mark.parametrize("grouper", GROUPERS, ids=lambda g: g.index_name)
+def test_single_grouper_roundtrips(registry, grouper):
+    assert registry.for_value(grouper).codec_id == GROUPER_CODEC_ID
+    assert roundtrip(registry, grouper) == grouper
+
+
+def test_temporal_grouper_roundtrips_its_sort_key(registry):
+    """Round-tripped via the directive string; `sort_key` is a bound builtin."""
+    grouper = TemporalGrouper(temporal_index=Month())
+    back = roundtrip(registry, grouper)
+    assert back.temporal_index == grouper.temporal_index
+    assert back.sort_key("January") == 1
+
+
+def test_grouper_list_roundtrips(registry):
+    groupers = [ValueGrouper(index_name="event_type"), TemporalGrouper(temporal_index=Month()), resolved_grouper()]
+    codec = registry.for_value(groupers)
+    assert codec.codec_id == GROUPERS_CODEC_ID
+
+    back = codec.decode(codec.encode(groupers))
+    assert back == groupers
+    assert back[2].is_resolved
+    assert_frame_equal(back[2].spatial_regions, groupers[2].spatial_regions)
+
+
+def test_an_empty_grouper_list_is_left_to_json(registry):
+    """`get_chart_mode_spatial_groupers` returns `[]`, which `json/v1` already round-trips."""
+    assert registry.for_value([]).codec_id == "json/v1"
+    assert roundtrip(registry, []) == []
+
+
+def test_a_resolved_spatial_grouper_comes_back_resolved(registry):
+    """The hard case: the regions hide in a `PrivateAttr` that `model_dump` drops.
+
+    And `SpatialGrouper` compares equal resolved or not, so `hit == miss` on
+    equality alone proves nothing -- `add_spatial_index` would get a grouper
+    with nothing to join against.
+    """
+    regions = spatial_regions()
+    grouper = resolved_grouper(regions)
+    back = roundtrip(registry, grouper)
+
+    assert back.is_resolved
+    assert_frame_equal(back.spatial_regions, regions)
+    assert back.spatial_regions.crs == regions.crs
+
+
+def test_resolved_and_unresolved_spatial_groupers_digest_differently(registry):
+    resolved = resolved_grouper()
+    unresolved = SpatialGrouper(spatial_index_name="regions")
+    codec = registry.for_value(resolved)
+
+    assert resolved == unresolved, "the hazard itself: equality sees only the name"
+    assert codec.digest(resolved) != codec.digest(unresolved)
+    assert codec.digest(resolved) != codec.digest(resolved_grouper(spatial_regions("b")))
+
+
+def test_grouper_digest_is_stable_across_encodings(registry):
+    """Two encodes of the same resolved grouper, and the value one of them read back."""
+    grouper = resolved_grouper()
+    codec = registry.for_value(grouper)
+    codec.encode(grouper)
+    assert codec.digest(grouper) == codec.digest(grouper) == codec.digest(roundtrip(registry, grouper))
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        (ValueGrouper(index_name="x"), ValueGrouper(index_name="y")),
+        (ValueGrouper(index_name="x"), ValueGrouper(index_name="x", help_text="h")),
+        (TemporalGrouper(temporal_index=Month()), TemporalGrouper(temporal_index=Year())),
+        (TemporalGrouper(temporal_index=Month()), TemporalGrouper(temporal_index=Month(), help_text="h")),
+        (SpatialGrouper(spatial_index_name="a"), SpatialGrouper(spatial_index_name="b")),
+        (AllGrouper(), AllGrouper(index_name="Everything")),
+        # Two groupers whose only difference is their type: both call it "x",
+        # and `index_name` would make them look the same to a digest over it.
+        (ValueGrouper(index_name="x"), AllGrouper(index_name="x")),
+    ],
+)
+def test_grouper_digest_is_sensitive_to_every_field(registry, a, b):
+    assert registry.for_value(a).digest(a) != registry.for_value(b).digest(b)
+
+
+def test_a_grouper_list_digest_is_sensitive_to_order_and_membership(registry):
+    groupers = [ValueGrouper(index_name="x"), TemporalGrouper(temporal_index=Month())]
+    codec = registry.for_value(groupers)
+    assert codec.digest(groupers) != codec.digest(list(reversed(groupers)))
+    assert codec.digest(groupers) != codec.digest(groupers[:1])
+
+
+def test_a_grouper_inside_a_keyed_iterable_is_carried_whole(registry):
+    """Keyed values dispatch through the registry, so this works by construction.
+
+    Worth pinning anyway: before the grouper codec existed the whole keyed
+    iterable was refused, which is the shape `gather_dashboard`'s inputs take.
+    """
+    value = [((("All", "=", "True"),), [resolved_grouper()])]
+    codec = registry.for_value(value)
+    assert codec.codec_id == KEYED_CODEC_ID
+    assert codec.decode(codec.encode(value))[0][1][0].is_resolved
+
+
+def test_a_list_mixing_groupers_and_other_values_is_not_claimed(registry):
+    assert registry.for_value([ValueGrouper(index_name="x"), "x"]).codec_id == GUARD_CODEC_ID
+
+
+def test_a_grouper_gaining_a_field_declines_rather_than_dropping_it(registry, monkeypatch):
+    """Fail closed: the field list is pinned, so a new field is a decline.
+
+    Encoding it regardless would leave the new field out of both payload and
+    digest, and two groupers differing only in it would share a cache entry.
+    """
+    monkeypatch.setitem(codecs_module._GROUPER_FIELDS, "ValueGrouper", ("index_name",))
+    assert not codecs_module.is_grouper(ValueGrouper(index_name="x"))
+    assert registry.for_value([ValueGrouper(index_name="x")]).codec_id == GUARD_CODEC_ID
+
+
+def test_a_grouper_holding_an_undigestible_frame_is_refused(registry):
+    """A leaf its own codec cannot identify must take the container down with it.
+
+    `UNDIGESTIBLE` is one shared marker, so standing it in for the frame would
+    make two differently-resolved groupers digest identically.
+    """
+
+    class Unreprable:
+        def __repr__(self):
+            raise RuntimeError("boom")
+
+    regions = gpd.GeoDataFrame({"r": [Unreprable()]}, geometry=[Point(0, 0)], crs="EPSG:4326")
+    grouper = resolved_grouper(regions)
+    codec = registry.for_value(grouper)
+
+    assert codec.digest(grouper) == UNDIGESTIBLE
+    with pytest.raises(TypeError):
+        codec.encode(grouper)
+
+
+# --------------------------------------------------------------------------- #
+# pydantic models
+# --------------------------------------------------------------------------- #
+
+
+class Plain(BaseModel):
+    name: str
+    count: int = 0
+
+
+class Excluding(BaseModel):
+    name: str
+    note: str = Field(default="", exclude=True)
+
+
+class Private(BaseModel):
+    name: str
+    _cached: object | None = PrivateAttr(default=None)
+
+
+class Reshaping(BaseModel):
+    name: str
+
+    @model_serializer
+    def _ser(self):
+        return {"renamed": self.name}
+
+
+class Loose(BaseModel):
+    """A field whose annotation cannot carry a tuple back."""
+
+    payload: Any = None
+
+
+def timezone_info():
+    return TimezoneInfo(label="Nairobi", tzCode="Africa/Nairobi", name="(UTC+03:00) Nairobi", utc="+03:00")
+
+
+def time_range(since="2015-01-01T00:00:00"):
+    return TimeRange(since=since, until="2015-12-31T23:59:59", timezone=timezone_info())
+
+
+def test_config_models_roundtrip(registry):
+    """`time_range` and `get_timezone` gate the whole events frame chain."""
+    for value in (timezone_info(), time_range()):
+        assert registry.for_value(value).codec_id == MODEL_CODEC_ID
+        assert roundtrip(registry, value) == value
+
+
+def test_a_model_list_roundtrips(registry):
+    value = [timezone_info(), time_range()]
+    codec = registry.for_value(value)
+    assert codec.codec_id == MODELS_CODEC_ID
+    assert codec.decode(codec.encode(value)) == value
+
+
+def test_model_digest_is_stable_and_sensitive(registry):
+    value = time_range()
+    codec = registry.for_value(value)
+    assert codec.digest(value) == codec.digest(time_range()) == codec.digest(roundtrip(registry, value))
+    assert codec.digest(value) != codec.digest(time_range(since="2016-01-01T00:00:00"))
+    assert codec.digest(timezone_info()) != codec.digest(
+        TimezoneInfo(label="UTC", tzCode="UTC", name="UTC", utc="+00:00")
+    )
+
+
+def test_two_models_dumping_alike_digest_differently(registry):
+    """The class is part of the identity; the dump alone is not."""
+
+    class Twin(BaseModel):
+        name: str
+        count: int = 0
+
+    a, b = Plain(name="x"), Twin(name="x")
+    assert a.model_dump() == b.model_dump()
+    assert registry.for_value(a).digest(a) != registry.for_value(b).digest(b)
+
+
+@pytest.mark.parametrize(
+    ("value", "why"),
+    [
+        (Excluding(name="x"), "an excluded field is dropped by the serializer"),
+        (Private(name="x"), "a private attribute is invisible to model_dump"),
+        (Reshaping(name="x"), "a model serializer emits a shape model_validate cannot read"),
+        (Loose(payload=(1, 2)), "a tuple under `Any` comes back a list"),
+    ],
+)
+def test_models_that_cannot_round_trip_are_declined(registry, value, why):
+    assert registry.for_value(value) is None, why
+
+
+def test_a_model_that_rejects_its_own_dump_is_declined(registry):
+    """What no structural check could see, and why the predicate pays for a dump.
+
+    `TileLayer` used to be this case -- it dumped `layer_name=""` and its own
+    validator refused it back -- which is now fixed at the model.
+    """
+
+    class Picky(BaseModel):
+        name: str = ""
+
+        @field_validator("name")
+        def _reject_blank(cls, v):
+            if not v:
+                raise ValueError("no")
+            return v
+
+    assert registry.for_value(Picky.model_construct(name="")) is None
+
+
+@pytest.mark.parametrize("layer_name", ["", "TERRAIN"])
+def test_tile_layers_roundtrip_singly_and_in_a_list(registry, layer_name):
+    """`base_map_defs` returns `list[TileLayer]` -- the last refused config step."""
+    custom = TileLayer(url="https://example.com/{z}/{x}/{y}.png", opacity=0.5, max_zoom=17)
+    layer = TileLayer(layer_name=layer_name) if layer_name else custom
+
+    assert registry.for_value(layer).codec_id == MODEL_CODEC_ID
+    assert roundtrip(registry, layer) == layer
+
+    # The real `base_map_defs` shape: a preset under a semi-transparent custom one.
+    layers = [layer, TileLayer(layer_name="SATELLITE", opacity=0.5)]
+    codec = registry.for_value(layers)
+    assert codec.codec_id == MODELS_CODEC_ID
+    assert codec.decode(codec.encode(layers)) == layers
+    assert codec.digest(layers) != codec.digest(list(reversed(layers)))
+
+
+def test_a_list_of_models_that_cannot_round_trip_still_reaches_the_guard(registry):
+    """One unclaimable element disqualifies the list; it must not half-encode."""
+    value = [Plain(name="ok"), Reshaping(name="bad")]
+    codec = registry.for_value(value)
+    assert codec.codec_id == GUARD_CODEC_ID
+    assert codec.digest(value) == UNDIGESTIBLE
+    with pytest.raises(TypeError):
+        codec.encode(value)
+
+
+def test_groupers_are_claimed_by_their_own_codec_not_the_model_one(registry):
+    """`AllGrouper` would pass the model predicate; MRO must keep it out.
+
+    The others are declined by it outright -- `help_text` is `exclude=True` and
+    `SpatialGrouper`'s regions are a private attribute -- which is the same
+    fail-closed rule arriving at the same answer from the other side.
+    """
+    assert registry.for_value(AllGrouper()).codec_id == GROUPER_CODEC_ID
+    assert registry.for_value([AllGrouper()]).codec_id == GROUPERS_CODEC_ID
+    assert not codecs_module.is_roundtrippable_model(ValueGrouper(index_name="x"))
+    assert not codecs_module.is_roundtrippable_model(SpatialGrouper(spatial_index_name="r"))
+
+
+def test_decode_refuses_a_class_from_an_unimported_package(registry):
+    """Importing a module is code execution, and the path came out of the store."""
+    payload = json.dumps({"type": "not_a_real_package.mod:Thing", "data": {}}).encode()
+    with pytest.raises(ValueError, match="has not imported"):
+        registry.for_id(MODEL_CODEC_ID).decode(payload)
+
+
+# --------------------------------------------------------------------------- #
 # the JSON guard
 # --------------------------------------------------------------------------- #
 
 
 def test_a_list_json_cannot_represent_is_refused_rather_than_stringified(registry):
-    """`set_groupers` returns `list[ValueGrouper | TemporalGrouper | SpatialGrouper]`.
+    """`json/v1` encodes with `default=str`, so a value it cannot carry is stringified.
 
-    `json/v1` encodes with `default=str`, so without the guard a hit would hand
-    `split_groups` a list of reprs instead of groupers.
+    Nothing downstream could tell that from the real thing on a hit, so the
+    guard turns it into "not cached" instead.
     """
-    groupers = [SpatialGrouper(spatial_index_name="regions")]
-    codec = registry.for_value(groupers)
+    value = [{1: "a"}]
+    codec = registry.for_value(value)
     assert codec.codec_id == GUARD_CODEC_ID
-    assert codec.digest(groupers) == UNDIGESTIBLE
+    assert codec.digest(value) == UNDIGESTIBLE
     with pytest.raises(TypeError):
-        codec.encode(groupers)
+        codec.encode(value)
 
 
 def test_the_guard_leaves_json_native_values_to_json(registry):
