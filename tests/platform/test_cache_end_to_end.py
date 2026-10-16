@@ -13,10 +13,15 @@ import geopandas as gpd
 import pandas as pd
 import pytest
 from shapely.geometry import Point
-from wt_task.cache import CacheMismatchWarning, CacheSpec, cached_call, run_scope
+from wt_contracts import declared_structure
+from wt_task.cache import CacheMismatchWarning, CacheSpec, cached_call, resolve_structure, run_scope
 
 from ecoscope.platform.indexes import ValueGrouper
-from ecoscope.platform.tasks.groupby import merge_df, set_groupers, split_groups
+from ecoscope.platform.tasks.groupby import groupbykey, merge_df, set_groupers, split_groups
+from ecoscope.platform.tasks.io._earthranger import get_events
+from ecoscope.platform.tasks.results._map_utils import persist_geoarrow_for_pydeck
+from ecoscope.platform.tasks.transformation import align_keyed_iterable_to_reference
+from ecoscope.platform.tasks.transformation._mapping import map_columns
 from ecoscope.platform.tasks.transformation._sorting import sort_values
 
 
@@ -39,13 +44,21 @@ def cache_env(tmp_path, monkeypatch):
     monkeypatch.delenv("WT_CACHE_VERIFY", raising=False)
 
 
-def spec(task_instance_id, anchor, function, deps=None):
+def spec(task_instance_id, task, deps=None, **kwargs):
+    """A step's spec, with its structure read off the real task's return type.
+
+    Exactly what the compiler emits, so a declaration that stopped resolving
+    shows up here as an uncached step rather than as a passing test.
+    """
+    function = task.__name__
     return CacheSpec(
         task_instance_id=task_instance_id,
-        anchor=anchor,
+        anchor=task.__module__,
         function=function,
         recipe=f"recipe-{function}",
         deps=deps or {},
+        structure=declared_structure(task),
+        **kwargs,
     )
 
 
@@ -74,47 +87,34 @@ def execute(events, params=None, groupers=None):
         (
             # Params rather than a closure: a source task's inputs reach its key
             # only if they are declared, exactly as the compiler emits them.
-            CacheSpec(
-                task_instance_id="events",
-                anchor="ecoscope.platform.tasks.io._earthranger",
-                function="get_events",
-                recipe="recipe-get_events",
-                params=params or {"event_types": ["fire", "poaching"]},
-            ),
+            spec("events", get_events, params=params or {"event_types": ["fire", "poaching"]}),
             lambda: events.copy(),
         ),
         (
-            spec("sorted", "ecoscope.platform.tasks.transformation._sorting", "sort_values", {"df": ["events"]}),
+            spec("sorted", sort_values, {"df": ["events"]}),
             lambda: sort_values(values["events"], column_name="time"),
         ),
         (
-            CacheSpec(
-                task_instance_id="groupers",
-                anchor="ecoscope.platform.tasks.groupby._groupby",
-                function="set_groupers",
-                recipe="recipe-set_groupers",
-                params={"groupers": [g.index_name for g in groupers]},
-            ),
+            spec("groupers", set_groupers, params={"groupers": [g.index_name for g in groupers]}),
             lambda: set_groupers(groupers),
         ),
         (
-            spec(
-                "split",
-                "ecoscope.platform.tasks.groupby._groupby",
-                "split_groups",
-                {"df": ["sorted"], "groupers": ["groupers"]},
-            ),
+            spec("split", split_groups, {"df": ["sorted"], "groupers": ["groupers"]}),
             lambda: split_groups(values["sorted"], values["groupers"]),
         ),
         (
-            spec("merged", "ecoscope.platform.tasks.groupby._groupby", "merge_df", {"iterables": ["split"]}),
+            spec("merged", merge_df, {"iterables": ["split"]}),
             lambda: merge_df(values["split"]),
         ),
     ]
     with run_scope() as ids:
         for cache_spec, run in steps:
-            values[cache_spec.task_instance_id], hits[cache_spec.task_instance_id] = cached_call(cache_spec, run)
-        digests = dict(ids)
+            tree = resolve_structure(cache_spec.wrapped_structure)
+            assert tree is not None, f"{cache_spec.task_instance_id} declares no codec"
+            values[cache_spec.task_instance_id], hits[cache_spec.task_instance_id] = cached_call(cache_spec, run, tree)
+        # `run_scope` records an outcome alongside each digest; the digest is
+        # what dependents key on, and what these tests are about.
+        digests = {step: row.digest for step, row in ids.items()}
     return values, hits, digests
 
 
@@ -231,3 +231,37 @@ def test_the_cache_is_inert_when_wt_cache_is_unset(events, monkeypatch):
         values["merged"],
         merge_df(split_groups(sort_values(events, "time"), set_groupers([ValueGrouper(index_name="event_type")]))),
     )
+
+
+def test_a_mapped_step_hands_its_dependents_tuple_keys(cache_env, events):
+    """The shape the events spec is built from, and the one that broke.
+
+    A `mapvalues` step's keys are whatever `argvalues` carried, so the step's
+    structure walks them at run time rather than declaring them. JSON has no
+    tuple, so a key that round-tripped as a list came back unhashable --
+    `groupbykey` and `align_keyed_iterable_to_reference` both use it as a dict
+    key, which made a hit crash where a miss had not.
+    """
+    groups = split_groups(events, set_groupers([ValueGrouper(index_name="event_type")]))
+    urls = [(key, f"/results/{key[0][2]}.parquet") for key, _ in groups]
+
+    def mapped(task_instance_id, task, value):
+        cache_spec = spec(task_instance_id, task, method="mapvalues")
+        tree = resolve_structure(cache_spec.wrapped_structure)
+        with run_scope():
+            cached_call(cache_spec, lambda: value, tree)  # cold
+            served, hit = cached_call(cache_spec, lambda: value, tree)
+        assert hit, f"{task_instance_id} did not serve from cache"
+        return served
+
+    warm_groups = mapped("renamed", map_columns, groups)
+    warm_urls = mapped("persisted", persist_geoarrow_for_pydeck, urls)
+
+    assert all(isinstance(key, tuple) for key, _ in warm_groups)
+    assert [key for key, _ in warm_groups] == [key for key, _ in groups]
+
+    # The consumers, which is where a list key actually bites.
+    combined = groupbykey([warm_groups, warm_urls])
+    assert [key for key, _ in combined] == [key for key, _ in groupbykey([groups, urls])]
+    aligned = align_keyed_iterable_to_reference(warm_groups, warm_urls)
+    assert [key for key, _ in aligned] == [key for key, _ in groups]

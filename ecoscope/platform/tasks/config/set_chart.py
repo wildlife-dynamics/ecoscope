@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
+from ecoscope.platform.annotations import CacheableModel
 from ecoscope.platform.indexes import (  # type: ignore[import-untyped]
     SpatialGrouper,
     UserDefinedGroupers,
@@ -435,7 +436,7 @@ def _palette_schema(schema: dict) -> None:
             branch["title"] = "Custom Colors"
 
 
-class ChartStyle(BaseModel):
+class ChartStyle(BaseModel, CacheableModel):
     """Validated carrier for the chart styling choices."""
 
     model_config = ConfigDict(title="")

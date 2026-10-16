@@ -1,19 +1,34 @@
 import calendar
 from dataclasses import dataclass
-from typing import Annotated, Callable, List, Literal, TypeAlias, Union
+from typing import Annotated, Any, Callable, List, Literal, TypeAlias, Union
 
 from pydantic import BaseModel, ConfigDict, Field, GetJsonSchemaHandler, PrivateAttr
 from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
 from pydantic_core import core_schema as cs
+from wt_contracts import CodecRef
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.annotations import (
+    AdvancedField,
+    AnyDataFrame,
+    AnyGeoDataFrame,
+    CacheableModel,
+)
 from ecoscope.platform.jsonschema import oneOf
 
 IndexName: TypeAlias = str
 IndexValue: TypeAlias = str
 Filter = tuple[IndexName, Literal["="], IndexValue]
 CompositeFilter = tuple[Filter, ...]
+
+# Here rather than beside the tasks that return them: the alias is the unit a
+# codec is declared on, and both `groupby` and `transformation` need the same one.
+# Only the `Any` ones need a marker -- the walk finds `FRAME` through `AnyDataFrame`.
+_KEYED_ANY = CodecRef("ecoscope.platform.codecs:KEYED_ANY")
+
+KeyedIterableOfDataFrames = list[tuple[CompositeFilter, AnyDataFrame]]
+KeyedIterableOfAny = Annotated[list[tuple[CompositeFilter, Any]], _KEYED_ANY]
+CombinedKeyedIterable = Annotated[list[tuple[CompositeFilter, list[Any]]], _KEYED_ANY]
 
 
 @dataclass(frozen=True)
@@ -114,7 +129,7 @@ def _coerce_temporal_index(v):
     return v
 
 
-class AllGrouper(BaseModel):
+class AllGrouper(BaseModel, CacheableModel):
     model_config = ConfigDict(frozen=True)
 
     index_name: Annotated[str, AdvancedField(default="All")] = "All"
@@ -253,4 +268,10 @@ class SpatialGrouper(BaseModel):
         }
 
 
-UserDefinedGroupers: TypeAlias = list[ValueGrouper | TemporalGrouper | SpatialGrouper]
+# Declared on the alias rather than on the three classes: each excludes a field
+# or hides one in a `PrivateAttr`, which is exactly why they need a hand-built
+# codec -- and which a `__wt_codec__` on the class is rejected for.
+UserDefinedGroupers: TypeAlias = Annotated[
+    list[ValueGrouper | TemporalGrouper | SpatialGrouper],
+    CodecRef("ecoscope.platform.codecs:GROUPER_LIST"),
+]

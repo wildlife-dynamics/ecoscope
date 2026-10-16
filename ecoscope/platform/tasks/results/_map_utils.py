@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame, CacheableModel
 from ecoscope.platform.serde import _persist_bytes, _read_path_if_file_exists
 from ecoscope.platform.tasks.io._persist import _hash_df
 
@@ -58,7 +58,7 @@ DEFAULT_TILE_LAYER_PRESETS = {
 }
 
 
-class TileLayer(BaseModel):
+class TileLayer(BaseModel, CacheableModel):
     """A tiled raster layer loaded on-demand from a URL template (e.g., base maps)."""
 
     layer_name: SkipJsonSchema[str] = ""

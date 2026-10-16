@@ -6,6 +6,7 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import (
     AdvancedField,
+    CacheableModel,
     DataFrame,
     JsonSerializableDataFrameModel,
 )
@@ -75,7 +76,7 @@ class AxisStyle(BaseModel):
     ] = None
 
 
-class PlotStyle(BaseModel):
+class PlotStyle(BaseModel, CacheableModel):
     xperiodalignment: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     marker_colors: Annotated[list[str] | SkipJsonSchema[None], AdvancedField(default=None)] = None
     textinfo: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None

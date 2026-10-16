@@ -1,9 +1,9 @@
 """How an `ecoscope.platform` task return becomes bytes, and back again.
 
-Registered with `wt-task` through the `wt_task.codecs` entry point, so the step
-cache can address dataframes, Arrow tables, groupers and keyed iterables — a
-value no codec claims is not merely unstored, it is undigestible, which makes
-every step below it uncacheable too.
+Only leaves live here. Which codec applies is declared by the task's return
+type -- `CodecRef` on a type alias, `__wt_codec__` on a class -- resolved once
+when wt-registry serializes the library, and assembled into one `wt_task.cache.Tree`
+per step at run time. Nothing in this module inspects a value to decide what it is.
 
 The digest half is also what `persist_df` and friends use for their
 content-addressed filenames, so there is one content-identity implementation
@@ -16,20 +16,18 @@ ship.
 
 from __future__ import annotations
 
-import functools
 import hashlib
-import importlib
 import io
 import json
 import struct
-import sys
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
-from wt_task.cache import Codec, get_registry
+import pandas as pd
+import pyarrow as pa
+from wt_task.cache import SKIP, Codec, Tree, Undigestible
 
 if TYPE_CHECKING:
-    import pandas as pd
-    import pyarrow as pa
+    from pydantic import BaseModel
 
     from ecoscope.platform.annotations import AnyDataFrame
 
@@ -39,15 +37,10 @@ KEYED_CODEC_ID = "ecoscope.keyed/v1"
 GROUPER_CODEC_ID = "ecoscope.grouper/v1"
 GROUPERS_CODEC_ID = "ecoscope.groupers/v1"
 MODEL_CODEC_ID = "ecoscope.model/v1"
-MODELS_CODEC_ID = "ecoscope.models/v1"
-GUARD_CODEC_ID = "ecoscope.guard/v1"
 
-# Returned by a `digest` that could not identify its value. The contract gives
-# `digest` no way to decline, and raising from it would abort the whole run
-# (`_content_id` is called outside wt-task's try/except), so the refusal is
-# routed through `encode` instead: it raises, wt-task warns, and the step is
-# simply not cached. Never used as a real content id.
-UNDIGESTIBLE = "undigestible"
+
+class UnencodableValue(Undigestible):
+    """Raised by a leaf handed a value it cannot carry losslessly."""
 
 
 # --------------------------------------------------------------------------- #
@@ -153,16 +146,41 @@ def _tree_columns(df: AnyDataFrame) -> list[str]:
     return found
 
 
-def _refuse_leaf(codec: Codec, value: Any) -> dict[str, Any]:
+def _cell_to_json(value: Any) -> dict[str, Any]:
+    """Describe a structural cell as a tree JSON can carry.
+
+    Structure is spelled out rather than left to `json.dumps` because a `list`
+    and a `tuple` cell are not the same value, and nothing else in the frame
+    records which one a column held.
+    """
+    if value is None or isinstance(value, (str, bool, int, float)):
+        return {"k": "j", "v": value}
+    if isinstance(value, (list, tuple)):
+        return {"k": "list" if isinstance(value, list) else "tuple", "v": [_cell_to_json(v) for v in value]}
+    if isinstance(value, dict):
+        if not all(isinstance(k, str) for k in value):
+            raise UnencodableValue(f"dict with non-string keys: {list(value)[:3]!r}")
+        return {"k": "dict", "v": {k: _cell_to_json(v) for k, v in value.items()}}
     raise UnencodableValue(f"{type(value).__name__} cannot be stored inside a dataframe cell")
 
 
+def _cell_from_json(node: dict[str, Any]) -> Any:
+    kind = node["k"]
+    if kind == "j":
+        return node["v"]
+    if kind == "list":
+        return [_cell_from_json(n) for n in node["v"]]
+    if kind == "tuple":
+        return tuple(_cell_from_json(n) for n in node["v"])
+    return {k: _cell_from_json(n) for k, n in node["v"].items()}
+
+
 def _encode_cell(value: Any) -> str:
-    return json.dumps(_walk(value, _refuse_leaf))
+    return json.dumps(_cell_to_json(value))
 
 
 def _decode_cell(text: str) -> Any:
-    return _unwalk(json.loads(text), b"")
+    return _cell_from_json(json.loads(text))
 
 
 def _object_series(values: list[Any], index: Any) -> pd.Series:
@@ -242,6 +260,33 @@ def decode_dataframe(data: bytes) -> pd.DataFrame:
         for name in json.loads(raw):
             df[name] = _object_series([_decode_cell(v) for v in df[name]], df.index)
     return df
+
+
+def _frame_digest(df: AnyDataFrame) -> str:
+    """`digest_dataframe`, but declining instead of taking the run down.
+
+    `persist_df` wants the `TypeError`; the cache wants the step to run and not
+    be stored.
+    """
+    try:
+        return digest_dataframe(df)
+    except Exception as e:
+        raise UnencodableValue(f"cannot content-address this frame: {e}") from e
+
+
+# Claiming `pd.DataFrame` covers `GeoDataFrame` and pandera's alias, which is
+# why this is not `exact`. The two frame formats share no content-id space,
+# because ids are namespaced by codec, so the same data as a frame and as a
+# table digests differently. Cross-format dedup is the price of not having to
+# agree on a canonical form across two type systems.
+FRAME = Codec(
+    codec_id=FRAME_CODEC_ID,
+    media_type="application/vnd.apache.parquet",
+    types=(pd.DataFrame,),
+    encode=encode_dataframe,
+    decode=decode_dataframe,
+    digest=_frame_digest,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -328,206 +373,127 @@ def decode_table(data: bytes) -> pa.Table:
         return _reschema(reader.read_all(), escape=False)
 
 
+ARROW = Codec(
+    codec_id=ARROW_CODEC_ID,
+    media_type="application/vnd.apache.arrow.stream",
+    types=(pa.Table,),
+    encode=encode_table,
+    decode=decode_table,
+    digest=digest_table,
+)
+
+
 # --------------------------------------------------------------------------- #
 # keyed iterables
 # --------------------------------------------------------------------------- #
 
-_KEYED_MAGIC = b"ecoscope.keyed/v1\n"
+# `CompositeFilter` spelled out structurally rather than left to a `dynamic`
+# node: JSON has no tuple, so a dynamic key decodes as a list, and both
+# `groupbykey` and `align_keyed_iterable_to_reference` use the key as a dict key.
+_FILTER = {"k": "tuple", "of": [{"k": "json"}, {"k": "json"}, {"k": "json"}]}
+_COMPOSITE_FILTER = {"k": "list", "tuple": True, "of": _FILTER}
+# `groupbykey_passthrough_skip` emits a null key for a slot it had nothing to key on.
+_KEY = {"k": "union", "of": [_COMPOSITE_FILTER, {"k": "json"}]}
+
+_KEYED_LEAF = [
+    {"k": "ref", "codec": FRAME},
+    {"k": "ref", "codec": ARROW},
+    {"k": "ref", "codec": SKIP},
+]
+# `groupbykey` collects its inputs into a list per key, so one level of nesting
+# is part of the contract (`CombinedKeyedIterable`). The list arm precedes
+# `dynamic` so that a list holding a frame is walked rather than refused.
+_KEYED_VALUE = {
+    "k": "union",
+    "of": [
+        *_KEYED_LEAF,
+        {"k": "list", "of": {"k": "union", "of": [*_KEYED_LEAF, {"k": "dynamic"}]}},
+        {"k": "dynamic"},
+    ],
+}
+
+KEYED_ANY = Tree(
+    {"k": "list", "of": {"k": "tuple", "of": [_KEY, _KEYED_VALUE]}},
+    types=(list,),
+    codec_id=KEYED_CODEC_ID,
+    media_type="application/vnd.ecoscope.keyed-iterable",
+)
+"""The codec for the two keyed aliases whose value is `Any`.
+
+The only place a leaf table survives: `KeyedIterableOfAny` and
+`CombinedKeyedIterable` say nothing about what they carry, so the arms here
+are the declaration. Everything else resolves from its own return type.
+"""
 
 
-class UnencodableValue(TypeError):
-    """Raised while walking a keyed iterable that holds something with no codec."""
+# --------------------------------------------------------------------------- #
+# pydantic models
+# --------------------------------------------------------------------------- #
 
 
-def is_keyed_iterable(value: Any) -> bool:
-    """Whether `value` has the `list[tuple[CompositeFilter | None, X]]` shape.
+def _model_json(value: BaseModel) -> bytes:
+    """Canonical JSON for a model: one form per value, so the digest can hash it.
 
-    A keyed iterable is a plain `list`, so this codec has to confirm on content.
-    Returning False hands the value on to the builtin JSON codec, which is the
-    right answer for an ordinary list — and the reason the check is on the key
-    shape alone rather than on the values: a keyed iterable whose values turn
-    out to be unencodable must still be *claimed* here and refused at encode
-    time, because falling through would let `json/v1` stringify a dataframe
-    with `default=str` and store the repr as if it were the value.
-
-    Examples:
-        >>> is_keyed_iterable([((("month", "=", "January"),), "x")])
-        True
-        >>> is_keyed_iterable([1, 2, 3])
-        False
-        >>> is_keyed_iterable([])
-        False
+    `warnings="error"`: pydantic's default for a value it cannot represent is
+    to warn and emit it anyway, which is the silent stringification this whole
+    module exists to avoid.
     """
-    if not isinstance(value, list) or not value:
-        return False
-    return all(_is_keyed_entry(entry) for entry in value)
+    try:
+        dumped = value.model_dump(mode="json", warnings="error")
+    except Exception as e:
+        raise UnencodableValue(f"{type(value).__name__} cannot be dumped losslessly: {e}") from e
+    return json.dumps(dumped, sort_keys=True).encode("utf-8")
 
 
-def _is_keyed_entry(entry: Any) -> bool:
-    if not isinstance(entry, tuple) or len(entry) != 2:
-        return False
-    key = entry[0]
-    if key is None:
-        return True
-    if not isinstance(key, tuple) or not key:
-        return False
-    return all(isinstance(f, tuple) and len(f) == 3 and isinstance(f[0], str) and f[1] == "=" for f in key)
+def model_codec(cls: type[BaseModel]) -> Codec:
+    """The codec every `CacheableModel` declares.
 
-
-def _walk(value: Any, leaf: Callable[[Codec, Any], dict[str, Any]]) -> dict[str, Any]:
-    """Describe `value` as a tree, delegating anything that isn't structure.
-
-    Containers are walked rather than handed to the registry because `json/v1`
-    claims `list` and `dict` unconditionally and would stringify whatever is
-    inside them. `leaf` is what separates digesting from encoding: the two
-    share this walk so they can never disagree about what is encodable.
+    `exact`, and keyed by class in the codec id, because the payload no longer
+    names the class to rebuild: a subclass encoded through its parent's codec
+    would come back narrowed, and a declaration that moved has to miss rather
+    than decode as something else.
     """
-    if value is None or isinstance(value, (str, bool, int, float)):
-        return {"k": "j", "v": value}
-    if isinstance(value, (list, tuple)):
-        return {"k": "list" if isinstance(value, list) else "tuple", "v": [_walk(v, leaf) for v in value]}
-    if isinstance(value, dict):
-        if not all(isinstance(k, str) for k in value):
-            raise UnencodableValue(f"dict with non-string keys: {list(value)[:3]!r}")
-        return {"k": "dict", "v": {k: _walk(v, leaf) for k, v in value.items()}}
-    codec = get_registry().for_value(value)
-    if codec is None:
-        raise UnencodableValue(f"no codec claims {type(value).__name__}")
-    return leaf(codec, value)
-
-
-def _unwalk(node: dict[str, Any], blobs: bytes) -> Any:
-    kind = node["k"]
-    if kind == "j":
-        return node["v"]
-    if kind == "list":
-        return [_unwalk(n, blobs) for n in node["v"]]
-    if kind == "tuple":
-        return tuple(_unwalk(n, blobs) for n in node["v"])
-    if kind == "dict":
-        return {k: _unwalk(n, blobs) for k, n in node["v"].items()}
-    codec = get_registry().for_id(node["id"])
-    if codec is None:
-        raise ValueError(f"codec {node['id']!r} is no longer installed")
-    return codec.decode(blobs[node["o"] : node["o"] + node["n"]])
-
-
-def encode_tree(value: Any, magic: bytes) -> bytes:
-    """Encode as a JSON header of structure plus a concatenation of leaf blobs.
-
-    The header carries the structure because a `CompositeFilter` is a tuple and
-    so neither a JSON object key nor distinguishable from a list once encoded;
-    the blobs stay raw so a frame costs its parquet size, not a third more
-    as base64. `magic` names the codec whose shape the header describes, so a
-    payload can never be decoded by the wrong one.
-    """
-    blobs: list[bytes] = []
-    offset = 0
-
-    def leaf(codec: Codec, v: Any) -> dict[str, Any]:
-        nonlocal offset
-        payload = codec.encode(v)
-        blobs.append(payload)
-        node = {"k": "c", "id": codec.codec_id, "o": offset, "n": len(payload)}
-        offset += len(payload)
-        return node
-
-    header = json.dumps(_walk(value, leaf)).encode("utf-8")
-    return magic + struct.pack(">Q", len(header)) + header + b"".join(blobs)
-
-
-def decode_tree(data: bytes, magic: bytes) -> Any:
-    if not data.startswith(magic):
-        raise ValueError(f"payload does not start with {magic!r}")
-    start = len(magic)
-    (length,) = struct.unpack(">Q", data[start : start + 8])
-    body = start + 8
-    header = json.loads(data[body : body + length])
-    return _unwalk(header, data[body + length :])
-
-
-def digest_tree(value: Any) -> str:
-    """Digest structure plus each leaf's own digest — never the encoded bytes.
-
-    A leaf whose own codec could not identify it takes the whole container down
-    with it: `UNDIGESTIBLE` is a single shared marker, so letting it stand in
-    for a leaf would make two containers differing only in that leaf digest the
-    same.
-
-    Note a `CompositeFilter` key is digested losslessly rather than through
-    `_hash_grouper_key`: that encoding drops the operator and truncates to 24
-    bits, which is a fine filename and far too weak to carry cache identity.
-    """
-
-    def leaf(codec: Codec, v: Any) -> dict[str, Any]:
-        if (leaf_digest := codec.digest(v)) == UNDIGESTIBLE:
-            raise UnencodableValue(f"{codec.codec_id} cannot content-address this {type(v).__name__}")
-        return {"k": "c", "id": codec.codec_id, "d": leaf_digest}
-
-    return hashlib.sha256(json.dumps(_walk(value, leaf), sort_keys=True).encode("utf-8")).hexdigest()
-
-
-def encode_keyed_iterable(value: Any) -> bytes:
-    return encode_tree(value, _KEYED_MAGIC)
-
-
-def decode_keyed_iterable(data: bytes) -> Any:
-    return decode_tree(data, _KEYED_MAGIC)
+    return Codec(
+        codec_id=f"{MODEL_CODEC_ID}/{cls.__module__}.{cls.__qualname__}",
+        media_type="application/json",
+        types=(cls,),
+        encode=_model_json,
+        decode=cls.model_validate_json,
+        digest=lambda v: hashlib.sha256(_model_json(v)).hexdigest(),
+        exact=True,
+    )
 
 
 # --------------------------------------------------------------------------- #
 # groupers
 # --------------------------------------------------------------------------- #
 
-_GROUPER_MAGIC = b"ecoscope.grouper/v1\n"
-_GROUPERS_MAGIC = b"ecoscope.groupers/v1\n"
-
 # The model fields each grouper's canonical state is known to cover. Compared
-# as a set on every dispatch, so a field added to one of these models makes the
-# codec decline the value rather than silently drop it from both the payload
-# and the digest -- which would serve one variant's cache entry for another's.
+# as a set on encode, so a field added to one of these models refuses the value
+# rather than silently dropping it from both the payload and the digest --
+# which would serve one variant's cache entry for another's.
 _GROUPER_FIELDS: dict[str, tuple[str, ...]] = {
-    "AllGrouper": ("index_name",),
     "ValueGrouper": ("index_name", "help_text"),
     "TemporalGrouper": ("temporal_index", "help_text", "is_temporal"),
     "SpatialGrouper": ("spatial_index_name", "help_text"),
 }
 
-
-@functools.lru_cache(maxsize=1)
-def _grouper_types() -> dict[str, type]:
-    from ecoscope.platform import indexes
-
-    return {name: getattr(indexes, name) for name in _GROUPER_FIELDS}
-
-
-def is_grouper(value: Any) -> bool:
-    """Whether `value` is a grouper this codec can round-trip exactly."""
-    name = type(value).__name__
-    if _grouper_types().get(name) is not type(value):
-        return False
-    return set(type(value).model_fields) == set(_GROUPER_FIELDS[name])
+# `(class name, fields, resolved regions)`. A fixed tuple rather than a dict so
+# that the frame's position is part of the structure rather than of the value.
+_GROUPER_STATE = Tree(
+    {
+        "k": "tuple",
+        "of": [
+            {"k": "json"},
+            {"k": "dict", "key": {"k": "json"}, "of": {"k": "json"}},
+            {"k": "union", "of": [{"k": "ref", "codec": FRAME}, {"k": "json"}]},
+        ],
+    }
+)
 
 
-def is_grouper_list(value: Any) -> bool:
-    """Whether `value` is the `UserDefinedGroupers` list `set_groupers` passes on.
-
-    The empty list is deliberately not claimed: `json/v1` already round-trips
-    it exactly, and `set_groupers` turns a blank `groupers` parameter into a
-    bare `AllGrouper` rather than `[]` anyway.
-
-    Examples:
-        >>> from ecoscope.platform.indexes import ValueGrouper
-        >>> is_grouper_list([ValueGrouper(index_name="species")])
-        True
-        >>> is_grouper_list([])
-        False
-    """
-    return isinstance(value, list) and bool(value) and all(is_grouper(v) for v in value)
-
-
-def _grouper_state(grouper: Any) -> dict[str, Any]:
-    """A grouper's identity as a tree the container encoder can carry.
+def _grouper_state(grouper: Any) -> tuple[str, dict[str, Any], Any]:
+    """A grouper's identity as a tuple `_GROUPER_STATE` can carry.
 
     Built by hand rather than from `model_dump`, which is wrong here twice
     over: `help_text` and `is_temporal` are declared `exclude=True` and so
@@ -535,7 +501,11 @@ def _grouper_state(grouper: Any) -> dict[str, Any]:
     `list.index` method, which is neither JSON nor stable across processes.
     The directive string it validates from is the whole of its identity.
     """
-    from ecoscope.platform.indexes import AllGrouper, SpatialGrouper, TemporalGrouper, ValueGrouper
+    from ecoscope.platform.indexes import SpatialGrouper, TemporalGrouper, ValueGrouper
+
+    name = type(grouper).__name__
+    if set(type(grouper).model_fields) != set(_GROUPER_FIELDS.get(name, ())):
+        raise UnencodableValue(f"{name} has fields this codec does not cover")
 
     if isinstance(grouper, TemporalGrouper):
         fields: dict[str, Any] = {
@@ -546,354 +516,69 @@ def _grouper_state(grouper: Any) -> dict[str, Any]:
         fields = {"spatial_index_name": grouper.spatial_index_name, "help_text": grouper.help_text}
     elif isinstance(grouper, ValueGrouper):
         fields = {"index_name": grouper.index_name, "help_text": grouper.help_text}
-    elif isinstance(grouper, AllGrouper):
-        fields = {"index_name": grouper.index_name}
     else:
-        raise UnencodableValue(f"{type(grouper).__name__} is not a grouper")
+        raise UnencodableValue(f"{name} is not a user-defined grouper")
 
-    state = {"type": type(grouper).__name__, "fields": fields}
-    if isinstance(grouper, SpatialGrouper):
-        # The resolved regions live in a `PrivateAttr`, and `SpatialGrouper`
-        # hashes and compares on `spatial_index_name` alone -- so a resolved
-        # and an unresolved instance are indistinguishable to everything except
-        # this. Carried explicitly, as a frame leaf, or a hit would hand
-        # `add_spatial_index` a grouper with nothing to join against.
-        state["resolved"] = grouper.spatial_regions
-    return state
+    # The resolved regions live in a `PrivateAttr`, and `SpatialGrouper` hashes
+    # and compares on `spatial_index_name` alone -- so a resolved and an
+    # unresolved instance are indistinguishable to everything except this.
+    # Carried explicitly, as a frame leaf, or a hit would hand
+    # `add_spatial_index` a grouper with nothing to join against.
+    resolved = grouper.spatial_regions if isinstance(grouper, SpatialGrouper) else None
+    return name, fields, resolved
 
 
-def _grouper_from_state(state: dict[str, Any]) -> Any:
-    types = _grouper_types()
-    if (cls := types.get(state["type"])) is None:
-        raise ValueError(f"unknown grouper type {state['type']!r}")
-    grouper = cls(**state["fields"])
-    if (resolved := state.get("resolved")) is not None:
+def _grouper_from_state(cls: type, state: tuple[str, dict[str, Any], Any]) -> Any:
+    name, fields, resolved = state
+    if name != cls.__name__:
+        raise ValueError(f"payload holds a {name}, not a {cls.__name__}")
+    grouper = cls(**fields)
+    if resolved is not None:
         grouper.resolve(resolved)
     return grouper
 
 
-def encode_grouper(value: Any) -> bytes:
-    return encode_tree(_grouper_state(value), _GROUPER_MAGIC)
+def grouper_codec(cls: type) -> Codec:
+    """The codec for one of the three user-defined grouper classes.
 
-
-def decode_grouper(data: bytes) -> Any:
-    return _grouper_from_state(decode_tree(data, _GROUPER_MAGIC))
-
-
-def digest_grouper(value: Any) -> str:
-    return digest_tree(_grouper_state(value))
-
-
-def encode_groupers(value: Any) -> bytes:
-    return encode_tree(value, _GROUPERS_MAGIC)
-
-
-def decode_groupers(data: bytes) -> Any:
-    return decode_tree(data, _GROUPERS_MAGIC)
-
-
-# --------------------------------------------------------------------------- #
-# pydantic models
-# --------------------------------------------------------------------------- #
-
-_MODELS_MAGIC = b"ecoscope.models/v1\n"
-
-
-def _model_path(cls: type) -> str:
-    return f"{cls.__module__}:{cls.__qualname__}"
-
-
-def _resolve_model(path: str) -> Any:
-    """Find the class a payload names, without widening what the store can run.
-
-    Importing a module is code execution, so a name read back from the cache
-    may only reach a module whose top-level package this process has already
-    imported -- which every task's own module has, since the DAG imports its
-    functions before any step runs.
+    `AllGrouper` is deliberately not one of them: it excludes no field and
+    holds no private attribute, so it round-trips through `model_codec` like
+    any other config model.
     """
-    module_name, _, qualname = path.partition(":")
-    module = sys.modules.get(module_name)
-    if module is None:
-        if module_name.partition(".")[0] not in sys.modules:
-            raise ValueError(f"{path!r} names a package this process has not imported")
-        module = importlib.import_module(module_name)
-
-    cls = module
-    for part in qualname.split("."):
-        cls = getattr(cls, part)
-    if not (isinstance(cls, type) and hasattr(cls, "model_validate")):
-        raise ValueError(f"{path!r} does not name a pydantic model")
-    return cls
-
-
-def is_roundtrippable_model(value: Any) -> bool:
-    """Whether a model can be rebuilt from its own JSON dump, exactly.
-
-    Two independent failure modes, and neither check sees the other's:
-
-    A field the serializer drops -- `exclude=True`, a `PrivateAttr`, a custom
-    `@model_serializer` -- is missing from both sides of any value comparison,
-    so it can only be caught structurally. That is `Dashboard`, whose
-    serializer emits a different shape entirely, and `SpatialGrouper`, whose
-    resolved regions hide in a private attribute.
-
-    A field that survives serialization but comes back as something else -- a
-    tuple under an `Any` annotation, or a value the model's own validators
-    reject on the way back in -- is invisible to any structural check and only
-    shows up by doing it. So this pays a dump-validate-dump per dispatch;
-    these are config-sized models.
-    """
-    cls = type(value)
-    try:
-        decorators = cls.__pydantic_decorators__
-        if (
-            cls.__private_attributes__
-            or decorators.model_serializers
-            or decorators.field_serializers
-            or any(field.exclude for field in cls.model_fields.values())
-        ):
-            return False
-        _model_path(cls)
-        # `warnings="error"`: pydantic's default for a value it cannot
-        # represent is to warn and emit it anyway, which is the silent
-        # stringification this whole codec exists to avoid.
-        dumped = value.model_dump(mode="json", warnings="error")
-        return cls.model_validate(dumped).model_dump() == value.model_dump()
-    except Exception:
-        # `matches` is called bare by the registry, so anything at all here has
-        # to read as "not mine" rather than take the run down.
-        return False
-
-
-def is_model_list(value: Any) -> bool:
-    """Whether `value` is a list of models this codec can round-trip."""
-    if not isinstance(value, list) or not value:
-        return False
-    from pydantic import BaseModel
-
-    return all(isinstance(v, BaseModel) and is_roundtrippable_model(v) for v in value)
-
-
-def encode_model(value: Any) -> bytes:
-    """Encode as canonical JSON: the class to rebuild, and its dump."""
-    payload = {"type": _model_path(type(value)), "data": value.model_dump(mode="json", warnings="error")}
-    return json.dumps(payload, sort_keys=True).encode("utf-8")
-
-
-def decode_model(data: bytes) -> Any:
-    payload = json.loads(data)
-    return _resolve_model(payload["type"]).model_validate(payload["data"])
-
-
-def digest_model(value: Any) -> str:
-    """Hash the encoded bytes — sound here, and only here, because they are canonical.
-
-    `sort_keys` plus a JSON dump of a declared schema is one form per value,
-    unlike parquet, so there is nothing for a second canonicalisation to fix.
-    """
-    return hashlib.sha256(encode_model(value)).hexdigest()
-
-
-def encode_models(value: Any) -> bytes:
-    return encode_tree(value, _MODELS_MAGIC)
-
-
-def decode_models(data: bytes) -> Any:
-    return decode_tree(data, _MODELS_MAGIC)
-
-
-# --------------------------------------------------------------------------- #
-# the JSON guard
-# --------------------------------------------------------------------------- #
-
-
-def is_json_native(value: Any) -> bool:
-    """Whether `json/v1` would return `value` unchanged.
-
-    Tuples count as foreign because JSON has no tuple, and a `dict` with
-    non-string keys because JSON has no non-string key.
-
-    Examples:
-        >>> is_json_native(["a", 1, {"b": None}])
-        True
-        >>> is_json_native([("a", 1)])
-        False
-    """
-    if value is None or isinstance(value, (str, bool, int, float)):
-        return True
-    if isinstance(value, list):
-        return all(is_json_native(v) for v in value)
-    if isinstance(value, dict):
-        return all(isinstance(k, str) and is_json_native(v) for k, v in value.items())
-    return False
-
-
-def _guard_refuse(value: Any) -> Any:
-    raise TypeError(
-        f"{type(value).__name__} holds values JSON cannot represent; not caching it " f"(see {GUARD_CODEC_ID})"
-    )
-
-
-# `json/v1` claims `list` and `dict` unconditionally and encodes with
-# `default=str`, so a value it cannot represent is stringified rather than
-# refused -- `gather_dashboard`'s grouper-keyed choices dict, say, would come
-# back as a dict of reprs. This sits between the two and turns that into "not
-# cached", which is what refusing was supposed to mean.
-GUARD_CODEC = Codec(
-    codec_id=GUARD_CODEC_ID,
-    media_type="application/octet-stream",
-    types=(list, dict),
-    encode=_guard_refuse,
-    decode=_guard_refuse,
-    digest=lambda _v: UNDIGESTIBLE,
-    matches=lambda v: not is_json_native(v),
-    priority=-50,
-)
-
-
-# --------------------------------------------------------------------------- #
-# registration
-# --------------------------------------------------------------------------- #
-
-
-def _refusing_digest(digest: Callable[[Any], str]) -> Callable[[Any], str]:
-    """Wrap `digest` so a value it cannot identify refuses instead of raising.
-
-    `digest` is called outside wt-task's try/except, so an exception here aborts
-    the run rather than skipping the cache -- and `digest_dataframe` does raise,
-    deliberately, on cells that are neither hashable nor reprable.
-    """
-
-    def wrapped(value: Any) -> str:
-        try:
-            return digest(value)
-        except Exception:
-            return UNDIGESTIBLE
-
-    return wrapped
-
-
-def _refusing_encode(digest: Callable[[Any], str], encode: Callable[[Any], bytes]) -> Callable[[Any], bytes]:
-    """Wrap `encode` to refuse exactly what `_refusing_digest` refused.
-
-    Storing a payload under the shared `UNDIGESTIBLE` content id would let two
-    unrelated steps read each other's data, so the refusal has to happen here,
-    where wt-task turns it into "this step is not cached".
-    """
-
-    def wrapped(value: Any) -> bytes:
-        if digest(value) == UNDIGESTIBLE:
-            raise TypeError(f"cannot content-address {type(value).__name__}; not caching it")
-        return encode(value)
-
-    return wrapped
-
-
-def _codec(codec_id: str, media_type: str, types: tuple[type, ...], digest, encode, decode, **kwargs) -> Codec:
-    safe_digest = _refusing_digest(digest)
     return Codec(
-        codec_id=codec_id,
-        media_type=media_type,
-        types=types,
-        encode=_refusing_encode(safe_digest, encode),
-        decode=decode,
-        digest=safe_digest,
-        **kwargs,
+        codec_id=f"{GROUPER_CODEC_ID}/{cls.__module__}.{cls.__qualname__}",
+        media_type="application/vnd.ecoscope.grouper",
+        types=(cls,),
+        encode=lambda v: _GROUPER_STATE.encode(_grouper_state(v)),
+        decode=lambda d: _grouper_from_state(cls, _GROUPER_STATE.decode(d)),
+        digest=lambda v: _GROUPER_STATE.digest(_grouper_state(v)),
+        exact=True,
     )
 
 
-def codecs() -> list[Codec]:
-    """The codecs this distribution contributes to `wt_task.codecs`.
+def __getattr__(name: str) -> Any:
+    """Build `GROUPER_LIST`, the codec for `UserDefinedGroupers`, on first use.
 
-    Imports are deferred to here so that declaring the entry point costs nothing
-    until the cache actually looks for it.
+    Lazily, because `_persist` imports this module while `ecoscope.platform` is
+    still initialising, so `indexes` cannot be reached at module scope. A codec
+    ref is only ever resolved once the package is loaded.
     """
-    import pandas as pd
-    import pyarrow as pa
-    from pydantic import BaseModel
+    if name != "GROUPER_LIST":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from ecoscope.platform.indexes import SpatialGrouper, TemporalGrouper, ValueGrouper
 
-    from ecoscope.platform.indexes import AllGrouper, SpatialGrouper, TemporalGrouper, ValueGrouper
-
-    return [
-        # Claiming `pd.DataFrame` covers `GeoDataFrame` and pandera's alias by
-        # MRO; the two formats share no `content_id` space, because ids are
-        # namespaced by codec, so the same data as a frame and as a table
-        # digests differently. Cross-format dedup is the price of not having to
-        # agree on a canonical form across two type systems.
-        _codec(
-            FRAME_CODEC_ID,
-            "application/vnd.apache.parquet",
-            (pd.DataFrame,),
-            digest_dataframe,
-            encode_dataframe,
-            decode_dataframe,
-        ),
-        _codec(
-            ARROW_CODEC_ID,
-            "application/vnd.apache.arrow.stream",
-            (pa.Table,),
-            digest_table,
-            encode_table,
-            decode_table,
-        ),
-        _codec(
-            KEYED_CODEC_ID,
-            "application/vnd.ecoscope.keyed-iterable",
-            (list,),
-            digest_tree,
-            encode_keyed_iterable,
-            decode_keyed_iterable,
-            matches=is_keyed_iterable,
-        ),
-        # `set_groupers` returns a bare `AllGrouper` for the ungrouped case and
-        # a list otherwise, so both shapes have to be claimed or the grouped
-        # subtree stays uncacheable either way. The three `list` claims here --
-        # groupers, keyed iterables, the guard -- are disjoint on `matches`;
-        # the priorities exist only because equal ones are a registration
-        # error, not because the order is ever consulted.
-        _codec(
-            GROUPER_CODEC_ID,
-            "application/vnd.ecoscope.grouper",
-            (AllGrouper, ValueGrouper, TemporalGrouper, SpatialGrouper),
-            digest_grouper,
-            encode_grouper,
-            decode_grouper,
-            matches=is_grouper,
-        ),
-        _codec(
-            GROUPERS_CODEC_ID,
-            "application/vnd.ecoscope.groupers",
-            (list,),
-            digest_tree,
-            encode_groupers,
-            decode_groupers,
-            matches=is_grouper_list,
-            priority=10,
-        ),
-        # Claiming `BaseModel` reaches the ~57 tasks returning one, but only
-        # the models `is_roundtrippable_model` can prove: `TimeRange` and
-        # `TimezoneInfo` gate the whole events frame chain, while `Dashboard`
-        # and the groupers are declined here and handled, or not, elsewhere.
-        # The concrete-class claims above win over this one by MRO, so a
-        # grouper never reaches it even though `AllGrouper` would pass.
-        _codec(
-            MODEL_CODEC_ID,
-            "application/json",
-            (BaseModel,),
-            digest_model,
-            encode_model,
-            decode_model,
-            matches=is_roundtrippable_model,
-        ),
-        _codec(
-            MODELS_CODEC_ID,
-            "application/vnd.ecoscope.models",
-            (list,),
-            digest_tree,
-            encode_models,
-            decode_models,
-            matches=is_model_list,
-            priority=5,
-        ),
-        GUARD_CODEC,
-    ]
+    globals()[name] = Tree(
+        {
+            "k": "list",
+            "of": {
+                "k": "union",
+                "of": [
+                    {"k": "ref", "codec": grouper_codec(cls)} for cls in (ValueGrouper, TemporalGrouper, SpatialGrouper)
+                ],
+            },
+        },
+        types=(list,),
+        codec_id=GROUPERS_CODEC_ID,
+        media_type="application/vnd.ecoscope.groupers",
+    )
+    return globals()[name]

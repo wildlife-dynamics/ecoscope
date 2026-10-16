@@ -7,7 +7,7 @@ from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, CacheableModel
 
 
 def _advanced_titled_enum(*options: tuple[str, str]):
@@ -280,7 +280,7 @@ class GammMcmcSettings(BaseModel):
     ] = None
 
 
-class LinearTrendModel(BaseModel):
+class LinearTrendModel(BaseModel, CacheableModel):
     """Ordinary least squares. No smoothing - a single straight-line trend."""
 
     model_config = ConfigDict(title="Linear Regression")
@@ -294,7 +294,7 @@ class LinearTrendModel(BaseModel):
         return {"add_intercept": self.intercept_settings.add_intercept}
 
 
-class GlmTrendModel(BaseModel):
+class GlmTrendModel(BaseModel, CacheableModel):
     """Generalized linear model. Baseline for comparison against the smoothed
     models below - not recommended as the final trend line."""
 
@@ -355,7 +355,7 @@ class GamTrendModel(BaseModel):
         }
 
 
-class GammTrendModel(BaseModel):
+class GammTrendModel(BaseModel, CacheableModel):
     """Bayesian generalized additive mixed model with per-site random
     effects. A workflow fits this once across every site's combined data
     (site_ids derived automatically from a "name" column if present - see

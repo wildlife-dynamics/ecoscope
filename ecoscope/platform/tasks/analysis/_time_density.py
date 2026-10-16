@@ -11,6 +11,7 @@ from wt_registry import register
 from ecoscope.platform.annotations import (
     AdvancedField,
     AnyGeoDataFrame,
+    CacheableModel,
     DataFrame,
     JsonSerializableDataFrameModel,
 )
@@ -27,7 +28,7 @@ class TimeDensityReturnGDFSchema(JsonSerializableDataFrameModel):
 TimeDensityReturnGDF: TypeAlias = DataFrame[TimeDensityReturnGDFSchema]
 
 
-class AutoScaleGridCellSize(BaseModel):
+class AutoScaleGridCellSize(BaseModel, CacheableModel):
     model_config = ConfigDict(json_schema_extra={"title": "Auto-scale"})
     auto_scale_or_custom: Annotated[
         Literal["Auto-scale"],
@@ -38,7 +39,7 @@ class AutoScaleGridCellSize(BaseModel):
     ] = "Auto-scale"
 
 
-class CustomGridCellSize(BaseModel):
+class CustomGridCellSize(BaseModel, CacheableModel):
     model_config = ConfigDict(json_schema_extra={"title": "Customize"})
     auto_scale_or_custom: Annotated[
         Literal["Customize"],
