@@ -42,7 +42,8 @@ def _dwh_events_enabled() -> bool:
     enabled by default: set ``DWH_EVENTS_ENABLED=false`` to make every task whose
     DWH read carries event data bypass the warehouse client and read from the
     EarthRanger API instead. Observation tasks are unaffected and always read
-    from the DWH (subject to ``USE_EARTHRANGER_WAREHOUSE_API``).
+    from the DWH (subject to whether the warehouse is enabled for that data source;
+    see `_make_warehouse_client_from_env`).
 
     `get_patrols` is covered because warehouse patrols nest their events:
     `ERWarehouseClient.get_patrols` always sends ``include_events=True`` and
@@ -59,19 +60,38 @@ def _dwh_events_enabled() -> bool:
     return os.environ.get("DWH_EVENTS_ENABLED", "true").lower() == "true"
 
 
-def _make_warehouse_client_from_env(er_site_url: str, er_api_token: SecretStr | None):
-    """Create an ERWarehouseClient if warehouse env vars are configured.
+def _make_warehouse_client_from_env(client):
+    """Create an ERWarehouseClient if the warehouse is enabled for this client.
 
     Returns None when the warehouse is not enabled, causing callers to
     fall back to the legacy EarthRanger API client.
+
+    Eligibility is per data source (ERA-855): `use_warehouse` on the connection
+    (``ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__<NAME>__USE_WAREHOUSE``) wins,
+    and only when it is unset does the global `USE_EARTHRANGER_WAREHOUSE_API` decide.
+    An old platform sets the global flag alone, so a workflow with several ER
+    sources still resolves them all the same way, as it used to.
+
+    Read via getattr: `EarthRangerClientProtocol` deliberately omits the attribute
+    (see `EarthRangerIO.__init__`), so stand-in clients carry none.
     """
-    if os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true" and er_api_token is not None:
+    per_connection = getattr(client, "use_warehouse", None)
+    # isinstance, not `is not None`: a bare MagicMock client auto-creates `use_warehouse`
+    # as a truthy mock, which must not read as an opt-in. Pydantic narrows the real field
+    # to bool | None, so this only ever rejects test doubles.
+    enabled = (
+        per_connection
+        if isinstance(per_connection, bool)
+        else os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
+    )
+    er_api_token = SecretStr(client.token) if client.token else None
+    if enabled and er_api_token is not None:
         from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
 
         warehouse_api_base_url = os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL")
         logger.debug("Using ERWarehouseClient (warehouse_base_url=%s)", warehouse_api_base_url)
         return ERWarehouseClient(
-            server=er_site_url,
+            server=client.server,
             token=er_api_token,
             warehouse_base_url=warehouse_api_base_url,
         )
@@ -544,10 +564,7 @@ def get_subjectgroup_observations(
 
     filter_int = _EXCLUSION_FILTER_TO_INT[filter]
 
-    if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server,
-        er_api_token=SecretStr(client.token) if client.token else None,
-    ):
+    if warehouse_client := _make_warehouse_client_from_env(client):
         import geopandas as gpd  # type: ignore[import-untyped]
 
         table = warehouse_client.get_subjectgroup_observations(
@@ -599,10 +616,7 @@ def get_patrol_observations(
     if status is None:
         status = ["done"]
 
-    if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server,
-        er_api_token=SecretStr(client.token) if client.token else None,
-    ):
+    if warehouse_client := _make_warehouse_client_from_env(client):
         import geopandas as gpd  # type: ignore[import-untyped]
 
         table = warehouse_client.get_patrol_observations_with_patrol_filter(
@@ -657,12 +671,7 @@ def get_patrol_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if _dwh_events_enabled() and (
-        warehouse_client := _make_warehouse_client_from_env(
-            er_site_url=client.server,
-            er_api_token=SecretStr(client.token) if client.token else None,
-        )
-    ):
+    if _dwh_events_enabled() and (warehouse_client := _make_warehouse_client_from_env(client)):
         from ecoscope.io.earthranger_utils import (
             unpack_events_from_patrols_df,
             warehouse_patrols_table_to_patrols_df,
@@ -740,12 +749,7 @@ def get_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if _dwh_events_enabled() and (
-        warehouse_client := _make_warehouse_client_from_env(
-            er_site_url=client.server,
-            er_api_token=SecretStr(client.token) if client.token else None,
-        )
-    ):
+    if _dwh_events_enabled() and (warehouse_client := _make_warehouse_client_from_env(client)):
         import geopandas as gpd  # type: ignore[import-untyped]
 
         # The warehouse get_events accepts event type slugs directly, so pass the
@@ -945,12 +949,7 @@ def get_patrols(
     # read is event data and follows the same switch. Unlike the event tasks, the
     # ER-API fallback below does not reference warehouse_client, so the walrus
     # can stay inside the condition.
-    if _dwh_events_enabled() and (
-        warehouse_client := _make_warehouse_client_from_env(
-            er_site_url=client.server,
-            er_api_token=SecretStr(client.token) if client.token else None,
-        )
-    ):
+    if _dwh_events_enabled() and (warehouse_client := _make_warehouse_client_from_env(client)):
         from ecoscope.io.earthranger_utils import warehouse_patrols_table_to_patrols_df
 
         table = warehouse_client.get_patrols(
@@ -989,10 +988,7 @@ def get_patrol_observations_from_patrols_df(
     """Get observations for a patrol type from EarthRanger."""
     from ecoscope.relocations import Relocations
 
-    if warehouse_client := _make_warehouse_client_from_env(
-        er_site_url=client.server,
-        er_api_token=SecretStr(client.token) if client.token else None,
-    ):
+    if warehouse_client := _make_warehouse_client_from_env(client):
         import geopandas as gpd  # type: ignore[import-untyped]
 
         table = warehouse_client.get_patrol_observations(
@@ -1057,12 +1053,7 @@ def get_event_type_display_names_from_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if _dwh_events_enabled() and (
-        warehouse_client := _make_warehouse_client_from_env(
-            er_site_url=client.server,
-            er_api_token=SecretStr(client.token) if client.token else None,
-        )
-    ):
+    if _dwh_events_enabled() and (warehouse_client := _make_warehouse_client_from_env(client)):
         # The warehouse client's get_event_type_display_names_from_events is a
         # NotImplementedError stub; resolve display names locally instead.
         from ecoscope.io.earthranger_utils import append_event_type_display_names

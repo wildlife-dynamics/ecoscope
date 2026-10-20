@@ -166,6 +166,15 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
     tcp_limit: Annotated[int, Field(description="TCP limit for API requests")] = 5
     sub_page_size: Annotated[int, Field(description="Sub page size for API requests")] = 4000
     token: Annotated[SecretStr, Field(description="EarthRanger access token")] = SecretStr("")
+    use_warehouse: Annotated[
+        bool | None,
+        Field(
+            description=(
+                "Read this data source through the EarthRanger data warehouse. "
+                "Unset defers to the global USE_EARTHRANGER_WAREHOUSE_API flag."
+            )
+        ),
+    ] = None
 
     @field_validator("token")
     def token_or_password(cls, v: SecretStr, info: ValidationInfo):
@@ -190,6 +199,7 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
             server=self.server,
             tcp_limit=self.tcp_limit,
             sub_page_size=self.sub_page_size,
+            use_warehouse=self.use_warehouse,
             **auth_kws,
         )
 
