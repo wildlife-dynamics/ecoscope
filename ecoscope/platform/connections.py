@@ -1,6 +1,7 @@
 import logging
 import os
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from inspect import ismethod
 from typing import Annotated, Any, ClassVar, Generic, Protocol, Type, TypeVar, get_args, runtime_checkable
 
@@ -161,6 +162,7 @@ class EarthRangerClientProtocol(Protocol):
     def get_fields_from_event_type_schema(self, event_type) -> dict[str, str]: ...
 
 
+@dataclass
 class EarthRangerBackends:
     """The backends resolved for one named EarthRanger data source.
 
@@ -176,11 +178,8 @@ class EarthRangerBackends:
     are unaffected by this and opt in by changing annotation.
     """
 
-    __slots__ = ("api", "warehouse")
-
-    def __init__(self, api: EarthRangerClientProtocol, warehouse: Any | None = None):
-        self.api = api
-        self.warehouse = warehouse
+    api: EarthRangerClientProtocol
+    warehouse: Any | None = None
 
 
 def _warehouse_enabled_globally() -> bool:
