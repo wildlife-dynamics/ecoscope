@@ -14,6 +14,7 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
 
+from ecoscope.platform.connections import EarthRangerSource
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
     get_event_type_display_names_from_events,
@@ -23,6 +24,14 @@ from ecoscope.platform.tasks.io import (
     unpack_events_from_patrols_df,
 )
 from ecoscope.platform.tasks.io._earthranger import _dwh_events_enabled
+
+
+def _source(api=None, warehouse=None):
+    """An `EarthRangerSource` standing in for a resolved data source.
+
+    `api` defaults to a bare mock; `warehouse` stays None for the ER-API path.
+    """
+    return EarthRangerSource(api=api if api is not None else MagicMock(), warehouse=warehouse)
 
 
 @pytest.fixture
@@ -208,23 +217,20 @@ _EVENT_TIME_RANGE = TimeRange(
 def test_get_events_via_warehouse_client():
     """Warehouse branch: rename event_type_value/event_category_value/event_time,
     tz-aware time, geometry preserved, and the frame satisfies the strict schema."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        raise_on_empty=False,
+    )
 
     mock_warehouse_client.get_events.assert_called_once()
-    mock_legacy_client.get_events.assert_not_called()
+    mock_legacy_client.api.get_events.assert_not_called()
     assert isinstance(result, gpd.GeoDataFrame)
     assert "event_type" in result.columns
     assert "event_category" in result.columns
@@ -242,27 +248,24 @@ def test_get_events_via_warehouse_client():
 def test_get_events_via_warehouse_client_passes_slugs_no_id_round_trip():
     """The warehouse get_events takes slugs directly, so event_types are forwarded
     verbatim and no value->id lookup via get_event_types happens."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep", "fire_rep"],
-            include_null_geometry=False,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep", "fire_rep"],
+        include_null_geometry=False,
+        raise_on_empty=False,
+    )
 
     call_kwargs = mock_warehouse_client.get_events.call_args.kwargs
     assert call_kwargs["event_type"] == ["hwc_rep", "fire_rep"]
     assert call_kwargs["drop_null_geometry"] is True
     mock_warehouse_client.get_event_types.assert_not_called()
-    mock_legacy_client.get_event_types.assert_not_called()
+    mock_legacy_client.api.get_event_types.assert_not_called()
 
 
 @requires_dwh_events
@@ -270,23 +273,20 @@ def test_get_events_via_warehouse_client_synthesizes_location_from_geometry():
     """The warehouse serves no `location` column; the task synthesizes an ER-native
     location dict ({"latitude","longitude"}) from geometry so the event-details
     workflow's extract_value_from_json_column(column_name="location") keeps working."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     # single event, point at (lon=36.8, lat=-1.3)
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            # the released event-details selection includes "location"
-            event_columns=["id", "time", "event_type", "event_category", "reported_by", "location", "geometry"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        # the released event-details selection includes "location"
+        event_columns=["id", "time", "event_type", "event_category", "reported_by", "location", "geometry"],
+        raise_on_empty=False,
+    )
 
     location = result["location"].iloc[0]
     assert location == {"latitude": -1.3, "longitude": 36.8}
@@ -299,22 +299,19 @@ def test_get_events_via_warehouse_client_synthesizes_location_from_geometry():
 def test_get_events_via_warehouse_client_unavailable_column_raises_clear_error():
     """Selecting an event column the warehouse doesn't serve raises a clear error
     naming the missing column(s) and the available ones, not a bare KeyError."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        with pytest.raises(ValueError, match=r"event_columns.*'message'.*not served.*Available columns"):
-            get_events(
-                client=mock_legacy_client,
-                time_range=_EVENT_TIME_RANGE,
-                event_types=["hwc_rep"],
-                event_columns=["id", "time", "message"],
-                raise_on_empty=False,
-            )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    with pytest.raises(ValueError, match=r"event_columns.*'message'.*not served.*Available columns"):
+        get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=["hwc_rep"],
+            event_columns=["id", "time", "message"],
+            raise_on_empty=False,
+        )
 
 
 @requires_dwh_events
@@ -326,7 +323,7 @@ def test_get_events_via_warehouse_client_sorts_ascending_by_time():
     later = dt.datetime(2015, 6, 3, tzinfo=dt.timezone.utc)
     earlier = dt.datetime(2015, 6, 1, tzinfo=dt.timezone.utc)
 
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     # warehouse returns DESC (later first); task should flip to ascending
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
@@ -335,16 +332,13 @@ def test_get_events_via_warehouse_client_sorts_ascending_by_time():
         event_times=[later, earlier],
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["a", "b"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["a", "b"],
+        raise_on_empty=False,
+    )
 
     assert result["time"].tolist() == [earlier, later]
     _assert_valid_events_gdf(result)
@@ -358,29 +352,26 @@ def test_get_events_via_warehouse_client_force_point_geometry_reduces_to_centroi
 
     poly = Polygon([(0, 0), (0, 2), (2, 2), (2, 0)])  # centroid at (1, 1)
 
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(geometry_wkbs=[poly.wkb])
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        reduced = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            raise_on_empty=False,
-        )
-        # reset the mock return (from_arrow consumes it lazily; rebuild to be safe)
-        mock_warehouse_client.get_events.return_value = _make_events_arrow_table(geometry_wkbs=[poly.wkb])
-        preserved = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            force_point_geometry=False,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    reduced = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        raise_on_empty=False,
+    )
+    # reset the mock return (from_arrow consumes it lazily; rebuild to be safe)
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(geometry_wkbs=[poly.wkb])
+    preserved = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        force_point_geometry=False,
+        raise_on_empty=False,
+    )
 
     geom = reduced["geometry"].iloc[0]
     assert geom.geom_type == "Point"
@@ -393,21 +384,18 @@ def test_get_events_via_warehouse_client_force_point_geometry_reduces_to_centroi
 @requires_dwh_events
 def test_get_events_via_warehouse_client_event_columns_subset():
     """event_columns slicing works on the renamed warehouse frame."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            event_columns=["id", "time", "event_type", "geometry"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        event_columns=["id", "time", "event_type", "geometry"],
+        raise_on_empty=False,
+    )
 
     assert sorted(result.columns) == sorted(["id", "time", "event_type", "geometry"])
     _assert_valid_events_gdf(result)
@@ -441,21 +429,18 @@ def test_get_events_via_warehouse_client_details_mode_by_type_count(event_types,
     """A single event type gets the typed struct; zero or many types fall back to raw
     JSON, since the struct is derived from one event type's schema and the warehouse
     rejects it otherwise (ERDW-276)."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=event_types,
-            include_details=True,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=event_types,
+        include_details=True,
+        raise_on_empty=False,
+    )
 
     call_kwargs = mock_warehouse_client.get_events.call_args.kwargs
     assert call_kwargs["include_details"] is True
@@ -472,20 +457,17 @@ def test_get_events_via_warehouse_client_no_details_stays_in_omit_mode(event_typ
     """Without include_details there are no details to shape, so the request stays in
     the warehouse's omit mode for every selection -- raw_details would turn details
     back on (the io-core client sends include_details=want_typed or raw_details)."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=event_types,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=event_types,
+        raise_on_empty=False,
+    )
 
     call_kwargs = mock_warehouse_client.get_events.call_args.kwargs
     assert call_kwargs["include_details"] is False
@@ -498,7 +480,7 @@ def test_get_events_via_warehouse_client_decodes_raw_details_to_dicts():
     so the column matches the ER API path, which every downstream consumer assumes --
     process_events_details no-ops on non-dicts and normalize_json_column
     (pd.json_normalize) silently yields no columns for strings."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
         event_type_values=("hwc_rep", "fire_rep"),
@@ -506,17 +488,14 @@ def test_get_events_via_warehouse_client_decodes_raw_details_to_dicts():
         event_details=['{"species": "elephant", "count": 3}', None],
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep", "fire_rep"],
-            include_details=True,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep", "fire_rep"],
+        include_details=True,
+        raise_on_empty=False,
+    )
 
     # A detail-less event becomes {}, as the ER API serves it.
     assert result["event_details"].tolist() == [{"species": "elephant", "count": 3}, {}]
@@ -528,7 +507,7 @@ def test_get_events_via_warehouse_client_typed_details_arrive_as_dicts():
     """Single-type selections get the typed struct, which from_arrow lands as dicts --
     so no decode is needed and none is applied: absent schema fields stay None (rather
     than being dropped) and a detail-less event stays a whole-cell None."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
         event_type_values=("hwc_rep", "hwc_rep"),
@@ -537,17 +516,14 @@ def test_get_events_via_warehouse_client_typed_details_arrive_as_dicts():
         details_type=_details_struct(),
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            include_details=True,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        include_details=True,
+        raise_on_empty=False,
+    )
 
     assert mock_warehouse_client.get_events.call_args.kwargs["raw_details"] is False
     # `notes` is absent from the data but present in the struct -> padded in as None.
@@ -573,23 +549,20 @@ def test_get_events_via_warehouse_client_details_normalize_into_columns(mode):
     else:
         table = _make_events_arrow_table(event_details=['{"species": "elephant", "count": 3}'])
 
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = table
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            # one type for typed; two would flip the request to raw, but the mock
-            # returns the table under test either way
-            event_types=["hwc_rep"] if mode == "typed" else ["hwc_rep", "fire_rep"],
-            include_details=True,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        # one type for typed; two would flip the request to raw, but the mock
+        # returns the table under test either way
+        event_types=["hwc_rep"] if mode == "typed" else ["hwc_rep", "fire_rep"],
+        include_details=True,
+        raise_on_empty=False,
+    )
 
     normalized = normalize_json_column(df=result, column="event_details", sort_columns=False)
 
@@ -600,27 +573,24 @@ def test_get_events_via_warehouse_client_details_normalize_into_columns(mode):
 @requires_dwh_events
 def test_get_events_via_warehouse_client_empty():
     """Empty warehouse table: raise_on_empty raises, else returns an empty frame."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _empty_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        with pytest.raises(ValueError, match=r"No data returned from EarthRanger.*"):
-            get_events(
-                client=mock_legacy_client,
-                time_range=_EVENT_TIME_RANGE,
-                event_types=["hwc_rep"],
-            )
-
-        result = get_events(
+    mock_legacy_client.warehouse = mock_warehouse_client
+    with pytest.raises(ValueError, match=r"No data returned from EarthRanger.*"):
+        get_events(
             client=mock_legacy_client,
             time_range=_EVENT_TIME_RANGE,
             event_types=["hwc_rep"],
-            raise_on_empty=False,
         )
+
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        raise_on_empty=False,
+    )
     assert result.empty
     mock_warehouse_client.get_event_types.assert_not_called()
 
@@ -629,22 +599,19 @@ def test_get_events_via_warehouse_client_empty():
 def test_get_events_via_warehouse_client_display_values():
     """include_display_values on the warehouse path uses the local helper (not the
     stubbed client method) and populates event_type_display."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
     mock_warehouse_client.get_event_types.return_value = _make_event_types_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            include_display_values=True,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        include_display_values=True,
+        raise_on_empty=False,
+    )
 
     mock_warehouse_client.get_event_types.assert_called_once()
     mock_warehouse_client.get_event_type_display_names_from_events.assert_not_called()
@@ -659,23 +626,20 @@ def test_get_patrols_via_warehouse_client_synthesized_shape_feeds_unpack():
     shape feeds unpack_events_from_patrols_df into a valid EventGDF."""
     from ecoscope.io.earthranger_utils import unpack_events_from_patrols_df
 
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_patrols.return_value = _make_nested_patrols_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        patrols_df = get_patrols(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    patrols_df = get_patrols(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        raise_on_empty=False,
+    )
 
     mock_warehouse_client.get_patrols.assert_called_once()
-    mock_legacy_client.get_patrols.assert_not_called()
+    mock_legacy_client.api.get_patrols.assert_not_called()
 
     segment = patrols_df["patrol_segments"].iloc[0][0]
     assert segment["time_range"]["start_time"] == "2015-02-01T00:00:00+00:00"
@@ -698,29 +662,26 @@ def test_get_patrols_via_warehouse_client_synthesized_shape_feeds_unpack():
 
 @requires_dwh_events
 def test_get_patrols_via_warehouse_client_empty():
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     from ecoscope_earthranger_io_core.arrow import PATROLS_WITH_EVENTS_NESTED_SCHEMA_V1
 
     mock_warehouse_client.get_patrols.return_value = PATROLS_WITH_EVENTS_NESTED_SCHEMA_V1.empty_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        with pytest.raises(ValueError, match=r"No data returned from EarthRanger.*"):
-            get_patrols(
-                client=mock_legacy_client,
-                time_range=_EVENT_TIME_RANGE,
-                patrol_types=["ecoscope_patrol"],
-            )
-
-        result = get_patrols(
+    mock_legacy_client.warehouse = mock_warehouse_client
+    with pytest.raises(ValueError, match=r"No data returned from EarthRanger.*"):
+        get_patrols(
             client=mock_legacy_client,
             time_range=_EVENT_TIME_RANGE,
             patrol_types=["ecoscope_patrol"],
-            raise_on_empty=False,
         )
+
+    result = get_patrols(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        raise_on_empty=False,
+    )
     assert result.empty
 
 
@@ -728,26 +689,23 @@ def test_get_patrols_via_warehouse_client_empty():
 def test_get_patrol_events_via_warehouse_client():
     """Warehouse get_patrol_events derives events from get_patrols + unpack (does not
     call the warehouse get_patrol_events, honoring the no-DAG-change constraint)."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_patrols.return_value = _make_nested_patrols_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_patrol_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            event_types=[],
-            status=None,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_patrol_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        event_types=[],
+        status=None,
+        raise_on_empty=False,
+    )
 
     mock_warehouse_client.get_patrols.assert_called_once()
     mock_warehouse_client.get_patrol_events.assert_not_called()
-    mock_legacy_client.get_patrol_events.assert_not_called()
+    mock_legacy_client.api.get_patrol_events.assert_not_called()
     assert "event_type" in result.columns
     assert "geometry" in result.columns
     assert result["event_type"].tolist() == ["hwc_rep"]
@@ -757,26 +715,23 @@ def test_get_patrol_events_via_warehouse_client():
 @requires_dwh_events
 def test_get_patrol_events_via_warehouse_client_truncates_to_time_range():
     """truncate_to_time_range drops events outside the requested window."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     # One event in-range (2015), one out-of-range (2020).
     mock_warehouse_client.get_patrols.return_value = _make_nested_patrols_arrow_table(
         event_times=("2015-02-01", "2020-02-01")
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_patrol_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            event_types=[],
-            status=None,
-            truncate_to_time_range=True,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_patrol_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        event_types=[],
+        status=None,
+        truncate_to_time_range=True,
+        raise_on_empty=False,
+    )
 
     assert len(result) == 1
     assert result["time"].iloc[0].year == 2015
@@ -785,24 +740,21 @@ def test_get_patrol_events_via_warehouse_client_truncates_to_time_range():
 
 @requires_dwh_events
 def test_get_patrol_events_via_warehouse_client_display_values():
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_patrols.return_value = _make_nested_patrols_arrow_table()
     mock_warehouse_client.get_event_types.return_value = _make_event_types_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_patrol_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            event_types=[],
-            status=None,
-            include_display_values=True,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_patrol_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        event_types=[],
+        status=None,
+        include_display_values=True,
+        raise_on_empty=False,
+    )
 
     mock_warehouse_client.get_event_types.assert_called_once()
     mock_warehouse_client.get_event_type_display_names_from_events.assert_not_called()
@@ -814,7 +766,7 @@ def test_get_patrol_events_via_warehouse_client_display_values():
 def test_get_event_type_display_names_from_events_via_warehouse_client():
     """The wrapper task resolves display names via the local helper on the warehouse
     path (the client method is a NotImplementedError stub)."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_event_types.return_value = _make_event_types_arrow_table()
 
@@ -828,82 +780,70 @@ def test_get_event_type_display_names_from_events_via_warehouse_client():
         }
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_event_type_display_names_from_events(
-            client=mock_legacy_client,
-            events_gdf=events_gdf,
-            append_category_names="duplicates",
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_event_type_display_names_from_events(
+        client=mock_legacy_client,
+        events_gdf=events_gdf,
+        append_category_names="duplicates",
+    )
 
     mock_warehouse_client.get_event_types.assert_called_once()
-    mock_legacy_client.get_event_type_display_names_from_events.assert_not_called()
+    mock_legacy_client.api.get_event_type_display_names_from_events.assert_not_called()
     assert result["event_type_display"].tolist() == ["Human Wildlife Conflict"]
 
 
 def test_get_events_warehouse_disabled_falls_back_to_legacy_client():
     """Env off: get_events uses the legacy client (value->id round-trip preserved)."""
-    mock_legacy_client = MagicMock()
-    mock_legacy_client.get_event_types.return_value = pd.DataFrame({"id": ["id-1"], "value": ["hwc_rep"]})
-    mock_legacy_client.get_events.return_value = pd.DataFrame()
+    mock_legacy_client = _source()
+    mock_legacy_client.api.get_event_types.return_value = pd.DataFrame({"id": ["id-1"], "value": ["hwc_rep"]})
+    mock_legacy_client.api.get_events.return_value = pd.DataFrame()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=None,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = None
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        raise_on_empty=False,
+    )
 
-    mock_legacy_client.get_event_types.assert_called_once()
-    mock_legacy_client.get_events.assert_called_once()
-    assert mock_legacy_client.get_events.call_args.kwargs["event_type"] == ["id-1"]
+    mock_legacy_client.api.get_event_types.assert_called_once()
+    mock_legacy_client.api.get_events.assert_called_once()
+    assert mock_legacy_client.api.get_events.call_args.kwargs["event_type"] == ["id-1"]
     assert result.empty
 
 
 def test_get_patrol_events_warehouse_disabled_falls_back_to_legacy_client():
-    mock_legacy_client = MagicMock()
-    mock_legacy_client.get_patrol_events.return_value = pd.DataFrame()
+    mock_legacy_client = _source()
+    mock_legacy_client.api.get_patrol_events.return_value = pd.DataFrame()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=None,
-    ):
-        result = get_patrol_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            event_types=[],
-            status=None,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = None
+    result = get_patrol_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        event_types=[],
+        status=None,
+        raise_on_empty=False,
+    )
 
-    mock_legacy_client.get_patrol_events.assert_called_once()
+    mock_legacy_client.api.get_patrol_events.assert_called_once()
     assert result.empty
 
 
 def test_get_patrols_warehouse_disabled_falls_back_to_legacy_client():
-    mock_legacy_client = MagicMock()
-    mock_legacy_client.get_patrols.return_value = pd.DataFrame()
+    mock_legacy_client = _source()
+    mock_legacy_client.api.get_patrols.return_value = pd.DataFrame()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=None,
-    ):
-        result = get_patrols(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            status=None,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = None
+    result = get_patrols(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        status=None,
+        raise_on_empty=False,
+    )
 
-    mock_legacy_client.get_patrols.assert_called_once()
+    mock_legacy_client.api.get_patrols.assert_called_once()
     assert result.empty
 
 
@@ -1033,26 +973,23 @@ def test_get_patrol_events_legacy_display_values_path():
         geometry=[Point(0.0, 0.0)],
         crs=4326,
     )
-    mock_legacy_client = MagicMock()
-    mock_legacy_client.get_patrol_events.return_value = legacy_events
-    mock_legacy_client.get_event_type_display_names_from_events.return_value = legacy_events
+    mock_legacy_client = _source()
+    mock_legacy_client.api.get_patrol_events.return_value = legacy_events
+    mock_legacy_client.api.get_event_type_display_names_from_events.return_value = legacy_events
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=None,
-    ):
-        get_patrol_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            event_types=["hwc_rep"],
-            truncate_to_time_range=False,
-            include_display_values=True,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = None
+    get_patrol_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        event_types=["hwc_rep"],
+        truncate_to_time_range=False,
+        include_display_values=True,
+        raise_on_empty=False,
+    )
 
-    mock_legacy_client.get_patrol_events.assert_called_once()
-    mock_legacy_client.get_event_type_display_names_from_events.assert_called_once()
+    mock_legacy_client.api.get_patrol_events.assert_called_once()
+    mock_legacy_client.api.get_event_type_display_names_from_events.assert_called_once()
 
 
 def test_dwh_events_enabled_defaults_to_true(monkeypatch):
@@ -1088,23 +1025,20 @@ def test_dwh_events_kill_switch_falls_back_to_legacy_client(monkeypatch, task, m
     observation path.
     """
     monkeypatch.setenv("DWH_EVENTS_ENABLED", "false")
-    mock_legacy_client = MagicMock()
-    mock_legacy_client.get_event_types.return_value = pd.DataFrame({"id": ["id-1"], "value": ["hwc_rep"]})
-    getattr(mock_legacy_client, task.__name__).return_value = pd.DataFrame()
+    mock_legacy_client = _source()
+    mock_legacy_client.api.get_event_types.return_value = pd.DataFrame({"id": ["id-1"], "value": ["hwc_rep"]})
+    getattr(mock_legacy_client.api, task.__name__).return_value = pd.DataFrame()
     mock_warehouse_client = MagicMock()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = task(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            raise_on_empty=False,
-            **kwargs,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = task(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        raise_on_empty=False,
+        **kwargs,
+    )
 
-    getattr(mock_legacy_client, task.__name__).assert_called_once()
+    getattr(mock_legacy_client.api, task.__name__).assert_called_once()
     getattr(mock_warehouse_client, method).assert_not_called()
     assert result.empty
 
@@ -1123,21 +1057,18 @@ def test_dwh_events_kill_switch_falls_back_to_legacy_client(monkeypatch, task, m
 
 @requires_dwh_events
 def test_get_events_via_warehouse_client_forwards_event_states():
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            event_states=["active", "resolved"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        event_states=["active", "resolved"],
+        raise_on_empty=False,
+    )
 
     assert mock_warehouse_client.get_events.call_args.kwargs["state"] == ["active", "resolved"]
 
@@ -1150,21 +1081,18 @@ def test_get_events_via_warehouse_client_unset_event_states_forwards_none(event_
     `[]` must coerce to None rather than pass through: an empty list would serialize
     to an empty query param instead of being dropped.
     """
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            event_states=event_states,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        event_states=event_states,
+        raise_on_empty=False,
+    )
 
     assert mock_warehouse_client.get_events.call_args.kwargs["state"] is None
 
@@ -1173,7 +1101,7 @@ def test_get_events_via_warehouse_client_unset_event_states_forwards_none(event_
 def test_get_events_via_warehouse_client_post_filters_unhonoured_state_filter():
     """A warehouse API predating the `state` filter answers with every state and no
     error, so the client-side pass is what keeps the result correct."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
         event_type_values=("hwc_rep", "fire_rep"),
@@ -1181,17 +1109,14 @@ def test_get_events_via_warehouse_client_post_filters_unhonoured_state_filter():
         states=("active", "new"),
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=[],
-            event_states=["active"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=[],
+        event_states=["active"],
+        raise_on_empty=False,
+    )
 
     assert result["state"].tolist() == ["active"]
 
@@ -1200,7 +1125,7 @@ def test_get_events_via_warehouse_client_post_filters_unhonoured_state_filter():
 def test_get_events_via_warehouse_client_post_filter_is_a_noop_when_honoured():
     """Against an API that filters server-side every row already matches, so the
     client-side pass changes nothing."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
         event_type_values=("hwc_rep", "fire_rep"),
@@ -1208,17 +1133,14 @@ def test_get_events_via_warehouse_client_post_filter_is_a_noop_when_honoured():
         states=("active", "active"),
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=[],
-            event_states=["active"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=[],
+        event_states=["active"],
+        raise_on_empty=False,
+    )
 
     assert len(result) == 2
 
@@ -1226,7 +1148,7 @@ def test_get_events_via_warehouse_client_post_filter_is_a_noop_when_honoured():
 @requires_dwh_events
 def test_get_events_via_warehouse_client_post_filter_survives_event_columns_subset():
     """`state` is not in DefaultEventColumns, so the filter has to run before the subset."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
         event_type_values=("hwc_rep", "fire_rep"),
@@ -1234,18 +1156,15 @@ def test_get_events_via_warehouse_client_post_filter_survives_event_columns_subs
         states=("active", "new"),
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=[],
-            event_columns=["serial_number", "event_type"],
-            event_states=["active"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=[],
+        event_columns=["serial_number", "event_type"],
+        event_states=["active"],
+        raise_on_empty=False,
+    )
 
     assert "state" not in result.columns
     assert result["event_type"].tolist() == ["hwc_rep"]
@@ -1254,22 +1173,19 @@ def test_get_events_via_warehouse_client_post_filter_survives_event_columns_subs
 @requires_dwh_events
 def test_get_events_via_warehouse_client_post_filter_can_trip_raise_on_empty():
     """A state filter that removes every row is an empty result, not a silent pass."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table(states=("new",))
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        with pytest.raises(ValueError, match="No data returned from EarthRanger"):
-            get_events(
-                client=mock_legacy_client,
-                time_range=_EVENT_TIME_RANGE,
-                event_types=["hwc_rep"],
-                event_states=["active"],
-                raise_on_empty=True,
-            )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    with pytest.raises(ValueError, match="No data returned from EarthRanger"):
+        get_events(
+            client=mock_legacy_client,
+            time_range=_EVENT_TIME_RANGE,
+            event_types=["hwc_rep"],
+            event_states=["active"],
+            raise_on_empty=True,
+        )
 
 
 @pytest.mark.parametrize(
@@ -1279,48 +1195,42 @@ def test_get_events_via_warehouse_client_post_filter_can_trip_raise_on_empty():
 )
 def test_get_events_legacy_client_forwards_event_states(event_states, expected):
     """The ER-API path forwards under the same `state` kwarg name as the DWH path."""
-    mock_legacy_client = MagicMock()
-    mock_legacy_client.get_event_types.return_value = pd.DataFrame({"id": ["id-1"], "value": ["hwc_rep"]})
-    mock_legacy_client.get_events.return_value = pd.DataFrame()
+    mock_legacy_client = _source()
+    mock_legacy_client.api.get_event_types.return_value = pd.DataFrame({"id": ["id-1"], "value": ["hwc_rep"]})
+    mock_legacy_client.api.get_events.return_value = pd.DataFrame()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=None,
-    ):
-        get_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            event_types=["hwc_rep"],
-            event_states=event_states,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = None
+    get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        event_states=event_states,
+        raise_on_empty=False,
+    )
 
-    assert mock_legacy_client.get_events.call_args.kwargs["state"] == expected
+    assert mock_legacy_client.api.get_events.call_args.kwargs["state"] == expected
 
 
 @requires_dwh_events
 def test_get_patrol_events_via_warehouse_client_filters_by_event_state():
     """Nested patrol events are filtered client-side, so rows really are dropped."""
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_patrols.return_value = _make_nested_patrols_arrow_table(
         event_times=("2015-02-01", "2015-02-02"),
         states=("active", "resolved"),
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_patrol_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            event_types=[],
-            status=None,
-            event_states=["active"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_patrol_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        event_types=[],
+        status=None,
+        event_states=["active"],
+        raise_on_empty=False,
+    )
 
     assert result["state"].tolist() == ["active"]
     _assert_valid_events_gdf(result)
@@ -1328,48 +1238,42 @@ def test_get_patrol_events_via_warehouse_client_filters_by_event_state():
 
 @requires_dwh_events
 def test_get_patrol_events_via_warehouse_client_unset_event_states_keeps_all():
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_patrols.return_value = _make_nested_patrols_arrow_table(
         event_times=("2015-02-01", "2015-02-02"),
         states=("active", "resolved"),
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_patrol_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            event_types=[],
-            status=None,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_patrol_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        event_types=[],
+        status=None,
+        raise_on_empty=False,
+    )
 
     assert sorted(result["state"].tolist()) == ["active", "resolved"]
 
 
 def test_get_patrol_events_legacy_client_forwards_event_state():
-    mock_legacy_client = MagicMock()
-    mock_legacy_client.get_patrol_events.return_value = pd.DataFrame()
+    mock_legacy_client = _source()
+    mock_legacy_client.api.get_patrol_events.return_value = pd.DataFrame()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=None,
-    ):
-        get_patrol_events(
-            client=mock_legacy_client,
-            time_range=_EVENT_TIME_RANGE,
-            patrol_types=["ecoscope_patrol"],
-            event_types=[],
-            status=None,
-            event_states=["resolved"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = None
+    get_patrol_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        patrol_types=["ecoscope_patrol"],
+        event_types=[],
+        status=None,
+        event_states=["resolved"],
+        raise_on_empty=False,
+    )
 
-    assert mock_legacy_client.get_patrol_events.call_args.kwargs["event_state"] == ["resolved"]
+    assert mock_legacy_client.api.get_patrol_events.call_args.kwargs["event_state"] == ["resolved"]
 
 
 @pytest.mark.parametrize(

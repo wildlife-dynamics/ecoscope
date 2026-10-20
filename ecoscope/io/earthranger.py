@@ -46,17 +46,7 @@ SAFE_QUERY_PARAM_LIST_SIZE = 50
 
 
 class EarthRangerIO(ERClient):
-    def __init__(
-        self,
-        sub_page_size: int = 4000,
-        tcp_limit: int = 5,
-        use_warehouse: bool | None = None,
-        **kwargs,
-    ):
-        # Per-connection warehouse opt-in, carried here rather than on
-        # EarthRangerClientProtocol: that protocol is runtime_checkable, so adding a
-        # member would break isinstance for mock clients. None means "not specified".
-        self.use_warehouse = use_warehouse
+    def __init__(self, sub_page_size: int = 4000, tcp_limit: int = 5, **kwargs):
         if "server" in kwargs:
             self.server = kwargs.pop("server")
             kwargs["service_root"] = f"{self.server}/api/v1.0"

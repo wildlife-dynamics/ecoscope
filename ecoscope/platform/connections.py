@@ -1,3 +1,4 @@
+import logging
 import os
 from abc import ABC, abstractmethod
 from inspect import ismethod
@@ -9,6 +10,8 @@ from pydantic.json_schema import WithJsonSchema
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
+
+logger = logging.getLogger(__name__)
 
 DataConnectionType = TypeVar("DataConnectionType", bound="DataConnection")
 ClientProtocolType = TypeVar("ClientProtocolType")
@@ -158,6 +161,23 @@ class EarthRangerClientProtocol(Protocol):
     def get_fields_from_event_type_schema(self, event_type) -> dict[str, str]: ...
 
 
+class EarthRangerSource:
+    """The backends resolved for one named EarthRanger data source.
+
+    ``warehouse`` is None when this source reads the EarthRanger API, so per-source
+    eligibility (ERA-855) is expressed by what the connection built rather than by a
+    flag the task layer has to interpret. Routing stays with the tasks: an observation
+    read takes the warehouse whenever one is here, while event reads also consult the
+    ``DWH_EVENTS_ENABLED`` kill switch.
+    """
+
+    __slots__ = ("api", "warehouse")
+
+    def __init__(self, api: EarthRangerClientProtocol, warehouse: Any | None = None):
+        self.api = api
+        self.warehouse = warehouse
+
+
 def _warehouse_enabled_globally() -> bool:
     """The legacy all-or-nothing warehouse switch.
 
@@ -168,7 +188,7 @@ def _warehouse_enabled_globally() -> bool:
     return os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
 
 
-class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
+class EarthRangerConnection(DataConnection[EarthRangerSource]):
     __ecoscope_connection_type__: ClassVar[str] = "earthranger"
 
     server: Annotated[str, Field(description="EarthRanger API URL")]
@@ -202,7 +222,26 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
         """
         return self.use_warehouse if self.use_warehouse is not None else _warehouse_enabled_globally()
 
-    def get_client(self) -> EarthRangerClientProtocol:
+    def _warehouse_client(self) -> Any | None:
+        """This source's warehouse backend, or None when it reads the EarthRanger API.
+
+        Token-only: the warehouse authenticates with the EarthRanger token, so a
+        username/password connection has nothing to present and stays on the API.
+        """
+        if not self.warehouse_enabled() or not self.token:
+            return None
+
+        from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
+
+        warehouse_base_url = os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL")
+        logger.debug("Using ERWarehouseClient (warehouse_base_url=%s)", warehouse_base_url)
+        return ERWarehouseClient(
+            server=self.server,
+            token=self.token,
+            warehouse_base_url=warehouse_base_url,
+        )
+
+    def get_client(self) -> EarthRangerSource:
         from ecoscope.io import EarthRangerIO
 
         auth_kws = (
@@ -213,12 +252,14 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
                 "password": self.password.get_secret_value(),
             }
         )
-        return EarthRangerIO(
-            server=self.server,
-            tcp_limit=self.tcp_limit,
-            sub_page_size=self.sub_page_size,
-            use_warehouse=self.warehouse_enabled(),
-            **auth_kws,
+        return EarthRangerSource(
+            api=EarthRangerIO(
+                server=self.server,
+                tcp_limit=self.tcp_limit,
+                sub_page_size=self.sub_page_size,
+                **auth_kws,
+            ),
+            warehouse=self._warehouse_client(),
         )
 
 
@@ -296,7 +337,7 @@ class EarthEngineConnection(DataConnection[EarthEngineClientProtocol]):
 
 
 EarthRangerClient = Annotated[
-    EarthRangerClientProtocol,
+    EarthRangerSource,
     BeforeValidator(EarthRangerConnection.client_from_named_connection),
     WithJsonSchema({"type": "string", "description": "A named EarthRanger connection."}),
 ]

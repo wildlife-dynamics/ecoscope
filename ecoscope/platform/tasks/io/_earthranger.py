@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated, Literal, cast
 
 import pandas as pd
-from pydantic import AfterValidator, Field, SecretStr
+from pydantic import AfterValidator, Field
 from pydantic.json_schema import SkipJsonSchema
 from tqdm import tqdm
 from wt_registry import register
@@ -13,7 +13,7 @@ from wt_task import task
 from wt_task.skip import SkippedDependencyFallback
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, EmptyDataFrame
-from ecoscope.platform.connections import EarthRangerClient, _warehouse_enabled_globally
+from ecoscope.platform.connections import EarthRangerClient
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.jsonschema import labeled_literal_items
 from ecoscope.platform.schemas import (
@@ -42,8 +42,7 @@ def _dwh_events_enabled() -> bool:
     enabled by default: set ``DWH_EVENTS_ENABLED=false`` to make every task whose
     DWH read carries event data bypass the warehouse client and read from the
     EarthRanger API instead. Observation tasks are unaffected and always read
-    from the DWH (subject to whether the warehouse is enabled for that data source;
-    see `_make_warehouse_client_from_env`).
+    from the DWH when the data source has one (`EarthRangerSource.warehouse`).
 
     `get_patrols` is covered because warehouse patrols nest their events:
     `ERWarehouseClient.get_patrols` always sends ``include_events=True`` and
@@ -53,43 +52,10 @@ def _dwh_events_enabled() -> bool:
     patrol-only shape, whose missing ``patrol_segments`` column then fails
     PatrolsDFSchema. Turn this off when pointing at such a deployment.
 
-    Read from the environment on every call (like
-    `_make_warehouse_client_from_env`) so the switch can be flipped without
+    Read from the environment on every call so the switch can be flipped without
     re-importing this module.
     """
     return os.environ.get("DWH_EVENTS_ENABLED", "true").lower() == "true"
-
-
-def _make_warehouse_client_from_env(client):
-    """Create an ERWarehouseClient if the warehouse is enabled for this client.
-
-    Returns None when the warehouse is not enabled, causing callers to
-    fall back to the legacy EarthRanger API client.
-
-    Eligibility is decided per data source by `EarthRangerConnection.warehouse_enabled`
-    (ERA-855) and carried on the client it builds; this reads the verdict rather than
-    re-deriving it. It is read via getattr because `EarthRangerClientProtocol`
-    deliberately omits the attribute (see `EarthRangerIO.__init__`), so a client the
-    connection did not build -- a hand-rolled EarthRangerIO, a test double -- carries
-    none, and falls back to the legacy global switch as it did before.
-    """
-    verdict = getattr(client, "use_warehouse", None)
-    # isinstance, not `is not None`: a bare MagicMock client auto-creates `use_warehouse`
-    # as a truthy mock, which must not read as an opt-in. Pydantic narrows the real field
-    # to bool | None, so this only ever rejects test doubles.
-    enabled = verdict if isinstance(verdict, bool) else _warehouse_enabled_globally()
-    er_api_token = SecretStr(client.token) if client.token else None
-    if enabled and er_api_token is not None:
-        from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
-
-        warehouse_api_base_url = os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL")
-        logger.debug("Using ERWarehouseClient (warehouse_base_url=%s)", warehouse_api_base_url)
-        return ERWarehouseClient(
-            server=client.server,
-            token=er_api_token,
-            warehouse_base_url=warehouse_api_base_url,
-        )
-    return None
 
 
 def _sort_warehouse_relocations(gdf):
@@ -558,7 +524,7 @@ def get_subjectgroup_observations(
 
     filter_int = _EXCLUSION_FILTER_TO_INT[filter]
 
-    if warehouse_client := _make_warehouse_client_from_env(client):
+    if warehouse_client := client.warehouse:
         import geopandas as gpd  # type: ignore[import-untyped]
 
         table = warehouse_client.get_subjectgroup_observations(
@@ -574,7 +540,7 @@ def get_subjectgroup_observations(
         )
         subject_group_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
-        subject_group_obs_relocs = client.get_subjectgroup_observations(
+        subject_group_obs_relocs = client.api.get_subjectgroup_observations(
             subject_group_name=subject_group_name,
             include_subject_details=True,
             include_inactive=True,
@@ -610,7 +576,7 @@ def get_patrol_observations(
     if status is None:
         status = ["done"]
 
-    if warehouse_client := _make_warehouse_client_from_env(client):
+    if warehouse_client := client.warehouse:
         import geopandas as gpd  # type: ignore[import-untyped]
 
         table = warehouse_client.get_patrol_observations_with_patrol_filter(
@@ -624,7 +590,7 @@ def get_patrol_observations(
         )
         patrol_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
-        patrol_obs_relocs = client.get_patrol_observations_with_patrol_filter(
+        patrol_obs_relocs = client.api.get_patrol_observations_with_patrol_filter(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
             patrol_type_value=patrol_types,
@@ -665,7 +631,7 @@ def get_patrol_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if _dwh_events_enabled() and (warehouse_client := _make_warehouse_client_from_env(client)):
+    if _dwh_events_enabled() and (warehouse_client := client.warehouse):
         from ecoscope.io.earthranger_utils import (
             unpack_events_from_patrols_df,
             warehouse_patrols_table_to_patrols_df,
@@ -689,7 +655,7 @@ def get_patrol_events(
             event_state=event_states,
         )
     else:
-        events = client.get_patrol_events(
+        events = client.api.get_patrol_events(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
             patrol_type_value=patrol_types,
@@ -719,7 +685,7 @@ def get_patrol_events(
                 append_category_names="duplicates",
             )
         else:
-            events = client.get_event_type_display_names_from_events(events, append_category_names="duplicates")
+            events = client.api.get_event_type_display_names_from_events(events, append_category_names="duplicates")
 
     return cast(EventGDF | EventsWithDisplayNamesGDF, events)
 
@@ -743,7 +709,7 @@ def get_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if _dwh_events_enabled() and (warehouse_client := _make_warehouse_client_from_env(client)):
+    if _dwh_events_enabled() and (warehouse_client := client.warehouse):
         import geopandas as gpd  # type: ignore[import-untyped]
 
         # The warehouse get_events accepts event type slugs directly, so pass the
@@ -825,14 +791,14 @@ def get_events(
         # If none are resolved we flag this explicitly in `no_ids_found`
         # as we need to treat this case separately from empty input
         if len(event_types) > 0:
-            all_event_types = pd.DataFrame(client.get_event_types())
+            all_event_types = pd.DataFrame(client.api.get_event_types())
             event_type_ids = all_event_types[all_event_types["value"].isin(event_types)]["id"].to_list()
             no_ids_found = not event_type_ids
 
         events_df = (
             pd.DataFrame()
             if no_ids_found
-            else client.get_events(
+            else client.api.get_events(
                 since=time_range.since.isoformat(),
                 until=time_range.until.isoformat(),
                 event_type=event_type_ids,
@@ -867,7 +833,7 @@ def get_events(
                     append_category_names="duplicates",
                 )
             else:
-                events_df = client.get_event_type_display_names_from_events(
+                events_df = client.api.get_event_type_display_names_from_events(
                     events_df,
                     append_category_names="duplicates",
                 )
@@ -943,7 +909,7 @@ def get_patrols(
     # read is event data and follows the same switch. Unlike the event tasks, the
     # ER-API fallback below does not reference warehouse_client, so the walrus
     # can stay inside the condition.
-    if _dwh_events_enabled() and (warehouse_client := _make_warehouse_client_from_env(client)):
+    if _dwh_events_enabled() and (warehouse_client := client.warehouse):
         from ecoscope.io.earthranger_utils import warehouse_patrols_table_to_patrols_df
 
         table = warehouse_client.get_patrols(
@@ -956,7 +922,7 @@ def get_patrols(
         )
         patrols = warehouse_patrols_table_to_patrols_df(table)
     else:
-        patrols = client.get_patrols(
+        patrols = client.api.get_patrols(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
             patrol_type_value=patrol_types,
@@ -982,7 +948,7 @@ def get_patrol_observations_from_patrols_df(
     """Get observations for a patrol type from EarthRanger."""
     from ecoscope.relocations import Relocations
 
-    if warehouse_client := _make_warehouse_client_from_env(client):
+    if warehouse_client := client.warehouse:
         import geopandas as gpd  # type: ignore[import-untyped]
 
         table = warehouse_client.get_patrol_observations(
@@ -992,7 +958,7 @@ def get_patrol_observations_from_patrols_df(
         )
         patrol_obs_relocs = _sort_warehouse_relocations(gpd.GeoDataFrame.from_arrow(table))
     else:
-        patrol_obs_relocs = client.get_patrol_observations(
+        patrol_obs_relocs = client.api.get_patrol_observations(
             patrols_df=patrols_df,
             include_patrol_details=include_patrol_details,
             sub_page_size=sub_page_size,
@@ -1047,7 +1013,7 @@ def get_event_type_display_names_from_events(
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
-    if _dwh_events_enabled() and (warehouse_client := _make_warehouse_client_from_env(client)):
+    if _dwh_events_enabled() and (warehouse_client := client.warehouse):
         # The warehouse client's get_event_type_display_names_from_events is a
         # NotImplementedError stub; resolve display names locally instead.
         from ecoscope.io.earthranger_utils import append_event_type_display_names
@@ -1058,7 +1024,7 @@ def get_event_type_display_names_from_events(
             append_category_names=append_category_names,
         )
     else:
-        events_gdf = client.get_event_type_display_names_from_events(  # type: ignore[assignment]
+        events_gdf = client.api.get_event_type_display_names_from_events(  # type: ignore[assignment]
             events_gdf=events_gdf,
             append_category_names=append_category_names,
         )
@@ -1204,7 +1170,7 @@ def get_choices_from_v2_event_type(
 
     choices: dict[str, str] = {}
     try:
-        choices = client.get_choices_from_v2_event_type(event_type, choice_field)
+        choices = client.api.get_choices_from_v2_event_type(event_type, choice_field)
     except ERClientNotFound:
         pass
 
@@ -1216,7 +1182,7 @@ def get_spatial_features_group(
     client: EarthRangerClient,
     spatial_features_group_name: Annotated[str, Field(description="The name of the group to fetch")],
 ) -> RegionsGDF | EmptyDataFrame:
-    spatial_features_group = client.get_spatial_features_group(
+    spatial_features_group = client.api.get_spatial_features_group(
         spatial_features_group_name=spatial_features_group_name,
         spatial_features_group_id=None,
         with_group_data=True,
@@ -1232,7 +1198,7 @@ def get_fields_from_event_type_schema(
     client: EarthRangerClient,
     event_type: SingleEventTypeAnnotation,
 ) -> dict[str, str]:
-    fields: dict[str, str] = client.get_fields_from_event_type_schema(event_type)
+    fields: dict[str, str] = client.api.get_fields_from_event_type_schema(event_type)
     return fields
 
 
@@ -1326,7 +1292,7 @@ def download_grouped_event_attachments(
 
             url = f"/activity/event/{event_id}/files"
             try:
-                results = client._get(url)["results"]  # type: ignore[attr-defined]
+                results = client.api._get(url)["results"]  # type: ignore[attr-defined]
             except ERClientNotFound:
                 results = []
 
@@ -1346,7 +1312,7 @@ def download_grouped_event_attachments(
                 # Shouldn't be possible due to upstream conventions, but
                 # handling defensively here by skipping the duplicated write.
                 if _read_path_if_file_exists(event_dir, basename) is None:
-                    response = client._get(  # type: ignore[attr-defined]
+                    response = client.api._get(  # type: ignore[attr-defined]
                         f"activity/event/{event_id}/file/{file_id}/original/{filename}",
                         return_response=True,
                     )
@@ -1379,8 +1345,8 @@ def _fetch_v2_schema(client: EarthRangerClient, event_type: str) -> dict:
             if not ref:
                 continue
             try:
-                # Strip v2 prefix to avoid double-prefixing in client._get
-                ref_schema = client._get(_strip_v2_prefix(ref), params={"s_format": "oneOf"})  # type: ignore[attr-defined]
+                # Strip v2 prefix to avoid double-prefixing in client.api._get
+                ref_schema = client.api._get(_strip_v2_prefix(ref), params={"s_format": "oneOf"})  # type: ignore[attr-defined]
                 for choice in ref_schema.get("oneOf", []):
                     const = choice.get("const")
                     title = choice.get("title")
@@ -1394,8 +1360,8 @@ def _fetch_v2_schema(client: EarthRangerClient, event_type: str) -> dict:
                 continue
         return enum_names
 
-    with client._use_v2_api():  # type: ignore[attr-defined]
-        v2_schema = client._get(  # type: ignore[attr-defined]
+    with client.api._use_v2_api():  # type: ignore[attr-defined]
+        v2_schema = client.api._get(  # type: ignore[attr-defined]
             f"activity/eventtypes/{event_type}/schema"
         )
         json_schema = v2_schema.get("json", {})
@@ -1588,7 +1554,7 @@ def process_events_details(
             except ERClientNotFound:
                 # Fall back to v1 endpoint → normalize to canonical format
                 try:
-                    v1_schema = client._get(  # type: ignore[attr-defined]
+                    v1_schema = client.api._get(  # type: ignore[attr-defined]
                         f"activity/events/schema/eventtype/{event_type}"
                     )
                     schemas[event_type] = _normalize_v1_schema(v1_schema)

@@ -136,9 +136,9 @@ def test_resolve_er_client_from_env(named_mock_env):
         with patch("ecoscope.io.EarthRangerIO", autospec=True) as mock_cls:
             mock_cls.return_value.server = "https://mep-dev.pamdas.org"
             mock_cls.return_value.token = None
-            client = f(client="mep_dev")
-            assert hasattr(client, "get_subjectgroup_observations")
-            assert callable(client.get_subjectgroup_observations)
+            source = f(client="mep_dev")
+            assert callable(source.api.get_subjectgroup_observations)
+            assert source.warehouse is None
 
 
 @pytest.fixture
@@ -196,12 +196,75 @@ def test_er_connection_use_warehouse_is_per_connection(named_mock_env_with_token
         assert EarthRangerConnection.from_named_connection("OTHER").use_warehouse is False
 
 
-def test_er_connection_get_client_carries_use_warehouse(named_mock_env_with_token):
+def test_er_connection_get_client_builds_a_warehouse_backend(named_mock_env_with_token):
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient
+
+    env = named_mock_env_with_token | {
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": "true",
+        "EARTHRANGER_WAREHOUSE_API_BASE_URL": "http://warehouse-test",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        with patch("ecoscope.io.EarthRangerIO", autospec=True):
+            source = EarthRangerConnection.from_named_connection("MEP_DEV").get_client()
+
+    assert isinstance(source.warehouse, ERWarehouseClient)
+    assert source.warehouse.warehouse_base_url == "http://warehouse-test"
+
+
+def test_er_connection_warehouse_backend_without_a_base_url(named_mock_env_with_token):
+    """EARTHRANGER_WAREHOUSE_API_BASE_URL is optional; io-core falls back to its default."""
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient
+
     env = named_mock_env_with_token | {"ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": "true"}
     with patch.dict(os.environ, env, clear=True):
-        with patch("ecoscope.io.EarthRangerIO", autospec=True) as mock_cls:
-            EarthRangerConnection.from_named_connection("MEP_DEV").get_client()
-    assert mock_cls.call_args.kwargs["use_warehouse"] is True
+        with patch("ecoscope.io.EarthRangerIO", autospec=True):
+            source = EarthRangerConnection.from_named_connection("MEP_DEV").get_client()
+
+    assert isinstance(source.warehouse, ERWarehouseClient)
+    assert source.warehouse.warehouse_base_url is None
+
+
+def test_er_connection_get_client_has_no_warehouse_backend_when_opted_out(named_mock_env_with_token):
+    env = named_mock_env_with_token | {
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": "false",
+        "USE_EARTHRANGER_WAREHOUSE_API": "true",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        with patch("ecoscope.io.EarthRangerIO", autospec=True):
+            source = EarthRangerConnection.from_named_connection("MEP_DEV").get_client()
+
+    assert source.warehouse is None
+
+
+def test_er_connection_without_a_token_has_no_warehouse_backend(named_mock_env):
+    """The warehouse authenticates with the ER token, so username/password stays on the API."""
+    env = named_mock_env | {
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": "true",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        with patch("ecoscope.io.EarthRangerIO", autospec=True):
+            source = EarthRangerConnection.from_named_connection("MEP_DEV").get_client()
+
+    assert source.warehouse is None
+
+
+def test_two_sources_resolve_their_backends_independently(named_mock_env_with_token):
+    """One workflow, two ER sources, different backends (ERA-855)."""
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient
+
+    env = named_mock_env_with_token | {
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": "true",
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__OTHER__SERVER": "https://other.pamdas.org",
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__OTHER__TOKEN": "987654321",
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__OTHER__USE_WAREHOUSE": "false",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        with patch("ecoscope.io.EarthRangerIO", autospec=True):
+            warehouse_source = EarthRangerConnection.from_named_connection("MEP_DEV").get_client()
+            api_source = EarthRangerConnection.from_named_connection("OTHER").get_client()
+
+    assert isinstance(warehouse_source.warehouse, ERWarehouseClient)
+    assert api_source.warehouse is None
 
 
 def test_er_connection_use_warehouse_beats_the_global_flag(named_mock_env_with_token):
@@ -224,9 +287,9 @@ def test_er_connection_unset_use_warehouse_resolves_to_the_global_flag(
         assert conn.use_warehouse is None
         assert conn.warehouse_enabled() is expected
 
-        with patch("ecoscope.io.EarthRangerIO", autospec=True) as mock_cls:
-            conn.get_client()
-    assert mock_cls.call_args.kwargs["use_warehouse"] is expected
+        with patch("ecoscope.io.EarthRangerIO", autospec=True):
+            source = conn.get_client()
+    assert (source.warehouse is not None) is expected
 
 
 def test_connection_field_validator_no_token():
