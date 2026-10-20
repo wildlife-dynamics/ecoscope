@@ -204,6 +204,31 @@ def test_er_connection_get_client_carries_use_warehouse(named_mock_env_with_toke
     assert mock_cls.call_args.kwargs["use_warehouse"] is True
 
 
+def test_er_connection_use_warehouse_beats_the_global_flag(named_mock_env_with_token):
+    env = named_mock_env_with_token | {
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": "false",
+        "USE_EARTHRANGER_WAREHOUSE_API": "true",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        assert EarthRangerConnection.from_named_connection("MEP_DEV").warehouse_enabled() is False
+
+
+@pytest.mark.parametrize("global_flag,expected", [("true", True), ("false", False)])
+def test_er_connection_unset_use_warehouse_resolves_to_the_global_flag(
+    named_mock_env_with_token, global_flag, expected
+):
+    """The connection resolves the tri-state, so the client it builds carries a verdict."""
+    env = named_mock_env_with_token | {"USE_EARTHRANGER_WAREHOUSE_API": global_flag}
+    with patch.dict(os.environ, env, clear=True):
+        conn = EarthRangerConnection.from_named_connection("MEP_DEV")
+        assert conn.use_warehouse is None
+        assert conn.warehouse_enabled() is expected
+
+        with patch("ecoscope.io.EarthRangerIO", autospec=True) as mock_cls:
+            conn.get_client()
+    assert mock_cls.call_args.kwargs["use_warehouse"] is expected
+
+
 def test_connection_field_validator_no_token():
     with pytest.raises(
         ValueError,

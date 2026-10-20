@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 from inspect import ismethod
 from typing import Annotated, Any, ClassVar, Generic, Protocol, Type, TypeVar, get_args, runtime_checkable
@@ -157,6 +158,15 @@ class EarthRangerClientProtocol(Protocol):
     def get_fields_from_event_type_schema(self, event_type) -> dict[str, str]: ...
 
 
+def _warehouse_enabled_globally() -> bool:
+    """The legacy all-or-nothing warehouse switch, read fresh on every call.
+
+    An older ecoscope-server sends only this, so it stays the answer for any data
+    source that expresses no preference of its own.
+    """
+    return os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
+
+
 class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
     __ecoscope_connection_type__: ClassVar[str] = "earthranger"
 
@@ -184,6 +194,13 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
             raise ValueError("If token is empty, EarthRanger username and password must be provided")
         return v
 
+    def warehouse_enabled(self) -> bool:
+        """Whether this data source reads through the EarthRanger data warehouse.
+
+        The per-source opt-in wins; unset defers to the global flag (ERA-855).
+        """
+        return self.use_warehouse if self.use_warehouse is not None else _warehouse_enabled_globally()
+
     def get_client(self) -> EarthRangerClientProtocol:
         from ecoscope.io import EarthRangerIO
 
@@ -199,7 +216,7 @@ class EarthRangerConnection(DataConnection[EarthRangerClientProtocol]):
             server=self.server,
             tcp_limit=self.tcp_limit,
             sub_page_size=self.sub_page_size,
-            use_warehouse=self.use_warehouse,
+            use_warehouse=self.warehouse_enabled(),
             **auth_kws,
         )
 

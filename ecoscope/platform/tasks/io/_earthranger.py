@@ -13,7 +13,7 @@ from wt_task import task
 from wt_task.skip import SkippedDependencyFallback
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, EmptyDataFrame
-from ecoscope.platform.connections import EarthRangerClient
+from ecoscope.platform.connections import EarthRangerClient, _warehouse_enabled_globally
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.jsonschema import labeled_literal_items
 from ecoscope.platform.schemas import (
@@ -66,24 +66,18 @@ def _make_warehouse_client_from_env(client):
     Returns None when the warehouse is not enabled, causing callers to
     fall back to the legacy EarthRanger API client.
 
-    Eligibility is per data source (ERA-855): `use_warehouse` on the connection
-    (``ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__<NAME>__USE_WAREHOUSE``) wins,
-    and only when it is unset does the global `USE_EARTHRANGER_WAREHOUSE_API` decide.
-    An old platform sets the global flag alone, so a workflow with several ER
-    sources still resolves them all the same way, as it used to.
-
-    Read via getattr: `EarthRangerClientProtocol` deliberately omits the attribute
-    (see `EarthRangerIO.__init__`), so stand-in clients carry none.
+    Eligibility is decided per data source by `EarthRangerConnection.warehouse_enabled`
+    (ERA-855) and carried on the client it builds; this reads the verdict rather than
+    re-deriving it. It is read via getattr because `EarthRangerClientProtocol`
+    deliberately omits the attribute (see `EarthRangerIO.__init__`), so a client the
+    connection did not build -- a hand-rolled EarthRangerIO, a test double -- carries
+    none, and falls back to the legacy global switch as it did before.
     """
-    per_connection = getattr(client, "use_warehouse", None)
+    verdict = getattr(client, "use_warehouse", None)
     # isinstance, not `is not None`: a bare MagicMock client auto-creates `use_warehouse`
     # as a truthy mock, which must not read as an opt-in. Pydantic narrows the real field
     # to bool | None, so this only ever rejects test doubles.
-    enabled = (
-        per_connection
-        if isinstance(per_connection, bool)
-        else os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
-    )
+    enabled = verdict if isinstance(verdict, bool) else _warehouse_enabled_globally()
     er_api_token = SecretStr(client.token) if client.token else None
     if enabled and er_api_token is not None:
         from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
