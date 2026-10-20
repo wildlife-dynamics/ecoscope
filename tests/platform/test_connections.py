@@ -164,6 +164,46 @@ def test_connection_named_from_env_with_token(named_mock_env_with_token):
         assert conn.sub_page_size == 4000
 
 
+@pytest.mark.parametrize(
+    "env_value,expected",
+    [("true", True), ("True", True), ("1", True), ("false", False), ("False", False), ("0", False)],
+)
+def test_er_connection_use_warehouse_from_env(named_mock_env_with_token, env_value, expected):
+    env = named_mock_env_with_token | {
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": env_value
+    }
+    with patch.dict(os.environ, env):
+        conn = EarthRangerConnection.from_named_connection("MEP_DEV")
+        assert conn.use_warehouse is expected
+
+
+def test_er_connection_use_warehouse_defaults_to_none(named_mock_env_with_token):
+    """Unset must stay distinct from False: it defers to the global warehouse flag."""
+    with patch.dict(os.environ, named_mock_env_with_token, clear=True):
+        conn = EarthRangerConnection.from_named_connection("MEP_DEV")
+        assert conn.use_warehouse is None
+
+
+def test_er_connection_use_warehouse_is_per_connection(named_mock_env_with_token):
+    env = named_mock_env_with_token | {
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": "true",
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__OTHER__SERVER": "https://other.pamdas.org",
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__OTHER__TOKEN": "987654321",
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__OTHER__USE_WAREHOUSE": "false",
+    }
+    with patch.dict(os.environ, env, clear=True):
+        assert EarthRangerConnection.from_named_connection("MEP_DEV").use_warehouse is True
+        assert EarthRangerConnection.from_named_connection("OTHER").use_warehouse is False
+
+
+def test_er_connection_get_client_carries_use_warehouse(named_mock_env_with_token):
+    env = named_mock_env_with_token | {"ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": "true"}
+    with patch.dict(os.environ, env, clear=True):
+        with patch("ecoscope.io.EarthRangerIO", autospec=True) as mock_cls:
+            EarthRangerConnection.from_named_connection("MEP_DEV").get_client()
+    assert mock_cls.call_args.kwargs["use_warehouse"] is True
+
+
 def test_connection_field_validator_no_token():
     with pytest.raises(
         ValueError,

@@ -1,12 +1,12 @@
 import os
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
-from pydantic import SecretStr
 from wt_task import task
 
 from ecoscope.platform.annotations import AnyDataFrame  # type: ignore[import-untyped]
@@ -1262,11 +1262,16 @@ _WAREHOUSE_ENV = {
 }
 
 
+def _warehouse_selector_client(token="test-token", use_warehouse=None, server="mep-dev.pamdas.org"):
+    """A stand-in for the EarthRangerIO the selector reads `server`/`token`/`use_warehouse` off."""
+    return SimpleNamespace(server=server, token=token, use_warehouse=use_warehouse)
+
+
 def test_make_warehouse_client_from_env_enabled():
     from ecoscope_earthranger_io_core.client import ERWarehouseClient
 
     with patch.dict(os.environ, _WAREHOUSE_ENV):
-        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
+        result = _make_warehouse_client_from_env(_warehouse_selector_client())
 
     assert isinstance(result, ERWarehouseClient)
     assert result.server == "mep-dev.pamdas.org"
@@ -1278,7 +1283,7 @@ def test_make_warehouse_client_from_env_missing_url():
 
     env = {"USE_EARTHRANGER_WAREHOUSE_API": "true"}
     with patch.dict(os.environ, env, clear=True):
-        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
+        result = _make_warehouse_client_from_env(_warehouse_selector_client())
     assert isinstance(result, ERWarehouseClient)
     assert result.warehouse_base_url is None
 
@@ -1286,8 +1291,70 @@ def test_make_warehouse_client_from_env_missing_url():
 def test_make_warehouse_client_from_env_no_token():
     env = {"USE_EARTHRANGER_WAREHOUSE_API": "true"}
     with patch.dict(os.environ, env, clear=True):
-        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=None)
+        result = _make_warehouse_client_from_env(_warehouse_selector_client(token=None))
     assert result is None
+
+
+def test_make_warehouse_client_per_connection_opts_in_without_global_flag():
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient
+
+    with patch.dict(os.environ, {"EARTHRANGER_WAREHOUSE_API_BASE_URL": "http://warehouse-test"}, clear=True):
+        result = _make_warehouse_client_from_env(_warehouse_selector_client(use_warehouse=True))
+
+    assert isinstance(result, ERWarehouseClient)
+
+
+def test_make_warehouse_client_per_connection_opts_out_over_global_flag():
+    with patch.dict(os.environ, _WAREHOUSE_ENV, clear=True):
+        result = _make_warehouse_client_from_env(_warehouse_selector_client(use_warehouse=False))
+
+    assert result is None
+
+
+@pytest.mark.parametrize("global_flag,expect_warehouse", [("true", True), ("false", False)])
+def test_make_warehouse_client_unset_per_connection_follows_global_flag(global_flag, expect_warehouse):
+    env = {"USE_EARTHRANGER_WAREHOUSE_API": global_flag}
+    with patch.dict(os.environ, env, clear=True):
+        result = _make_warehouse_client_from_env(_warehouse_selector_client(use_warehouse=None))
+
+    assert (result is not None) is expect_warehouse
+
+
+def test_make_warehouse_client_no_token_ignores_per_connection_opt_in():
+    with patch.dict(os.environ, {}, clear=True):
+        result = _make_warehouse_client_from_env(_warehouse_selector_client(token=None, use_warehouse=True))
+    assert result is None
+
+
+def test_make_warehouse_client_resolves_per_client_in_one_process():
+    """Two ER sources in the same workflow run resolve independently (ERA-855)."""
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient
+
+    warehouse_source = _warehouse_selector_client(server="dwh.pamdas.org", use_warehouse=True)
+    api_source = _warehouse_selector_client(server="api.pamdas.org", use_warehouse=False)
+
+    with patch.dict(os.environ, {}, clear=True):
+        assert isinstance(_make_warehouse_client_from_env(warehouse_source), ERWarehouseClient)
+        assert _make_warehouse_client_from_env(api_source) is None
+
+
+def test_make_warehouse_client_ignores_clients_without_the_attribute():
+    """Mock clients spec'd to EarthRangerClientProtocol carry no `use_warehouse`."""
+    protocol_client = MagicMock(spec=EarthRangerClientProtocol)
+    protocol_client.server = "mep-dev.pamdas.org"
+    protocol_client.token = "test-token"
+
+    with patch.dict(os.environ, {"USE_EARTHRANGER_WAREHOUSE_API": "false"}, clear=True):
+        assert _make_warehouse_client_from_env(protocol_client) is None
+
+
+def test_make_warehouse_client_ignores_auto_vivified_mock_attribute():
+    """A bare MagicMock hands back a truthy `use_warehouse`; it must not read as an opt-in."""
+    bare_mock = MagicMock()
+    bare_mock.server = "mep-dev.pamdas.org"
+
+    with patch.dict(os.environ, {"USE_EARTHRANGER_WAREHOUSE_API": "false"}, clear=True):
+        assert _make_warehouse_client_from_env(bare_mock) is None
 
 
 def test_get_subjectgroup_observations_via_warehouse_client():
