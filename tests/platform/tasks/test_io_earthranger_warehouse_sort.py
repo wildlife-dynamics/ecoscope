@@ -18,7 +18,7 @@ from unittest.mock import MagicMock
 import geopandas as gpd  # type: ignore[import-untyped]
 import pytest
 
-from ecoscope.platform.connections import EarthRangerSource
+from ecoscope.platform.connections import EarthRangerBackends
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import get_subjectgroup_observations
 from ecoscope.platform.tasks.io._earthranger import _sort_warehouse_relocations
@@ -31,11 +31,11 @@ _TIME_RANGE = TimeRange(
 
 
 def _source(api=None, warehouse=None):
-    """An `EarthRangerSource` standing in for a resolved data source.
+    """An `EarthRangerBackends` standing in for a resolved data source.
 
     `api` defaults to a bare mock; `warehouse` stays None for the ER-API path.
     """
-    return EarthRangerSource(api=api if api is not None else MagicMock(), warehouse=warehouse)
+    return EarthRangerBackends(api=api if api is not None else MagicMock(), warehouse=warehouse)
 
 
 def _fixtimes(minutes):

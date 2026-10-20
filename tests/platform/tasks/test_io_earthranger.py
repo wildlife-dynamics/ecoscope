@@ -9,7 +9,7 @@ import pytest
 from wt_task import task
 
 from ecoscope.platform.annotations import AnyDataFrame  # type: ignore[import-untyped]
-from ecoscope.platform.connections import EarthRangerClientProtocol, EarthRangerConnection, EarthRangerSource
+from ecoscope.platform.connections import EarthRangerBackends, EarthRangerClientProtocol, EarthRangerConnection
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
     download_grouped_event_attachments,
@@ -51,11 +51,11 @@ pytestmark = pytest.mark.io
 
 
 def _source(api=None, warehouse=None):
-    """An `EarthRangerSource` standing in for a resolved data source.
+    """An `EarthRangerBackends` standing in for a resolved data source.
 
     `api` defaults to a bare mock; `warehouse` stays None for the ER-API path.
     """
-    return EarthRangerSource(api=api if api is not None else MagicMock(), warehouse=warehouse)
+    return EarthRangerBackends(api=api if api is not None else MagicMock(), warehouse=warehouse)
 
 
 @pytest.fixture(scope="session")
@@ -730,7 +730,7 @@ def _patched_named_connection(mock_client):
     fake_conn = MagicMock()
     fake_conn.get_client.return_value = mock_client
     return patch(
-        "ecoscope.platform.connections.EarthRangerConnection.from_named_connection",
+        "ecoscope.platform.connections.EarthRangerSourceConnection.from_named_connection",
         return_value=fake_conn,
     )
 

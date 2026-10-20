@@ -13,7 +13,7 @@ from wt_task import task
 from wt_task.skip import SkippedDependencyFallback
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, EmptyDataFrame
-from ecoscope.platform.connections import EarthRangerClient
+from ecoscope.platform.connections import EarthRangerSource
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.jsonschema import labeled_literal_items
 from ecoscope.platform.schemas import (
@@ -467,7 +467,7 @@ def set_patrols_and_patrol_events_params(
 
 @register(tags=["io"])
 def get_subjectgroup_observations(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     subject_group_name: Annotated[
         str,
         Field(description="⚠️ The use of a group with mixed subtypes could lead to unexpected results"),
@@ -561,7 +561,7 @@ def get_subjectgroup_observations(
 
 @register(tags=["io"])
 def get_patrol_observations(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     time_range: TimeRangeAnnotation,
     patrol_types: PatrolTypesAnnotation,
     status: PatrolStatusAnnotation = None,
@@ -610,7 +610,7 @@ def get_patrol_observations(
 
 @register(tags=["io"])
 def get_patrol_events(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     time_range: TimeRangeAnnotation,
     patrol_types: PatrolTypesAnnotation,
     event_types: EventTypesAnnotation,
@@ -692,7 +692,7 @@ def get_patrol_events(
 
 @register(tags=["io"])
 def get_events(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     time_range: TimeRangeAnnotation,
     event_types: EventTypesAnnotation,
     event_columns: EventColumnsAnnotation = None,
@@ -894,7 +894,7 @@ def unpack_events_from_patrols_df_and_combined_params(
 
 @register(tags=["io"])
 def get_patrols(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     time_range: TimeRangeAnnotation,
     patrol_types: PatrolTypesAnnotation,
     status: PatrolStatusAnnotation = None,
@@ -939,7 +939,7 @@ def get_patrols(
 
 @register(tags=["io"])
 def get_patrol_observations_from_patrols_df(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     patrols_df: PatrolsDF,
     include_patrol_details: IncludePatrolDetailsAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
@@ -1006,7 +1006,7 @@ def unpack_events_from_patrols_df(
 
 @register(tags=["io"])
 def get_event_type_display_names_from_events(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     events_gdf: EventGDF,
     append_category_names: AppendCategorySelectionAnnotation = "duplicates",
 ) -> EventsWithDisplayNamesGDF:
@@ -1159,7 +1159,7 @@ def get_event_type_from_event_details(
 
 @register(tags=["io"])
 def get_choices_from_v2_event_type(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     event_type: SingleEventTypeAnnotation,
     choice_field: Annotated[
         str | SkipJsonSchema[None],
@@ -1179,7 +1179,7 @@ def get_choices_from_v2_event_type(
 
 @register(tags=["io"])
 def get_spatial_features_group(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     spatial_features_group_name: Annotated[str, Field(description="The name of the group to fetch")],
 ) -> RegionsGDF | EmptyDataFrame:
     spatial_features_group = client.api.get_spatial_features_group(
@@ -1195,7 +1195,7 @@ def get_spatial_features_group(
 
 @register(tags=["io"])
 def get_fields_from_event_type_schema(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     event_type: SingleEventTypeAnnotation,
 ) -> dict[str, str]:
     fields: dict[str, str] = client.api.get_fields_from_event_type_schema(event_type)
@@ -1204,7 +1204,7 @@ def get_fields_from_event_type_schema(
 
 @register(tags=["io"])
 def download_grouped_event_attachments(
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     grouped_event_gdfs: Annotated[
         list[tuple[CompositeFilter | None, AnyDataFrame]],
         Field(
@@ -1331,7 +1331,7 @@ def _strip_v2_prefix(ref: str) -> str:
     return ref
 
 
-def _fetch_v2_schema(client: EarthRangerClient, event_type: str) -> dict:
+def _fetch_v2_schema(client: EarthRangerSource, event_type: str) -> dict:
     """Fetch a v2 event type schema and return in canonical format.
 
     The canonical format uses resolved properties with enumNames and an
@@ -1530,7 +1530,7 @@ def _resolve_event_details(
 @register(tags=["io"])
 def process_events_details(
     df: AnyDataFrame,
-    client: EarthRangerClient,
+    client: EarthRangerSource,
     map_to_titles: bool = True,
     ordered: bool = True,
 ) -> AnyDataFrame:

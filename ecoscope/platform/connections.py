@@ -161,7 +161,7 @@ class EarthRangerClientProtocol(Protocol):
     def get_fields_from_event_type_schema(self, event_type) -> dict[str, str]: ...
 
 
-class EarthRangerSource:
+class EarthRangerBackends:
     """The backends resolved for one named EarthRanger data source.
 
     ``warehouse`` is None when this source reads the EarthRanger API, so per-source
@@ -169,6 +169,11 @@ class EarthRangerSource:
     flag the task layer has to interpret. Routing stays with the tasks: an observation
     read takes the warehouse whenever one is here, while event reads also consult the
     ``DWH_EVENTS_ENABLED`` kill switch.
+
+    Tasks annotate the `EarthRangerSource` alias to be handed one of these. The older
+    `EarthRangerClient` alias still resolves to the API client alone, which is what the
+    ext task libraries call directly (`client._get`, `client.tcp_limit`, ...), so they
+    are unaffected by this and opt in by changing annotation.
     """
 
     __slots__ = ("api", "warehouse")
@@ -188,7 +193,14 @@ def _warehouse_enabled_globally() -> bool:
     return os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
 
 
-class EarthRangerConnection(DataConnection[EarthRangerSource]):
+class _EarthRangerConnection(_DataConnection):
+    """Everything about a named EarthRanger connection except what it resolves to.
+
+    Two concrete connections share it so each can declare its own client type: tasks
+    take either the API client alone (`EarthRangerClient`) or both backends
+    (`EarthRangerSource`), and `DataConnection` is generic in exactly that.
+    """
+
     __ecoscope_connection_type__: ClassVar[str] = "earthranger"
 
     server: Annotated[str, Field(description="EarthRanger API URL")]
@@ -241,7 +253,7 @@ class EarthRangerConnection(DataConnection[EarthRangerSource]):
             warehouse_base_url=warehouse_base_url,
         )
 
-    def get_client(self) -> EarthRangerSource:
+    def _api_client(self) -> EarthRangerClientProtocol:
         from ecoscope.io import EarthRangerIO
 
         auth_kws = (
@@ -252,15 +264,32 @@ class EarthRangerConnection(DataConnection[EarthRangerSource]):
                 "password": self.password.get_secret_value(),
             }
         )
-        return EarthRangerSource(
-            api=EarthRangerIO(
-                server=self.server,
-                tcp_limit=self.tcp_limit,
-                sub_page_size=self.sub_page_size,
-                **auth_kws,
-            ),
-            warehouse=self._warehouse_client(),
+        return EarthRangerIO(
+            server=self.server,
+            tcp_limit=self.tcp_limit,
+            sub_page_size=self.sub_page_size,
+            **auth_kws,
         )
+
+
+class EarthRangerConnection(_EarthRangerConnection, DataConnection[EarthRangerClientProtocol]):
+    """Resolves a named EarthRanger connection to its API client."""
+
+    def get_client(self) -> EarthRangerClientProtocol:
+        return self._api_client()
+
+
+class EarthRangerSourceConnection(_EarthRangerConnection, DataConnection[EarthRangerBackends]):
+    """Resolves a named EarthRanger connection to both of its backends.
+
+    A separate connection rather than a flag on `EarthRangerConnection` because
+    `is_client` keys off the `client_from_named_connection` validator, so each
+    annotation needs its own binding. The connection type -- and so the env prefix --
+    is the same, which is what lets one configured source serve both.
+    """
+
+    def get_client(self) -> EarthRangerBackends:
+        return EarthRangerBackends(api=self._api_client(), warehouse=self._warehouse_client())
 
 
 @runtime_checkable
@@ -337,8 +366,14 @@ class EarthEngineConnection(DataConnection[EarthEngineClientProtocol]):
 
 
 EarthRangerClient = Annotated[
-    EarthRangerSource,
+    EarthRangerClientProtocol,
     BeforeValidator(EarthRangerConnection.client_from_named_connection),
+    WithJsonSchema({"type": "string", "description": "A named EarthRanger connection."}),
+]
+
+EarthRangerSource = Annotated[
+    EarthRangerBackends,
+    BeforeValidator(EarthRangerSourceConnection.client_from_named_connection),
     WithJsonSchema({"type": "string", "description": "A named EarthRanger connection."}),
 ]
 

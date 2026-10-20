@@ -24,7 +24,7 @@ from pydantic import TypeAdapter
 from shapely.geometry import Point
 
 from ecoscope.platform.annotations import EmptyDataFrame
-from ecoscope.platform.connections import EarthRangerSource
+from ecoscope.platform.connections import EarthRangerBackends
 from ecoscope.platform.schemas import SubjectGroupObservationsGDF
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import get_subjectgroup_observations
@@ -49,11 +49,11 @@ _BLUE = json.dumps({"rgb": "0, 0, 255", "sex": "male", "region": "Gourma"})
 
 
 def _source(api=None, warehouse=None):
-    """An `EarthRangerSource` standing in for a resolved data source.
+    """An `EarthRangerBackends` standing in for a resolved data source.
 
     `api` defaults to a bare mock; `warehouse` stays None for the ER-API path.
     """
-    return EarthRangerSource(api=api if api is not None else MagicMock(), warehouse=warehouse)
+    return EarthRangerBackends(api=api if api is not None else MagicMock(), warehouse=warehouse)
 
 
 def _call_via_warehouse(table, **task_kwargs):
