@@ -159,10 +159,11 @@ class EarthRangerClientProtocol(Protocol):
 
 
 def _warehouse_enabled_globally() -> bool:
-    """The legacy all-or-nothing warehouse switch, read fresh on every call.
+    """The legacy all-or-nothing warehouse switch.
 
-    An older ecoscope-server sends only this, so it stays the answer for any data
-    source that expresses no preference of its own.
+    Now a fallback: `EarthRangerConnection.use_warehouse` overrides it per data source,
+    so this decides only for sources that express no preference -- which is every source
+    on an older ecoscope-server, since that sends this flag alone.
     """
     return os.environ.get("USE_EARTHRANGER_WAREHOUSE_API", "false").lower() == "true"
 
