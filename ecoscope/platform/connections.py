@@ -179,6 +179,11 @@ class EarthRangerBackends:
     """
 
     api: EarthRangerClientProtocol
+    # Any, not ERWarehouseClient: pydantic builds a schema for this dataclass and so
+    # resolves the annotation at runtime, which rules out a TYPE_CHECKING-only import,
+    # and importing io-core eagerly here would put it on the import path of everything
+    # that touches connections. Typing it buys nothing anyway -- io-core ships no
+    # py.typed, so mypy reads ERWarehouseClient as Any regardless.
     warehouse: Any | None = None
 
 
