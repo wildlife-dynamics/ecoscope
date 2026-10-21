@@ -46,7 +46,7 @@ Sites that have not enabled `patrol_schemas` keep seeing exactly what they see t
 - **Shared specs.** The same compiled workflow is deployed to many sites. Backward compatibility means column presence drives behaviour, not a per-site configuration switch.
 - **Ids, not names.** `team` returns a bare uuid; `members` and `assets` return uuid arrays. Retired teams appear only in `config/default/`, and subjects no longer in a group do not appear in the resolved roster. The lookup must tolerate unresolved ids and fall back to the id string.
 - **Site-wide segment schema needs a permission no set grants yet** (`activity.view_segmenttype`). Nothing here depends on that route.
-- **Advisory validation.** The details objects can hold anything. They are kept as object columns and not interpreted.
+- **Advisory validation.** The details objects can hold anything. They are kept as JSON-string columns and not interpreted.
 - **Pin spread.** Workflows pin ecoscope-platform from 2.15 to 2.23. Each workflow that adopts the new presets must bump to the library release that carries them.
 - **Existing preset names are stable.** Config forms and test cases reference preset names. No preset is renamed or removed; new ones are added.
 
@@ -54,7 +54,7 @@ Sites that have not enabled `patrol_schemas` keep seeing exactly what they see t
 
 All in `wt-tasks/ecoscope`. Line references are to v2.25.1.
 
-**1. Carry the leg fields onto observations.** `get_patrol_observations` in `ecoscope/io/earthranger.py` (1168-1260) reads `leader`, `time_range` and `patrol_type` per segment and nothing else. It should also read the segment `id` and, when present, `is_pause`, `team`, `members`, `assets`, `segment_details` and `type_details`, using `.get()` so a flag-off site produces no column. New columns on the observations frame, following the existing `patrol_` prefix: `patrol_segment_id`, `patrol_team`, `patrol_members` (list), `patrol_assets` (list), `patrol_segment_details` (dict), `patrol_type_details` (dict). The leg's time range is already present as `patrol_start_time` and `patrol_end_time`. Any segment with `is_pause` true is skipped before observations are fetched, the same way segments with a missing leader or start are skipped today (1205). `PatrolObservationsGDF` and `RelocationsGDFSchema` are non-strict Pandera models, so extra columns pass validation unchanged.
+**1. Carry the leg fields onto observations.** `get_patrol_observations` in `ecoscope/io/earthranger.py` (1168-1260) reads `leader`, `time_range` and `patrol_type` per segment and nothing else. It should also read the segment `id` and, when present, `is_pause`, `team`, `members`, `assets`, `segment_details` and `type_details`, using `.get()` so a flag-off site produces no column. New columns on the observations frame, following the existing `patrol_` prefix: `patrol_segment_id`, `patrol_team`, `patrol_members` (list), `patrol_assets` (list), `patrol_segment_details` (JSON string), `patrol_type_details` (JSON string). The leg's time range is already present as `patrol_start_time` and `patrol_end_time`. Any segment with `is_pause` true is skipped before observations are fetched, the same way segments with a missing leader or start are skipped today (1205). `PatrolObservationsGDF` and `RelocationsGDFSchema` are non-strict Pandera models, so extra columns pass validation unchanged.
 
 **2. Do not request pauses.** `get_patrols` (916-1004) sends no `include_pauses`, so the API omits pause legs from nested `patrol_segments`, as the web app confirms. This design keeps it that way. Pause legs are not needed for any agreed metric: Active Duration sums the visible legs, Elapsed Duration spans first start to last end regardless of what sits between. The `is_pause` skip in step 1 is a guard for a future caller that does pass the flag. The warehouse path (`earthranger_utils.py:241-270`) rebuilds segments from flat columns and would need the same fields added when the warehouse exposes them; until then it yields no new columns, which is the flag-off behaviour.
 
@@ -133,13 +133,15 @@ What patrol-effort-table's spec adds once the library release is pinned, in DAG 
 | 3 | `get_patrol_segments_from_patrols_df_and_combined_params` (new) | patrols_df, params | leg frame: `patrol_segment_id`, `segment_start`, `segment_end`, `leg_active_seconds`, `leg_member_days`, `patrol_elapsed_seconds`, plus the grouper columns |
 | 4 | `relocations_to_trajectory` (existing) | observations | track frame with `extra__patrol_*` columns |
 | 5 | `map_columns` (existing) | track frame | rename `extra__patrol_segment_id`, `extra__patrol_team`, `extra__patrol_members`, `extra__patrol_assets` to the unprefixed names, alongside today's renames |
-| 6 | `add_patrol_team_names`, `add_patrol_roster_names` (new) | track frame and leg frame, each | `patrol_team_name`, `patrol_member_names`, `patrol_asset_names` on both frames |
-| 7 | `convert_column_values_to_string` (existing) | track frame | add `patrol_team_name` only; never the two list columns |
+| 6 | `add_patrol_team_names`, `add_patrol_roster_names` (new) on track frame and leg frame, each; `add_patrol_type_display_names` (new) on the leg frame | track frame and leg frame | `patrol_team_name`, `patrol_member_names`, `patrol_asset_names` on both frames; leg frame `patrol_type` becomes the display name, value kept in `patrol_type__value` |
+| 7 | `convert_column_values_to_string` (existing) | track frame and leg frame, each | the shared group-key columns `patrol_serial_number`, `patrol_type`, `patrol_subject`, `patrol_team_name` are string-cast on BOTH frames (the leg frame's `patrol_type` is already the display name from step 6, before any grouping); never the two list columns |
 | 8 | `add_temporal_index`, `add_spatial_index` (existing) | track frame | as today; plus `add_temporal_index` on the leg frame with `time_col: segment_start` |
 | 9 | `apportion_legs_by_spatial_index` (new) | leg frame, indexed track frame, groupers | spatial index level on the leg frame |
 | 10 | `explode_for_groupers` (new) | each frame, immediately before `split_groups` and before `summarize_df` | exploded rows when a member or asset grouper is selected |
 | 11 | `set_patrol_summary_metrics` (existing) then `select_track_metrics`, `select_leg_metrics` (new) | form metric list | two parameter lists |
-| 12 | `summarize_df` twice (existing), then `join_summary_tables` (new) | track frame, leg frame | one summary table |
+| 12 | `summarize_df` twice (existing), then `join_summary_tables` (new) | track frame, leg frame | one summary table; both `summarize_df` calls use the same `reset_index` setting (index join when False, merge on the shared group-key columns when True) |
+
+**Column types.** `patrol_segment_details` and `patrol_type_details` are JSON strings on both frames (dict columns cannot be written to parquet). Member-days is blank (NaN), not 0, where a site has no member data.
 
 **Form changes.** `$defs.ValueGrouper.oneOf` gains `patrol_team_name` (Team), `patrol_member_names` (Member), `patrol_asset_names` (Asset). `uiSchema.items.oneOf` for the metric list gains the four presets. The default metric list gains `{metric: active_duration, unit: h}`.
 

@@ -42,7 +42,7 @@ Inputs the spec implies but no happy-path test covers. Each has a pinned test in
 
 **Interfaces:**
 - Consumes: nothing new.
-- Produces: observations GeoDataFrame columns `patrol_segment_id: str` (always), and when present on the segment: `patrol_team: str | None`, `patrol_members: list[str]`, `patrol_assets: list[str]`, `patrol_segment_details: dict`, `patrol_type_details: dict`. Segments with `is_pause` true produce no observations.
+- Produces: observations GeoDataFrame columns `patrol_segment_id: str` (always), and when present on the segment: `patrol_team: str | None`, `patrol_members: list[str]`, `patrol_assets: list[str]`, `patrol_segment_details: str` (JSON), `patrol_type_details: str` (JSON; dict columns cannot be written to parquet). Segments with `is_pause` true produce no observations.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -56,8 +56,8 @@ def test_get_patrol_observations_carries_leg_fields(obs_mock, pt_mock, er_io):
     assert gdf["patrol_team"].iloc[0] == "t1"
     assert gdf["patrol_members"].iloc[0] == ["s1", "s2"]
     assert gdf["patrol_assets"].iloc[0] == ["v1"]
-    assert gdf["patrol_segment_details"].iloc[0] == {"weather": "dry"}
-    assert gdf["patrol_type_details"].iloc[0] == {}
+    assert json.loads(gdf["patrol_segment_details"].iloc[0]) == {"weather": "dry"}
+    assert json.loads(gdf["patrol_type_details"].iloc[0]) == {}
 
 def test_get_patrol_observations_skips_pause_legs(obs_mock, pt_mock, er_io):
     er_io.get_patrol_observations(patrols_df, include_patrol_details=True)
@@ -78,7 +78,7 @@ Expected: FAIL with `KeyError: 'patrol_segment_id'` and `assert 2 == 1`.
 
 - [ ] **Step 3: Implement in `get_patrol_observations`**
 
-Inside the segment loop, before the `None in {subject_id, patrol_start_time}` check, add `if patrol_segment.get("is_pause"): continue`. Inside the `include_patrol_details` block, after `patrol_subject`, set `observation.gdf["patrol_segment_id"] = patrol_segment.get("id")`, then for each `(api_key, col)` in `[("team","patrol_team"),("members","patrol_members"),("assets","patrol_assets"),("segment_details","patrol_segment_details"),("type_details","patrol_type_details")]`: if `api_key in patrol_segment`, assign the value to every row. Assign list and dict values with `pd.Series([value] * len(gdf), index=gdf.index)` so pandas does not broadcast a list across rows as separate scalars. Columns added only when present means the later `pd.concat` yields NaN for legs that lack a field a sibling leg has; that is acceptable.
+Inside the segment loop, before the `None in {subject_id, patrol_start_time}` check, add `if patrol_segment.get("is_pause"): continue`. Inside the `include_patrol_details` block, after `patrol_subject`, set `observation.gdf["patrol_segment_id"] = patrol_segment.get("id")`, then for each `(api_key, col)` in `[("team","patrol_team"),("members","patrol_members"),("assets","patrol_assets"),("segment_details","patrol_segment_details"),("type_details","patrol_type_details")]`: if `api_key in patrol_segment`, assign the value to every row (the two `*_details` values as `json.dumps(value)`, None kept). Assign list and dict values with `pd.Series([value] * len(gdf), index=gdf.index)` so pandas does not broadcast a list across rows as separate scalars. Columns added only when present means the later `pd.concat` yields NaN for legs that lack a field a sibling leg has; that is acceptable.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -108,7 +108,7 @@ git commit -m "feat(io): carry patrol leg fields onto observations and skip paus
   - `ecoscope.io.earthranger_utils.patrol_segments_from_patrols_df(patrols_df: pd.DataFrame, since: datetime | None = None, until: datetime | None = None) -> pd.DataFrame`
   - task `get_patrol_segments_from_patrols_df(patrols_df: PatrolsDF, time_range: TimeRangeAnnotation, truncate_to_time_range: TruncateToTimeRangeAnnotation = True, raise_on_empty: RaiseOnEmptyAnnotation = True) -> AnyDataFrame | EmptyDataFrame`
   - task `get_patrol_segments_from_patrols_df_and_combined_params(patrols_df: PatrolsDF, combined_params: CombinedPatrolAndEventsParams) -> AnyDataFrame | EmptyDataFrame`
-  - Leg frame columns, one row per non-pause leg: `patrol_id: str`, `patrol_serial_number: int`, `patrol_segment_id: str`, `patrol_type: str` (value slug, as `unpack_events_from_patrols_df` does), `patrol_subject: str`, `segment_start: datetime[UTC]`, `segment_end: datetime[UTC]`, `leg_active_seconds: float`, `leg_member_days: float`, `patrol_elapsed_seconds: float` (value on the earliest leg of each patrol, NaN on the rest), and when present on the leg: `patrol_team`, `patrol_members`, `patrol_assets`, `patrol_segment_details`, `patrol_type_details`.
+  - Leg frame columns, one row per non-pause leg: `patrol_id: str`, `patrol_serial_number: str` (stringified to match the track frame), `patrol_segment_id: str`, `patrol_type: str` (value slug, as `unpack_events_from_patrols_df` does), `patrol_subject: str`, `segment_start: datetime[UTC]`, `segment_end: datetime[UTC]`, `leg_active_seconds: float`, `leg_member_days: float`, `patrol_elapsed_seconds: float` (value on the earliest leg of each patrol, NaN on the rest), and when present on the leg: `patrol_team`, `patrol_members`, `patrol_assets`, `patrol_segment_details`, `patrol_type_details` (the two details as JSON strings).
 
 - [ ] **Step 1: Write the failing tests in `tests/test_earthranger_utils.py`**
 
@@ -124,7 +124,7 @@ def test_patrol_segments_excludes_pauses_and_computes_durations():
     assert pd.isna(legs["patrol_elapsed_seconds"].iloc[1])
     assert legs["patrol_type"].iloc[0] == "foot"
     assert legs["patrol_subject"].iloc[0] == "Asha"
-    assert legs["patrol_serial_number"].iloc[0] == 7
+    assert legs["patrol_serial_number"].iloc[0] == "7"
 
 def test_patrol_segments_clips_to_window():
     legs = patrol_segments_from_patrols_df(patrols_df, since=T("2026-01-05T10:00Z"), until=T("2026-01-05T14:00Z"))
