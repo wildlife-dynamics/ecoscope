@@ -1074,11 +1074,21 @@ def test_get_patrol_observations_without_new_fields_adds_no_columns(obs_mock, pt
 @patch("ecoscope.io.earthranger.EarthRangerIO._get")
 def test_get_patrol_teams(get_mock, er_io):
     get_mock.return_value = {
-        "teams": [{"id": "t1", "name": "Alpha", "is_active": True}, {"id": "t2", "name": "Bravo", "is_active": False}]
+        "teams": [
+            {"id": "t1", "value": "alpha", "display": "Alpha", "is_active": True},
+            {"id": "t2", "value": "bravo", "display": "Bravo", "is_active": False},
+        ]
     }
     teams = er_io.get_patrol_teams()
     assert teams[["id", "name"]].values.tolist() == [["t1", "Alpha"], ["t2", "Bravo"]]
     assert get_mock.call_args.args[0] == "activity/patrols/config/default/"
+
+
+@patch("ecoscope.io.earthranger.EarthRangerIO._get")
+def test_get_patrol_teams_empty_display_uses_value(get_mock, er_io):
+    get_mock.return_value = {"teams": [{"id": "t1", "value": "alpha", "display": ""}, {"id": "t2", "value": "bravo"}]}
+    teams = er_io.get_patrol_teams()
+    assert teams.values.tolist() == [["t1", "alpha"], ["t2", "bravo"]]
 
 
 @patch("ecoscope.io.earthranger.EarthRangerIO._get", side_effect=ERClientNotFound())
