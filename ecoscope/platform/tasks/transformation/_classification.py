@@ -10,42 +10,35 @@ from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 
 logger = logging.getLogger(__name__)
 
-ClassificationMethod = Literal[
-    "equal_interval",
-    "quantile",
-    "fisher_jenks",
-    "std_mean",
-    "max_breaks",
-    "natural_breaks",
-]
 
-
+# Each variant needs its own single-value `scheme` to be a distinct tag in the
+# discriminated union; subclasses narrow it, which mypy flags as an incompatible override.
 class SharedArgs(BaseModel):
-    scheme: ClassificationMethod = Field("equal_interval", exclude=True)
+    scheme: Literal["equal_interval"] = Field("equal_interval", exclude=True)
     k: int = 5
 
 
 class QuantileArgs(SharedArgs):
-    scheme: ClassificationMethod = Field("quantile", exclude=True)
+    scheme: Literal["quantile"] = Field("quantile", exclude=True)  # type: ignore[assignment]
 
 
 class FisherJenksArgs(SharedArgs):
-    scheme: ClassificationMethod = Field("fisher_jenks", exclude=True)
+    scheme: Literal["fisher_jenks"] = Field("fisher_jenks", exclude=True)  # type: ignore[assignment]
 
 
 class StdMeanArgs(BaseModel):
-    scheme: ClassificationMethod = Field("std_mean", exclude=True)
+    scheme: Literal["std_mean"] = Field("std_mean", exclude=True)
     multiples: list[int] = [-2, -1, 1, 2]
     anchor: bool = False
 
 
 class MaxBreaksArgs(SharedArgs):
-    scheme: ClassificationMethod = Field("max_breaks", exclude=True)
+    scheme: Literal["max_breaks"] = Field("max_breaks", exclude=True)  # type: ignore[assignment]
     mindiff: float = 0
 
 
 class NaturalBreaksArgs(SharedArgs):
-    scheme: ClassificationMethod = Field("natural_breaks", exclude=True)
+    scheme: Literal["natural_breaks"] = Field("natural_breaks", exclude=True)  # type: ignore[assignment]
     initial: int = 10
 
 

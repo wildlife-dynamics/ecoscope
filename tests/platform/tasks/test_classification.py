@@ -4,13 +4,18 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pytest
+from pydantic import TypeAdapter, ValidationError
 from shapely.geometry import Point
+from wt_task import task
 
 from ecoscope.platform.tasks.transformation._classification import (
+    ClassificationArgs,
     CustomLabels,
     DefaultLabels,
+    FisherJenksArgs,
     MaxBreaksArgs,
     NaturalBreaksArgs,
+    QuantileArgs,
     SharedArgs,
     StdMeanArgs,
     apply_classification,
@@ -96,6 +101,48 @@ def test_apply_classification(test_df, classification_args, label_args):
     )
 
     assert "classified" in result.columns
+
+
+SCHEMES = {
+    "equal_interval": SharedArgs,
+    "quantile": QuantileArgs,
+    "fisher_jenks": FisherJenksArgs,
+    "std_mean": StdMeanArgs,
+    "max_breaks": MaxBreaksArgs,
+    "natural_breaks": NaturalBreaksArgs,
+}
+
+
+@pytest.mark.parametrize("scheme, args_cls", SCHEMES.items())
+def test_classification_args_accept_only_their_own_scheme(scheme, args_cls):
+    assert args_cls().scheme == scheme
+    assert args_cls(scheme=scheme).scheme == scheme
+    for other in SCHEMES.keys() - {scheme}:
+        with pytest.raises(ValidationError):
+            args_cls(scheme=other)
+
+
+@pytest.mark.parametrize("scheme, args_cls", SCHEMES.items())
+def test_classification_args_union_selects_variant_by_scheme(scheme, args_cls):
+    args = TypeAdapter(ClassificationArgs).validate_python({"scheme": scheme})
+    assert type(args) is args_cls
+
+
+@pytest.mark.parametrize("scheme", SCHEMES)
+def test_apply_classification_validates_each_scheme(test_df, scheme):
+    options = {"scheme": scheme} if scheme == "std_mean" else {"scheme": scheme, "k": 3}
+    result = (
+        task(apply_classification)
+        .validate()
+        .call(
+            df=test_df,
+            input_column_name="column_name",
+            output_column_name="classified",
+            classification_options=options,
+        )
+    )
+
+    assert result["classified"].notna().all()
 
 
 def test_classify_is_night():
