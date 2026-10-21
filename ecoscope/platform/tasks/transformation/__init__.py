@@ -35,6 +35,7 @@ from ._indexing import (
     resolve_spatial_feature_groups_for_spatial_groupers,
     trend_groupby_columns,
 )
+from ._leg_apportion import apportion_legs_by_spatial_index
 from ._mapping import (
     RenameColumn,
     assign_value,
@@ -56,6 +57,7 @@ from ._transpose import transpose
 from ._unit import with_unit
 
 __all__ = [
+    "apportion_legs_by_spatial_index",
     "align_keyed_iterable_to_reference",
     "apply_classification",
     "apply_color_map",
