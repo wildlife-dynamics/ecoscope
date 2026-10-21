@@ -107,7 +107,7 @@ git commit -m "feat(io): carry patrol leg fields onto observations and skip paus
 - Produces:
   - `ecoscope.io.earthranger_utils.patrol_segments_from_patrols_df(patrols_df: pd.DataFrame, since: datetime | None = None, until: datetime | None = None) -> pd.DataFrame`
   - task `get_patrol_segments_from_patrols_df(patrols_df: PatrolsDF, time_range: TimeRangeAnnotation, truncate_to_time_range: TruncateToTimeRangeAnnotation = True, raise_on_empty: RaiseOnEmptyAnnotation = True) -> AnyDataFrame | EmptyDataFrame`
-  - task `get_patrol_segments_from_patrols_df_and_combined_params(patrols_df: PatrolsDF, params: CombinedPatrolAndEventsParams) -> AnyDataFrame | EmptyDataFrame`
+  - task `get_patrol_segments_from_patrols_df_and_combined_params(patrols_df: PatrolsDF, combined_params: CombinedPatrolAndEventsParams) -> AnyDataFrame | EmptyDataFrame`
   - Leg frame columns, one row per non-pause leg: `patrol_id: str`, `patrol_serial_number: int`, `patrol_segment_id: str`, `patrol_type: str` (value slug, as `unpack_events_from_patrols_df` does), `patrol_subject: str`, `segment_start: datetime[UTC]`, `segment_end: datetime[UTC]`, `leg_active_seconds: float`, `leg_member_days: float`, `patrol_elapsed_seconds: float` (value on the earliest leg of each patrol, NaN on the rest), and when present on the leg: `patrol_team`, `patrol_members`, `patrol_assets`, `patrol_segment_details`, `patrol_type_details`.
 
 - [ ] **Step 1: Write the failing tests in `tests/test_earthranger_utils.py`**
@@ -164,7 +164,7 @@ Expected: FAIL with `ImportError: cannot import name 'patrol_segments_from_patro
 
 - [ ] **Step 3: Implement `patrol_segments_from_patrols_df` in `earthranger_utils.py`**
 
-Walk `patrols_df` rows and `patrol_segments` as `unpack_events_from_patrols_df` does. Skip legs with `is_pause` true or with no `time_range.start_time`. Parse start/end with `pd.to_datetime(..., utc=True)`; a null end becomes `until` when given, else the leg is skipped. Clip start to `since` and end to `until` when given; drop legs where clipped end <= clipped start. `leg_active_seconds = (end - start).total_seconds()`. `leg_member_days = len(members) * number of distinct UTC dates in [start, end]` when `"members" in segment`, else NaN. After collecting rows, compute per `patrol_id`: `elapsed = max(end) - min(start)` in seconds, assign to the row with the earliest `segment_start`, NaN elsewhere. Optional columns are added only if the key appeared on at least one leg; legs lacking it get NaN. Return `pd.DataFrame` (no geometry); empty input returns `pd.DataFrame()`.
+Walk `patrols_df` rows and `patrol_segments` as `unpack_events_from_patrols_df` does. Skip legs with `is_pause` true or with no `time_range.start_time`. Parse start/end with `pd.to_datetime(..., utc=True)`; a null end becomes `until` when given, else the leg is skipped. Clip start to `since` and end to `until` when given; drop legs where clipped end <= clipped start. `leg_active_seconds = (end - start).total_seconds()`. `leg_member_days = len(members) * number of distinct UTC dates in [start, end - 1ns]` (so a leg ending exactly at midnight does not gain a day) when `"members" in segment`, else NaN. After collecting rows, compute per `patrol_id`: `elapsed = max(end) - min(start)` in seconds, assign to the row with the earliest `segment_start`, NaN elsewhere. Optional columns are added only if the key appeared on at least one leg; legs lacking it get NaN. Return `pd.DataFrame` (no geometry); empty input returns `pd.DataFrame()`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
