@@ -1018,6 +1018,11 @@ def get_patrol_segments_from_patrols_df(
     truncate_to_time_range: TruncateToTimeRangeAnnotation = True,
     raise_on_empty: RaiseOnEmptyAnnotation = True,
 ) -> AnyDataFrame | EmptyDataFrame:
+    """Return one row per patrol leg (segment) from a patrols dataframe.
+    Pauses are never requested from EarthRanger, so pause legs are skipped. Legs are clipped
+    to `time_range` when `truncate_to_time_range` is set, and a `ValueError` is raised on an
+    empty result when `raise_on_empty` is set.
+    """
     from ecoscope.io.earthranger_utils import patrol_segments_from_patrols_df
 
     if truncate_to_time_range:
@@ -1036,6 +1041,9 @@ def get_patrol_segments_from_patrols_df_and_combined_params(
     patrols_df: PatrolsDF,
     combined_params: CombinedPatrolAndEventsParams,
 ) -> AnyDataFrame | EmptyDataFrame:
+    """Same as `get_patrol_segments_from_patrols_df`, taking time range, truncation and
+    empty handling from a combined patrol and events params object.
+    """
     return (
         task(get_patrol_segments_from_patrols_df)
         .validate()
@@ -1057,6 +1065,10 @@ def _id_name_lookup(frame: pd.DataFrame) -> dict:
 
 @register(tags=["io"])
 def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
+    """Add a `patrol_team_name` column by resolving `patrol_team` ids to team names.
+    Unresolved ids keep the id; missing teams and sites without the `patrol_schemas` flag
+    (no `patrol_team` column) are filled with "None".
+    """
     df = df.copy()
     if "patrol_team" not in df.columns:
         df["patrol_team_name"] = "None"
@@ -1069,6 +1081,10 @@ def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDat
 
 @register(tags=["io"])
 def add_patrol_roster_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
+    """Add `patrol_member_names` and `patrol_asset_names` columns (lists of names) by
+    resolving the ids in `patrol_members` and `patrol_assets`. Unresolved ids keep the id;
+    a column whose source is absent (no `patrol_schemas` flag) is filled with "None".
+    """
     df = df.copy()
     pairs = {"patrol_members": "patrol_member_names", "patrol_assets": "patrol_asset_names"}
     present = {src: dst for src, dst in pairs.items() if src in df.columns}

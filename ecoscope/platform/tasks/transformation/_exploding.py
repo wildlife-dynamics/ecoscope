@@ -31,6 +31,10 @@ def explode_for_groupers(
         Field(description="The selected groupers; list-valued columns they group by are exploded."),
     ],
 ) -> AnyDataFrame:
+    """Explode list-valued columns that the selected groupers group by, so each list
+    element gets its own row (full credit per member or asset). Empty entries become
+    "None". Returns the frame unchanged for `AllGrouper` or when no grouper column holds lists.
+    """
     if isinstance(groupers, AllGrouper):
         return df
     for grouper in groupers:
