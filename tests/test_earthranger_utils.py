@@ -5,6 +5,7 @@ import pytest
 from ecoscope.io.earthranger_utils import (
     decode_raw_event_details,
     normalize_column,
+    patrol_segments_from_patrols_df,
     unpack_events_from_patrols_df,
 )
 from ecoscope.io.utils import clean_time_cols
@@ -265,3 +266,92 @@ def test_unpack_events_from_patrols_df_event_type_and_state_are_anded(mixed_patr
     """Both filters must hold, so this keeps only the resolved hwc_rep event."""
     result = unpack_events_from_patrols_df(mixed_patrol_events, event_type=["hwc_rep"], event_state=["resolved"])
     assert result["id"].tolist() == ["e2"]
+
+
+def _T(s):
+    return pd.Timestamp(s).to_pydatetime()
+
+
+def _leg(seg_id, start, end, members=None, is_pause=False, with_members=True):
+    leg = {
+        "id": seg_id,
+        "patrol_type": "foot",
+        "leader": {"id": "a", "name": "Asha"},
+        "time_range": {"start_time": start, "end_time": end},
+        "is_pause": is_pause,
+    }
+    if with_members:
+        leg["members"] = ["a", "b", "c"] if members is None else members
+    return leg
+
+
+def _legs_df(legs):
+    return pd.DataFrame([{"id": "p1", "serial_number": 7, "patrol_segments": legs}])
+
+
+@pytest.fixture
+def three_leg_df():
+    return _legs_df(
+        [
+            _leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T12:00:00Z"),
+            _leg("seg2", "2026-01-05T12:00:00Z", "2026-01-05T13:00:00Z", is_pause=True),
+            _leg("seg3", "2026-01-05T13:00:00Z", "2026-01-05T16:00:00Z"),
+        ]
+    )
+
+
+def test_patrol_segments_excludes_pauses_and_computes_durations(three_leg_df):
+    legs = patrol_segments_from_patrols_df(three_leg_df)
+    assert legs["patrol_segment_id"].tolist() == ["seg1", "seg3"]
+    assert legs["leg_active_seconds"].tolist() == [4 * 3600.0, 3 * 3600.0]
+    assert legs["leg_member_days"].tolist() == [3.0, 3.0]
+    assert legs["patrol_elapsed_seconds"].tolist()[0] == 8 * 3600.0
+    assert pd.isna(legs["patrol_elapsed_seconds"].iloc[1])
+    assert legs["patrol_type"].iloc[0] == "foot"
+    assert legs["patrol_subject"].iloc[0] == "Asha"
+    assert legs["patrol_serial_number"].iloc[0] == 7
+
+
+def test_patrol_segments_clips_to_window(three_leg_df):
+    legs = patrol_segments_from_patrols_df(three_leg_df, since=_T("2026-01-05T10:00Z"), until=_T("2026-01-05T14:00Z"))
+    assert legs["leg_active_seconds"].tolist() == [2 * 3600.0, 1 * 3600.0]
+    assert legs["patrol_elapsed_seconds"].iloc[0] == 4 * 3600.0
+
+
+def test_patrol_segments_drops_legs_outside_window(three_leg_df):
+    legs = patrol_segments_from_patrols_df(three_leg_df, since=_T("2026-01-05T14:30Z"), until=_T("2026-01-05T15:00Z"))
+    assert legs["patrol_segment_id"].tolist() == ["seg3"]
+    assert (legs["leg_active_seconds"] >= 0).all()
+
+
+def test_patrol_segments_open_leg_clips_end_to_until():
+    open_df = _legs_df(
+        [
+            _leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T12:00:00Z"),
+            _leg("seg3", "2026-01-05T13:00:00Z", None),
+        ]
+    )
+    legs = patrol_segments_from_patrols_df(open_df, until=_T("2026-01-05T18:00Z"))
+    assert legs["leg_active_seconds"].iloc[-1] == 5 * 3600.0
+    assert patrol_segments_from_patrols_df(open_df)["patrol_segment_id"].tolist() == ["seg1"]
+
+
+def test_patrol_segments_member_days_spans_midnight():
+    midnight_df = _legs_df([_leg("seg1", "2026-01-05T22:00:00Z", "2026-01-06T02:00:00Z", members=["a", "b"])])
+    assert patrol_segments_from_patrols_df(midnight_df)["leg_member_days"].iloc[0] == 4.0
+
+
+def test_patrol_segments_without_members_gives_nan_member_days_and_no_new_columns():
+    legacy_df = _legs_df([_leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T12:00:00Z", with_members=False)])
+    legs = patrol_segments_from_patrols_df(legacy_df)
+    assert legs["leg_member_days"].isna().all()
+    assert "patrol_members" not in legs.columns and "patrol_team" not in legs.columns
+
+
+def test_patrol_segments_empty_members_gives_zero_member_days():
+    empty_members_df = _legs_df([_leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T12:00:00Z", members=[])])
+    assert patrol_segments_from_patrols_df(empty_members_df)["leg_member_days"].iloc[0] == 0.0
+
+
+def test_patrol_segments_empty_patrols_df_returns_empty():
+    assert patrol_segments_from_patrols_df(pd.DataFrame()).empty

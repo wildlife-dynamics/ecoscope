@@ -1049,6 +1049,43 @@ def unpack_events_from_patrols_df(
 
 
 @register(tags=["io"])
+def get_patrol_segments_from_patrols_df(
+    patrols_df: PatrolsDF,
+    time_range: TimeRangeAnnotation,
+    truncate_to_time_range: TruncateToTimeRangeAnnotation = True,
+    raise_on_empty: RaiseOnEmptyAnnotation = True,
+) -> AnyDataFrame | EmptyDataFrame:
+    from ecoscope.io.earthranger_utils import patrol_segments_from_patrols_df
+
+    if truncate_to_time_range:
+        legs = patrol_segments_from_patrols_df(patrols_df, since=time_range.since, until=time_range.until)
+    else:
+        legs = patrol_segments_from_patrols_df(patrols_df)
+
+    if raise_on_empty and legs.empty:
+        raise ValueError("No patrol segments in provided patrols_df")
+
+    return cast(AnyDataFrame, legs)
+
+
+@register(tags=["io"])
+def get_patrol_segments_from_patrols_df_and_combined_params(
+    patrols_df: PatrolsDF,
+    params: CombinedPatrolAndEventsParams,
+) -> AnyDataFrame | EmptyDataFrame:
+    return (
+        task(get_patrol_segments_from_patrols_df)
+        .validate()
+        .call(
+            patrols_df=patrols_df,
+            time_range=params.time_range,
+            truncate_to_time_range=params.truncate_to_time_range,
+            raise_on_empty=params.raise_on_empty,
+        )
+    )
+
+
+@register(tags=["io"])
 def get_event_type_display_names_from_events(
     client: EarthRangerClient,
     events_gdf: EventGDF,
