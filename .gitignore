@@ -178,3 +178,6 @@ uv.lock
 
 .serena
 .claude
+# Local planning artifacts (superpowers skills); the design doc lives in Claude Docs
+docs/superpowers/
+.superpowers/
