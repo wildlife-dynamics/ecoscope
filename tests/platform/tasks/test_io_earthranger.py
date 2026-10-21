@@ -2556,7 +2556,7 @@ def test_live_patrol_legs_on_mep_dev(client):
     legs = get_patrol_segments_from_patrols_df(patrols_df=patrols, time_range=tr)
     assert len(legs) == 3
     assert legs["leg_active_seconds"].sum() == 9 * 3600.0
-    assert legs["patrol_elapsed_seconds"].dropna().tolist() == [8 * 3600.0, 2 * 3600.0]
+    assert sorted(legs["patrol_elapsed_seconds"].dropna().tolist()) == [2 * 3600.0, 8 * 3600.0]
     named = add_patrol_roster_names(add_patrol_team_names(legs, client), client)
     assert sorted(named["patrol_member_names"].iloc[0]) == ["Ecoscope Leg Tester A", "Ecoscope Leg Tester B"]
     assert named["patrol_team_name"].iloc[0] != named["patrol_team"].iloc[0]

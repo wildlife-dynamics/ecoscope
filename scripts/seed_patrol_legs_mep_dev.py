@@ -15,6 +15,7 @@ from shapely.geometry import Point
 
 from ecoscope.io import EarthRangerIO
 
+# Ids below exist on mep-dev only (guarded in main).
 TEAM_ID = "377a78fe-4677-4fca-b289-0e893ee08233"  # Ecoscope Leg Test Team
 MEMBER_GROUP_ID = "ddb99202-1373-4c6c-b15f-e71d21cb2b26"  # Rangers
 ASSET_GROUP_ID = "a3b3dc54-b094-4a0a-9b76-608bfab3fe9f"  # Ecoscope Leg Assets
@@ -115,13 +116,29 @@ def ensure_patrol(io, spec, leader, members, assets):
         patrol_type_value=[PATROL_TYPE],
         status=["scheduled", "active", "overdue", "done", "cancelled"],
     )
-    if len(existing) and (existing["title"] == spec["title"]).any():
-        row = existing[existing["title"] == spec["title"]].iloc[0]
-        return row["id"] if "id" in row else row.name, row["serial_number"], False
-    patrol = io.post_patrol(priority=0, title=spec["title"]).iloc[0]
+    title_match = existing[existing["title"] == spec["title"]] if len(existing) else existing
+    if len(title_match):
+        if "id" not in title_match.columns:
+            raise KeyError("get_patrols result has no 'id' column")
+        patrol_id, serial = title_match["id"].iloc[0], title_match["serial_number"].iloc[0]
+        full = io._get(f"activity/patrols/{patrol_id}/", params={"include_pauses": "true"})
+        have = {
+            pd.Timestamp(seg["time_range"]["start_time"])
+            for seg in full.get("patrol_segments", [])
+            if seg.get("time_range")
+        }
+        state = full.get("state")
+        created = False
+    else:
+        patrol = io.post_patrol(priority=0, title=spec["title"]).iloc[0]
+        patrol_id, serial = patrol["id"], patrol["serial_number"]
+        have, state, created = set(), None, True
+    repaired = False
     for start, end, is_pause in spec["legs"]:
+        if pd.Timestamp(start) in have:
+            continue
         io.post_patrol_segment(
-            patrol_id=patrol["id"],
+            patrol_id=patrol_id,
             patrol_segment_id=str(uuid4()),
             patrol_type=PATROL_TYPE,
             tracked_subject_id=leader,
@@ -134,16 +151,22 @@ def ensure_patrol(io, spec, leader, members, assets):
             type_details={},
             is_pause=is_pause,
         )
-    io._patch(f"activity/patrols/{patrol['id']}/", payload={"state": "done"})
-    return patrol["id"], patrol["serial_number"], True
+        repaired = True
+    if state != "done":
+        io._patch(f"activity/patrols/{patrol_id}/", payload={"state": "done"})
+        repaired = True
+    return patrol_id, serial, "created" if created else ("repaired" if repaired else "exists")
 
 
 def main():
-    io = EarthRangerIO(
-        server=os.environ["EARTHRANGER_SERVER"],
-        username=os.environ["EARTHRANGER_USERNAME"],
-        password=os.environ["EARTHRANGER_PASSWORD"],
-    )
+    server = os.environ.get("EARTHRANGER_SERVER", "")
+    if "mep-dev.pamdas.org" not in server:
+        sys.exit("Refusing to run: EARTHRANGER_SERVER must be mep-dev.pamdas.org (ids are mep-dev specific)")
+    try:
+        username, password = os.environ["EARTHRANGER_USERNAME"], os.environ["EARTHRANGER_PASSWORD"]
+    except KeyError as exc:
+        sys.exit(f"Missing environment variable: {exc}")
+    io = EarthRangerIO(server=server, username=username, password=password)
     try:
         ids = {name: ensure_subject(io, name, *cfg) for name, cfg in SUBJECTS.items()}
         for name, subject_id in ids.items():
@@ -157,11 +180,13 @@ def main():
         assets = [ids["Ecoscope Leg Vehicle"]]
         serials = []
         for spec in PATROLS:
-            patrol_id, serial, created = ensure_patrol(io, spec, leader, members, assets)
-            print(f"patrol {spec['title']}: id={patrol_id} serial={serial} {'created' if created else 'exists'}")
+            patrol_id, serial, outcome = ensure_patrol(io, spec, leader, members, assets)
+            print(f"patrol {spec['title']}: id={patrol_id} serial={serial} {outcome}")
             serials.append(int(serial))
     except requests.exceptions.RequestException as exc:
         fail(exc)
+    except (KeyError, IndexError, TypeError) as exc:
+        sys.exit(f"BLOCKED: unexpected response shape or missing value: {type(exc).__name__}: {exc}")
     print("serial numbers:", serials)
 
 
