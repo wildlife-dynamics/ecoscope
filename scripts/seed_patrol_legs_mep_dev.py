@@ -2,6 +2,13 @@
 
 Reads EARTHRANGER_SERVER, EARTHRANGER_USERNAME, EARTHRANGER_PASSWORD. Never deletes anything.
 The patrol configuration (team, member group, asset group) must already be set in the EarthRanger admin.
+
+Side effects on mep-dev: it adds the two test subjects (Ecoscope Leg Tester A and B) to the
+pre-existing "Rangers" member group, which is a real group on that site, and adds the test
+vehicle to the "Ecoscope Leg Assets" group. Everything else it creates is test-only (the three
+subjects, their observations, the ecoscope_leg_test patrol type and patrols). Its only update is
+marking its own ecoscope_leg_test patrols done; it never updates or deletes any other record, so
+nothing it does is destructive.
 """
 
 import os

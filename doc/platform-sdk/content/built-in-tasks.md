@@ -16,6 +16,7 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 | Load patrol legs with combined params | [`get_patrol_segments_from_patrols_df_and_combined_params`][ecoscope.platform.tasks.io.get_patrol_segments_from_patrols_df_and_combined_params] |
 | Add patrol team names | [`add_patrol_team_names`][ecoscope.platform.tasks.io.add_patrol_team_names] |
 | Add patrol member and asset names | [`add_patrol_roster_names`][ecoscope.platform.tasks.io.add_patrol_roster_names] |
+| Show patrol type display names | [`add_patrol_type_display_names`][ecoscope.platform.tasks.io.add_patrol_type_display_names] |
 | Load patrol observations | [`get_patrol_observations`][ecoscope.platform.tasks.io.get_patrol_observations] |
 | Load subject group GPS data | [`get_subjectgroup_observations`][ecoscope.platform.tasks.io.get_subjectgroup_observations] |
 | Load events from SMART | [`get_events_from_smart`][ecoscope.platform.tasks.io.get_events_from_smart] |
@@ -114,7 +115,9 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 
 ### Patrol legs
 
-Pauses are never requested from EarthRanger, so pause legs are skipped. Leg metrics (Active Duration, Elapsed Duration, Leg Count, Member-days) are summarized on a separate leg frame and joined to the track summary, so existing metrics never change. The three name columns `patrol_team_name`, `patrol_member_names` and `patrol_asset_names` always exist, and are filled with "None" when a site lacks the `patrol_schemas` flag. Member and asset groupers give each member full credit for a leg. Under spatial groupers, leg metrics are apportioned by the share of track length in each feature.
+Pauses are never requested from EarthRanger, so pause legs are skipped. Leg metrics (Active Duration, Elapsed Duration, Leg Count, Member-days) are summarized on a separate leg frame and joined to the track summary, so existing metrics never change. The three name columns `patrol_team_name`, `patrol_member_names` and `patrol_asset_names` always exist, and are filled with "None" when a site lacks the `patrol_schemas` flag. Member and asset groupers give each member full credit for a leg's distance and durations; Member-days is split so each member row carries one member's days. Member-days is blank (NaN) where a site has no member data. Under spatial groupers, leg metrics are apportioned by the share of track length in each feature. `patrol_segment_details` and `patrol_type_details` are JSON strings, so frames carrying them can be persisted to parquet.
+
+The leg frame and the track frame must share group-key values for `join_summary_tables` to line up: `patrol_serial_number` comes off the leg frame as a string, `add_patrol_type_display_names` rewrites the leg frame's `patrol_type` value to its display name (keeping the value in `patrol_type__value`), and both `summarize_df` calls must use the same `reset_index` setting. With `reset_index=True`, `join_summary_tables` merges on the shared group-key columns; otherwise it joins on the index.
 
 ## Visualization
 
