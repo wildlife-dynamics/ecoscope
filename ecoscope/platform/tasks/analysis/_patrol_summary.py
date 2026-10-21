@@ -167,6 +167,74 @@ class CustomMetric(StatSummaryParam):
         return param
 
 
+class ActiveDurationMetric(BaseModel):
+    model_config = ConfigDict(title="Active Duration")
+    metric: Annotated[Literal["active_duration"], Field(default="active_duration", title="Metric")] = "active_duration"
+    unit: Annotated[
+        Literal["h", "d"],
+        Field(
+            default="h",
+            title="Unit",
+            json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY),
+        ),
+    ] = "h"
+
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(
+            display_name=f"Active Duration ({Unit(self.unit).short_label})",
+            aggregator="sum",
+            column="leg_active_seconds",
+            convert_units=True,
+            original_unit=Unit.SECOND,
+            new_unit=Unit(self.unit),
+            decimal_places=2,
+        )
+
+
+class ElapsedDurationMetric(BaseModel):
+    model_config = ConfigDict(title="Elapsed Duration")
+    metric: Annotated[Literal["elapsed_duration"], Field(default="elapsed_duration", title="Metric")] = (
+        "elapsed_duration"
+    )
+    unit: Annotated[
+        Literal["h", "d"],
+        Field(
+            default="h",
+            title="Unit",
+            json_schema_extra=labeled_units(Unit.HOUR, Unit.DAY),
+        ),
+    ] = "h"
+
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(
+            display_name=f"Elapsed Duration ({Unit(self.unit).short_label})",
+            aggregator="sum",
+            column="patrol_elapsed_seconds",
+            convert_units=True,
+            original_unit=Unit.SECOND,
+            new_unit=Unit(self.unit),
+            decimal_places=2,
+        )
+
+
+class LegCountMetric(BaseModel):
+    model_config = ConfigDict(title="Leg Count")
+    metric: Annotated[Literal["leg_count"], Field(default="leg_count", title="Metric")] = "leg_count"
+
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(display_name="Leg Count", aggregator="nunique", column="patrol_segment_id")
+
+
+class MemberDaysMetric(BaseModel):
+    model_config = ConfigDict(title="Member-days")
+    metric: Annotated[Literal["member_days"], Field(default="member_days", title="Metric")] = "member_days"
+
+    def to_summary_param(self) -> StatSummaryParam:
+        return StatSummaryParam(
+            display_name="Member-days", aggregator="sum", column="leg_member_days", decimal_places=0
+        )
+
+
 PatrolSummaryMetric = Annotated[
     Union[
         PatrolCountMetric,
@@ -175,6 +243,10 @@ PatrolSummaryMetric = Annotated[
         TotalDurationMetric,
         MergedAreaCoveredMetric,
         UnmergedAreaCoveredMetric,
+        ActiveDurationMetric,
+        ElapsedDurationMetric,
+        LegCountMetric,
+        MemberDaysMetric,
         CustomMetric,
     ],
     Field(discriminator="metric"),
