@@ -3,6 +3,7 @@ from ._earthengine import calculate_ndvi_range, determine_season_windows
 from ._earthranger import (
     add_patrol_roster_names,
     add_patrol_team_names,
+    add_patrol_type_display_names,
     download_grouped_event_attachments,
     get_analysis_field_from_event_details,
     get_analysis_field_label_from_event_details,
@@ -60,6 +61,7 @@ __all__ = [
     "SpatialFeaturesConfig",
     "add_patrol_roster_names",
     "add_patrol_team_names",
+    "add_patrol_type_display_names",
     "calculate_ndvi_range",
     "determine_season_windows",
     "download_grouped_event_attachments",
