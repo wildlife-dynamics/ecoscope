@@ -278,3 +278,33 @@ def test_leg_metrics_end_to_end_on_leg_frame():
     )
     out = summarize_df(legs, select_leg_metrics(params), groupby_cols=["patrol_type"])
     assert out.loc["foot"].tolist() == [7.0, 8.0, 2, 6.0]
+
+
+def test_member_days_is_nan_when_no_member_data():
+    legs = pd.DataFrame(
+        {
+            "patrol_type": ["foot", "foot"],
+            "patrol_segment_id": ["s1", "s2"],
+            "leg_active_seconds": [4 * 3600.0, 3 * 3600.0],
+            "leg_member_days": [float("nan"), float("nan")],
+        }
+    )
+    params = set_patrol_summary_metrics([{"metric": "active_duration"}, {"metric": "member_days"}])
+    out = summarize_df(legs, select_leg_metrics(params))
+    assert pd.isna(out["Member-days"].iloc[0])
+    assert out.iloc[0, 0] == 7.0
+
+
+def test_join_summary_tables_merges_reset_frames_on_shared_columns():
+    left = pd.DataFrame({"patrol_type": ["A", "B"], "Patrol Count": [2, 1]})
+    right = pd.DataFrame({"patrol_type": ["A", "C"], "Leg Count": [3, 1]})
+    joined = join_summary_tables(left, right)
+    assert list(joined.columns) == ["patrol_type", "Patrol Count", "Leg Count"]
+    assert sorted(joined["patrol_type"]) == ["A", "B", "C"]
+    row_a = joined[joined["patrol_type"] == "A"].iloc[0]
+    assert row_a["Patrol Count"] == 2 and row_a["Leg Count"] == 3
+
+
+def test_join_summary_tables_ungrouped_one_row_frames_join_on_index():
+    joined = join_summary_tables(pd.DataFrame({"Patrol Count": [2]}), pd.DataFrame({"Leg Count": [3]}))
+    assert joined.iloc[0].tolist() == [2, 3]

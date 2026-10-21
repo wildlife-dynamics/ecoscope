@@ -172,6 +172,9 @@ def summarize_column(df, param):
         numerator = df[param.numerator.column].agg(param.numerator.aggregator)
         denominator = df[param.denominator.column].agg(param.denominator.aggregator)
         result = float("nan") if denominator == 0 else numerator / denominator * param.scale
+    elif isinstance(param, StatSummaryParam) and param.aggregator == "sum" and param.column == "leg_member_days":
+        # all-NaN means no member data at this site: report blank, not 0
+        result = df[param.column].sum(min_count=1)
     else:
         result = df[param.column].agg(param.aggregator)
 
@@ -252,13 +255,23 @@ def join_summary_tables(
     left: AnyDataFrame,
     right: AnyDataFrame,
 ) -> Annotated[AnyDataFrame, Field(description="Joined summary table")]:
-    """Outer-join the leg summary onto the track summary by index. An empty side is
-    ignored, so existing track metrics never change.
+    """Outer-join the leg summary onto the track summary on the group key. An empty
+    side is ignored, so existing track metrics never change.
+
+    Two modes:
+    - Both inputs have a plain `RangeIndex` (`summarize_df` ran with `reset_index=True`):
+      outer-merge on the columns the two frames share, which are the group-key columns.
+    - Otherwise (or when no column is shared, e.g. two ungrouped one-row summaries):
+      outer-join on the index (the group key `summarize_df` left there).
     """
     if right.empty:
         return left
     if left.empty:
         return right
+    if isinstance(left.index, pd.RangeIndex) and isinstance(right.index, pd.RangeIndex):
+        shared = [c for c in left.columns if c in right.columns]
+        if shared:
+            return cast(AnyDataFrame, left.merge(right, how="outer", on=shared))
     return cast(AnyDataFrame, left.join(right, how="outer"))
 
 

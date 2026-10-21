@@ -62,3 +62,25 @@ def test_explode_for_groupers_handles_ndarray_cells():
     df = pd.DataFrame({"patrol_member_names": [np.array(["a", "b"]), np.array([], dtype=object)], "v": [1, 2]})
     out = explode_for_groupers(df, [ValueGrouper(index_name="patrol_member_names")])
     assert out["patrol_member_names"].tolist() == ["a", "b", "None"]
+
+
+def test_explode_for_groupers_splits_member_days_across_members():
+    df = pd.DataFrame(
+        {
+            "patrol_member_names": [["Asha", "Ben", "Chidi"], []],
+            "leg_member_days": [3.0, 0.0],
+            "leg_active_seconds": [3600.0, 1800.0],
+        }
+    )
+    out = explode_for_groupers(df, [ValueGrouper(index_name="patrol_member_names")])
+    assert out["patrol_member_names"].tolist() == ["Asha", "Ben", "Chidi", "None"]
+    assert out["leg_member_days"].tolist() == [1.0, 1.0, 1.0, 0.0]
+    assert out["leg_active_seconds"].tolist() == [3600.0, 3600.0, 3600.0, 1800.0]
+    assert df["leg_member_days"].tolist() == [3.0, 0.0]
+
+
+def test_explode_for_groupers_asset_explode_keeps_member_days():
+    df = pd.DataFrame({"patrol_asset_names": [["LC", "Truck"]], "leg_member_days": [3.0]})
+    out = explode_for_groupers(df, [ValueGrouper(index_name="patrol_asset_names")])
+    assert out["patrol_asset_names"].tolist() == ["LC", "Truck"]
+    assert out["leg_member_days"].tolist() == [3.0, 3.0]
