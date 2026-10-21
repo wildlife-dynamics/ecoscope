@@ -239,10 +239,12 @@ def patrol_segments_from_patrols_df(
             if segment.get("is_pause"):
                 continue
             time_range = segment.get("time_range") or {}
-            if not time_range.get("start_time"):
+            start_raw = time_range.get("start_time")
+            if not start_raw:
                 continue
-            start = pd.to_datetime(time_range["start_time"], utc=True)
-            end = pd.to_datetime(time_range.get("end_time"), utc=True) if time_range.get("end_time") else until_ts
+            start = pd.to_datetime(start_raw, utc=True)
+            end_raw = time_range.get("end_time")
+            end = pd.to_datetime(end_raw, utc=True) if end_raw else until_ts
             if end is None:
                 continue
             if since_ts is not None:
