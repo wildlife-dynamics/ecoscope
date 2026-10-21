@@ -1048,6 +1048,43 @@ def get_patrol_segments_from_patrols_df_and_combined_params(
 
 
 @register(tags=["io"])
+def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
+    df = df.copy()
+    if "patrol_team" not in df.columns:
+        df["patrol_team_name"] = "None"
+        return df
+
+    teams = client.get_patrol_teams()
+    lookup = dict(zip(teams["id"], teams["name"]))
+    df["patrol_team_name"] = df["patrol_team"].map(lambda t: "None" if pd.isna(t) else lookup.get(t, t))
+    return df
+
+
+@register(tags=["io"])
+def add_patrol_roster_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
+    df = df.copy()
+    pairs = {"patrol_members": "patrol_member_names", "patrol_assets": "patrol_asset_names"}
+    present = {src: dst for src, dst in pairs.items() if src in df.columns}
+    for src, dst in pairs.items():
+        if src not in present:
+            df[dst] = "None"
+    if not present:
+        return df
+
+    def _as_list(v):
+        return list(v) if isinstance(v, (list, tuple)) else []
+
+    ids = sorted({i for src in present for v in df[src] for i in _as_list(v)})
+    lookup: dict = {}
+    if ids:
+        subjects = client.get_subjects(id=",".join(ids), include_inactive=True)
+        lookup = dict(zip(subjects["id"], subjects["name"]))
+    for src, dst in present.items():
+        df[dst] = df[src].map(lambda v: [lookup.get(i, i) for i in _as_list(v)])
+    return df
+
+
+@register(tags=["io"])
 def get_event_type_display_names_from_events(
     client: EarthRangerSource,
     events_gdf: EventGDF,

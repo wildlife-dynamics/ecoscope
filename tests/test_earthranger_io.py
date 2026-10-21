@@ -1069,3 +1069,19 @@ def test_get_patrol_observations_without_new_fields_adds_no_columns(obs_mock, pt
     assert "patrol_segment_id" in gdf.columns
     for col in ["patrol_team", "patrol_members", "patrol_assets", "patrol_segment_details", "patrol_type_details"]:
         assert col not in gdf.columns
+
+
+@patch("ecoscope.io.earthranger.EarthRangerIO._get")
+def test_get_patrol_teams(get_mock, er_io):
+    get_mock.return_value = {
+        "teams": [{"id": "t1", "name": "Alpha", "is_active": True}, {"id": "t2", "name": "Bravo", "is_active": False}]
+    }
+    teams = er_io.get_patrol_teams()
+    assert teams[["id", "name"]].values.tolist() == [["t1", "Alpha"], ["t2", "Bravo"]]
+    assert get_mock.call_args.args[0] == "activity/patrols/config/default/"
+
+
+@patch("ecoscope.io.earthranger.EarthRangerIO._get", side_effect=ERClientNotFound())
+def test_get_patrol_teams_404_is_empty(get_mock, er_io):
+    teams = er_io.get_patrol_teams()
+    assert teams.empty and list(teams.columns) == ["id", "name"]

@@ -913,6 +913,21 @@ class EarthRangerIO(ERClient):
             df = df.set_index("id")
         return df
 
+    def get_patrol_teams(self) -> pd.DataFrame:
+        """
+        Return dataframe of ER patrol teams, including retired ones.
+
+        Returns
+        -------
+        patrol_teams : pd.DataFrame
+            DataFrame with `id` and `name` columns, empty if the site does not expose teams
+        """
+        try:
+            response = self._get("activity/patrols/config/default/")
+        except ERClientNotFound:
+            return pd.DataFrame(columns=["id", "name"])
+        return pd.DataFrame(response["teams"], columns=["id", "name"])
+
     def get_patrols(
         self,
         since: str | None = None,
