@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, call, patch
 
 import geopandas as gpd  # type: ignore[import-untyped]
+import numpy as np
 import pandas as pd
 import pytest
 from wt_task import task
@@ -2480,3 +2481,24 @@ def test_add_patrol_roster_names_without_columns_fills_none(roster_client):
     out = add_patrol_roster_names(pd.DataFrame({"x": [1]}), roster_client)
     assert out["patrol_member_names"].tolist() == ["None"] and out["patrol_asset_names"].tolist() == ["None"]
     roster_client.get_subjects.assert_not_called()
+
+
+def test_add_patrol_roster_names_nothing_resolves_falls_back_to_ids(roster_client):
+    roster_client.get_subjects.side_effect = None
+    roster_client.get_subjects.return_value = pd.DataFrame()
+    df = pd.DataFrame({"patrol_members": [["m1", "m2"]], "patrol_assets": [[]]})
+    out = add_patrol_roster_names(df, roster_client)
+    assert out["patrol_member_names"].tolist() == [["m1", "m2"]]
+
+
+def test_add_patrol_roster_names_accepts_arrays(roster_client):
+    df = pd.DataFrame({"patrol_members": [np.array(["s1"])], "patrol_assets": [np.array([], dtype=str)]})
+    out = add_patrol_roster_names(df, roster_client)
+    assert out["patrol_member_names"].tolist() == [["Asha"]]
+    assert out["patrol_asset_names"].tolist() == [[]]
+
+
+def test_add_patrol_team_names_unnamed_team_falls_back_to_id(roster_client):
+    roster_client.get_patrol_teams.return_value = pd.DataFrame({"id": ["t1", "t3"], "name": ["Alpha", None]})
+    out = add_patrol_team_names(pd.DataFrame({"patrol_team": ["t1", "t3"]}), roster_client)
+    assert out["patrol_team_name"].tolist() == ["Alpha", "t3"]
