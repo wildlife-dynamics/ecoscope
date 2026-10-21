@@ -226,7 +226,9 @@ def patrol_segments_from_patrols_df(
     when ``until`` is not given. Legs left empty by clipping are dropped.
     ``patrol_elapsed_seconds`` (earliest start to latest end per patrol) is set on
     each patrol's earliest leg only. ``leg_member_days`` is NaN when the leg has no
-    ``members`` key.
+    ``members`` key. ``patrol_serial_number`` is a string, matching the track frame's
+    group key. ``patrol_segment_details`` and ``patrol_type_details`` are JSON strings
+    so the frame can be written to parquet.
     """
     since_ts = pd.Timestamp(since).tz_convert("UTC") if since is not None else None
     until_ts = pd.Timestamp(until).tz_convert("UTC") if until is not None else None
@@ -256,9 +258,10 @@ def patrol_segments_from_patrols_df(
             else:
                 member_days = float("nan")
 
+            serial_number = row.get("serial_number")
             leg = {
                 "patrol_id": row.get("id"),
-                "patrol_serial_number": row.get("serial_number"),
+                "patrol_serial_number": str(serial_number) if serial_number is not None else None,
                 "patrol_segment_id": segment.get("id"),
                 "patrol_type": segment.get("patrol_type"),
                 "patrol_subject": (segment.get("leader") or {}).get("name"),
@@ -269,7 +272,10 @@ def patrol_segments_from_patrols_df(
             }
             for key, col in _OPTIONAL_LEG_COLUMNS.items():
                 if key in segment:
-                    leg[col] = segment[key]
+                    value = segment[key]
+                    if key.endswith("_details") and value is not None:
+                        value = json.dumps(value)
+                    leg[col] = value
             rows.append(leg)
 
     if not rows:

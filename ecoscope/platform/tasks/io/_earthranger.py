@@ -1118,6 +1118,26 @@ def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDat
 
 
 @register(tags=["io"])
+def add_patrol_type_display_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
+    """Rewrite `patrol_type` from the type's value to its display name, keeping the value in
+    `patrol_type__value` (left as is when that column already exists). Values with no
+    matching patrol type keep the value. A frame without `patrol_type` is returned unchanged.
+    """
+    if "patrol_type" not in df.columns:
+        return df
+    df = df.copy()
+    types = client.get_patrol_types(include_inactive=True)
+    lookup: dict = {}
+    if not types.empty and {"value", "display"} <= set(types.columns):
+        named = types.dropna(subset=["value", "display"])
+        lookup = dict(zip(named["value"], named["display"]))
+    if "patrol_type__value" not in df.columns:
+        df["patrol_type__value"] = df["patrol_type"]
+    df["patrol_type"] = df["patrol_type"].map(lambda v: lookup.get(v, v))
+    return df
+
+
+@register(tags=["io"])
 def add_patrol_roster_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
     """Add `patrol_member_names` and `patrol_asset_names` columns (lists of names) by
     resolving the ids in `patrol_members` and `patrol_assets`. Unresolved ids keep the id;

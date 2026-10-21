@@ -1213,17 +1213,17 @@ class EarthRangerIO(ERClient):
                 patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
                 patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
-                patrol_type = (
-                    df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
-                    if patrol_segment.get("patrol_type")
-                    else None
-                )
-
                 if patrol_segment.get("is_pause"):
                     continue
 
                 if None in {subject_id, patrol_start_time}:
                     continue
+
+                patrol_type = (
+                    df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
+                    if patrol_segment.get("patrol_type")
+                    else None
+                )
 
                 try:
                     observation = self.get_subject_observations(
@@ -1254,8 +1254,12 @@ class EarthRangerIO(ERClient):
                                 ("type_details", "patrol_type_details"),
                             ]:
                                 if api_key in patrol_segment:
+                                    value = patrol_segment[api_key]
+                                    # details objects are JSON strings: dict columns cannot be written to parquet
+                                    if api_key.endswith("_details") and value is not None:
+                                        value = json.dumps(value)
                                     observation.gdf[col] = pd.Series(
-                                        [patrol_segment[api_key]] * len(observation.gdf),
+                                        [value] * len(observation.gdf),
                                         index=observation.gdf.index,
                                     )
                             observation.gdf = (

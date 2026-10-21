@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -309,7 +311,7 @@ def test_patrol_segments_excludes_pauses_and_computes_durations(three_leg_df):
     assert pd.isna(legs["patrol_elapsed_seconds"].iloc[1])
     assert legs["patrol_type"].iloc[0] == "foot"
     assert legs["patrol_subject"].iloc[0] == "Asha"
-    assert legs["patrol_serial_number"].iloc[0] == 7
+    assert legs["patrol_serial_number"].iloc[0] == "7"
 
 
 def test_patrol_segments_clips_to_window(three_leg_df):
@@ -364,10 +366,22 @@ def test_patrol_segments_member_days_end_at_midnight_counts_one_day():
 
 def test_patrol_segments_optional_columns_nan_on_legs_lacking_key():
     first = _leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T12:00:00Z")
-    first["team"] = {"id": "t1"}
+    first["team"] = "t1"
     first["assets"] = ["x"]
     second = _leg("seg2", "2026-01-05T13:00:00Z", "2026-01-05T16:00:00Z", with_members=False)
     legs = patrol_segments_from_patrols_df(_legs_df([first, second]))
-    assert legs["patrol_team"].iloc[0] == {"id": "t1"}
+    assert legs["patrol_team"].iloc[0] == "t1"
     assert legs["patrol_members"].iloc[0] == ["a", "b", "c"]
     assert pd.isna(legs["patrol_team"].iloc[1]) and pd.isna(legs["patrol_members"].iloc[1])
+
+
+def test_patrol_segments_details_are_json_strings_and_parquet_safe(tmp_path):
+    leg = _leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T12:00:00Z")
+    leg["segment_details"] = {"weather": "dry"}
+    leg["type_details"] = {}
+    legs = patrol_segments_from_patrols_df(_legs_df([leg]))
+    assert json.loads(legs["patrol_segment_details"].iloc[0]) == {"weather": "dry"}
+    assert json.loads(legs["patrol_type_details"].iloc[0]) == {}
+    legs[["patrol_serial_number", "patrol_segment_details", "patrol_type_details"]].to_parquet(
+        tmp_path / "legs.parquet"
+    )
