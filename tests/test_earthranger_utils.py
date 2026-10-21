@@ -355,3 +355,19 @@ def test_patrol_segments_empty_members_gives_zero_member_days():
 
 def test_patrol_segments_empty_patrols_df_returns_empty():
     assert patrol_segments_from_patrols_df(pd.DataFrame()).empty
+
+
+def test_patrol_segments_member_days_end_at_midnight_counts_one_day():
+    df = _legs_df([_leg("seg1", "2026-01-05T22:00:00Z", "2026-01-06T00:00:00Z")])
+    assert patrol_segments_from_patrols_df(df)["leg_member_days"].iloc[0] == 3.0
+
+
+def test_patrol_segments_optional_columns_nan_on_legs_lacking_key():
+    first = _leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T12:00:00Z")
+    first["team"] = {"id": "t1"}
+    first["assets"] = ["x"]
+    second = _leg("seg2", "2026-01-05T13:00:00Z", "2026-01-05T16:00:00Z", with_members=False)
+    legs = patrol_segments_from_patrols_df(_legs_df([first, second]))
+    assert legs["patrol_team"].iloc[0] == {"id": "t1"}
+    assert legs["patrol_members"].iloc[0] == ["a", "b", "c"]
+    assert pd.isna(legs["patrol_team"].iloc[1]) and pd.isna(legs["patrol_members"].iloc[1])

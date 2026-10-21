@@ -232,7 +232,6 @@ def patrol_segments_from_patrols_df(
     until_ts = pd.Timestamp(until).tz_convert("UTC") if until is not None else None
 
     rows = []
-    seen_optional: set[str] = set()
     for _, row in patrols_df.iterrows():
         for segment in row.get("patrol_segments", []):
             if segment.get("is_pause"):
@@ -252,7 +251,7 @@ def patrol_segments_from_patrols_df(
                 continue
 
             if "members" in segment:
-                n_days = (end.normalize() - start.normalize()).days + 1
+                n_days = ((end - pd.Timedelta(1, unit="ns")).normalize() - start.normalize()).days + 1
                 member_days = float(len(segment["members"] or []) * n_days)
             else:
                 member_days = float("nan")
@@ -271,16 +270,12 @@ def patrol_segments_from_patrols_df(
             for key, col in _OPTIONAL_LEG_COLUMNS.items():
                 if key in segment:
                     leg[col] = segment[key]
-                    seen_optional.add(col)
             rows.append(leg)
 
     if not rows:
         return pd.DataFrame()
 
     legs = pd.DataFrame(rows)
-    for col in _OPTIONAL_LEG_COLUMNS.values():
-        if col in seen_optional and col not in legs.columns:
-            legs[col] = float("nan")
 
     elapsed = legs.groupby("patrol_id")["segment_end"].transform("max") - legs.groupby("patrol_id")[
         "segment_start"
