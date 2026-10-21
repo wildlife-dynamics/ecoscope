@@ -2544,3 +2544,19 @@ def test_add_patrol_team_names_unnamed_team_falls_back_to_id(roster_client):
     roster_client.get_patrol_teams.return_value = pd.DataFrame({"id": ["t1", "t3"], "name": ["Alpha", None]})
     out = add_patrol_team_names(pd.DataFrame({"patrol_team": ["t1", "t3"]}), roster_client)
     assert out["patrol_team_name"].tolist() == ["Alpha", "t3"]
+
+
+def test_live_patrol_legs_on_mep_dev(client):
+    tr = TimeRange(
+        since=datetime(2026, 1, 5, tzinfo=timezone.utc),
+        until=datetime(2026, 1, 7, tzinfo=timezone.utc),
+        timezone=UTC_TIMEZONEINFO,
+    )
+    patrols = get_patrols(client=client, time_range=tr, patrol_types=["ecoscope_leg_test"], status=["done"])
+    legs = get_patrol_segments_from_patrols_df(patrols_df=patrols, time_range=tr)
+    assert len(legs) == 3
+    assert legs["leg_active_seconds"].sum() == 9 * 3600.0
+    assert legs["patrol_elapsed_seconds"].dropna().tolist() == [8 * 3600.0, 2 * 3600.0]
+    named = add_patrol_roster_names(add_patrol_team_names(legs, client), client)
+    assert sorted(named["patrol_member_names"].iloc[0]) == ["Ecoscope Leg Tester A", "Ecoscope Leg Tester B"]
+    assert named["patrol_team_name"].iloc[0] != named["patrol_team"].iloc[0]
