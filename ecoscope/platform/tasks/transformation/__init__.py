@@ -14,7 +14,7 @@ from ._conversion import (
 )
 from ._crs import convert_crs, ensure_wgs84
 from ._decompose_datetime import decompose_datetime
-from ._exploding import explode
+from ._exploding import explode, explode_for_groupers
 from ._extract import extract_column_as_type, extract_value_from_json_column
 from ._filter import filter_df
 from ._filter_by_geometry_type import filter_by_geometry_type
@@ -71,6 +71,7 @@ __all__ = [
     "drop_column_prefix",
     "drop_duplicate_columns",
     "explode",
+    "explode_for_groupers",
     "extract_column_as_type",
     "extract_value_from_json_column",
     "filter_df",
