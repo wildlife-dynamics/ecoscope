@@ -12,6 +12,10 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 | Load events with combined params | [`get_events_from_combined_params`][ecoscope.platform.tasks.io.get_events_from_combined_params] |
 | Load patrol events | [`get_patrol_events`][ecoscope.platform.tasks.io.get_patrol_events] |
 | Load patrols | [`get_patrols`][ecoscope.platform.tasks.io.get_patrols] |
+| Load patrol legs from patrols | [`get_patrol_segments_from_patrols_df`][ecoscope.platform.tasks.io.get_patrol_segments_from_patrols_df] |
+| Load patrol legs with combined params | [`get_patrol_segments_from_patrols_df_and_combined_params`][ecoscope.platform.tasks.io.get_patrol_segments_from_patrols_df_and_combined_params] |
+| Add patrol team names | [`add_patrol_team_names`][ecoscope.platform.tasks.io.add_patrol_team_names] |
+| Add patrol member and asset names | [`add_patrol_roster_names`][ecoscope.platform.tasks.io.add_patrol_roster_names] |
 | Load patrol observations | [`get_patrol_observations`][ecoscope.platform.tasks.io.get_patrol_observations] |
 | Load subject group GPS data | [`get_subjectgroup_observations`][ecoscope.platform.tasks.io.get_subjectgroup_observations] |
 | Load events from SMART | [`get_events_from_smart`][ecoscope.platform.tasks.io.get_events_from_smart] |
@@ -69,6 +73,8 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 | Sort rows | [`sort_values`][ecoscope.platform.tasks.transformation.sort_values] |
 | Transpose a DataFrame | [`transpose`][ecoscope.platform.tasks.transformation.transpose] |
 | Explode a list column | [`explode`][ecoscope.platform.tasks.transformation.explode] |
+| Explode list columns used by groupers | [`explode_for_groupers`][ecoscope.platform.tasks.transformation.explode_for_groupers] |
+| Apportion legs across spatial features | [`apportion_legs_by_spatial_index`][ecoscope.platform.tasks.transformation.apportion_legs_by_spatial_index] |
 | Fill NaN values | [`fill_na`][ecoscope.platform.tasks.transformation.fill_na] |
 | Assign a fixed value to a column | [`assign_value`][ecoscope.platform.tasks.transformation.assign_value] |
 | Assign subject colors | [`assign_subject_colors`][ecoscope.platform.tasks.transformation.assign_subject_colors] |
@@ -97,11 +103,18 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 | Apply arithmetic operations | [`apply_arithmetic_operation`][ecoscope.platform.tasks.analysis.apply_arithmetic_operation] |
 | Summarize a DataFrame | [`summarize_df`][ecoscope.platform.tasks.analysis.summarize_df] |
 | Aggregate over rows | [`aggregate_over_rows`][ecoscope.platform.tasks.analysis.aggregate_over_rows] |
+| Select track summary metrics | [`select_track_metrics`][ecoscope.platform.tasks.analysis.select_track_metrics] |
+| Select leg summary metrics | [`select_leg_metrics`][ecoscope.platform.tasks.analysis.select_leg_metrics] |
+| Join summary tables | [`join_summary_tables`][ecoscope.platform.tasks.analysis.join_summary_tables] |
 | Calculate night/day ratio | [`get_night_day_ratio`][ecoscope.platform.tasks.analysis.get_night_day_ratio] |
 | Calculate feature density | [`calculate_feature_density`][ecoscope.platform.tasks.analysis.calculate_feature_density] |
 | Calculate elliptical time density | [`calculate_elliptical_time_density`][ecoscope.platform.tasks.analysis.calculate_elliptical_time_density] |
 | Calculate linear time density | [`calculate_linear_time_density`][ecoscope.platform.tasks.analysis.calculate_linear_time_density] |
 | Create a meshgrid | [`create_meshgrid`][ecoscope.platform.tasks.analysis.create_meshgrid] |
+
+### Patrol legs
+
+Pauses are never requested from EarthRanger, so pause legs are skipped. Leg metrics (Active Duration, Elapsed Duration, Leg Count, Member-days) are summarized on a separate leg frame and joined to the track summary, so existing metrics never change. The three name columns `patrol_team_name`, `patrol_member_names` and `patrol_asset_names` always exist, and are filled with "None" when a site lacks the `patrol_schemas` flag. Member and asset groupers give each member full credit for a leg. Under spatial groupers, leg metrics are apportioned by the share of track length in each feature.
 
 ## Visualization
 

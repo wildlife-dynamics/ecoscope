@@ -233,6 +233,7 @@ LEG_METRIC_COLUMNS: frozenset[str] = frozenset(
 def select_track_metrics(
     summary_params: Annotated[list[SummaryParam], Field(description="All summary parameters.")],
 ) -> Annotated[list[SummaryParam], Field(description="Parameters computed over the trajectory frame.")]:
+    """Keep the summary parameters computed over the trajectory frame (non-leg metrics)."""
     return [p for p in summary_params if getattr(p, "column", None) not in LEG_METRIC_COLUMNS]
 
 
@@ -240,6 +241,9 @@ def select_track_metrics(
 def select_leg_metrics(
     summary_params: Annotated[list[SummaryParam], Field(description="All summary parameters.")],
 ) -> Annotated[list[SummaryParam], Field(description="Parameters computed over the leg frame.")]:
+    """Keep the summary parameters computed over the leg frame: Active Duration,
+    Elapsed Duration, Leg Count and Member-days.
+    """
     return [p for p in summary_params if getattr(p, "column", None) in LEG_METRIC_COLUMNS]
 
 
@@ -248,6 +252,9 @@ def join_summary_tables(
     left: AnyDataFrame,
     right: AnyDataFrame,
 ) -> Annotated[AnyDataFrame, Field(description="Joined summary table")]:
+    """Outer-join the leg summary onto the track summary by index. An empty side is
+    ignored, so existing track metrics never change.
+    """
     if right.empty:
         return left
     if left.empty:
