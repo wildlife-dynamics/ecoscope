@@ -1202,6 +1202,9 @@ class EarthRangerIO(ERClient):
                     else None
                 )
 
+                if patrol_segment.get("is_pause"):
+                    continue
+
                 if None in {subject_id, patrol_start_time}:
                     continue
 
@@ -1225,6 +1228,19 @@ class EarthRangerIO(ERClient):
                             observation.gdf["patrol_type"] = patrol_type
                             observation.gdf["patrol_status"] = patrol["state"]
                             observation.gdf["patrol_subject"] = subject_name
+                            observation.gdf["patrol_segment_id"] = patrol_segment.get("id")
+                            for api_key, col in [
+                                ("team", "patrol_team"),
+                                ("members", "patrol_members"),
+                                ("assets", "patrol_assets"),
+                                ("segment_details", "patrol_segment_details"),
+                                ("type_details", "patrol_type_details"),
+                            ]:
+                                if api_key in patrol_segment:
+                                    observation.gdf[col] = pd.Series(
+                                        [patrol_segment[api_key]] * len(observation.gdf),
+                                        index=observation.gdf.index,
+                                    )
                             observation.gdf = (
                                 observation.gdf.reset_index()
                                 .merge(
