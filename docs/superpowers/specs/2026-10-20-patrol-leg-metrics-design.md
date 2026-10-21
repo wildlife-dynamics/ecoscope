@@ -122,6 +122,29 @@ Explode happens only when a member or asset grouper is selected. No other groupe
 
 Excluded: mt-patrols and patrol-grid-maps.
 
+## Workflow wiring contract
+
+What patrol-effort-table's spec adds once the library release is pinned, in DAG order. The other patrol workflows adopt the subset that applies. Task and column names are the ones the library plan's Interfaces blocks define; a mismatch fails at compile or in the mock test case.
+
+| Order | Task (library) | Input | Output columns it adds or needs |
+| --- | --- | --- | --- |
+| 1 | `get_patrols_from_combined_params` (existing) | params | `patrols_df` |
+| 2 | `get_patrol_observations_from_patrols_df_and_combined_params` (existing, now carries leg fields) | patrols_df | observations with `patrol_segment_id`, and when present `patrol_team`, `patrol_members`, `patrol_assets`, `patrol_segment_details`, `patrol_type_details` |
+| 3 | `get_patrol_segments_from_patrols_df_and_combined_params` (new) | patrols_df, params | leg frame: `patrol_segment_id`, `segment_start`, `segment_end`, `leg_active_seconds`, `leg_member_days`, `patrol_elapsed_seconds`, plus the grouper columns |
+| 4 | `relocations_to_trajectory` (existing) | observations | track frame with `extra__patrol_*` columns |
+| 5 | `map_columns` (existing) | track frame | rename `extra__patrol_segment_id`, `extra__patrol_team`, `extra__patrol_members`, `extra__patrol_assets` to the unprefixed names, alongside today's renames |
+| 6 | `add_patrol_team_names`, `add_patrol_roster_names` (new) | track frame and leg frame, each | `patrol_team_name`, `patrol_member_names`, `patrol_asset_names` on both frames |
+| 7 | `convert_column_values_to_string` (existing) | track frame | add `patrol_team_name` only; never the two list columns |
+| 8 | `add_temporal_index`, `add_spatial_index` (existing) | track frame | as today; plus `add_temporal_index` on the leg frame with `time_col: segment_start` |
+| 9 | `apportion_legs_by_spatial_index` (new) | leg frame, indexed track frame, groupers | spatial index level on the leg frame |
+| 10 | `explode_for_groupers` (new) | each frame, immediately before `split_groups` and before `summarize_df` | exploded rows when a member or asset grouper is selected |
+| 11 | `set_patrol_summary_metrics` (existing) then `select_track_metrics`, `select_leg_metrics` (new) | form metric list | two parameter lists |
+| 12 | `summarize_df` twice (existing), then `join_summary_tables` (new) | track frame, leg frame | one summary table |
+
+**Form changes.** `$defs.ValueGrouper.oneOf` gains `patrol_team_name` (Team), `patrol_member_names` (Member), `patrol_asset_names` (Asset). `uiSchema.items.oneOf` for the metric list gains the four presets. The default metric list gains `{metric: active_duration, unit: h}`.
+
+**Shared verification.** The library's live test and the workflow's live test case both read the seeded mep-dev patrols from 2026-01-05 and 2026-01-06 and assert the same numbers: 3 legs, 9 h active, 8 h and 2 h elapsed. The workflow mock test case loads the example-return parquets the library ships for the four new IO tasks.
+
 ## Left to the builder
 
 - How the metric list is split between the trajectory and leg summarize calls (Ingest step 4): a routing task that takes the user's list and returns two, or a flag on each preset class. Either keeps one form field.
