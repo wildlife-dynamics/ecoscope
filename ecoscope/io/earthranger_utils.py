@@ -1,6 +1,7 @@
 import json
 import logging
 from collections.abc import Sequence
+from datetime import datetime
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
@@ -202,6 +203,92 @@ def unpack_events_from_patrols_df(
     events_df = clean_time_cols(events_df)
 
     return gpd.GeoDataFrame(events_df, geometry="geometry", crs=4326)
+
+
+_OPTIONAL_LEG_COLUMNS = {
+    "team": "patrol_team",
+    "members": "patrol_members",
+    "assets": "patrol_assets",
+    "segment_details": "patrol_segment_details",
+    "type_details": "patrol_type_details",
+}
+
+
+def patrol_segments_from_patrols_df(
+    patrols_df: pd.DataFrame,
+    since: datetime | None = None,
+    until: datetime | None = None,
+) -> pd.DataFrame:
+    """Build a one-row-per-leg frame from the ``patrol_segments`` of ``patrols_df``.
+
+    Pause legs and legs without a start time are skipped. Legs are clipped to
+    ``[since, until]``; an open leg (no end time) ends at ``until`` or is skipped
+    when ``until`` is not given. Legs left empty by clipping are dropped.
+    ``patrol_elapsed_seconds`` (earliest start to latest end per patrol) is set on
+    each patrol's earliest leg only. ``leg_member_days`` is NaN when the leg has no
+    ``members`` key.
+    """
+    since_ts = pd.Timestamp(since).tz_convert("UTC") if since is not None else None
+    until_ts = pd.Timestamp(until).tz_convert("UTC") if until is not None else None
+
+    rows = []
+    seen_optional: set[str] = set()
+    for _, row in patrols_df.iterrows():
+        for segment in row.get("patrol_segments", []):
+            if segment.get("is_pause"):
+                continue
+            time_range = segment.get("time_range") or {}
+            if not time_range.get("start_time"):
+                continue
+            start = pd.to_datetime(time_range["start_time"], utc=True)
+            end = pd.to_datetime(time_range.get("end_time"), utc=True) if time_range.get("end_time") else until_ts
+            if end is None:
+                continue
+            if since_ts is not None:
+                start = max(start, since_ts)
+            if until_ts is not None:
+                end = min(end, until_ts)
+            if end <= start:
+                continue
+
+            if "members" in segment:
+                n_days = (end.normalize() - start.normalize()).days + 1
+                member_days = float(len(segment["members"] or []) * n_days)
+            else:
+                member_days = float("nan")
+
+            leg = {
+                "patrol_id": row.get("id"),
+                "patrol_serial_number": row.get("serial_number"),
+                "patrol_segment_id": segment.get("id"),
+                "patrol_type": segment.get("patrol_type"),
+                "patrol_subject": (segment.get("leader") or {}).get("name"),
+                "segment_start": start,
+                "segment_end": end,
+                "leg_active_seconds": (end - start).total_seconds(),
+                "leg_member_days": member_days,
+            }
+            for key, col in _OPTIONAL_LEG_COLUMNS.items():
+                if key in segment:
+                    leg[col] = segment[key]
+                    seen_optional.add(col)
+            rows.append(leg)
+
+    if not rows:
+        return pd.DataFrame()
+
+    legs = pd.DataFrame(rows)
+    for col in _OPTIONAL_LEG_COLUMNS.values():
+        if col in seen_optional and col not in legs.columns:
+            legs[col] = float("nan")
+
+    elapsed = legs.groupby("patrol_id")["segment_end"].transform("max") - legs.groupby("patrol_id")[
+        "segment_start"
+    ].transform("min")
+    legs["patrol_elapsed_seconds"] = elapsed.dt.total_seconds()
+    is_earliest = legs.index == legs.groupby("patrol_id")["segment_start"].transform("idxmin")
+    legs.loc[~is_earliest, "patrol_elapsed_seconds"] = float("nan")
+    return legs
 
 
 def _synthesize_event_geojson(event: dict) -> dict:

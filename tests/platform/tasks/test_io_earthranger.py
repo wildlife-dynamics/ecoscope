@@ -33,6 +33,8 @@ from ecoscope.platform.tasks.io import (
     get_patrol_observations_from_combined_params,
     get_patrol_observations_from_patrols_df,
     get_patrol_observations_from_patrols_df_and_combined_params,
+    get_patrol_segments_from_patrols_df,
+    get_patrol_segments_from_patrols_df_and_combined_params,
     get_patrols,
     get_patrols_from_combined_params,
     get_spatial_features_group,
@@ -2341,3 +2343,86 @@ def test_state_and_status_render_as_labeled_options(task_func, field, expected):
     assert schema["uniqueItems"] is True
     assert "enum" not in schema["items"]
     assert schema["items"]["oneOf"] == expected
+
+
+UTC_TZ_DICT = {"label": "UTC", "tzCode": "UTC", "name": "UTC", "utc": "+00:00"}
+
+
+def _three_leg_patrols_df():
+    def leg(seg_id, start, end, is_pause=False):
+        return {
+            "id": seg_id,
+            "patrol_type": "foot",
+            "leader": {"id": "a", "name": "Asha"},
+            "time_range": {"start_time": start, "end_time": end},
+            "is_pause": is_pause,
+            "members": ["a", "b", "c"],
+        }
+
+    return pd.DataFrame(
+        [
+            {
+                "id": "p1",
+                "state": "done",
+                "serial_number": 7,
+                "patrol_segments": [
+                    leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T12:00:00Z"),
+                    leg("seg2", "2026-01-05T12:00:00Z", "2026-01-05T13:00:00Z", is_pause=True),
+                    leg("seg3", "2026-01-05T13:00:00Z", "2026-01-05T16:00:00Z"),
+                ],
+            }
+        ]
+    )
+
+
+def test_get_patrol_segments_from_patrols_df_task_validates_and_truncates():
+    result = (
+        task(get_patrol_segments_from_patrols_df)
+        .validate()
+        .call(
+            patrols_df=_three_leg_patrols_df(),
+            time_range={"since": "2026-01-05T10:00:00Z", "until": "2026-01-05T14:00:00Z", "timezone": UTC_TZ_DICT},
+        )
+    )
+    assert result["leg_active_seconds"].tolist() == [2 * 3600.0, 1 * 3600.0]
+
+
+def test_get_patrol_segments_from_patrols_df_no_truncation():
+    result = (
+        task(get_patrol_segments_from_patrols_df)
+        .validate()
+        .call(
+            patrols_df=_three_leg_patrols_df(),
+            time_range={"since": "2026-01-05T10:00:00Z", "until": "2026-01-05T14:00:00Z", "timezone": UTC_TZ_DICT},
+            truncate_to_time_range=False,
+        )
+    )
+    assert result["leg_active_seconds"].tolist() == [4 * 3600.0, 3 * 3600.0]
+
+
+def test_get_patrol_segments_from_patrols_df_raise_on_empty():
+    tr = TimeRange(
+        since=datetime(2026, 1, 5, tzinfo=timezone.utc),
+        until=datetime(2026, 1, 6, tzinfo=timezone.utc),
+        timezone=UTC_TIMEZONEINFO,
+    )
+    with pytest.raises(ValueError, match="No patrol segments"):
+        get_patrol_segments_from_patrols_df(patrols_df=pd.DataFrame(), time_range=tr, raise_on_empty=True)
+
+
+def test_get_patrol_segments_from_patrols_df_combined_params():
+    combined = CombinedPatrolAndEventsParams(
+        time_range=TimeRange(
+            since=datetime(2026, 1, 5, 10, tzinfo=timezone.utc),
+            until=datetime(2026, 1, 5, 14, tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        client="MEP_DEV",
+        patrol_types="ecoscope_patrol",
+        status=None,
+        event_types=[],
+    )
+    result = get_patrol_segments_from_patrols_df_and_combined_params(
+        patrols_df=_three_leg_patrols_df(), params=combined
+    )
+    assert result["leg_active_seconds"].tolist() == [2 * 3600.0, 1 * 3600.0]
