@@ -13,6 +13,8 @@ from ecoscope.platform.annotations import AnyDataFrame  # type: ignore[import-un
 from ecoscope.platform.connections import EarthRangerClientProtocol, EarthRangerConnection
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
+    add_patrol_roster_names,
+    add_patrol_team_names,
     download_grouped_event_attachments,
     get_analysis_field_from_event_details,
     get_analysis_field_label_from_event_details,
@@ -2468,3 +2470,55 @@ def test_get_patrol_segments_from_patrols_df_combined_params():
         patrols_df=_three_leg_patrols_df(), combined_params=combined
     )
     assert result["leg_active_seconds"].tolist() == [2 * 3600.0, 1 * 3600.0]
+
+
+@pytest.fixture
+def roster_client():
+    mock = MagicMock()
+    mock.get_patrol_teams.return_value = pd.DataFrame({"id": ["t1", "t2"], "name": ["Alpha", "Bravo"]})
+    names = {f"m{i}": f"Name {i}" for i in range(60)}
+    names.update({"s1": "Asha", "s2": "Ben", "v1": "Land Cruiser"})
+
+    def _subjects(id, **kwargs):
+        found = [i for i in id.split(",") if i in names]
+        return pd.DataFrame({"id": found, "name": [names[i] for i in found]})
+
+    mock.get_subjects.side_effect = _subjects
+    return mock
+
+
+def test_add_patrol_team_names_resolves_and_falls_back(roster_client):
+    df = pd.DataFrame({"patrol_team": ["t1", "t9", None]})
+    out = add_patrol_team_names(df, roster_client)
+    assert out["patrol_team_name"].tolist() == ["Alpha", "t9", "None"]
+
+
+def test_add_patrol_team_names_without_column_fills_none(roster_client):
+    out = add_patrol_team_names(pd.DataFrame({"x": [1, 2]}), roster_client)
+    assert out["patrol_team_name"].tolist() == ["None", "None"]
+    roster_client.get_patrol_teams.assert_not_called()
+
+
+def test_add_patrol_roster_names_resolves_lists(roster_client):
+    df = pd.DataFrame({"patrol_members": [["s1", "s2"], []], "patrol_assets": [["v1"], ["zz"]]})
+    out = add_patrol_roster_names(df, roster_client)
+    assert out["patrol_member_names"].tolist() == [["Asha", "Ben"], []]
+    assert out["patrol_asset_names"].tolist() == [["Land Cruiser"], ["zz"]]
+    roster_client.get_subjects.assert_called_once()
+    kwargs = roster_client.get_subjects.call_args.kwargs
+    assert kwargs["include_inactive"] is True
+    assert set(kwargs["id"].split(",")) == {"s1", "s2", "v1", "zz"}
+
+
+def test_add_patrol_roster_names_resolves_more_than_fifty_ids(roster_client):
+    ids = [f"m{i}" for i in range(60)]
+    df = pd.DataFrame({"patrol_members": [ids], "patrol_assets": [[]]})
+    out = add_patrol_roster_names(df, roster_client)
+    assert out["patrol_member_names"].iloc[0] == [f"Name {i}" for i in range(60)]
+    roster_client.get_subjects.assert_called_once()
+
+
+def test_add_patrol_roster_names_without_columns_fills_none(roster_client):
+    out = add_patrol_roster_names(pd.DataFrame({"x": [1]}), roster_client)
+    assert out["patrol_member_names"].tolist() == ["None"] and out["patrol_asset_names"].tolist() == ["None"]
+    roster_client.get_subjects.assert_not_called()
