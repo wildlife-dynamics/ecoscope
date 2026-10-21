@@ -224,6 +224,37 @@ def summarize_df(
     return cast(AnyDataFrame, result_df)
 
 
+LEG_METRIC_COLUMNS: frozenset[str] = frozenset(
+    {"leg_active_seconds", "patrol_elapsed_seconds", "patrol_segment_id", "leg_member_days"}
+)
+
+
+@register()
+def select_track_metrics(
+    summary_params: Annotated[list[SummaryParam], Field(description="All summary parameters.")],
+) -> Annotated[list[SummaryParam], Field(description="Parameters computed over the trajectory frame.")]:
+    return [p for p in summary_params if getattr(p, "column", None) not in LEG_METRIC_COLUMNS]
+
+
+@register()
+def select_leg_metrics(
+    summary_params: Annotated[list[SummaryParam], Field(description="All summary parameters.")],
+) -> Annotated[list[SummaryParam], Field(description="Parameters computed over the leg frame.")]:
+    return [p for p in summary_params if getattr(p, "column", None) in LEG_METRIC_COLUMNS]
+
+
+@register()
+def join_summary_tables(
+    left: AnyDataFrame,
+    right: AnyDataFrame,
+) -> Annotated[AnyDataFrame, Field(description="Joined summary table")]:
+    if right.empty:
+        return left
+    if left.empty:
+        return right
+    return cast(AnyDataFrame, left.join(right, how="outer"))
+
+
 @register()
 def aggregate_over_rows(
     df: AnyDataFrame,
