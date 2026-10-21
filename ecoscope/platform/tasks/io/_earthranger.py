@@ -1071,16 +1071,16 @@ def get_patrol_segments_from_patrols_df(
 @register(tags=["io"])
 def get_patrol_segments_from_patrols_df_and_combined_params(
     patrols_df: PatrolsDF,
-    params: CombinedPatrolAndEventsParams,
+    combined_params: CombinedPatrolAndEventsParams,
 ) -> AnyDataFrame | EmptyDataFrame:
     return (
         task(get_patrol_segments_from_patrols_df)
         .validate()
         .call(
             patrols_df=patrols_df,
-            time_range=params.time_range,
-            truncate_to_time_range=params.truncate_to_time_range,
-            raise_on_empty=params.raise_on_empty,
+            time_range=combined_params.time_range,
+            truncate_to_time_range=combined_params.truncate_to_time_range,
+            raise_on_empty=combined_params.raise_on_empty,
         )
     )
 

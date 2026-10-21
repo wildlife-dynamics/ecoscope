@@ -2465,6 +2465,6 @@ def test_get_patrol_segments_from_patrols_df_combined_params():
         event_types=[],
     )
     result = get_patrol_segments_from_patrols_df_and_combined_params(
-        patrols_df=_three_leg_patrols_df(), params=combined
+        patrols_df=_three_leg_patrols_df(), combined_params=combined
     )
     assert result["leg_active_seconds"].tolist() == [2 * 3600.0, 1 * 3600.0]
