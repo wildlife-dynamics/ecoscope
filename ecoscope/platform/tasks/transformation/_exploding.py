@@ -41,7 +41,9 @@ def explode_for_groupers(
     if isinstance(groupers, AllGrouper):
         return df
     for grouper in groupers:
-        col = grouper.index_name if isinstance(grouper, ValueGrouper) else None
+        if not isinstance(grouper, ValueGrouper):
+            continue
+        col = grouper.index_name
         if col in df.columns and df[col].dropna().map(lambda v: isinstance(v, (list, tuple, np.ndarray))).any():
             if col == "patrol_member_names" and "leg_member_days" in df.columns:
                 counts = df[col].map(lambda v: len(v) if isinstance(v, (list, tuple, np.ndarray)) else 1).clip(lower=1)
