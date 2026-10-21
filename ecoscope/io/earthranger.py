@@ -926,7 +926,9 @@ class EarthRangerIO(ERClient):
             response = self._get("activity/patrols/config/default/")
         except ERClientNotFound:
             return pd.DataFrame(columns=["id", "name"])
-        return pd.DataFrame(response["teams"], columns=["id", "name"])
+        teams = pd.DataFrame(response["teams"], columns=["id", "display", "value"])
+        teams["name"] = teams["display"].replace("", None).fillna(teams["value"])
+        return teams[["id", "name"]]
 
     def get_patrols(
         self,
