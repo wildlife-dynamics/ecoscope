@@ -1,6 +1,7 @@
 import logging
 from typing import Annotated, cast
 
+import numpy as np
 from pydantic import Field
 from wt_registry import register
 
@@ -34,7 +35,7 @@ def explode_for_groupers(
         return df
     for grouper in groupers:
         col = grouper.index_name if isinstance(grouper, ValueGrouper) else None
-        if col in df.columns and df[col].dropna().map(lambda v: isinstance(v, list)).any():
+        if col in df.columns and df[col].dropna().map(lambda v: isinstance(v, (list, tuple, np.ndarray))).any():
             df = df.explode(col)
             df[col] = df[col].where(df[col].notna(), "None")
     return df

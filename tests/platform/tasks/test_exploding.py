@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from ecoscope.platform.indexes import AllGrouper, ValueGrouper
@@ -55,3 +56,9 @@ def test_explode_for_groupers_preserves_multiindex_levels():
     )
     out = explode_for_groupers(df, [ValueGrouper(index_name="patrol_member_names")])
     assert out.index.names == df.index.names and len(out) == 2
+
+
+def test_explode_for_groupers_handles_ndarray_cells():
+    df = pd.DataFrame({"patrol_member_names": [np.array(["a", "b"]), np.array([], dtype=object)], "v": [1, 2]})
+    out = explode_for_groupers(df, [ValueGrouper(index_name="patrol_member_names")])
+    assert out["patrol_member_names"].tolist() == ["a", "b", "None"]
