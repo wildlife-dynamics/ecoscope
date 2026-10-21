@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Literal, cast
 
+import numpy as np
 import pandas as pd
 from pydantic import AfterValidator, Field, SecretStr
 from pydantic.json_schema import SkipJsonSchema
@@ -1085,6 +1086,13 @@ def get_patrol_segments_from_patrols_df_and_combined_params(
     )
 
 
+def _id_name_lookup(frame: pd.DataFrame) -> dict:
+    if frame.empty or not {"id", "name"} <= set(frame.columns):
+        return {}
+    named = frame.dropna(subset=["name"])
+    return dict(zip(named["id"], named["name"]))
+
+
 @register(tags=["io"])
 def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
     df = df.copy()
@@ -1092,8 +1100,7 @@ def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDat
         df["patrol_team_name"] = "None"
         return df
 
-    teams = client.get_patrol_teams()
-    lookup = dict(zip(teams["id"], teams["name"]))
+    lookup = _id_name_lookup(client.get_patrol_teams())
     df["patrol_team_name"] = df["patrol_team"].map(lambda t: "None" if pd.isna(t) else lookup.get(t, t))
     return df
 
@@ -1110,13 +1117,14 @@ def add_patrol_roster_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyD
         return df
 
     def _as_list(v):
+        if isinstance(v, np.ndarray):
+            return v.tolist()
         return list(v) if isinstance(v, (list, tuple)) else []
 
     ids = sorted({i for src in present for v in df[src] for i in _as_list(v)})
     lookup: dict = {}
     if ids:
-        subjects = client.get_subjects(id=",".join(ids), include_inactive=True)
-        lookup = dict(zip(subjects["id"], subjects["name"]))
+        lookup = _id_name_lookup(client.get_subjects(id=",".join(ids), include_inactive=True))
     for src, dst in present.items():
         df[dst] = df[src].map(lambda v: [lookup.get(i, i) for i in _as_list(v)])
     return df
