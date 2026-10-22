@@ -36,6 +36,7 @@ from ._indexing import (
     trend_groupby_columns,
 )
 from ._leg_apportion import apportion_legs_by_spatial_index
+from ._leg_names import add_leg_names_to_tracks
 from ._mapping import (
     RenameColumn,
     assign_value,
@@ -57,6 +58,7 @@ from ._transpose import transpose
 from ._unit import with_unit
 
 __all__ = [
+    "add_leg_names_to_tracks",
     "apportion_legs_by_spatial_index",
     "align_keyed_iterable_to_reference",
     "apply_classification",

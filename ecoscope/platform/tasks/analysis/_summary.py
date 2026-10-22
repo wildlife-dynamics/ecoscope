@@ -252,27 +252,34 @@ def select_leg_metrics(
 
 @register()
 def join_summary_tables(
-    left: AnyDataFrame,
-    right: AnyDataFrame,
+    tables: Annotated[
+        list[AnyDataFrame],
+        Field(description="Summary tables to join, group-key summaries of the same groups (e.g. track then leg)."),
+    ],
 ) -> Annotated[AnyDataFrame, Field(description="Joined summary table")]:
-    """Outer-join the leg summary onto the track summary on the group key. An empty
-    side is ignored, so existing track metrics never change.
+    """Outer-join summary tables on the group key, left to right. Empty tables are ignored,
+    so existing track metrics never change; a single table is returned as is, and an empty
+    list gives an empty frame. Taking a list lets a `groupbykey` pair with one side missing
+    (a group key present on only one frame) still render.
 
-    Two modes:
-    - Both inputs have a plain `RangeIndex` (`summarize_df` ran with `reset_index=True`):
+    Two modes per join:
+    - Both frames have a plain `RangeIndex` (`summarize_df` ran with `reset_index=True`):
       outer-merge on the columns the two frames share, which are the group-key columns.
     - Otherwise (or when no column is shared, e.g. two ungrouped one-row summaries):
       outer-join on the index (the group key `summarize_df` left there).
     """
-    if right.empty:
-        return left
-    if left.empty:
-        return right
-    if isinstance(left.index, pd.RangeIndex) and isinstance(right.index, pd.RangeIndex):
-        shared = [c for c in left.columns if c in right.columns]
-        if shared:
-            return cast(AnyDataFrame, left.merge(right, how="outer", on=shared))
-    return cast(AnyDataFrame, left.join(right, how="outer"))
+    present = [t for t in tables if not t.empty]
+    if not present:
+        return cast(AnyDataFrame, pd.DataFrame())
+    out = present[0]
+    for right in present[1:]:
+        if isinstance(out.index, pd.RangeIndex) and isinstance(right.index, pd.RangeIndex):
+            shared = [c for c in out.columns if c in right.columns]
+            if shared:
+                out = out.merge(right, how="outer", on=shared)
+                continue
+        out = out.join(right, how="outer")
+    return cast(AnyDataFrame, out)
 
 
 @register()

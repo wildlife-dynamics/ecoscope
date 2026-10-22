@@ -248,14 +248,16 @@ def test_select_track_and_leg_metrics_partition():
 def test_join_summary_tables_outer_on_group_key():
     left = pd.DataFrame({"Patrol Count": [2, 1]}, index=pd.Index(["A", "B"], name="patrol_type"))
     right = pd.DataFrame({"Leg Count": [3]}, index=pd.Index(["A"], name="patrol_type"))
-    joined = join_summary_tables(left, right)
+    joined = join_summary_tables([left, right])
     assert list(joined.columns) == ["Patrol Count", "Leg Count"]
     assert joined.loc["B", "Leg Count"] != joined.loc["B", "Leg Count"]  # NaN
 
 
 def test_join_summary_tables_with_empty_right_keeps_left():
     left = pd.DataFrame({"Patrol Count": [2]}, index=pd.Index(["A"], name="patrol_type"))
-    assert join_summary_tables(left, pd.DataFrame()).equals(left)
+    assert join_summary_tables([left, pd.DataFrame()]).equals(left)
+    assert join_summary_tables([left]).equals(left)
+    assert join_summary_tables([]).empty
 
 
 def test_leg_metrics_end_to_end_on_leg_frame():
@@ -298,7 +300,7 @@ def test_member_days_is_nan_when_no_member_data():
 def test_join_summary_tables_merges_reset_frames_on_shared_columns():
     left = pd.DataFrame({"patrol_type": ["A", "B"], "Patrol Count": [2, 1]})
     right = pd.DataFrame({"patrol_type": ["A", "C"], "Leg Count": [3, 1]})
-    joined = join_summary_tables(left, right)
+    joined = join_summary_tables([left, right])
     assert list(joined.columns) == ["patrol_type", "Patrol Count", "Leg Count"]
     assert sorted(joined["patrol_type"]) == ["A", "B", "C"]
     row_a = joined[joined["patrol_type"] == "A"].iloc[0]
@@ -306,5 +308,5 @@ def test_join_summary_tables_merges_reset_frames_on_shared_columns():
 
 
 def test_join_summary_tables_ungrouped_one_row_frames_join_on_index():
-    joined = join_summary_tables(pd.DataFrame({"Patrol Count": [2]}), pd.DataFrame({"Leg Count": [3]}))
+    joined = join_summary_tables([pd.DataFrame({"Patrol Count": [2]}), pd.DataFrame({"Leg Count": [3]})])
     assert joined.iloc[0].tolist() == [2, 3]
