@@ -48,3 +48,10 @@ def test_apportion_leg_count_counts_once_per_feature():
         "South": 1,
         "None": 1,
     }
+
+
+def test_apportion_second_pass_with_same_grouper_is_idempotent():
+    once = apportion_legs_by_spatial_index(legs, indexed_traj, groupers)
+    twice = apportion_legs_by_spatial_index(once, indexed_traj, groupers)
+    assert twice.equals(once)
+    assert twice["leg_active_seconds"].sum() == 7200.0 + 3600.0

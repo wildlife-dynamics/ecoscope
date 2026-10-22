@@ -24,7 +24,10 @@ def apportion_legs_by_spatial_index(
         Field(description="Specify how the data should be grouped.", exclude=True),
     ],
 ) -> Annotated[AnyDataFrame, Field()]:
-    """Replicate each leg once per spatial feature it touches, scaling its measures by track share."""
+    """Replicate each leg once per spatial feature it touches, scaling its measures by track share.
+    A spatial grouper whose index level is already on `legs` is skipped, so a second pass with an
+    overlapping grouper set does not scale the measures twice.
+    """
     if isinstance(groupers, AllGrouper):
         return legs
 
@@ -33,6 +36,8 @@ def apportion_legs_by_spatial_index(
         if not isinstance(grouper, SpatialGrouper) or grouper.index_name not in indexed_traj.index.names:
             continue
         level = grouper.index_name
+        if level in out.index.names:
+            continue  # already apportioned by an earlier grouper set (idempotent, like the index tasks)
         dist = indexed_traj.reset_index().groupby(["patrol_segment_id", level])["dist_meters"].sum()
         total = dist.groupby(level=0).transform("sum")
         shares = (dist / total)[total > 0].reset_index(name="share")
