@@ -55,3 +55,10 @@ def test_apportion_second_pass_with_same_grouper_is_idempotent():
     twice = apportion_legs_by_spatial_index(once, indexed_traj, groupers)
     assert twice.equals(once)
     assert twice["leg_active_seconds"].sum() == 7200.0 + 3600.0
+
+
+def test_apportion_tracks_without_segment_id_put_every_leg_in_none_group():
+    traj_no_id = indexed_traj.drop(columns="patrol_segment_id")
+    out = apportion_legs_by_spatial_index(legs, traj_no_id, groupers).reset_index()
+    assert out["SpatialGrouper_regions"].tolist() == ["None", "None"]
+    assert out["leg_active_seconds"].tolist() == [7200.0, 3600.0]

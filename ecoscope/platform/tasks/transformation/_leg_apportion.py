@@ -1,5 +1,6 @@
 from typing import Annotated
 
+import pandas as pd
 from pydantic import Field
 from wt_registry import register
 
@@ -26,7 +27,9 @@ def apportion_legs_by_spatial_index(
 ) -> Annotated[AnyDataFrame, Field()]:
     """Replicate each leg once per spatial feature it touches, scaling its measures by track share.
     A spatial grouper whose index level is already on `legs` is skipped, so a second pass with an
-    overlapping grouper set does not scale the measures twice.
+    overlapping grouper set does not scale the measures twice. When the track frame has no
+    `patrol_segment_id` column (fixes recorded before the leg schema), every leg lands whole in
+    the "None" group.
     """
     if isinstance(groupers, AllGrouper):
         return legs
@@ -38,9 +41,21 @@ def apportion_legs_by_spatial_index(
         level = grouper.index_name
         if level in out.index.names:
             continue  # already apportioned by an earlier grouper set (idempotent, like the index tasks)
-        dist = indexed_traj.reset_index().groupby(["patrol_segment_id", level])["dist_meters"].sum()
-        total = dist.groupby(level=0).transform("sum")
-        shares = (dist / total)[total > 0].reset_index(name="share")
+        traj = indexed_traj.reset_index()
+        if {"patrol_segment_id", "dist_meters"} <= set(traj.columns):
+            dist = traj.groupby(["patrol_segment_id", level])["dist_meters"].sum()
+            total = dist.groupby(level=0).transform("sum")
+            shares = (dist / total)[total > 0].reset_index(name="share")
+        else:
+            # Tracks without a leg id (observations recorded before the leg schema):
+            # no share can be computed, every leg lands whole in the "None" group.
+            shares = pd.DataFrame(
+                {
+                    "patrol_segment_id": pd.Series(dtype=object),
+                    level: pd.Series(dtype=object),
+                    "share": pd.Series(dtype=float),
+                }
+            )
 
         merged = out.assign(_pos=range(len(out))).merge(shares, on="patrol_segment_id", how="left")
         merged.index = out.index[merged.pop("_pos")]
