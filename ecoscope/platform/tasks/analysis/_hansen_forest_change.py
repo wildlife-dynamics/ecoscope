@@ -39,7 +39,10 @@ def _make_treecover_mask(gfc, tree_cover_threshold: float):
     return cover.And(cover), mask
 
 
-@register()
+# Tagged `io` like `calculate_ndvi_range`: both tasks here query Earth Engine,
+# so the step cache must scope them per principal and age them by `io_ttl`, and
+# `--mock-io` swaps them for the example returns beside this module.
+@register(tags=["io"])
 def extract_forest_cover_trends(
     client: EarthEngineClient,
     aoi: Annotated[AnyGeoDataFrame, Field(description="Area of interest geometry")],
@@ -118,7 +121,7 @@ def extract_forest_cover_trends(
     return cast(AnyDataFrame, forest_survival[columns])
 
 
-@register()
+@register(tags=["io"])
 def create_forest_layers(
     client: EarthEngineClient,
     aoi: Annotated[AnyGeoDataFrame, Field(description="Area of interest geometry")],
