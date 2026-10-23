@@ -6,7 +6,7 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.base.utils import coverage_area_km2
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, CacheableModel
 from ecoscope.platform.tasks.analysis._aggregation import (
     get_night_day_ratio,
 )
@@ -23,7 +23,7 @@ AggOperations = Literal[
 ]
 
 
-class _BaseSummaryParam(BaseModel):
+class _BaseSummaryParam(BaseModel, CacheableModel):
     display_name: Annotated[str, Field(title="Display Name", description="Column header shown in the summary table.")]
 
 

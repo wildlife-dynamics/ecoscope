@@ -5,24 +5,27 @@ from pydantic import BaseModel, ConfigDict, Field
 from wt_registry import register
 from wt_task import task  # type: ignore[import-untyped]
 
-from ecoscope.platform.annotations import AnyGeoDataFrame  # type: ignore[import-untyped]
+from ecoscope.platform.annotations import (  # type: ignore[import-untyped]
+    AnyGeoDataFrame,
+    CacheableModel,
+)
 from ecoscope.platform.tasks.analysis._bbmm import (  # type: ignore[import-untyped]
-    BbmmPercentileAnnotation,
+    BbmmCachedPercentileAnnotation,
     LocationErrorAnnotation,
     MaxDataGapAnnotation,
     TimeStepAnnotation,
     calculate_brownian_bridge_range,
 )
 from ecoscope.platform.tasks.analysis._mcp import (  # type: ignore[import-untyped]
+    McpCachedPercentileAnnotation,
     McpCrsAnnotation,
-    McpPercentileAnnotation,
     RelocationsAnnotation,
     calculate_minimum_convex_polygon,
 )
 from ecoscope.platform.tasks.analysis._time_density import (  # type: ignore[import-untyped]
     AutoScaleOrCustomAnnotation,
     CrsAnnotation,
-    EtdPercentileAnnotation,
+    EtdCachedPercentileAnnotation,
     ExpansionFactorAnnotation,
     MaxSpeedFactorAnnotation,
     TimeDensityReturnGDF,
@@ -95,7 +98,7 @@ class BbmmMaxDataGapSettings(BaseModel):
     max_data_gap_seconds: MaxDataGapAnnotation = 14400.0
 
 
-class EtdMethodArgs(BaseModel):
+class EtdMethodArgs(BaseModel, CacheableModel):
     """Elliptical Time-Density. `crs`/`percentiles` are property names shared
     with `McpMethodArgs`/`BbmmMethodArgs` where the same concept applies (see
     module docstring). `speed_settings` is this variant's own genuinely-
@@ -138,7 +141,7 @@ class EtdMethodArgs(BaseModel):
             },
         ),
     ] = EtdExpansionFactorSettings()
-    percentiles: Annotated[EtdPercentileAnnotation, Field(description=None)]
+    percentiles: Annotated[EtdCachedPercentileAnnotation, Field(description=None)]
 
     def get_etd_params(self) -> dict[str, Any]:
         return {
@@ -150,7 +153,7 @@ class EtdMethodArgs(BaseModel):
         }
 
 
-class McpMethodArgs(BaseModel):
+class McpMethodArgs(BaseModel, CacheableModel):
     """Minimum Convex Polygon. `crs`/`percentiles` are property names shared
     with `EtdMethodArgs`/`BbmmMethodArgs` (see module docstring). Has no
     field of its own that's genuinely required, so it's the implicit
@@ -159,7 +162,7 @@ class McpMethodArgs(BaseModel):
 
     model_config = ConfigDict(extra="ignore", json_schema_extra={"title": "MCP (Minimum Convex Polygon)"})
     crs: McpCrsAnnotation
-    percentiles: McpPercentileAnnotation
+    percentiles: McpCachedPercentileAnnotation
     show_relocations_settings: Annotated[
         McpShowRelocationsSettings,
         Field(
@@ -175,7 +178,7 @@ class McpMethodArgs(BaseModel):
         return {"crs": self.crs, "percentiles": self.percentiles}
 
 
-class BbmmMethodArgs(BaseModel):
+class BbmmMethodArgs(BaseModel, CacheableModel):
     """Brownian Bridge Movement Model. `crs`/`percentiles` are property names
     shared with `EtdMethodArgs`/`McpMethodArgs`, and `expansion_factor_settings`
     is additionally shared (name and shape) with `EtdMethodArgs` specifically
@@ -231,7 +234,7 @@ class BbmmMethodArgs(BaseModel):
             json_schema_extra={"ecoscope:advanced": True},
         ),
     ] = BbmmMaxDataGapSettings()
-    percentiles: BbmmPercentileAnnotation
+    percentiles: BbmmCachedPercentileAnnotation
 
     def get_bbmm_params(self) -> dict[str, Any]:
         return {

@@ -44,6 +44,25 @@ BbmmPercentileAnnotation: TypeAlias = Annotated[
     ),
     AfterValidator(_coerce_percentile_strings_to_floats),
 ]
+
+
+# The same field as `BbmmPercentileAnnotation`, with the default held in the validated
+# (float) form: pydantic does not validate defaults, so a model carrying this
+# one must still dump and revalidate unchanged for the step cache. The schema
+# keeps the string form, the only one the enum offers. A second alias rather
+# than a change to the shared one, because that one is also used on
+# `@dataclass` fields, which take their schema default from `json_schema_extra`
+# and would flip from "unset" to these six values.
+BbmmCachedPercentileAnnotation: TypeAlias = Annotated[
+    list[UDPercentiles] | SkipJsonSchema[list[float]] | SkipJsonSchema[None],
+    AdvancedField(
+        default=_coerce_percentile_strings_to_floats(DEFAULT_PERCENTILES),
+        description="Choose the percentile levels to display.",
+        title="Percentile Levels",
+        json_schema_extra={"uniqueItems": True, "minItems": 1, "default": DEFAULT_PERCENTILES},
+    ),
+    AfterValidator(_coerce_percentile_strings_to_floats),
+]
 MaxDataGapAnnotation: TypeAlias = Annotated[
     float,
     AdvancedField(

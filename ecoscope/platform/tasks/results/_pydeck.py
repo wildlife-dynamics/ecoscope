@@ -12,11 +12,11 @@ from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame, CacheableModel
 from ecoscope.platform.tasks.results._map_utils import TileLayer
 
 
-class DeckJsonSpec(BaseModel):
+class DeckJsonSpec(BaseModel, CacheableModel):
     """Loose schema for a deck.gl JSON spec.
 
     Validates the top-level shape produced by ``pydeck.Deck.to_json()`` (must have
@@ -59,7 +59,7 @@ LegendLabel: TypeAlias = str
 LegendColor: TypeAlias = str
 
 
-class LayerStyleBase(BaseModel):
+class LayerStyleBase(BaseModel, CacheableModel):
     auto_highlight: Annotated[bool, AdvancedField(default=False)] = False
     opacity: Annotated[float, AdvancedField(default=1, ge=0, le=1)] = 1
     pickable: Annotated[bool, AdvancedField(default=True)] = True
@@ -255,7 +255,7 @@ LayerStyle = Union[
 ]
 
 
-class ViewState(BaseModel):
+class ViewState(BaseModel, CacheableModel):
     """
     Represents a deck.gl view state
     """
@@ -335,7 +335,7 @@ class LegendFromDataframe:
 LegendDefinition = LegendFromDataframe | LegendSegment
 
 
-class BitmapLayerDefinition(BaseModel):
+class BitmapLayerDefinition(BaseModel, CacheableModel):
     """A single-image overlay positioned at geographic bounds (e.g., raster from Earth Engine)."""
 
     image: PydeckString
