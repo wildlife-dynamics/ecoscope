@@ -6,11 +6,15 @@ from unittest.mock import MagicMock, call, patch
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
-from pydantic import SecretStr
 from wt_task import task
 
 from ecoscope.platform.annotations import AnyDataFrame  # type: ignore[import-untyped]
-from ecoscope.platform.connections import EarthRangerClientProtocol, EarthRangerConnection
+from ecoscope.platform.connections import (
+    EarthRangerBackends,
+    EarthRangerClientProtocol,
+    EarthRangerConnection,
+    EarthRangerSourceConnection,
+)
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
     download_grouped_event_attachments,
@@ -43,7 +47,6 @@ from ecoscope.platform.tasks.io._earthranger import (
     _EXCLUSION_FILTER_TO_INT,
     CombinedPatrolAndEventsParams,
     _fetch_v2_schema,
-    _make_warehouse_client_from_env,
     _normalize_v1_schema,
     _resolve_event_details,
 )
@@ -52,9 +55,18 @@ from ecoscope.platform.tasks.io._persist import _hash_grouper_key
 pytestmark = pytest.mark.io
 
 
+def _source(api=None, warehouse=None):
+    """An `EarthRangerBackends` standing in for a resolved data source.
+
+    `api` defaults to a bare mock; `warehouse` stays None for the ER-API path.
+    """
+    return EarthRangerBackends(api=api if api is not None else MagicMock(), warehouse=warehouse)
+
+
 @pytest.fixture(scope="session")
 def client():
-    return EarthRangerConnection(
+    # Username/password auth, so the warehouse stays None and these exercise the ER API.
+    return EarthRangerSourceConnection(
         server=os.environ["EARTHRANGER_SERVER"],
         username=os.environ["EARTHRANGER_USERNAME"],
         password=os.environ["EARTHRANGER_PASSWORD"],
@@ -65,14 +77,14 @@ def client():
 
 @pytest.fixture
 def mock_empty_client():
-    mock = MagicMock()
-    mock.get_patrols.return_value = pd.DataFrame()
-    mock.get_subjectgroup_observations.return_value = pd.DataFrame()
-    mock.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
-    mock.get_patrol_events.return_value = pd.DataFrame()
-    mock.get_events.return_value = pd.DataFrame()
-    mock.get_event_types.return_value = pd.DataFrame({"id": ["AAA123"], "value": ["an_event"]})
-    return mock
+    api = MagicMock()
+    api.get_patrols.return_value = pd.DataFrame()
+    api.get_subjectgroup_observations.return_value = pd.DataFrame()
+    api.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+    api.get_patrol_events.return_value = pd.DataFrame()
+    api.get_events.return_value = pd.DataFrame()
+    api.get_event_types.return_value = pd.DataFrame({"id": ["AAA123"], "value": ["an_event"]})
+    return _source(api)
 
 
 def test_get_subject_group_observations(client):
@@ -97,7 +109,7 @@ def test_get_patrol_observations():
     """The task-validated entry point strips whitespace from patrol_types before the
     underlying client call. This is the wrapper behavior we want to lock in."""
     mock_client = _make_mock_client()
-    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+    mock_client.api.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
 
     with _patched_named_connection(mock_client):
         task(get_patrol_observations).validate().call(
@@ -118,7 +130,7 @@ def test_get_patrol_observations():
             raise_on_empty=False,
         )
 
-    call_kwargs = mock_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
+    call_kwargs = mock_client.api.get_patrol_observations_with_patrol_filter.call_args.kwargs
     assert call_kwargs["patrol_type_value"] == ["ecoscope_patrol"]
 
 
@@ -127,7 +139,7 @@ def test_get_patrol_observations_with_whitespace_in_patrol_types_without_pydanti
     the underlying client. This is the complement to the test above: stripping is
     pydantic's responsibility, not the wrapper's."""
     mock_client = _make_mock_client()
-    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+    mock_client.api.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
 
     get_patrol_observations(
         client=mock_client,
@@ -142,7 +154,7 @@ def test_get_patrol_observations_with_whitespace_in_patrol_types_without_pydanti
         raise_on_empty=False,
     )
 
-    call_kwargs = mock_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
+    call_kwargs = mock_client.api.get_patrol_observations_with_patrol_filter.call_args.kwargs
     assert call_kwargs["patrol_type_value"] == ["    ecoscope_patrol           "]
 
 
@@ -251,8 +263,8 @@ def test_get_events_with_event_type_whitespace():
         }
     )
     mock_client = _make_mock_client()
-    mock_client.get_event_types.return_value = event_types_df
-    mock_client.get_events.return_value = pd.DataFrame(
+    mock_client.api.get_event_types.return_value = event_types_df
+    mock_client.api.get_events.return_value = pd.DataFrame(
         {"id": ["e1"], "time": [pd.Timestamp("2015-06-01", tz="UTC")], "event_type": ["hwc_rep"], "geometry": [None]}
     )
 
@@ -280,9 +292,9 @@ def test_get_events_with_event_type_whitespace():
             event_columns=["id", "time", "event_type", "geometry"],
         )
 
-    # If stripping happened, all 6 ids should be resolved and passed to client.get_events.
-    assert mock_client.get_events.call_count == 1
-    resolved_ids = mock_client.get_events.call_args.kwargs["event_type"]
+    # If stripping happened, all 6 ids should be resolved and passed to client.api.get_events.
+    assert mock_client.api.get_events.call_count == 1
+    resolved_ids = mock_client.api.get_events.call_args.kwargs["event_type"]
     assert sorted(resolved_ids) == sorted(event_types_df["id"].tolist())
 
 
@@ -291,7 +303,7 @@ def test_get_events_bad_event_type():
     empty DataFrame without calling get_events."""
     mock_client = _make_mock_client()
     # The known event types in this fake registry don't include "not a real type"
-    mock_client.get_event_types.return_value = pd.DataFrame({"id": ["abc123"], "value": ["a_real_type"]})
+    mock_client.api.get_event_types.return_value = pd.DataFrame({"id": ["abc123"], "value": ["a_real_type"]})
 
     result = get_events(
         client=mock_client,
@@ -306,7 +318,7 @@ def test_get_events_bad_event_type():
     )
 
     assert result.empty
-    mock_client.get_events.assert_not_called()
+    mock_client.api.get_events.assert_not_called()
 
 
 def test_bad_token_fails():
@@ -354,8 +366,8 @@ def test_get_events_parity(client):
         "include_related_events": False,
     }
 
-    get_events_no_extras = client.get_events(**original_event_args)
-    get_events_with_extras = client.get_events(**(original_event_args | new_event_args))
+    get_events_no_extras = client.api.get_events(**original_event_args)
+    get_events_with_extras = client.api.get_events(**(original_event_args | new_event_args))
 
     pd.testing.assert_frame_equal(get_events_no_extras, get_events_with_extras)
 
@@ -424,8 +436,8 @@ def test_get_subjectgroup_observations_exclusion_filter(mock_empty_client, filte
         raise_on_empty=False,
         filter=filter_value,
     )
-    mock_empty_client.get_subjectgroup_observations.assert_called_once()
-    call_kwargs = mock_empty_client.get_subjectgroup_observations.call_args.kwargs
+    mock_empty_client.api.get_subjectgroup_observations.assert_called_once()
+    call_kwargs = mock_empty_client.api.get_subjectgroup_observations.call_args.kwargs
     assert call_kwargs["filter"] == expected_int
 
 
@@ -520,7 +532,7 @@ def test_get_events_forwards_force_point_geometry(mock_empty_client, force_point
         raise_on_empty=False,
         force_point_geometry=force_point_geometry,
     )
-    assert mock_empty_client.get_events.call_args.kwargs["force_point_geometry"] is force_point_geometry
+    assert mock_empty_client.api.get_events.call_args.kwargs["force_point_geometry"] is force_point_geometry
 
 
 def test_get_events_force_point_geometry_default_is_true(mock_empty_client):
@@ -534,7 +546,7 @@ def test_get_events_force_point_geometry_default_is_true(mock_empty_client):
         event_types=["an_event"],
         raise_on_empty=False,
     )
-    assert mock_empty_client.get_events.call_args.kwargs["force_point_geometry"] is True
+    assert mock_empty_client.api.get_events.call_args.kwargs["force_point_geometry"] is True
 
 
 def test_get_patrols_empty_response(mock_empty_client):
@@ -651,8 +663,8 @@ def test_patrol_events_combined():
     }
 
     mock_client = _make_mock_client()
-    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
-    mock_client.get_patrol_events.return_value = pd.DataFrame()
+    mock_client.api.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+    mock_client.api.get_patrol_events.return_value = pd.DataFrame()
 
     with _patched_named_connection(mock_client):
         task(get_patrol_observations).validate().call(**patrol_obs_args)
@@ -665,13 +677,13 @@ def test_patrol_events_combined():
     # Each underlying method should have been called twice (once per code path) with
     # identical args. assert_has_calls is order-preserving but allows other calls
     # in between, which is fine here.
-    mock_client.get_patrol_observations_with_patrol_filter.assert_has_calls(
+    mock_client.api.get_patrol_observations_with_patrol_filter.assert_has_calls(
         [
             call(**expected_patrol_obs_call_args),
             call(**expected_patrol_obs_call_args),
         ]
     )
-    mock_client.get_patrol_events.assert_has_calls(
+    mock_client.api.get_patrol_events.assert_has_calls(
         [
             call(**expected_patrol_events_call_args),
             call(**expected_patrol_events_call_args),
@@ -705,13 +717,11 @@ def _assert_calls_match(calls):
 
 
 def _make_mock_client():
-    """Build a MagicMock that satisfies the pydantic protocol check AND can stand in
-    for an EarthRangerIO instance when callers access `.server` / `.token` (the
-    warehouse selector reads these before any IO method is called)."""
-    mock_client = MagicMock(spec=EarthRangerClientProtocol)
-    mock_client.server = "fake-server"
-    mock_client.token = None
-    return mock_client
+    """A source whose API backend satisfies the protocol check, and no warehouse."""
+    api = MagicMock(spec=EarthRangerClientProtocol)
+    api.server = "fake-server"
+    api.token = None
+    return _source(api)
 
 
 def _patched_named_connection(mock_client):
@@ -726,7 +736,7 @@ def _patched_named_connection(mock_client):
     fake_conn = MagicMock()
     fake_conn.get_client.return_value = mock_client
     return patch(
-        "ecoscope.platform.connections.EarthRangerConnection.from_named_connection",
+        "ecoscope.platform.connections.EarthRangerSourceConnection.from_named_connection",
         return_value=fake_conn,
     )
 
@@ -757,7 +767,7 @@ def test_get_patrol_observations_combined_parity():
         "raise_on_empty": False,
     }
     mock_client = _make_mock_client()
-    mock_client.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
+    mock_client.api.get_patrol_observations_with_patrol_filter.return_value = pd.DataFrame()
 
     with _patched_named_connection(mock_client):
         task(get_patrol_observations).validate().call(**args)
@@ -766,7 +776,7 @@ def test_get_patrol_observations_combined_parity():
         combined = CombinedPatrolAndEventsParams(**args, event_types=[])
         get_patrol_observations_from_combined_params(combined)
 
-    _assert_calls_match(mock_client.get_patrol_observations_with_patrol_filter.call_args_list)
+    _assert_calls_match(mock_client.api.get_patrol_observations_with_patrol_filter.call_args_list)
 
 
 def test_get_patrol_events_combined_parity():
@@ -784,14 +794,14 @@ def test_get_patrol_events_combined_parity():
         "raise_on_empty": False,
     }
     mock_client = _make_mock_client()
-    mock_client.get_patrol_events.return_value = pd.DataFrame()
+    mock_client.api.get_patrol_events.return_value = pd.DataFrame()
 
     with _patched_named_connection(mock_client):
         task(get_patrol_events).validate().call(**args)
         combined = CombinedPatrolAndEventsParams(**args)
         get_patrol_events_from_combined_params(combined)
 
-    _assert_calls_match(mock_client.get_patrol_events.call_args_list)
+    _assert_calls_match(mock_client.api.get_patrol_events.call_args_list)
 
 
 def test_get_patrols_combined_parity():
@@ -808,7 +818,7 @@ def test_get_patrols_combined_parity():
         "raise_on_empty": False,
     }
     mock_client = _make_mock_client()
-    mock_client.get_patrols.return_value = pd.DataFrame()
+    mock_client.api.get_patrols.return_value = pd.DataFrame()
 
     with _patched_named_connection(mock_client):
         task(get_patrols).validate().call(**args)
@@ -817,7 +827,7 @@ def test_get_patrols_combined_parity():
         combined = CombinedPatrolAndEventsParams(**args, event_types=[])
         get_patrols_from_combined_params(combined)
 
-    _assert_calls_match(mock_client.get_patrols.call_args_list)
+    _assert_calls_match(mock_client.api.get_patrols.call_args_list)
 
 
 def test_get_patrol_observations_from_patrols_df_combined_parity():
@@ -836,7 +846,7 @@ def test_get_patrol_observations_from_patrols_df_combined_parity():
         "raise_on_empty": False,
     }
     mock_client = _make_mock_client()
-    mock_client.get_patrol_observations.return_value = pd.DataFrame()
+    mock_client.api.get_patrol_observations.return_value = pd.DataFrame()
 
     with _patched_named_connection(mock_client):
         task(get_patrol_observations_from_patrols_df).validate().call(**shared_args, patrols_df=patrols_df)
@@ -849,7 +859,7 @@ def test_get_patrol_observations_from_patrols_df_combined_parity():
         )
         get_patrol_observations_from_patrols_df_and_combined_params(patrols_df=patrols_df, combined_params=combined)
 
-    _assert_calls_match(mock_client.get_patrol_observations.call_args_list)
+    _assert_calls_match(mock_client.api.get_patrol_observations.call_args_list)
 
 
 def test_unpack_events_from_patrols_df_combined_parity():
@@ -1011,7 +1021,7 @@ def test_get_patrol_events_with_display_values_empty():
     """When the underlying client returns empty, include_display_values=True must not
     crash and must not call the display-name resolver."""
     mock_client = _make_mock_client()
-    mock_client.get_patrol_events.return_value = pd.DataFrame()
+    mock_client.api.get_patrol_events.return_value = pd.DataFrame()
 
     result = get_patrol_events(
         client=mock_client,
@@ -1028,7 +1038,7 @@ def test_get_patrol_events_with_display_values_empty():
     )
 
     assert result.empty
-    mock_client.get_event_type_display_names_from_events.assert_not_called()
+    mock_client.api.get_event_type_display_names_from_events.assert_not_called()
 
 
 def test_get_events_with_display_values(client):
@@ -1063,7 +1073,7 @@ def test_get_events_with_display_values_empty():
     """When get_events returns empty, include_display_values=True must not crash and
     must not call the display-name resolver."""
     mock_client = _make_mock_client()
-    mock_client.get_events.return_value = pd.DataFrame()
+    mock_client.api.get_events.return_value = pd.DataFrame()
 
     result = get_events(
         client=mock_client,
@@ -1079,7 +1089,7 @@ def test_get_events_with_display_values_empty():
     )
 
     assert result.empty
-    mock_client.get_event_type_display_names_from_events.assert_not_called()
+    mock_client.api.get_event_type_display_names_from_events.assert_not_called()
 
 
 def test_get_choices_from_v2_event_type(client):
@@ -1182,7 +1192,7 @@ def test_get_spatial_features_group(client):
 
 
 def test_get_fields_from_event_type_schema(client):
-    fields = client.get_fields_from_event_type_schema(event_type="elephant_sigthing_test")
+    fields = client.api.get_fields_from_event_type_schema(event_type="elephant_sigthing_test")
     assert isinstance(fields, dict)
     assert {
         "name_of_collared_elephant": "Name of collared elephant",
@@ -1196,7 +1206,7 @@ def test_get_fields_from_bad_event_type_schema(client):
     from ecoscope.io.earthranger import ERClientNotFound  # type: ignore[import-untyped]
 
     with pytest.raises(ERClientNotFound):
-        client.get_fields_from_event_type_schema(event_type="  ")
+        client.api.get_fields_from_event_type_schema(event_type="  ")
 
 
 # ---------------------------------------------------------------------------
@@ -1256,62 +1266,25 @@ def _make_patrol_observations_arrow_table():
     )
 
 
-_WAREHOUSE_ENV = {
-    "USE_EARTHRANGER_WAREHOUSE_API": "true",
-    "EARTHRANGER_WAREHOUSE_API_BASE_URL": "http://warehouse-test",
-}
-
-
-def test_make_warehouse_client_from_env_enabled():
-    from ecoscope_earthranger_io_core.client import ERWarehouseClient
-
-    with patch.dict(os.environ, _WAREHOUSE_ENV):
-        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
-
-    assert isinstance(result, ERWarehouseClient)
-    assert result.server == "mep-dev.pamdas.org"
-    assert result.warehouse_base_url == "http://warehouse-test"
-
-
-def test_make_warehouse_client_from_env_missing_url():
-    from ecoscope_earthranger_io_core.client import ERWarehouseClient
-
-    env = {"USE_EARTHRANGER_WAREHOUSE_API": "true"}
-    with patch.dict(os.environ, env, clear=True):
-        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=SecretStr("test-token"))
-    assert isinstance(result, ERWarehouseClient)
-    assert result.warehouse_base_url is None
-
-
-def test_make_warehouse_client_from_env_no_token():
-    env = {"USE_EARTHRANGER_WAREHOUSE_API": "true"}
-    with patch.dict(os.environ, env, clear=True):
-        result = _make_warehouse_client_from_env(er_site_url="mep-dev.pamdas.org", er_api_token=None)
-    assert result is None
-
-
 def test_get_subjectgroup_observations_via_warehouse_client():
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_subjectgroup_observations.return_value = _make_observations_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_subjectgroup_observations(
-            client=mock_legacy_client,
-            subject_group_name="Ecoscope",
-            time_range=TimeRange(
-                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_subjectgroup_observations(
+        client=mock_legacy_client,
+        subject_group_name="Ecoscope",
+        time_range=TimeRange(
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        raise_on_empty=False,
+    )
 
     mock_warehouse_client.get_subjectgroup_observations.assert_called_once()
-    mock_legacy_client.get_subjectgroup_observations.assert_not_called()
+    mock_legacy_client.api.get_subjectgroup_observations.assert_not_called()
     assert isinstance(result, gpd.GeoDataFrame)
     assert "geometry" in result
     assert "fixtime" in result
@@ -1320,29 +1293,26 @@ def test_get_subjectgroup_observations_via_warehouse_client():
 
 
 def test_get_patrol_observations_via_warehouse_client():
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_patrol_observations_with_patrol_filter.return_value = (
         _make_patrol_observations_arrow_table()
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_patrol_observations(
-            client=mock_legacy_client,
-            time_range=TimeRange(
-                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            patrol_types=["routine_patrol"],
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_patrol_observations(
+        client=mock_legacy_client,
+        time_range=TimeRange(
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        patrol_types=["routine_patrol"],
+        raise_on_empty=False,
+    )
 
     mock_warehouse_client.get_patrol_observations_with_patrol_filter.assert_called_once()
-    mock_legacy_client.get_patrol_observations_with_patrol_filter.assert_not_called()
+    mock_legacy_client.api.get_patrol_observations_with_patrol_filter.assert_not_called()
     call_kwargs = mock_warehouse_client.get_patrol_observations_with_patrol_filter.call_args.kwargs
     assert call_kwargs == {
         "since": "2024-01-01T00:00:00+00:00",
@@ -1359,23 +1329,20 @@ def test_get_patrol_observations_via_warehouse_client():
 
 
 def test_get_patrol_observations_from_patrols_df_via_warehouse_client():
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_patrol_observations.return_value = _make_patrol_observations_arrow_table()
     patrols_df = pd.DataFrame({"id": ["patrol-1"], "state": ["done"]})
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_patrol_observations_from_patrols_df(
-            client=mock_legacy_client,
-            patrols_df=patrols_df,
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_patrol_observations_from_patrols_df(
+        client=mock_legacy_client,
+        patrols_df=patrols_df,
+        raise_on_empty=False,
+    )
 
     mock_warehouse_client.get_patrol_observations.assert_called_once()
-    mock_legacy_client.get_patrol_observations.assert_not_called()
+    mock_legacy_client.api.get_patrol_observations.assert_not_called()
     call_kwargs = mock_warehouse_client.get_patrol_observations.call_args.kwargs
     assert set(call_kwargs.keys()) == {"patrols_df", "include_patrol_details", "sub_page_size"}
     assert call_kwargs["include_patrol_details"] is True
@@ -1391,57 +1358,51 @@ def test_get_patrol_observations_from_patrols_df_via_warehouse_client():
     list(_EXCLUSION_FILTER_TO_INT.items()),
 )
 def test_get_subjectgroup_observations_via_warehouse_client_forwards_filter(filter_value, expected_int):
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_subjectgroup_observations.return_value = _make_observations_arrow_table()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        get_subjectgroup_observations(
-            client=mock_legacy_client,
-            subject_group_name="Ecoscope",
-            time_range=TimeRange(
-                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            raise_on_empty=False,
-            filter=filter_value,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    get_subjectgroup_observations(
+        client=mock_legacy_client,
+        subject_group_name="Ecoscope",
+        time_range=TimeRange(
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        raise_on_empty=False,
+        filter=filter_value,
+    )
 
     mock_warehouse_client.get_subjectgroup_observations.assert_called_once()
-    mock_legacy_client.get_subjectgroup_observations.assert_not_called()
+    mock_legacy_client.api.get_subjectgroup_observations.assert_not_called()
     assert mock_warehouse_client.get_subjectgroup_observations.call_args.kwargs["filter"] == expected_int
 
 
 @pytest.mark.parametrize("value", [True, False])
 def test_get_patrol_observations_via_warehouse_client_forwards_patrols_overlap_daterange(value):
-    mock_legacy_client = MagicMock()
+    mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_patrol_observations_with_patrol_filter.return_value = (
         _make_patrol_observations_arrow_table()
     )
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        get_patrol_observations(
-            client=mock_legacy_client,
-            time_range=TimeRange(
-                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            patrol_types=["routine_patrol"],
-            raise_on_empty=False,
-            patrols_overlap_daterange=value,
-        )
+    mock_legacy_client.warehouse = mock_warehouse_client
+    get_patrol_observations(
+        client=mock_legacy_client,
+        time_range=TimeRange(
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        patrol_types=["routine_patrol"],
+        raise_on_empty=False,
+        patrols_overlap_daterange=value,
+    )
 
     mock_warehouse_client.get_patrol_observations_with_patrol_filter.assert_called_once()
-    mock_legacy_client.get_patrol_observations_with_patrol_filter.assert_not_called()
+    mock_legacy_client.api.get_patrol_observations_with_patrol_filter.assert_not_called()
     assert (
         mock_warehouse_client.get_patrol_observations_with_patrol_filter.call_args.kwargs["patrols_overlap_daterange"]
         == value
@@ -1450,25 +1411,22 @@ def test_get_patrol_observations_via_warehouse_client_forwards_patrols_overlap_d
 
 def test_warehouse_disabled_falls_back_to_legacy_client():
     """When warehouse is not configured, the legacy client should be used."""
-    mock_legacy_client = MagicMock()
-    mock_legacy_client.get_subjectgroup_observations.return_value = pd.DataFrame()
+    mock_legacy_client = _source()
+    mock_legacy_client.api.get_subjectgroup_observations.return_value = pd.DataFrame()
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=None,
-    ):
-        result = get_subjectgroup_observations(
-            client=mock_legacy_client,
-            subject_group_name="Ecoscope",
-            time_range=TimeRange(
-                since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
-                timezone=UTC_TIMEZONEINFO,
-            ),
-            raise_on_empty=False,
-        )
+    mock_legacy_client.warehouse = None
+    result = get_subjectgroup_observations(
+        client=mock_legacy_client,
+        subject_group_name="Ecoscope",
+        time_range=TimeRange(
+            since=datetime.strptime("2024-01-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            until=datetime.strptime("2024-03-01", "%Y-%m-%d").replace(tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        raise_on_empty=False,
+    )
 
-    mock_legacy_client.get_subjectgroup_observations.assert_called_once()
+    mock_legacy_client.api.get_subjectgroup_observations.assert_called_once()
     assert result.empty
 
 
@@ -1511,7 +1469,7 @@ class DummyEarthRangerClient:
 
 @pytest.fixture()
 def dummy_er_client():
-    return DummyEarthRangerClient()
+    return _source(DummyEarthRangerClient())
 
 
 @pytest.fixture()
@@ -1553,7 +1511,7 @@ class TestDownloadGroupedEventAttachments:
                     return DummyResponse(b"fake-bytes")
                 return {"results": []}
 
-        client = TarGzClient()
+        client = _source(TarGzClient())
         event_id = "evt-1"
         key = (("event_type", "=", "carcass"),)
         expected_key_hash = _hash_grouper_key(key)
@@ -1631,7 +1589,7 @@ class TestDownloadGroupedEventAttachments:
                     return DummyResponse(url.rsplit("/file/", 1)[1].split("/")[0].encode())
                 return {"results": []}
 
-        client = DuplicateNameClient()
+        client = _source(DuplicateNameClient())
         event_id = "evt-dupe"
         key = (("event_type", "=", "carcass"),)
         expected_dirname = f"{_hash_grouper_key(key)}_{event_id}"
@@ -1644,7 +1602,7 @@ class TestDownloadGroupedEventAttachments:
 
         assert result == [f"attachments/{expected_dirname}/image.jpg"] * 2
         assert (tmp_path / result[0]).read_bytes() == b"file-1", "the first attachment must survive"
-        fetched = [url for url, _ in client.calls if "/original/" in url]
+        fetched = [url for url, _ in client.api.calls if "/original/" in url]
         assert len(fetched) == 1, "the colliding second attachment must not be downloaded"
 
     def test_existing_attachment_is_neither_refetched_nor_rewritten(self, output_dir, tmp_path):
@@ -1653,18 +1611,18 @@ class TestDownloadGroupedEventAttachments:
         expected_dirname = f"{_hash_grouper_key(key)}_{event_id}"
         args = dict(grouped_event_gdfs=[(key, self._make_df(event_id))], output_dir=output_dir)
 
-        first = download_grouped_event_attachments(client=DummyEarthRangerClient(), **args)
+        first = download_grouped_event_attachments(client=_source(DummyEarthRangerClient()), **args)
         assert first == [f"attachments/{expected_dirname}/attachment.jpg"]
 
         # Sentinel proves the second run leaves the existing file alone.
         (tmp_path / first[0]).write_bytes(b"sentinel")
 
-        client2 = DummyEarthRangerClient()
+        client2 = _source(DummyEarthRangerClient())
         second = download_grouped_event_attachments(client=client2, **args)
 
         assert second == first
         assert (tmp_path / first[0]).read_bytes() == b"sentinel"
-        refetches = [url for url, _ in client2.calls if "/original/" in url]
+        refetches = [url for url, _ in client2.api.calls if "/original/" in url]
         assert not refetches, "an attachment already on disk must not be refetched"
 
     def test_none_key_group_is_skipped(self, dummy_er_client, output_dir, tmp_path):
@@ -1719,7 +1677,7 @@ class TestDownloadGroupedEventAttachments:
         )
         assert result == []
         assert not (tmp_path / "attachments").exists()
-        assert dummy_er_client.calls == []
+        assert dummy_er_client.api.calls == []
 
     def test_nested_filename_is_flattened_to_basename(self, output_dir, tmp_path):
         nested = "uuid/image_fileuploads/2026/7/28/uuid/photo.jpg"
@@ -1733,7 +1691,7 @@ class TestDownloadGroupedEventAttachments:
                     return DummyResponse(b"fake-bytes")
                 return {"results": []}
 
-        client = NestedClient()
+        client = _source(NestedClient())
         event_id = "evt-nested"
         key = (("event_type", "=", "carcass"),)
         key_hash = _hash_grouper_key(key)
@@ -1747,7 +1705,7 @@ class TestDownloadGroupedEventAttachments:
         expected_dirname = f"{key_hash}_{event_id}"
         assert (tmp_path / "attachments" / expected_dirname / "photo.jpg").exists()
         assert result == [f"attachments/{expected_dirname}/photo.jpg"]
-        assert client.calls[1][0] == f"activity/event/{event_id}/file/f1/original/{nested}"
+        assert client.api.calls[1][0] == f"activity/event/{event_id}/file/f1/original/{nested}"
 
     def test_plain_filename_is_unchanged(self, output_dir, tmp_path):
         class PlainClient(DummyEarthRangerClient):
@@ -1759,7 +1717,7 @@ class TestDownloadGroupedEventAttachments:
                     return DummyResponse(b"fake-bytes")
                 return {"results": []}
 
-        client = PlainClient()
+        client = _source(PlainClient())
         event_id = "evt-plain"
         key = (("event_type", "=", "carcass"),)
         key_hash = _hash_grouper_key(key)
@@ -1790,7 +1748,7 @@ class TestDownloadGroupedEventAttachments:
                     return DummyResponse(b"fake-bytes")
                 return {"results": []}
 
-        client = MultiClient()
+        client = _source(MultiClient())
         event_id = "evt-multi"
         key = (("event_type", "=", "carcass"),)
         key_hash = _hash_grouper_key(key)
@@ -1858,7 +1816,7 @@ def _make_events_details_mock_client(v2_schemas=None, v1_schemas=None):
 
     mock._use_v2_api = use_v2_api
     mock._get = get
-    return mock
+    return _source(mock)
 
 
 def test_process_events_details_v2_schema():
@@ -1906,7 +1864,7 @@ def test_process_events_details_v2_with_enum_resolution():
         },
     )
     # Also need the $ref resolution to work — patch _get to handle ref calls
-    original_get = mock_client._get
+    original_get = mock_client.api._get
 
     def get_with_refs(url, **kwargs):
         if url == v2_ref_url:
@@ -1918,7 +1876,7 @@ def test_process_events_details_v2_with_enum_resolution():
             }
         return original_get(url, **kwargs)
 
-    mock_client._get = get_with_refs
+    mock_client.api._get = get_with_refs
 
     df = pd.DataFrame(
         {
@@ -2265,7 +2223,7 @@ def test_fetch_v2_schema_simple_properties():
             },
         }
     )
-    result = _fetch_v2_schema(mock_client, "test_type")
+    result = _fetch_v2_schema(_source(mock_client), "test_type")
 
     assert result["properties"]["count"]["title"] == "How many?"
     assert result["properties"]["name"]["title"] == "Name"
@@ -2297,7 +2255,7 @@ def test_fetch_v2_schema_with_choices():
             },
         }
     )
-    result = _fetch_v2_schema(mock_client, "test_type")
+    result = _fetch_v2_schema(_source(mock_client), "test_type")
 
     assert result["properties"]["herd_type"]["enumNames"] == {
         "bull_only": "Bull Only",
@@ -2323,7 +2281,7 @@ def test_fetch_v2_schema_ref_not_found():
             },
         }
     )  # nonexistent ref -> raises ERClientNotFound
-    result = _fetch_v2_schema(mock_client, "test_type")
+    result = _fetch_v2_schema(_source(mock_client), "test_type")
 
     assert "enumNames" not in result["properties"]["broken_field"]
     assert result["properties"]["broken_field"]["title"] == "Broken"
