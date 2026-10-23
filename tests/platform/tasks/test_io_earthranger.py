@@ -9,7 +9,12 @@ import pytest
 from wt_task import task
 
 from ecoscope.platform.annotations import AnyDataFrame  # type: ignore[import-untyped]
-from ecoscope.platform.connections import EarthRangerBackends, EarthRangerClientProtocol, EarthRangerConnection
+from ecoscope.platform.connections import (
+    EarthRangerBackends,
+    EarthRangerClientProtocol,
+    EarthRangerConnection,
+    EarthRangerSourceConnection,
+)
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
     download_grouped_event_attachments,
@@ -60,7 +65,8 @@ def _source(api=None, warehouse=None):
 
 @pytest.fixture(scope="session")
 def client():
-    return EarthRangerConnection(
+    # Username/password auth, so the warehouse stays None and these exercise the ER API.
+    return EarthRangerSourceConnection(
         server=os.environ["EARTHRANGER_SERVER"],
         username=os.environ["EARTHRANGER_USERNAME"],
         password=os.environ["EARTHRANGER_PASSWORD"],
