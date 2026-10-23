@@ -24,12 +24,16 @@ def apportion_legs_by_spatial_index(
         AllGrouper | UserDefinedGroupers,
         Field(description="Specify how the data should be grouped.", exclude=True),
     ],
+    drop_unplaced: Annotated[
+        bool,
+        Field(description='Drop legs whose track matches no spatial feature instead of a whole "None" group.'),
+    ] = False,
 ) -> Annotated[AnyDataFrame, Field()]:
     """Replicate each leg once per spatial feature it touches, scaling its measures by track share.
     A spatial grouper whose index level is already on `legs` is skipped, so a second pass with an
     overlapping grouper set does not scale the measures twice. When the track frame has no
     `patrol_segment_id` column (fixes recorded before the leg schema), every leg lands whole in
-    the "None" group.
+    the "None" group — or, with `drop_unplaced`, is dropped, as is any leg without a track.
     """
     if isinstance(groupers, AllGrouper):
         return legs
@@ -59,6 +63,8 @@ def apportion_legs_by_spatial_index(
 
         merged = out.assign(_pos=range(len(out))).merge(shares, on="patrol_segment_id", how="left")
         merged.index = out.index[merged.pop("_pos")]
+        if drop_unplaced:
+            merged = merged[merged["share"].notna()]
         out = merged
         out["share"] = out["share"].fillna(1.0)
         out[level] = out[level].astype(object).where(out[level].notna(), "None")

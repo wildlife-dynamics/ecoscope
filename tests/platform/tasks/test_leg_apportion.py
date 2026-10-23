@@ -62,3 +62,14 @@ def test_apportion_tracks_without_segment_id_put_every_leg_in_none_group():
     out = apportion_legs_by_spatial_index(legs, traj_no_id, groupers).reset_index()
     assert out["SpatialGrouper_regions"].tolist() == ["None", "None"]
     assert out["leg_active_seconds"].tolist() == [7200.0, 3600.0]
+
+
+def test_apportion_drop_unplaced_removes_legs_without_a_placeable_track():
+    out = apportion_legs_by_spatial_index(legs, indexed_traj, groupers, drop_unplaced=True).reset_index()
+    assert out["patrol_segment_id"].tolist() == ["s1", "s1"]
+    assert sorted(out["SpatialGrouper_regions"]) == ["North", "South"]
+    assert out["leg_active_seconds"].sum() == 7200.0
+
+    traj_no_id = indexed_traj.drop(columns="patrol_segment_id")
+    none_left = apportion_legs_by_spatial_index(legs, traj_no_id, groupers, drop_unplaced=True)
+    assert none_left.empty and "SpatialGrouper_regions" in none_left.index.names
