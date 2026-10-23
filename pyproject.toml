@@ -165,6 +165,7 @@ packages = [
 ]
 
 [tool.setuptools.package-data]
+"ecoscope.platform.tasks.analysis" = ["*.parquet", "*.json"]
 "ecoscope.platform.tasks.results" = ["*.jinja2"]
 "ecoscope.platform.tasks.io" = ["*.parquet", "*.json"]
 "ecoscope.platform.tasks.preprocessing" = ["*.parquet"]
