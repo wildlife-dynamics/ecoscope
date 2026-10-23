@@ -128,6 +128,14 @@ def test_classification_args_union_selects_variant_by_scheme(scheme, args_cls):
     assert type(args) is args_cls
 
 
+@pytest.mark.parametrize("args_cls", SCHEMES.values())
+def test_classification_args_round_trip_through_dump(args_cls):
+    adapter = TypeAdapter(ClassificationArgs)
+    args = args_cls()
+    assert adapter.validate_python(args.model_dump()) == args
+    assert adapter.validate_json(args.model_dump_json()) == args
+
+
 @pytest.mark.parametrize("scheme", SCHEMES)
 def test_apply_classification_validates_each_scheme(test_df, scheme):
     options = {"scheme": scheme} if scheme == "std_mean" else {"scheme": scheme, "k": 3}
