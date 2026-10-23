@@ -273,3 +273,22 @@ class TestColoringParity:
         )
 
         assert er_api_colors == warehouse_colors == {"s1": (255, 0, 0, 255), "s2": (0, 0, 255, 255)}
+
+
+class TestPromotedSubjectSex:
+    """io-core v0.0.28 promotes `sex` out of `additional` into its own column, as the
+    EarthRanger API does, so it is served whether or not `additional` is requested."""
+
+    def test_sex_reaches_the_validated_result(self, warehouse_observations_table):
+        result, _ = _call_via_warehouse(warehouse_observations_table(sex=["female", "male"]))
+
+        validated = _RETURN_TYPE.validate_python(result)
+
+        assert validated.extra__subject__sex.to_list() == ["female", "male"]
+
+    def test_missing_sex_gets_the_api_paths_placeholder(self, warehouse_observations_table):
+        result, _ = _call_via_warehouse(warehouse_observations_table(sex=["female", None]))
+
+        validated = _RETURN_TYPE.validate_python(result)
+
+        assert validated.extra__subject__sex.to_list() == ["female", "None"]
