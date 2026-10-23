@@ -1,19 +1,34 @@
 import calendar
 from dataclasses import dataclass
-from typing import Annotated, Callable, List, Literal, TypeAlias, Union
+from typing import Annotated, Any, Callable, List, Literal, TypeAlias, Union
 
 from pydantic import BaseModel, ConfigDict, Field, GetJsonSchemaHandler, PrivateAttr
 from pydantic.functional_validators import BeforeValidator
 from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
 from pydantic_core import core_schema as cs
+from wt_contracts import Cacheable, CodecRef
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.annotations import (
+    AdvancedField,
+    AnyDataFrame,
+    AnyGeoDataFrame,
+    CacheableModel,
+)
 from ecoscope.platform.jsonschema import oneOf
 
 IndexName: TypeAlias = str
 IndexValue: TypeAlias = str
 Filter = tuple[IndexName, Literal["="], IndexValue]
 CompositeFilter = tuple[Filter, ...]
+
+# Here rather than beside the tasks that return them: the alias is the unit a
+# codec is declared on, and both `groupby` and `transformation` need the same one.
+# Only the `Any` ones need a marker -- the walk finds `FRAME` through `AnyDataFrame`.
+_KEYED_ANY = CodecRef("ecoscope.platform.codecs:KEYED_ANY")
+
+KeyedIterableOfDataFrames = list[tuple[CompositeFilter, AnyDataFrame]]
+KeyedIterableOfAny = Annotated[list[tuple[CompositeFilter, Any]], _KEYED_ANY]
+CombinedKeyedIterable = Annotated[list[tuple[CompositeFilter, list[Any]]], _KEYED_ANY]
 
 
 @dataclass(frozen=True)
@@ -114,7 +129,21 @@ def _coerce_temporal_index(v):
     return v
 
 
-class AllGrouper(BaseModel):
+class CacheableGrouper(Cacheable):
+    """Mixin for the groupers, whose codec encodes them itself.
+
+    `grouper_codec` exists precisely because these three cannot be rebuilt from
+    `model_dump`: two exclude `help_text`, `TemporalGrouper` dumps a dataclass
+    holding a bound method, and `SpatialGrouper` hides its resolved regions in
+    a `PrivateAttr`. `__wt_codec_owns_round_trip__` says so, which is what lets
+    them declare on the class like every other cacheable type.
+    """
+
+    __wt_codec__ = "ecoscope.platform.codecs:grouper_codec"
+    __wt_codec_owns_round_trip__ = True
+
+
+class AllGrouper(BaseModel, CacheableModel):
     model_config = ConfigDict(frozen=True)
 
     index_name: Annotated[str, AdvancedField(default="All")] = "All"
@@ -134,7 +163,7 @@ class AllGrouper(BaseModel):
         return None
 
 
-class ValueGrouper(BaseModel):
+class ValueGrouper(BaseModel, CacheableGrouper):
     model_config = ConfigDict(frozen=True, title="Category")
 
     index_name: IndexName
@@ -164,7 +193,7 @@ class ValueGrouper(BaseModel):
         }
 
 
-class TemporalGrouper(BaseModel):
+class TemporalGrouper(BaseModel, CacheableGrouper):
     model_config = ConfigDict(frozen=True, title="Time")
 
     temporal_index: Annotated[TemporalIndexType, BeforeValidator(_coerce_temporal_index)]
@@ -202,7 +231,7 @@ class TemporalGrouper(BaseModel):
         }
 
 
-class SpatialGrouper(BaseModel):
+class SpatialGrouper(BaseModel, CacheableGrouper):
     model_config = ConfigDict(title="Spatial")
 
     spatial_index_name: IndexName

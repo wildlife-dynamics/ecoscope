@@ -3,15 +3,19 @@ from typing import Annotated, Any, cast
 import pandas as pd
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
+from wt_contracts import CodecRef
 from wt_registry import register
 from wt_task.skip import SKIP_SENTINEL, SkippedDependencyFallback, SkipSentinel
 
 from ecoscope.platform.annotations import AnyDataFrame
 from ecoscope.platform.indexes import (
     AllGrouper,
+    CombinedKeyedIterable,
     CompositeFilter,
     IndexName,
     IndexValue,
+    KeyedIterableOfAny,
+    KeyedIterableOfDataFrames,
     UserDefinedGroupers,
     ValueGrouper,
 )
@@ -68,11 +72,6 @@ def set_groupers(
     ),
 ]:
     return groupers if groupers else AllGrouper()
-
-
-KeyedIterableOfDataFrames = list[tuple[CompositeFilter, AnyDataFrame]]
-KeyedIterableOfAny = list[tuple[CompositeFilter, Any]]
-CombinedKeyedIterable = list[tuple[CompositeFilter, list[Any]]]
 
 
 @register()
@@ -223,7 +222,14 @@ def groupbykey_passthrough_skip(
         list[KeyedIterableWithNullSlots],
         Field(...),
     ],
-) -> Annotated[list[tuple[CompositeFilter, list[Any] | SkipSentinel]] | SkipSentinel, ...]:
+) -> Annotated[
+    list[tuple[CompositeFilter, list[Any] | SkipSentinel]] | SkipSentinel,
+    # Spelled out rather than reusing `KeyedIterableOfAny`, whose value type is
+    # wider; the bare-sentinel arm is covered by the wrapper every step's
+    # structure gets, so the ref only has to describe the keyed shape.
+    CodecRef("ecoscope.platform.codecs:KEYED_ANY"),
+    ...,
+]:
     """Combine multiple keyed iterables, preserving keys whose values were all skipped.
 
     Behaves like ``ecoscope.platform.tasks.groupby.groupbykey`` — flattens a list of
