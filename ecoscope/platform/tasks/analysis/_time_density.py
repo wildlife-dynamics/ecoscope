@@ -11,6 +11,7 @@ from wt_registry import register
 from ecoscope.platform.annotations import (
     AdvancedField,
     AnyGeoDataFrame,
+    CacheableModel,
     DataFrame,
     JsonSerializableDataFrameModel,
 )
@@ -27,7 +28,7 @@ class TimeDensityReturnGDFSchema(JsonSerializableDataFrameModel):
 TimeDensityReturnGDF: TypeAlias = DataFrame[TimeDensityReturnGDFSchema]
 
 
-class AutoScaleGridCellSize(BaseModel):
+class AutoScaleGridCellSize(BaseModel, CacheableModel):
     model_config = ConfigDict(json_schema_extra={"title": "Auto-scale"})
     auto_scale_or_custom: Annotated[
         Literal["Auto-scale"],
@@ -38,7 +39,7 @@ class AutoScaleGridCellSize(BaseModel):
     ] = "Auto-scale"
 
 
-class CustomGridCellSize(BaseModel):
+class CustomGridCellSize(BaseModel, CacheableModel):
     model_config = ConfigDict(json_schema_extra={"title": "Customize"})
     auto_scale_or_custom: Annotated[
         Literal["Customize"],
@@ -142,6 +143,25 @@ EtdPercentileAnnotation: TypeAlias = Annotated[
         description="Choose the time density percentile bins to display.",
         title="Percentile Levels",
         json_schema_extra={"uniqueItems": True, "minItems": 1},
+    ),
+    AfterValidator(_coerce_percentile_strings_to_floats),
+]
+
+
+# The same field as `EtdPercentileAnnotation`, with the default held in the validated
+# (float) form: pydantic does not validate defaults, so a model carrying this
+# one must still dump and revalidate unchanged for the step cache. The schema
+# keeps the string form, the only one the enum offers. A second alias rather
+# than a change to the shared one, because that one is also used on
+# `@dataclass` fields, which take their schema default from `json_schema_extra`
+# and would flip from "unset" to these six values.
+EtdCachedPercentileAnnotation: TypeAlias = Annotated[
+    list[UDPercentiles] | SkipJsonSchema[list[float]] | SkipJsonSchema[None],
+    AdvancedField(
+        default=_coerce_percentile_strings_to_floats(ETD_DEFAULT_PERCENTILES),
+        description="Choose the time density percentile bins to display.",
+        title="Percentile Levels",
+        json_schema_extra={"uniqueItems": True, "minItems": 1, "default": ETD_DEFAULT_PERCENTILES},
     ),
     AfterValidator(_coerce_percentile_strings_to_floats),
 ]

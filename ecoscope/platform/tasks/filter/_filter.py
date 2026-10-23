@@ -5,10 +5,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField
+from ecoscope.platform.annotations import AdvancedField, CacheableModel
 
 
-class TimezoneInfo(BaseModel):
+class TimezoneInfo(BaseModel, CacheableModel):
     label: str
     tzCode: str
     name: str
@@ -27,7 +27,7 @@ DEFAULT_TIME_FORMAT = "%d %b %Y %H:%M:%S"
 UTC_TIMEZONEINFO = TimezoneInfo(label="UTC", tzCode="UTC", name="UTC", utc_offset="+00:00")
 
 
-class TimeRange(BaseModel):
+class TimeRange(BaseModel, CacheableModel):
     since: datetime
     until: datetime
     timezone: TimezoneInfo

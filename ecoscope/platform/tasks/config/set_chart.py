@@ -4,12 +4,14 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
+from ecoscope.platform.annotations import CacheableModel
 from ecoscope.platform.indexes import (  # type: ignore[import-untyped]
     SpatialGrouper,
     UserDefinedGroupers,
 )
 from ecoscope.platform.tasks.analysis._patrol_summary import (
     EncounterRateMetric,
+    PatrolCountMetric,
     encounter_metrics_to_summary_params,
 )
 from ecoscope.platform.tasks.analysis._summary import SummaryParam
@@ -194,16 +196,31 @@ def _config_task_json_schema(schema: dict) -> None:
     ]
 
 
+# The same default in the two forms its two consumers need. The task
+# parameter's schema default has to stay a plain JSON object, because the form
+# renders it; `ChartConfig.metrics` has to already hold what its annotation
+# validates to, because pydantic does not validate defaults and the step cache
+# needs dump-then-revalidate to be a no-op.
 _DEFAULT_TREND_METRICS: tuple = ({"metric": "patrol_count"},)
 
 
-class ChartConfig(BaseModel):
+def _default_trend_metrics() -> list[EncounterRateMetric]:
+    return [PatrolCountMetric()]
+
+
+class ChartConfig(BaseModel, CacheableModel):
     """Validated carrier for the chart configuration (the runtime gate
     matching the form-time guard in _config_task_json_schema)."""
 
     model_config = ConfigDict(title="")
 
-    metrics: Annotated[Sequence[EncounterRateMetric], Field(default=_DEFAULT_TREND_METRICS)] = _DEFAULT_TREND_METRICS
+    metrics: Annotated[
+        Sequence[EncounterRateMetric],
+        # The factory keeps the runtime default validated; `json_schema_extra`
+        # puts the default back in the schema, which a `default_factory` field
+        # does not emit on its own and the form needs.
+        Field(default_factory=_default_trend_metrics, json_schema_extra={"default": list(_DEFAULT_TREND_METRICS)}),
+    ]
     time_interval: Annotated[Literal["year", "month", "week", "day", "hour"], Field(default="week")] = "week"
     mode: Annotated[Union[ChartMode, SkipJsonSchema[None]], Field(default=None)] = None
 
@@ -426,7 +443,7 @@ def _palette_schema(schema: dict) -> None:
             branch["title"] = "Custom Colors"
 
 
-class ChartStyle(BaseModel):
+class ChartStyle(BaseModel, CacheableModel):
     """Validated carrier for the chart styling choices."""
 
     model_config = ConfigDict(title="")
