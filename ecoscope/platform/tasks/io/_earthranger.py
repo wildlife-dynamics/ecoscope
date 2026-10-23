@@ -792,9 +792,15 @@ def get_events(
                 index=events_df.index,
             )
         # Parity with the legacy path, which returns events sorted ascending by time
-        # (the warehouse serves them event_time DESC).
+        # (the warehouse serves them event_time DESC). `id` is a tie-break, not
+        # decoration: events sharing a timestamp are common, the warehouse makes no
+        # ordering guarantee within them, and a default quicksort over an unordered
+        # source yields a different row order each run -- which changes the content
+        # hash, hence the download filename and every cached step below this one.
+        # Same reasoning as `_sort_warehouse_relocations`.
         if not events_df.empty:
-            events_df = events_df.sort_values("time")
+            sort_keys = ["time", "id"] if "id" in events_df.columns else ["time"]
+            events_df = events_df.sort_values(sort_keys, kind="stable")
         # Synthesize the ER-native `location` JSON ({"latitude", "longitude"}) from
         # geometry so workflows that read it keep working — e.g. the event-details
         # workflow's extract_value_from_json_column steps that build lat/lon columns.
