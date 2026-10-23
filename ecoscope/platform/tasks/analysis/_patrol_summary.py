@@ -439,15 +439,22 @@ class EncountersPerPatrolDayMetric(BaseModel):
 
 
 # Union order drives the RJSF dropdown: keep it ALPHABETICAL by title.
+# The four leg presets (Active Duration, Elapsed Duration, Leg Count,
+# Member-days) read the leg columns, which are NaN on track and event rows,
+# so they only count leg rows stacked into the combined chart frame.
 EncounterRateMetric = Annotated[
     Union[
+        ActiveDurationMetric,  # Active Duration
         MergedAreaCoveredMetric,  # Area Covered (Merged)
         UnmergedAreaCoveredMetric,  # Area Covered (Unmerged)
         CustomMetric,  # Custom
+        ElapsedDurationMetric,  # Elapsed Duration
         EncountersPerDistanceMetric,  # Encounters per Distance
         EncountersPerDurationMetric,  # Encounters per Duration
         EncountersPerPatrolMetric,  # Encounters per Patrol
         EncountersPerPatrolDayMetric,  # Encounters per Patrol Day
+        LegCountMetric,  # Leg Count
+        MemberDaysMetric,  # Member-days
         PatrolCountMetric,  # Patrol Count
         PatrolDaysMetric,  # Patrol Days
         TotalDistanceMetric,  # Total Distance
