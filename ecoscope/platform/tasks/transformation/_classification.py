@@ -10,42 +10,36 @@ from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 
 logger = logging.getLogger(__name__)
 
-ClassificationMethod = Literal[
-    "equal_interval",
-    "quantile",
-    "fisher_jenks",
-    "std_mean",
-    "max_breaks",
-    "natural_breaks",
-]
 
-
+# Each variant needs its own single-value `scheme` to be a distinct tag in the
+# discriminated union; subclasses narrow it, which mypy flags as an incompatible override.
+# `scheme` must stay in the dump, or the serialized args (and the schema default) lose their tag.
 class SharedArgs(BaseModel):
-    scheme: ClassificationMethod = Field("equal_interval", exclude=True)
+    scheme: Literal["equal_interval"] = "equal_interval"
     k: int = 5
 
 
 class QuantileArgs(SharedArgs):
-    scheme: ClassificationMethod = Field("quantile", exclude=True)
+    scheme: Literal["quantile"] = "quantile"  # type: ignore[assignment]
 
 
 class FisherJenksArgs(SharedArgs):
-    scheme: ClassificationMethod = Field("fisher_jenks", exclude=True)
+    scheme: Literal["fisher_jenks"] = "fisher_jenks"  # type: ignore[assignment]
 
 
 class StdMeanArgs(BaseModel):
-    scheme: ClassificationMethod = Field("std_mean", exclude=True)
+    scheme: Literal["std_mean"] = "std_mean"
     multiples: list[int] = [-2, -1, 1, 2]
     anchor: bool = False
 
 
 class MaxBreaksArgs(SharedArgs):
-    scheme: ClassificationMethod = Field("max_breaks", exclude=True)
+    scheme: Literal["max_breaks"] = "max_breaks"  # type: ignore[assignment]
     mindiff: float = 0
 
 
 class NaturalBreaksArgs(SharedArgs):
-    scheme: ClassificationMethod = Field("natural_breaks", exclude=True)
+    scheme: Literal["natural_breaks"] = "natural_breaks"  # type: ignore[assignment]
     initial: int = 10
 
 
@@ -141,7 +135,6 @@ def apply_classification(
         df,
         input_column_name=input_column_name,
         output_column_name=output_column_name,
-        scheme=classification_options.scheme,
         **classification_options.model_dump(exclude_none=True),  # type: ignore[union-attr]
         **label_options.model_dump(exclude_none=True),
     )

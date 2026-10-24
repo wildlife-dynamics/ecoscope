@@ -69,7 +69,7 @@ mapping = [
 plotting = ["plotly", "scikit-learn"]
 platform = [
     "pandera>=0.28,<0.29",
-    "pydantic<2.9.0",  # >=2.9 breaks discriminated unions in apply_classification (duplicate 'equal_interval' key)
+    "pydantic",
     "pydantic-settings",
     "cloudpathlib[gs]",
     "wt-registry>=0.2.0,<0.3.0",
