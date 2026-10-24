@@ -310,3 +310,18 @@ def test_join_summary_tables_merges_reset_frames_on_shared_columns():
 def test_join_summary_tables_ungrouped_one_row_frames_join_on_index():
     joined = join_summary_tables([pd.DataFrame({"Patrol Count": [2]}), pd.DataFrame({"Leg Count": [3]})])
     assert joined.iloc[0].tolist() == [2, 3]
+
+
+def test_join_summary_tables_ignores_key_only_table():
+    # No leg metric selected: the leg side carries only the group keys, one of which (C) has
+    # no track row. It must not add an all-blank row.
+    left = pd.DataFrame({"patrol_type": ["A", "B"], "Patrol Count": [2, 1]})
+    key_only = pd.DataFrame({"patrol_type": ["A", "C"]})
+    assert join_summary_tables([left, key_only]).equals(left)
+    assert join_summary_tables([key_only, left]).equals(left)
+    # index mode: a key-only summary has no columns at all
+    left_idx = pd.DataFrame({"Patrol Count": [2]}, index=pd.Index(["A"], name="patrol_type"))
+    key_only_idx = pd.DataFrame(index=pd.Index(["A", "C"], name="patrol_type"))
+    assert join_summary_tables([left_idx, key_only_idx]).equals(left_idx)
+    # every table key-only: the first survives, so an all-key run still renders its rows
+    assert join_summary_tables([key_only, pd.DataFrame({"patrol_type": ["D"]})]).equals(key_only)
