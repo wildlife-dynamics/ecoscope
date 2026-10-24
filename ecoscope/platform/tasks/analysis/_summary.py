@@ -262,6 +262,11 @@ def join_summary_tables(
     list gives an empty frame. Taking a list lets a `groupbykey` pair with one side missing
     (a group key present on only one frame) still render.
 
+    A table that adds no column of its own (every column it has is also on another table,
+    e.g. a leg-side summary when no leg metric was selected, which carries only the group
+    keys) is ignored too: it has nothing to contribute, and its keys would otherwise become
+    all-blank rows in the outer join. When every table is key-only the first is kept.
+
     Two modes per join:
     - Both frames have a plain `RangeIndex` (`summarize_df` ran with `reset_index=True`):
       outer-merge on the columns the two frames share, which are the group-key columns.
@@ -271,6 +276,12 @@ def join_summary_tables(
     present = [t for t in tables if not t.empty]
     if not present:
         return cast(AnyDataFrame, pd.DataFrame())
+    contributing = [
+        t
+        for i, t in enumerate(present)
+        if not set(t.columns) <= {c for j, o in enumerate(present) if j != i for c in o.columns}
+    ]
+    present = contributing or present[:1]
     out = present[0]
     for right in present[1:]:
         if isinstance(out.index, pd.RangeIndex) and isinstance(right.index, pd.RangeIndex):
