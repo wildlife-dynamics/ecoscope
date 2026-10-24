@@ -172,6 +172,9 @@ def summarize_column(df, param):
         numerator = df[param.numerator.column].agg(param.numerator.aggregator)
         denominator = df[param.denominator.column].agg(param.denominator.aggregator)
         result = float("nan") if denominator == 0 else numerator / denominator * param.scale
+    elif isinstance(param, StatSummaryParam) and param.aggregator == "sum" and param.column == "leg_member_days":
+        # all-NaN means no member data at this site: report blank, not 0
+        result = df[param.column].sum(min_count=1)
     else:
         result = df[param.column].agg(param.aggregator)
 
@@ -222,6 +225,72 @@ def summarize_df(
     if reset_index:
         result_df.reset_index(drop=False, inplace=True)
     return cast(AnyDataFrame, result_df)
+
+
+LEG_METRIC_COLUMNS: frozenset[str] = frozenset(
+    {"leg_active_seconds", "patrol_elapsed_seconds", "patrol_segment_id", "leg_member_days"}
+)
+
+
+@register()
+def select_track_metrics(
+    summary_params: Annotated[list[SummaryParam], Field(description="All summary parameters.")],
+) -> Annotated[list[SummaryParam], Field(description="Parameters computed over the trajectory frame.")]:
+    """Keep the summary parameters computed over the trajectory frame (non-leg metrics)."""
+    return [p for p in summary_params if getattr(p, "column", None) not in LEG_METRIC_COLUMNS]
+
+
+@register()
+def select_leg_metrics(
+    summary_params: Annotated[list[SummaryParam], Field(description="All summary parameters.")],
+) -> Annotated[list[SummaryParam], Field(description="Parameters computed over the leg frame.")]:
+    """Keep the summary parameters computed over the leg frame: Active Duration,
+    Elapsed Duration, Leg Count and Member-days.
+    """
+    return [p for p in summary_params if getattr(p, "column", None) in LEG_METRIC_COLUMNS]
+
+
+@register()
+def join_summary_tables(
+    tables: Annotated[
+        list[AnyDataFrame],
+        Field(description="Summary tables to join, group-key summaries of the same groups (e.g. track then leg)."),
+    ],
+) -> Annotated[AnyDataFrame, Field(description="Joined summary table")]:
+    """Outer-join summary tables on the group key, left to right. Empty tables are ignored,
+    so existing track metrics never change; a single table is returned as is, and an empty
+    list gives an empty frame. Taking a list lets a `groupbykey` pair with one side missing
+    (a group key present on only one frame) still render.
+
+    A table that adds no column of its own (every column it has is also on another table,
+    e.g. a leg-side summary when no leg metric was selected, which carries only the group
+    keys) is ignored too: it has nothing to contribute, and its keys would otherwise become
+    all-blank rows in the outer join. When every table is key-only the first is kept.
+
+    Two modes per join:
+    - Both frames have a plain `RangeIndex` (`summarize_df` ran with `reset_index=True`):
+      outer-merge on the columns the two frames share, which are the group-key columns.
+    - Otherwise (or when no column is shared, e.g. two ungrouped one-row summaries):
+      outer-join on the index (the group key `summarize_df` left there).
+    """
+    present = [t for t in tables if not t.empty]
+    if not present:
+        return cast(AnyDataFrame, pd.DataFrame())
+    contributing = [
+        t
+        for i, t in enumerate(present)
+        if not set(t.columns) <= {c for j, o in enumerate(present) if j != i for c in o.columns}
+    ]
+    present = contributing or present[:1]
+    out = present[0]
+    for right in present[1:]:
+        if isinstance(out.index, pd.RangeIndex) and isinstance(right.index, pd.RangeIndex):
+            shared = [c for c in out.columns if c in right.columns]
+            if shared:
+                out = out.merge(right, how="outer", on=shared)
+                continue
+        out = out.join(right, how="outer")
+    return cast(AnyDataFrame, out)
 
 
 @register()

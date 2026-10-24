@@ -13,6 +13,8 @@ from ecoscope.platform.annotations import AnyDataFrame  # type: ignore[import-un
 from ecoscope.platform.connections import EarthRangerClientProtocol, EarthRangerConnection
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import (
+    add_patrol_roster_names,
+    add_patrol_team_names,
     download_grouped_event_attachments,
     get_analysis_field_from_event_details,
     get_analysis_field_label_from_event_details,
@@ -29,6 +31,7 @@ from ecoscope.platform.tasks.io import (
     get_patrol_observations_from_combined_params,
     get_patrol_observations_from_patrols_df,
     get_patrol_observations_from_patrols_df_and_combined_params,
+    get_patrol_segments_from_patrols_df,
     get_patrols,
     get_patrols_from_combined_params,
     get_spatial_features_group,
@@ -2383,3 +2386,19 @@ def test_state_and_status_render_as_labeled_options(task_func, field, expected):
     assert schema["uniqueItems"] is True
     assert "enum" not in schema["items"]
     assert schema["items"]["oneOf"] == expected
+
+
+def test_live_patrol_legs_on_mep_dev(client):
+    tr = TimeRange(
+        since=datetime(2026, 1, 5, tzinfo=timezone.utc),
+        until=datetime(2026, 1, 7, tzinfo=timezone.utc),
+        timezone=UTC_TIMEZONEINFO,
+    )
+    patrols = get_patrols(client=client, time_range=tr, patrol_types=["ecoscope_leg_test"], status=["done"])
+    legs = get_patrol_segments_from_patrols_df(patrols_df=patrols, time_range=tr)
+    assert len(legs) == 3
+    assert legs["leg_active_seconds"].sum() == 9 * 3600.0
+    assert sorted(legs["patrol_elapsed_seconds"].dropna().tolist()) == [2 * 3600.0, 8 * 3600.0]
+    named = add_patrol_roster_names(add_patrol_team_names(legs, client), client)
+    assert sorted(named["patrol_member_names"].iloc[0]) == ["Ecoscope Leg Tester A", "Ecoscope Leg Tester B"]
+    assert named["patrol_team_name"].iloc[0] != named["patrol_team"].iloc[0]

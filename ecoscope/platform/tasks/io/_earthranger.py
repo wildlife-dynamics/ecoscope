@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Literal, cast
 
+import numpy as np
 import pandas as pd
 from pydantic import AfterValidator, Field, SecretStr
 from pydantic.json_schema import SkipJsonSchema
@@ -1046,6 +1047,123 @@ def unpack_events_from_patrols_df(
         ]
 
     return cast(EventGDF, patrol_events)
+
+
+@register(tags=["io"])
+def get_patrol_segments_from_patrols_df(
+    patrols_df: PatrolsDF,
+    time_range: TimeRangeAnnotation,
+    truncate_to_time_range: TruncateToTimeRangeAnnotation = True,
+    raise_on_empty: RaiseOnEmptyAnnotation = True,
+) -> AnyDataFrame | EmptyDataFrame:
+    """Return one row per patrol leg (segment) from a patrols dataframe.
+    Pauses are never requested from EarthRanger, so pause legs are skipped. Legs are clipped
+    to `time_range` when `truncate_to_time_range` is set, and a `ValueError` is raised on an
+    empty result when `raise_on_empty` is set.
+    """
+    from ecoscope.io.earthranger_utils import patrol_segments_from_patrols_df
+
+    if truncate_to_time_range:
+        legs = patrol_segments_from_patrols_df(patrols_df, since=time_range.since, until=time_range.until)
+    else:
+        legs = patrol_segments_from_patrols_df(patrols_df)
+
+    if raise_on_empty and legs.empty:
+        raise ValueError("No patrol segments in provided patrols_df")
+
+    return cast(AnyDataFrame, legs)
+
+
+@register(tags=["io"])
+def get_patrol_segments_from_patrols_df_and_combined_params(
+    patrols_df: PatrolsDF,
+    combined_params: CombinedPatrolAndEventsParams,
+) -> AnyDataFrame | EmptyDataFrame:
+    """Same as `get_patrol_segments_from_patrols_df`, taking time range, truncation and
+    empty handling from a combined patrol and events params object.
+    """
+    return (
+        task(get_patrol_segments_from_patrols_df)
+        .validate()
+        .call(
+            patrols_df=patrols_df,
+            time_range=combined_params.time_range,
+            truncate_to_time_range=combined_params.truncate_to_time_range,
+            raise_on_empty=combined_params.raise_on_empty,
+        )
+    )
+
+
+def _id_name_lookup(frame: pd.DataFrame) -> dict:
+    if frame.empty or not {"id", "name"} <= set(frame.columns):
+        return {}
+    named = frame.dropna(subset=["name"])
+    return dict(zip(named["id"], named["name"]))
+
+
+@register(tags=["io"])
+def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
+    """Add a `patrol_team_name` column by resolving `patrol_team` ids to team names.
+    Unresolved ids keep the id; missing teams and sites without the `patrol_schemas` flag
+    (no `patrol_team` column) are filled with "None".
+    """
+    df = df.copy()
+    if "patrol_team" not in df.columns:
+        df["patrol_team_name"] = "None"
+        return df
+
+    lookup = _id_name_lookup(client.get_patrol_teams())
+    df["patrol_team_name"] = df["patrol_team"].map(lambda t: "None" if pd.isna(t) else lookup.get(t, t))
+    return df
+
+
+@register(tags=["io"])
+def add_patrol_type_display_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
+    """Rewrite `patrol_type` from the type's value to its display name, keeping the value in
+    `patrol_type__value` (left as is when that column already exists). Values with no
+    matching patrol type keep the value. A frame without `patrol_type` is returned unchanged.
+    """
+    if "patrol_type" not in df.columns:
+        return df
+    df = df.copy()
+    types = client.get_patrol_types(include_inactive=True)
+    lookup: dict = {}
+    if not types.empty and {"value", "display"} <= set(types.columns):
+        named = types.dropna(subset=["value", "display"])
+        lookup = dict(zip(named["value"], named["display"]))
+    if "patrol_type__value" not in df.columns:
+        df["patrol_type__value"] = df["patrol_type"]
+    df["patrol_type"] = df["patrol_type"].map(lambda v: lookup.get(v, v))
+    return df
+
+
+@register(tags=["io"])
+def add_patrol_roster_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
+    """Add `patrol_member_names` and `patrol_asset_names` columns (lists of names) by
+    resolving the ids in `patrol_members` and `patrol_assets`. Unresolved ids keep the id;
+    a column whose source is absent (no `patrol_schemas` flag) is filled with "None".
+    """
+    df = df.copy()
+    pairs = {"patrol_members": "patrol_member_names", "patrol_assets": "patrol_asset_names"}
+    present = {src: dst for src, dst in pairs.items() if src in df.columns}
+    for src, dst in pairs.items():
+        if src not in present:
+            df[dst] = "None"
+    if not present:
+        return df
+
+    def _as_list(v):
+        if isinstance(v, np.ndarray):
+            return v.tolist()
+        return list(v) if isinstance(v, (list, tuple)) else []
+
+    ids = sorted({i for src in present for v in df[src] for i in _as_list(v)})
+    lookup: dict = {}
+    if ids:
+        lookup = _id_name_lookup(client.get_subjects(id=",".join(ids), include_inactive=True))
+    for src, dst in present.items():
+        df[dst] = df[src].map(lambda v: [lookup.get(i, i) for i in _as_list(v)])
+    return df
 
 
 @register(tags=["io"])

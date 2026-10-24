@@ -913,6 +913,23 @@ class EarthRangerIO(ERClient):
             df = df.set_index("id")
         return df
 
+    def get_patrol_teams(self) -> pd.DataFrame:
+        """
+        Return dataframe of ER patrol teams, including retired ones.
+
+        Returns
+        -------
+        patrol_teams : pd.DataFrame
+            DataFrame with `id` and `name` columns, empty if the site does not expose teams
+        """
+        try:
+            response = self._get("activity/patrols/config/default/")
+        except ERClientNotFound:
+            return pd.DataFrame(columns=["id", "name"])
+        teams = pd.DataFrame(response["teams"], columns=["id", "display", "value"])
+        teams["name"] = teams["display"].replace("", None).fillna(teams["value"])
+        return teams[["id", "name"]]
+
     def get_patrols(
         self,
         since: str | None = None,
@@ -1196,14 +1213,17 @@ class EarthRangerIO(ERClient):
                 patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
                 patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
+                if patrol_segment.get("is_pause"):
+                    continue
+
+                if None in {subject_id, patrol_start_time}:
+                    continue
+
                 patrol_type = (
                     df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
                     if patrol_segment.get("patrol_type")
                     else None
                 )
-
-                if None in {subject_id, patrol_start_time}:
-                    continue
 
                 try:
                     observation = self.get_subject_observations(
@@ -1225,6 +1245,23 @@ class EarthRangerIO(ERClient):
                             observation.gdf["patrol_type"] = patrol_type
                             observation.gdf["patrol_status"] = patrol["state"]
                             observation.gdf["patrol_subject"] = subject_name
+                            observation.gdf["patrol_segment_id"] = patrol_segment.get("id")
+                            for api_key, col in [
+                                ("team", "patrol_team"),
+                                ("members", "patrol_members"),
+                                ("assets", "patrol_assets"),
+                                ("segment_details", "patrol_segment_details"),
+                                ("type_details", "patrol_type_details"),
+                            ]:
+                                if api_key in patrol_segment:
+                                    value = patrol_segment[api_key]
+                                    # details objects are JSON strings: dict columns cannot be written to parquet
+                                    if api_key.endswith("_details") and value is not None:
+                                        value = json.dumps(value)
+                                    observation.gdf[col] = pd.Series(
+                                        [value] * len(observation.gdf),
+                                        index=observation.gdf.index,
+                                    )
                             observation.gdf = (
                                 observation.gdf.reset_index()
                                 .merge(
