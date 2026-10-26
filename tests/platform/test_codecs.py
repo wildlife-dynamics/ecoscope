@@ -626,6 +626,21 @@ def test_model_digest_is_stable_and_sensitive():
     assert tz.digest(timezone_info()) != tz.digest(TimezoneInfo(label="UTC", tzCode="UTC", name="UTC", utc="+00:00"))
 
 
+def test_a_time_range_read_back_formats_its_times_identically():
+    """The dashboard prints `since`/`until` with `%Z`.
+
+    pydantic reads a dumped offset back as its own `TzInfo`, which spells
+    `+03:00` where the `datetime.timezone` it was built with said `UTC+03:00`:
+    equal instants and an equal digest, but a different dashboard label.
+    """
+    codec = model_codec(TimeRange)
+    value = time_range()
+    back = roundtrip(codec, value)
+    fmt = "%d %b %Y %H:%M:%S %Z"
+    assert back.since.strftime(fmt) == value.since.strftime(fmt)
+    assert back.until.strftime(fmt) == value.until.strftime(fmt)
+
+
 def test_two_models_dumping_alike_do_not_share_a_codec_id():
     """The class is part of the identity, and the payload no longer carries it.
 
