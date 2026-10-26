@@ -270,15 +270,6 @@ def get_chart_metrics(
 
 
 @register()
-def get_chart_figures(
-    config: Annotated[ChartConfig, Field(title="")],
-    style: Annotated["ChartStyle", Field(title="")],
-) -> Annotated[list[ChartFigure], Field(description="One figure per configured metric, in the styled chart type")]:
-    params = encounter_metrics_to_summary_params(config.metrics)
-    return [ChartFigure(metric=param, chart_type=style.chart_type) for param in params]
-
-
-@register()
 def get_chart_time_interval(
     config: Annotated[ChartConfig, Field(title="")],
 ) -> Literal["year", "month", "week", "day", "hour"]:
@@ -493,6 +484,17 @@ def set_chart_style(
         palette=palette,
         y_axis_title=y_axis_title,
     )
+
+
+# Below `ChartStyle` rather than beside the other `config` getters: pydantic
+# 2.10-2.11 cannot resolve a string forward reference to it here.
+@register()
+def get_chart_figures(
+    config: Annotated[ChartConfig, Field(title="")],
+    style: Annotated[ChartStyle, Field(title="")],
+) -> Annotated[list[ChartFigure], Field(description="One figure per configured metric, in the styled chart type")]:
+    params = encounter_metrics_to_summary_params(config.metrics)
+    return [ChartFigure(metric=param, chart_type=style.chart_type) for param in params]
 
 
 @register()
