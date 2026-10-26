@@ -194,6 +194,7 @@ In `gather_dashboard`, reference the merged widget:
   task: gather_dashboard
   partial:
     details: ${{ workflow.workflow_details.return }}
+    root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
     widgets:
       - ${{ workflow.map_widget_merged.return }}
     groupers: ${{ workflow.groupers.return }}

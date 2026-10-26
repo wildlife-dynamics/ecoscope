@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Annotated, Any, Generator
 
@@ -23,8 +23,10 @@ from ecoscope.platform.jsonschema import (
     RJSFFilterUiSchema,
     oneOf,
 )
+from ecoscope.platform.serde import _reroot
 from ecoscope.platform.tasks.config._workflow_details import WorkflowDetails
 from ecoscope.platform.tasks.filter._filter import TimeRange
+from ecoscope.platform.tasks.results._pydeck import DeckJsonSpec
 from ecoscope.platform.tasks.results._widget_types import (
     FilesListSingleView,
     GroupedFiles,
@@ -360,12 +362,40 @@ def _flatten(possibly_nested: list) -> list:
     return flat
 
 
+def _reroot_widget_data(widget_type: str, data: WidgetData, root_path: str) -> WidgetData:
+    """Make the persisted paths in one view's data readable; see `_reroot`.
+
+    Keyed on widget type, not value type: a `text` or `stat` widget's string is
+    content, not a path. A rerooted path keeps its type (`str` or `Path`), so the
+    dashboard serializes exactly as it did when persisting returned absolute paths.
+    """
+    if widget_type in ("map", "graph", "table") and isinstance(data, (str, Path)):
+        return type(data)(_reroot(str(data), root_path))
+    if widget_type == "map_v2" and isinstance(data, DeckJsonSpec):
+        layers = [
+            {**layer, "data": _reroot(layer["data"], root_path)} if isinstance(layer.get("data"), str) else layer
+            for layer in data.layers
+        ]
+        return data.model_copy(update={"layers": layers})
+    return data
+
+
 @register()
 def gather_dashboard(
     details: Annotated[WorkflowDetails, Field(description="Workflow details")],
     widgets: Annotated[
         NestedWidgetList | FlatWidgetList | GroupedOrSingleWidget,
         Field(description="The widgets to display.", exclude=True),
+    ],
+    root_path: Annotated[
+        str,
+        Field(
+            description=(
+                "Results root the workflow persisted into. Persisted paths stay relative to it "
+                "until here, so that they do not vary with a per-run root."
+            ),
+            exclude=True,
+        ),
     ],
     groupers: Annotated[
         AllGrouper | list[ValueGrouper | TemporalGrouper | SpatialGrouper] | SkipJsonSchema[None],
@@ -431,6 +461,15 @@ def gather_dashboard(
         assert file_view_keys <= valid_view_keys, (
             f"File view keys must be ungrouped (`None`) or match the dashboard's view keys. "
             f"Unexpected file view keys: {file_view_keys - valid_view_keys}"
+        )
+
+    grouped_widgets = [
+        replace(gw, views={k: _reroot_widget_data(gw.widget_type, v, root_path) for k, v in gw.views.items()})
+        for gw in grouped_widgets
+    ]
+    if grouped_files is not None:
+        grouped_files = GroupedFiles(
+            views={k: [type(p)(_reroot(str(p), root_path)) for p in paths] for k, paths in grouped_files.views.items()}
         )
 
     return Dashboard(

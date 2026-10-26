@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from unittest import mock
 
@@ -19,7 +20,7 @@ def test_persist_df_auto_filename_hashable(tmp_path):
     dst = persist_df(df, root_path, None, "csv")
 
     # Verify file was created and contains correct data
-    df_read = pd.read_csv(dst, index_col=0)
+    df_read = pd.read_csv(os.path.join(root_path, dst), index_col=0)
     pd.testing.assert_frame_equal(df_read, df)
 
     # Verify same dataframe generates same filename (deterministic)
@@ -37,7 +38,7 @@ def test_persist_df_auto_filename_unhashable(tmp_path):
     dst = persist_df(df, root_path, None, "csv")
 
     # Verify file was created
-    df_read = pd.read_csv(dst, index_col=0)
+    df_read = pd.read_csv(os.path.join(root_path, dst), index_col=0)
     # Note: lists are stored as strings in CSV, so we can't directly compare
     assert len(df_read) == len(df)
 
@@ -64,7 +65,7 @@ def test_persist_df_csv(tmp_path):
     root_path = str(tmp_path / "test")
     filename = "data"
     dst = persist_df(df, root_path, filename, "csv")
-    df_read = pd.read_csv(dst, index_col=0)
+    df_read = pd.read_csv(os.path.join(root_path, dst), index_col=0)
     pd.testing.assert_frame_equal(df_read, df)
 
 
@@ -84,7 +85,7 @@ def test_persist_df_gpkg(tmp_path):
     filename = "data"
     dst = persist_df(df, root_path, filename, "gpkg")
 
-    gdf_read = gpd.read_file(dst)
+    gdf_read = gpd.read_file(os.path.join(root_path, dst))
     pd.testing.assert_frame_equal(gdf_read, gpd.GeoDataFrame(df))
 
 
@@ -93,7 +94,7 @@ def test_persist_df_parquet(tmp_path):
     root_path = str(tmp_path / "test")
     dst = persist_df(df, root_path, "data", "parquet")
     assert dst.endswith(".parquet")
-    df_read = pd.read_parquet(dst)
+    df_read = pd.read_parquet(os.path.join(root_path, dst))
     pd.testing.assert_frame_equal(df_read, df)
 
 
@@ -104,7 +105,7 @@ def test_persist_df_parquet_with_geometry(tmp_path):
     root_path = str(tmp_path / "test")
     dst = persist_df(gdf, root_path, "geo", "parquet")
     assert dst.endswith(".parquet")
-    gdf_read = gpd.read_parquet(dst)
+    gdf_read = gpd.read_parquet(os.path.join(root_path, dst))
     pd.testing.assert_frame_equal(gdf_read, gdf)
 
 
@@ -113,7 +114,7 @@ def test_persist_df_json(tmp_path):
     root_path = str(tmp_path / "test")
     dst = persist_df(df, root_path, "data", "json")
     assert dst.endswith(".json")
-    df_read = pd.read_json(dst)
+    df_read = pd.read_json(os.path.join(root_path, dst))
     pd.testing.assert_frame_equal(df_read, df)
 
 
@@ -124,7 +125,7 @@ def test_persist_df_geojson(tmp_path):
     root_path = str(tmp_path / "test")
     dst = persist_df(gdf, root_path, "geo", "geojson")
     assert dst.endswith(".geojson")
-    gdf_read = gpd.read_file(dst)
+    gdf_read = gpd.read_file(os.path.join(root_path, dst))
     pd.testing.assert_frame_equal(gdf_read[["A", "geometry"]], gdf, check_dtype=False)
 
 
@@ -147,10 +148,10 @@ def test_persist_df_auto_filename_skips_rewrite(tmp_path, filetype):
     root_path = str(tmp_path / "test")
 
     dst = persist_df(gdf, root_path, None, filetype)
-    Path(dst).write_bytes(b"sentinel")
+    Path(root_path, dst).write_bytes(b"sentinel")
 
     assert persist_df(gdf, root_path, None, filetype) == dst
-    assert Path(dst).read_bytes() == b"sentinel", "existing target must not be rewritten"
+    assert Path(root_path, dst).read_bytes() == b"sentinel", "existing target must not be rewritten"
 
 
 def test_persist_df_auto_filename_skips_serialization(tmp_path):
@@ -170,7 +171,7 @@ def test_persist_df_explicit_filename_still_overwrites(tmp_path):
     persist_df(pd.DataFrame({"A": [1]}), root_path, "data", "csv")
     dst = persist_df(pd.DataFrame({"A": [2]}), root_path, "data", "csv")
 
-    assert pd.read_csv(dst, index_col=0)["A"].tolist() == [2]
+    assert pd.read_csv(os.path.join(root_path, dst), index_col=0)["A"].tolist() == [2]
 
 
 @pytest.mark.parametrize(
@@ -292,10 +293,10 @@ def test_persist_df_wrapper_auto_filename_skips_rewrite(tmp_path):
     root_path = str(tmp_path / "test")
 
     (dst,) = persist_df_wrapper(df=df, root_path=root_path, filetypes=["csv"])
-    Path(dst).write_bytes(b"sentinel")
+    Path(root_path, dst).write_bytes(b"sentinel")
 
     assert persist_df_wrapper(df=df, root_path=root_path, filetypes=["csv"]) == [dst]
-    assert Path(dst).read_bytes() == b"sentinel"
+    assert Path(root_path, dst).read_bytes() == b"sentinel"
 
 
 def test_persist_df_wrapper_sanitize_changes_the_filename(tmp_path):
@@ -342,7 +343,7 @@ def test_persist_df_geoparquet_guard_runs_before_the_skip(tmp_path):
     root_path = str(tmp_path / "test")
 
     plain = persist_df(df, root_path, None, "parquet")
-    assert Path(plain).exists(), "the shared target must already be on disk"
+    assert Path(root_path, plain).exists(), "the shared target must already be on disk"
 
     with pytest.raises(ValueError, match="requires at least one geometry column"):
         persist_df(df, root_path, None, "geoparquet")
@@ -350,10 +351,11 @@ def test_persist_df_geoparquet_guard_runs_before_the_skip(tmp_path):
 
 def test_persist_df_geoparquet_with_geometry_still_writes(tmp_path):
     gdf = gpd.GeoDataFrame({"A": [1], "geometry": [Point(0, 0)]})
-    dst = persist_df(gdf, str(tmp_path / "test"), None, "geoparquet")
+    root_path = str(tmp_path / "test")
+    dst = persist_df(gdf, root_path, None, "geoparquet")
 
     assert dst.endswith(".parquet")
-    assert len(gpd.read_parquet(dst)) == 1
+    assert len(gpd.read_parquet(os.path.join(root_path, dst))) == 1
 
 
 def test_persist_df_wrapper_sanitize_preserves_geodataframe(tmp_path):
@@ -368,9 +370,10 @@ def test_persist_df_wrapper_sanitize_preserves_geodataframe(tmp_path):
         crs="EPSG:4326",
     )
 
-    dst = persist_df_wrapper(df=gdf, root_path=str(tmp_path / "test"), filetypes=["geoparquet"], sanitize=True)[0]
+    root_path = str(tmp_path / "test")
+    dst = persist_df_wrapper(df=gdf, root_path=root_path, filetypes=["geoparquet"], sanitize=True)[0]
 
-    written = gpd.read_parquet(dst)
+    written = gpd.read_parquet(os.path.join(root_path, dst))
     assert written.crs == gdf.crs
     assert len(written) == 2
     assert written["tags"].iloc[0] == '["x", "y"]'
@@ -395,9 +398,10 @@ def test_persist_df_wrapper_sanitize_geodataframe_with_repeat_index(tmp_path):
         crs="EPSG:4326",
     )
 
-    dst = persist_df_wrapper(df=gdf, root_path=str(tmp_path / "test"), filetypes=["geoparquet"], sanitize=True)[0]
+    root_path = str(tmp_path / "test")
+    dst = persist_df_wrapper(df=gdf, root_path=root_path, filetypes=["geoparquet"], sanitize=True)[0]
 
-    written = gpd.read_parquet(dst)
+    written = gpd.read_parquet(os.path.join(root_path, dst))
     assert written.crs == gdf.crs
     assert len(written) == 3
     assert list(written["name"]) == ["A", "B", "C"]

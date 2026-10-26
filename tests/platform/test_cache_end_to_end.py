@@ -19,6 +19,7 @@ from ecoscope.platform.indexes import ValueGrouper
 from ecoscope.platform.tasks.groupby import groupbykey, merge_df, set_groupers, split_groups
 from ecoscope.platform.tasks.io._earthranger import get_events
 from ecoscope.platform.tasks.results._map_utils import persist_geoarrow_for_pydeck
+from ecoscope.platform.tasks.results._pydeck import create_geoarrow_scatterplot_layer
 from ecoscope.platform.tasks.transformation import align_keyed_iterable_to_reference
 from ecoscope.platform.tasks.transformation._mapping import map_columns
 from ecoscope.platform.tasks.transformation._sorting import sort_values
@@ -257,3 +258,42 @@ def test_a_mapped_step_hands_its_dependents_tuple_keys(cache_env, events):
     assert [key for key, _ in combined] == [key for key, _ in groupbykey([groups, urls])]
     aligned = align_keyed_iterable_to_reference(warm_groups, warm_urls)
     assert [key for key, _ in aligned] == [key for key, _ in groups]
+
+
+def test_a_persisted_path_does_not_move_its_dependents_across_run_roots(cache_env, events, tmp_path, monkeypatch):
+    """Each run persists under a fresh root, which reaches the persist step's key
+    through its env binding. The path it returns is relative to that root, so its
+    digest -- and so every dependent's key -- is the same run to run."""
+
+    def run(root):
+        monkeypatch.setenv("RESULTS", str(tmp_path / root))
+        values, hits = {}, {}
+        steps = [
+            (
+                "persisted",
+                persist_geoarrow_for_pydeck,
+                spec(persist_geoarrow_for_pydeck, env=["RESULTS"], servable=False),
+                lambda: persist_geoarrow_for_pydeck(events, str(tmp_path / root)),
+            ),
+            (
+                "layer",
+                create_geoarrow_scatterplot_layer,
+                spec(create_geoarrow_scatterplot_layer, {"data_url": ["persisted"]}),
+                lambda: create_geoarrow_scatterplot_layer(values["persisted"]),
+            ),
+        ]
+        with run_scope():
+            for task_instance_id, task, cache_spec, call in steps:
+                resolved = resolve_task(task)
+                assert resolved.tree("call") is not None, f"{task_instance_id} declares no codec"
+                values[task_instance_id], hits[task_instance_id] = cached_call(
+                    cache_spec, call, resolved, task_instance_id
+                )
+        return values, hits
+
+    first, _ = run("run-1")
+    second, hits = run("run-2")
+
+    assert (tmp_path / "run-2" / second["persisted"]).is_file(), "the file must still be written into this run's root"
+    assert second["persisted"] == first["persisted"]
+    assert hits == {"persisted": False, "layer": True}

@@ -65,39 +65,68 @@ def _get_path(root_path: str, filename: str):
     return write_path, read_path
 
 
+def _reroot(path: str, root_path: str) -> str:
+    """Return the read path for a `path` relative to `root_path`; leave anything absolute as-is.
+
+    Persisting returns paths relative to the results root, so that a value -- and
+    the step-cache digest of everything built from it -- does not change with a
+    per-run root. This is the inverse, for whatever finally hands paths to a
+    reader. "Absolute" includes any URL scheme, which on Windows also catches a
+    drive letter.
+
+    Examples:
+
+    ```python
+    >>> _reroot("file.txt", "gs://bucket/path/to/dir")
+    'https://storage.googleapis.com/bucket/path/to/dir/file.txt'
+    >>> _reroot("https://example.com/file.txt", "gs://bucket/path/to/dir")
+    'https://example.com/file.txt'
+    >>> _reroot("/tmp/elsewhere/file.txt", "gs://bucket/path/to/dir")
+    '/tmp/elsewhere/file.txt'
+
+    ```
+
+    """
+    if urlparse(path).scheme or Path(path).is_absolute():
+        return path
+    return _get_path(root_path, path)[1]
+
+
 def _read_path_if_file_exists(root_path: str, filename: str) -> str | None:
-    """Return the read path for `filename` under `root_path`, if it already exists and is a usable file.
+    """Return `filename` if it already exists under `root_path` and is a usable file.
 
     Returns None when the target is absent, is not a regular file, or is an empty local file.
 
     Note: as with `_get_path`, resolving a local `root_path` creates the directory
     as a side effect.
     """
-    write_path, read_path = _get_path(root_path, filename)
+    write_path, _ = _get_path(root_path, filename)
     if not write_path.is_file():
         return None
     if isinstance(write_path, Path) and write_path.stat().st_size == 0:
         return None
-    return read_path
+    return filename
 
 
 def _persist_text(text: str, root_path: str, filename: str) -> str:
-    write_path, read_path = _get_path(root_path, filename)
+    """Write `text` to `filename` under `root_path`, and return `filename` (see `_reroot`)."""
+    write_path, _ = _get_path(root_path, filename)
 
     try:
         write_path.write_text(text, encoding="utf-8")
     except Exception as e:
         raise ValueError(f"Failed to write text to {write_path}") from e
 
-    return read_path
+    return filename
 
 
 def _persist_bytes(data: bytes, root_path: str, filename: str) -> str:
-    write_path, read_path = _get_path(root_path, filename)
+    """Write `data` to `filename` under `root_path`, and return `filename` (see `_reroot`)."""
+    write_path, _ = _get_path(root_path, filename)
 
     try:
         write_path.write_bytes(data)
     except Exception as e:
         raise ValueError(f"Failed to write bytes to {write_path}") from e
 
-    return read_path
+    return filename

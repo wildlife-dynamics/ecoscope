@@ -109,7 +109,7 @@ def test_persist_geoarrow_for_pydeck_roundtrip(tmp_path) -> None:
     dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="demo")
 
     assert dst.endswith("demo.parquet")
-    schema = pq.read_schema(dst)
+    schema = pq.read_schema(tmp_path / dst)
     # GeoArrow stores points as a struct<x, y> tagged with the geoarrow.point extension.
     # Depending on whether the geoarrow extension types are registered with pyarrow
     # (e.g. because another test imported geoarrow.pyarrow earlier in the process), the
@@ -120,7 +120,7 @@ def test_persist_geoarrow_for_pydeck_roundtrip(tmp_path) -> None:
         or (geom_field.metadata or {}).get(b"ARROW:extension:name", b"").decode()
     )
     assert ext_name == "geoarrow.point"
-    gdf_read = gpd.read_parquet(dst)
+    gdf_read = gpd.read_parquet(tmp_path / dst)
     assert list(gdf_read["val"]) == [1, 2, 3]
     assert gdf_read.crs == gdf.crs
 
@@ -138,7 +138,7 @@ def test_persist_geoarrow_for_pydeck_re_encodes_columns(tmp_path) -> None:
         crs="EPSG:4326",
     )
     dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="reencoded")
-    schema = pq.read_schema(dst)
+    schema = pq.read_schema(tmp_path / dst)
     assert schema.field("val").type == pa.float32()
     assert schema.field("ts_naive").type == pa.string()
     assert schema.field("ts_aware").type == pa.string()
@@ -169,9 +169,9 @@ def test_persist_geoarrow_for_pydeck_stringifies_mixed_json(tmp_path) -> None:
         crs="EPSG:4326",
     )
     dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="drift")
-    schema = pq.read_schema(dst)
+    schema = pq.read_schema(tmp_path / dst)
     assert schema.field("payload").type == pa.string()
-    gdf_read = gpd.read_parquet(dst)
+    gdf_read = gpd.read_parquet(tmp_path / dst)
     assert gdf_read["payload"].tolist() == ['{"count": 3}', '{"count": "3"}', '{"count": 4}']
 
 
@@ -186,7 +186,7 @@ def test_persist_geoarrow_for_pydeck_preserves_uniform_json(tmp_path) -> None:
         crs="EPSG:4326",
     )
     dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="struct")
-    schema = pq.read_schema(dst)
+    schema = pq.read_schema(tmp_path / dst)
     assert pa.types.is_struct(schema.field("payload").type)
 
 
@@ -201,9 +201,9 @@ def test_persist_geoarrow_for_pydeck_stringifies_empty_dicts(tmp_path) -> None:
         crs="EPSG:4326",
     )
     dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="empty_dicts")
-    schema = pq.read_schema(dst)
+    schema = pq.read_schema(tmp_path / dst)
     assert schema.field("meta").type == pa.string()
-    gdf_read = gpd.read_parquet(dst)
+    gdf_read = gpd.read_parquet(tmp_path / dst)
     assert gdf_read["meta"].tolist() == ["{}", "{}", "{}"]
 
 
@@ -216,9 +216,9 @@ def test_persist_geoarrow_for_pydeck_stringifies_none_and_empty_dicts(tmp_path) 
         crs="EPSG:4326",
     )
     dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="none_empty_dicts")
-    schema = pq.read_schema(dst)
+    schema = pq.read_schema(tmp_path / dst)
     assert schema.field("meta").type == pa.string()
-    gdf_read = gpd.read_parquet(dst)
+    gdf_read = gpd.read_parquet(tmp_path / dst)
     assert gdf_read["meta"].tolist() == [None, "{}", None]
 
 
@@ -234,7 +234,7 @@ def test_persist_geoarrow_for_pydeck_stringifies_nested_empty_struct(tmp_path) -
         crs="EPSG:4326",
     )
     dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="nested_empty")
-    schema = pq.read_schema(dst)
+    schema = pq.read_schema(tmp_path / dst)
     assert schema.field("list_of_empty").type == pa.string()
     assert schema.field("nested").type == pa.string()
 
@@ -249,7 +249,7 @@ def test_persist_geoarrow_for_pydeck_skips_non_color_object_columns(tmp_path) ->
         crs="EPSG:4326",
     )
     dst = persist_geoarrow_for_pydeck(gdf, str(tmp_path), filename="ragged")
-    schema = pq.read_schema(dst)
+    schema = pq.read_schema(tmp_path / dst)
     # Left untouched as an object column → arrow encodes it however pandas defaults
     # (list/struct/binary), but it must NOT be uint8 fixed-size-list.
     assert schema.field("ragged").type != pa.list_(pa.uint8(), 3)
@@ -268,10 +268,10 @@ def test_persist_geoarrow_generated_filename_skips_rewrite(tmp_path) -> None:
     root_path = str(tmp_path / "out")
 
     dst = persist_geoarrow_for_pydeck(gdf, root_path)
-    Path(dst).write_bytes(b"sentinel")
+    Path(root_path, dst).write_bytes(b"sentinel")
 
     assert persist_geoarrow_for_pydeck(gdf, root_path) == dst
-    assert Path(dst).read_bytes() == b"sentinel", "existing target must not be rewritten"
+    assert Path(root_path, dst).read_bytes() == b"sentinel", "existing target must not be rewritten"
 
 
 def test_persist_geoarrow_identical_layers_share_one_file_without_rewriting(tmp_path) -> None:
@@ -318,8 +318,8 @@ def test_persist_geoarrow_target_does_not_collide_with_geoparquet(tmp_path, geoa
 
     assert arrow_path != wkb_path
     assert Path(arrow_path).name.startswith(GEOARROW_FILENAME_PREFIX)
-    assert _geometry_encoding(arrow_path) == "point", "the pydeck consumer must get geoarrow"
-    assert _geometry_encoding(wkb_path) == "WKB", "the QGIS/PostGIS consumer must get WKB"
+    assert _geometry_encoding(Path(root_path, arrow_path)) == "point", "the pydeck consumer must get geoarrow"
+    assert _geometry_encoding(Path(root_path, wkb_path)) == "WKB", "the QGIS/PostGIS consumer must get WKB"
 
 
 def test_persist_geoarrow_explicit_filename_overwrites(tmp_path) -> None:
@@ -327,7 +327,7 @@ def test_persist_geoarrow_explicit_filename_overwrites(tmp_path) -> None:
     gdf = _skip_test_gdf()
 
     dst = persist_geoarrow_for_pydeck(gdf, root_path, filename="layer")
-    Path(dst).write_bytes(b"sentinel")
+    Path(root_path, dst).write_bytes(b"sentinel")
 
     assert persist_geoarrow_for_pydeck(gdf, root_path, filename="layer") == dst
-    assert Path(dst).read_bytes() != b"sentinel"
+    assert Path(root_path, dst).read_bytes() != b"sentinel"

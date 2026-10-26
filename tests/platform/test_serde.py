@@ -10,6 +10,7 @@ from ecoscope.platform.serde import (
     _persist_bytes,
     _persist_text,
     _read_path_if_file_exists,
+    _reroot,
 )
 
 
@@ -18,9 +19,9 @@ def test_persist_text(tmp_path):
     root_path = str(tmp_path / "test")
     filename = "map.html"
     dst = _persist_text(text, root_path, filename)
-    with open(dst) as f:
+    assert dst == filename
+    with open(os.path.join(root_path, dst)) as f:
         assert f.read() == text
-    assert dst == os.path.join(root_path, filename)
 
 
 def test_gs_url_to_https_url():
@@ -38,9 +39,9 @@ def test_persist_bytes_round_trip(tmp_path) -> None:
     root_path = str(tmp_path / "out")
     dst = _persist_bytes(data, root_path, "x.bin")
 
-    with open(dst, "rb") as f:
+    assert dst == "x.bin"
+    with open(os.path.join(root_path, dst), "rb") as f:
         assert f.read() == data
-    assert dst == os.path.join(root_path, "x.bin")
 
 
 def test_persist_text_failure_when_target_is_dir(tmp_path) -> None:
@@ -123,7 +124,7 @@ def test_read_path_if_file_exists_is_scheme_agnostic(monkeypatch) -> None:
     monkeypatch.setattr(serde, "_get_path", lambda root, name: (FakeCloudPath(), read_path))
 
     # Not a local `Path`, so the zero-byte guard must not try to stat it.
-    assert _read_path_if_file_exists("gs://bucket/dir", "x.txt") == read_path
+    assert _read_path_if_file_exists("gs://bucket/dir", "x.txt") == "x.txt"
 
 
 def test_persist_text_always_overwrites(tmp_path) -> None:
@@ -133,7 +134,7 @@ def test_persist_text_always_overwrites(tmp_path) -> None:
     _persist_text("first", root_path, "name.txt")
     dst = _persist_text("second", root_path, "name.txt")
 
-    with open(dst) as f:
+    with open(os.path.join(root_path, dst)) as f:
         assert f.read() == "second"
 
 
@@ -142,5 +143,26 @@ def test_persist_bytes_always_overwrites(tmp_path) -> None:
     _persist_bytes(b"first", root_path, "name.bin")
     dst = _persist_bytes(b"second", root_path, "name.bin")
 
-    with open(dst, "rb") as f:
+    with open(os.path.join(root_path, dst), "rb") as f:
         assert f.read() == b"second"
+
+
+def test_reroot_reads_a_relative_path_under_the_root(tmp_path) -> None:
+    root_path = str(tmp_path / "root")
+    dst = _persist_text("hi", root_path, "name.txt")
+
+    assert _reroot(dst, root_path) == os.path.join(root_path, "name.txt")
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "https://storage.googleapis.com/bucket/dir/x.txt",
+        # What a `Path` makes of the URL above; the server already reads it.
+        "https:/storage.googleapis.com/bucket/dir/x.txt",
+        "file:///tmp/dir/x.txt",
+        "/tmp/dir/x.txt",
+    ],
+)
+def test_reroot_leaves_an_absolute_path_alone(tmp_path, path) -> None:
+    assert _reroot(path, str(tmp_path / "root")) == path

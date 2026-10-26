@@ -161,14 +161,21 @@ def _generate_utilization_distribution_raster(
     return output_path
 
 
-@register()
+# `no-cache` for the same reason as the `persist_*` tasks in `tasks.io._persist`:
+# the return is a path, and its truth lives in the results store, not in the key.
+# Unlike those it is expensive to recompute, so revisit once a hit can restore
+# the file rather than only its path.
+@register(tags=["no-cache"])
 def generate_etd_raster(
     trajectory_gdf: TrajectoryAnnotation,
     combined_params: EtdArgsWithOpacity,
     output_dir: OutputDirAnnotation,
     filename: FilenameAnnotation = "etd_raster",
     group_key: GroupKeyAnnotation = None,
-) -> Annotated[str, Field(description="Path to the written ETD utilization-distribution GeoTIFF.")]:
+) -> Annotated[
+    str,
+    Field(description="Path to the written ETD utilization-distribution GeoTIFF, relative to `output_dir`."),
+]:
     """Compute the Elliptical Time-Density (ETD) utilization distribution raster and persist it as a GeoTIFF.
 
     Takes the same `EtdArgsWithOpacity` combined-params object as `call_etd_from_combined_params`
@@ -225,14 +232,17 @@ def generate_etd_raster(
     )
 
 
-@register()
+@register(tags=["no-cache"])
 def generate_bbmm_raster(
     trajectory_gdf: TrajectoryAnnotation,
     combined_params: BbmmRasterArgs,
     output_dir: OutputDirAnnotation,
     filename: BbmmFilenameAnnotation = "bbmm_raster",
     group_key: GroupKeyAnnotation = None,
-) -> Annotated[str, Field(description="Path to the written BBMM utilization-distribution GeoTIFF.")]:
+) -> Annotated[
+    str,
+    Field(description="Path to the written BBMM utilization-distribution GeoTIFF, relative to `output_dir`."),
+]:
     """Compute the Brownian Bridge Movement Model (BBMM) utilization
     distribution raster and persist it as a GeoTIFF.
 

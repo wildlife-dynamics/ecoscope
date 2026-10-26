@@ -6,12 +6,19 @@ import pytest
 from ecoscope.platform.indexes import Month, TemporalGrouper, ValueGrouper, Year
 from ecoscope.platform.tasks.config._workflow_details import WorkflowDetails
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
-from ecoscope.platform.tasks.results import gather_dashboard
+from ecoscope.platform.tasks.results import (
+    create_files_single_view,
+    create_map_v2_widget_single_view,
+    create_map_widget_single_view,
+    create_text_widget_single_view,
+    gather_dashboard,
+)
 from ecoscope.platform.tasks.results._dashboard import (
     Dashboard,
     EmumeratedWidgetSingleView,
     Metadata,
 )
+from ecoscope.platform.tasks.results._pydeck import DeckJsonSpec
 from ecoscope.platform.tasks.results._widget_types import (
     FilesListSingleView,
     GroupedFiles,
@@ -19,6 +26,8 @@ from ecoscope.platform.tasks.results._widget_types import (
 )
 
 DashboardFixture = tuple[list[GroupedWidget], Dashboard]
+
+RESULTS_ROOT = "gs://bucket/results"
 
 
 def assert_dashboards_equal(d1: Dashboard, d2: Dashboard):
@@ -72,6 +81,7 @@ def single_filter_dashboard() -> DashboardFixture:
 def test_gather_dashboard(single_filter_dashboard: DashboardFixture):
     grouped_widgets, expected_dashboard = single_filter_dashboard
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(
             name="A Great Dashboard",
             description="A dashboard with a map and a plot",
@@ -234,6 +244,7 @@ def two_filter_dashboard() -> DashboardFixture:
 def test_gather_dashboard_two_filter(two_filter_dashboard: DashboardFixture):
     grouped_widgets, expected_dashboard = two_filter_dashboard
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(
             name="A Great Dashboard",
             description="A dashboard with a map",
@@ -388,6 +399,7 @@ def three_filter_dashboard() -> DashboardFixture:
 def test_gather_dashboard_three_filter(three_filter_dashboard: DashboardFixture):
     grouped_widgets, expected_dashboard = three_filter_dashboard
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(
             name="A Great Dashboard",
             description="A dashboard with a map",
@@ -557,6 +569,7 @@ def dashboard_with_none_views() -> DashboardFixture:
 def test_gather_dashboard_with_none_views(dashboard_with_none_views: DashboardFixture):
     grouped_widgets, expected_dashboard = dashboard_with_none_views
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(
             name="A Great Dashboard",
             description="A dashboard with a map and a plot",
@@ -702,6 +715,7 @@ def test_gather_dashboard_with_all_none_views(
 ):
     grouped_widgets, expected_dashboard = dashboard_with_all_none_views
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(
             name=expected_dashboard.metadata.title,
             description=expected_dashboard.metadata.description,
@@ -783,6 +797,7 @@ def outer_join_dashboard() -> Dashboard:
         is_filtered=False,
     )
     dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(name="Demonstration of outer join behavior", description=""),
         time_range=TimeRange(
             since=datetime.strptime("2011-01-01", "%Y-%m-%d"),
@@ -847,6 +862,7 @@ def test_gather_dashboard_with_warning(single_filter_dashboard: DashboardFixture
     expected_dashboard.metadata.warning = "This dashboard might be too great"
 
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(
             name="A Great Dashboard",
             description="A dashboard with a map and a plot",
@@ -894,6 +910,7 @@ def test_gather_dashboard_with_no_time_range(single_filter_dashboard: DashboardF
     expected_dashboard.metadata.time_zone = ""
 
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(
             name="A Great Dashboard",
             description="A dashboard with a map and a plot",
@@ -957,6 +974,7 @@ def test_gather_dashboard_with_files(single_filter_dashboard: DashboardFixture):
     feb_key = (("TemporalGrouper_%B", "=", "February"),)
 
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(
             name="A Great Dashboard",
             description="A dashboard with a map and a plot",
@@ -985,6 +1003,7 @@ def test_gather_dashboard_with_ungrouped_and_grouped_files(single_filter_dashboa
     feb_key = (("TemporalGrouper_%B", "=", "February"),)
 
     dashboard: Dashboard = gather_dashboard(
+        root_path=RESULTS_ROOT,
         details=WorkflowDetails(name="A Great Dashboard", description=""),
         widgets=grouped_widgets,
         groupers=[TemporalGrouper(temporal_index=Month())],
@@ -1036,6 +1055,7 @@ def test_gather_dashboard_rejects_file_key_not_matching_view(single_filter_dashb
 
     with pytest.raises(AssertionError, match="File view keys"):
         gather_dashboard(
+            root_path=RESULTS_ROOT,
             details=WorkflowDetails(name="A Great Dashboard", description=""),
             widgets=grouped_widgets,
             groupers=[TemporalGrouper(temporal_index=Month())],
@@ -1050,7 +1070,60 @@ def test_gather_dashboard_rejects_grouped_files_without_groupers(single_filter_d
 
     with pytest.raises(AssertionError, match="File view keys"):
         gather_dashboard(
+            root_path=RESULTS_ROOT,
             details=WorkflowDetails(name="A Great Dashboard", description=""),
             widgets=grouped_widgets,
             files=[FilesListSingleView(files=[Path("/tmp/jan.parquet")], view=jan_key)],
         )
+
+
+def _persisted_widgets_and_files(path):
+    """Widgets and files built from `path(name)`, the way a spec builds them from persist tasks."""
+    spec = DeckJsonSpec(
+        layers=[
+            {"@@type": "ScatterplotLayer", "data": path("geoarrow_abc.parquet")},
+            {"@@type": "GeoJsonLayer", "data": [{"inline": True}]},
+        ],
+        initialViewState={},
+        views={},
+    )
+    widgets = [
+        create_map_widget_single_view(title="Map", data=path("map.html")),
+        create_map_v2_widget_single_view(title="Map v2", data=spec),
+    ]
+    return widgets, create_files_single_view(files=[path("events.csv")])
+
+
+def test_gather_dashboard_reroots_persisted_paths_to_what_absolute_ones_serialized_as():
+    """Persisting returns root-relative paths so cached steps match across per-run roots;
+    the dashboard must still reach the server exactly as it did with absolute ones."""
+
+    def dashboard_json(path):
+        widgets, files = _persisted_widgets_and_files(path)
+        details = WorkflowDetails(name="d", description="")
+        return gather_dashboard(details=details, widgets=widgets, root_path=RESULTS_ROOT, files=files).model_dump_json()
+
+    absolute = dashboard_json(lambda name: f"https://storage.googleapis.com/bucket/results/{name}")
+    assert dashboard_json(lambda name: name) == absolute
+    assert "storage.googleapis.com/bucket/results/geoarrow_abc.parquet" in absolute
+
+
+def test_gather_dashboard_does_not_reroot_text_widget_content():
+    widget = create_text_widget_single_view(title="Notes", data="notes.md")
+    dashboard = gather_dashboard(
+        details=WorkflowDetails(name="d", description=""), widgets=[widget], root_path=RESULTS_ROOT
+    )
+
+    assert dashboard.widgets[0].views[None] == "notes.md"
+
+
+def test_gather_dashboard_leaves_its_inputs_relative():
+    """Inputs may be another step's (cached) output; rerooting builds new values."""
+    widgets, files = _persisted_widgets_and_files(lambda name: name)
+    gather_dashboard(
+        details=WorkflowDetails(name="d", description=""), widgets=widgets, root_path=RESULTS_ROOT, files=files
+    )
+
+    assert widgets[0].data == "map.html"
+    assert widgets[1].data.layers[0]["data"] == "geoarrow_abc.parquet"
+    assert files.files == ["events.csv"]

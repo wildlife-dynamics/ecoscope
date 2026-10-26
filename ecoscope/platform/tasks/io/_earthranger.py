@@ -1257,7 +1257,9 @@ def get_fields_from_event_type_schema(
     return fields
 
 
-@register(tags=["io"])
+# `no-cache`: the returned paths point at files this writes into the results
+# store, which a hit would not rewrite. See `tasks.io._persist`.
+@register(tags=["io", "no-cache"])
 def download_grouped_event_attachments(
     client: EarthRangerClient,
     grouped_event_gdfs: Annotated[

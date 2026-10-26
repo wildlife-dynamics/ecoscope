@@ -17,19 +17,19 @@ def test_persist_text(tmp_path):
     root_path = str(tmp_path / "test")
     filename = "map.html"
     dst = persist_text(text, root_path, filename)
-    with open(dst) as f:
+    with open(os.path.join(root_path, dst)) as f:
         assert f.read() == text
-    assert dst == os.path.join(root_path, filename)
+    assert dst == filename
 
 
 def test_persist_text_generated_filename(tmp_path):
     text = "<div>map</div>"
     root_path = str(tmp_path / "test")
     dst = persist_text(text, root_path)
-    with open(dst) as f:
+    with open(os.path.join(root_path, dst)) as f:
         assert f.read() == text
     expected_filename = hashlib.sha256(text.encode()).hexdigest()[:7] + ".html"
-    assert dst == os.path.join(root_path, expected_filename)
+    assert dst == expected_filename
 
 
 def test_persist_text_with_suffix(tmp_path):
@@ -39,9 +39,9 @@ def test_persist_text_with_suffix(tmp_path):
     suffix = "v2"
     expected_filename = "map_v2.html"
     dst = persist_text(text, root_path, filename, suffix)
-    with open(dst) as f:
+    with open(os.path.join(root_path, dst)) as f:
         assert f.read() == text
-    assert dst == os.path.join(root_path, expected_filename)
+    assert dst == expected_filename
 
 
 def test_persist_text_generated_filename_with_suffix(tmp_path):
@@ -49,46 +49,43 @@ def test_persist_text_generated_filename_with_suffix(tmp_path):
     root_path = str(tmp_path / "test")
     suffix = "v2"
     dst = persist_text(text, root_path, filename_suffix=suffix)
-    with open(dst) as f:
+    with open(os.path.join(root_path, dst)) as f:
         assert f.read() == text
     expected_filename = hashlib.sha256(text.encode()).hexdigest()[:7] + "_v2.html"
-    assert dst == os.path.join(
-        root_path,
-        expected_filename,
-    )
+    assert dst == expected_filename
 
 
 def test_persist_json_explicit_filename(tmp_path):
     data = {"layers": [], "viewState": {"zoom": 1}}
     root_path = str(tmp_path / "test")
     dst = persist_json(data, root_path, filename="map.json")
-    with open(dst) as f:
+    with open(os.path.join(root_path, dst)) as f:
         assert json.load(f) == data
-    assert dst == os.path.join(root_path, "map.json")
+    assert dst == "map.json"
 
 
 def test_persist_json_generated_filename(tmp_path):
     data = {"layers": [], "viewState": {"zoom": 1}}
     root_path = str(tmp_path / "test")
     dst = persist_json(data, root_path)
-    with open(dst) as f:
+    with open(os.path.join(root_path, dst)) as f:
         assert json.load(f) == data
     expected_filename = hashlib.sha256(json.dumps(data).encode()).hexdigest()[:7] + ".json"
-    assert dst == os.path.join(root_path, expected_filename)
+    assert dst == expected_filename
 
 
 def test_persist_json_appends_extension_when_filename_has_none(tmp_path):
     data = {"layers": []}
     root_path = str(tmp_path / "test")
     dst = persist_json(data, root_path, filename="map")
-    assert dst == os.path.join(root_path, "map.json")
+    assert dst == "map.json"
 
 
 def test_persist_json_with_suffix(tmp_path):
     data = {"layers": []}
     root_path = str(tmp_path / "test")
     dst = persist_json(data, root_path, filename="map.json", filename_suffix="v2")
-    assert dst == os.path.join(root_path, "map_v2.json")
+    assert dst == "map_v2.json"
 
 
 def test_persist_json_generated_filename_with_suffix(tmp_path):
@@ -96,7 +93,7 @@ def test_persist_json_generated_filename_with_suffix(tmp_path):
     root_path = str(tmp_path / "test")
     dst = persist_json(data, root_path, filename_suffix="grouped")
     expected_filename = hashlib.sha256(json.dumps(data).encode()).hexdigest()[:7] + "_grouped.json"
-    assert dst == os.path.join(root_path, expected_filename)
+    assert dst == expected_filename
 
 
 def test_persist_json_accepts_basemodel(tmp_path):
@@ -109,7 +106,7 @@ def test_persist_json_accepts_basemodel(tmp_path):
     )
     root_path = str(tmp_path / "test")
     dst = persist_json(spec, root_path, filename="map.json")
-    with open(dst) as f:
+    with open(os.path.join(root_path, dst)) as f:
         loaded = json.load(f)
     assert loaded["layers"] == []
     assert loaded["initialViewState"] == {"longitude": 0, "latitude": 0, "zoom": 1}
@@ -120,10 +117,10 @@ def test_persist_text_generated_filename_skips_rewrite(tmp_path):
     root_path = str(tmp_path / "test")
 
     dst = persist_text("<div>map</div>", root_path)
-    Path(dst).write_text("sentinel")
+    Path(root_path, dst).write_text("sentinel")
 
     assert persist_text("<div>map</div>", root_path) == dst
-    assert Path(dst).read_text() == "sentinel", "existing target must not be rewritten"
+    assert Path(root_path, dst).read_text() == "sentinel", "existing target must not be rewritten"
 
 
 def test_persist_text_generated_filename_with_suffix_skips_rewrite(tmp_path):
@@ -136,10 +133,10 @@ def test_persist_text_generated_filename_with_suffix_skips_rewrite(tmp_path):
 
     dst = persist_text("<div>map</div>", root_path, filename_suffix="v2")
     assert dst.endswith("_v2.html")
-    Path(dst).write_text("sentinel")
+    Path(root_path, dst).write_text("sentinel")
 
     assert persist_text("<div>map</div>", root_path, filename_suffix="v2") == dst
-    assert Path(dst).read_text() == "sentinel"
+    assert Path(root_path, dst).read_text() == "sentinel"
 
 
 def test_persist_text_explicit_filename_overwrites(tmp_path):
@@ -147,17 +144,17 @@ def test_persist_text_explicit_filename_overwrites(tmp_path):
     persist_text("first", root_path, "map.html")
     dst = persist_text("second", root_path, "map.html")
 
-    assert Path(dst).read_text() == "second"
+    assert Path(root_path, dst).read_text() == "second"
 
 
 def test_persist_json_generated_filename_skips_rewrite(tmp_path):
     root_path = str(tmp_path / "test")
 
     dst = persist_json({"a": 1}, root_path)
-    Path(dst).write_text("sentinel")
+    Path(root_path, dst).write_text("sentinel")
 
     assert persist_json({"a": 1}, root_path) == dst
-    assert Path(dst).read_text() == "sentinel"
+    assert Path(root_path, dst).read_text() == "sentinel"
 
 
 def test_persist_json_extensionless_explicit_filename_overwrites(tmp_path):
@@ -171,7 +168,7 @@ def test_persist_json_extensionless_explicit_filename_overwrites(tmp_path):
     dst = persist_json({"a": 2}, root_path, filename="map")
 
     assert dst.endswith("map.json")
-    assert json.loads(Path(dst).read_text()) == {"a": 2}
+    assert json.loads(Path(root_path, dst).read_text()) == {"a": 2}
 
 
 class TestPersistDfForResultsDownload:
@@ -198,7 +195,7 @@ class TestPersistDfForResultsDownload:
         assert parts[0] == "events"
         assert parts[1] == expected_key_hash
         assert len(parts[2]) == 7
-        assert os.path.exists(paths[0])
+        assert os.path.exists(tmp_path / paths[0])
 
     def test_no_prefix_uses_keyhash_then_dfhash(self, tmp_path):
         key = (("event_type", "=", "carcass"),)
@@ -228,7 +225,7 @@ class TestPersistDfForResultsDownload:
         assert len(paths) == 2
         assert len(set(paths)) == 2
         for p in paths:
-            assert os.path.exists(p)
+            assert os.path.exists(tmp_path / p)
 
     def test_multiple_filetypes_per_group(self, tmp_path):
         iterables = [((("event_type", "=", "carcass"),), pd.DataFrame({"a": [1]}))]
@@ -252,7 +249,7 @@ class TestPersistDfForResultsDownload:
         args = dict(grouped_dfs=[(key, df)], root_path=str(tmp_path), filetypes=["csv"])
 
         (dst,) = persist_grouped_dfs_for_results_download(**args)
-        Path(dst).write_text("sentinel")
+        Path(tmp_path, dst).write_text("sentinel")
 
         assert persist_grouped_dfs_for_results_download(**args) == [dst]
-        assert Path(dst).read_text() == "sentinel"
+        assert Path(tmp_path, dst).read_text() == "sentinel"
