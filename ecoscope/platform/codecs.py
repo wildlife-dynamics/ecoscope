@@ -24,7 +24,7 @@ import struct
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
-import pyarrow as pa
+import pyarrow as pa  # type: ignore[import-untyped]
 from wt_task.cache import SKIP, Codec, Tree, Undigestible
 
 if TYPE_CHECKING:
@@ -172,7 +172,7 @@ def _tree_columns(df: AnyDataFrame) -> list[str]:
     return found
 
 
-def _fixed_offset_columns(df: AnyDataFrame) -> dict[str, tuple[float, str | None]]:
+def _fixed_offset_columns(df: AnyDataFrame) -> dict[str, tuple[float, str]]:
     """tz-aware columns whose zone is a `datetime.timezone`, as `(offset seconds, name)`."""
     found = {}
     for name, dtype in zip(df.columns, df.dtypes):
@@ -182,7 +182,7 @@ def _fixed_offset_columns(df: AnyDataFrame) -> dict[str, tuple[float, str | None
     return found
 
 
-def _restore_timezone(seconds: float, name: str | None) -> datetime.timezone:
+def _restore_timezone(seconds: float, name: str) -> datetime.timezone:
     offset = datetime.timedelta(seconds=seconds)
     default = datetime.timezone(offset)
     return default if name == default.tzname(None) else datetime.timezone(offset, name)
@@ -281,7 +281,7 @@ def _with_schema_metadata(parquet: bytes, extra: dict[bytes, bytes]) -> bytes:
     thing to keep correct. Only frames with sequence cells, mixed-type cells or
     fixed-offset timestamps pay for it.
     """
-    import pyarrow.parquet as pq
+    import pyarrow.parquet as pq  # type: ignore[import-untyped]
 
     table = pq.read_table(io.BytesIO(parquet))
     merged = dict(table.schema.metadata or {}) | extra
@@ -294,7 +294,7 @@ def decode_dataframe(data: bytes) -> pd.DataFrame:
     """Read back what `encode_dataframe` wrote."""
     import geopandas as gpd  # type: ignore[import-untyped]
     import pandas as pd
-    import pyarrow.parquet as pq
+    import pyarrow.parquet as pq  # type: ignore[import-untyped]
 
     try:
         df: pd.DataFrame = gpd.read_parquet(io.BytesIO(data))
