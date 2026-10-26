@@ -59,10 +59,10 @@ class CustomGridCellSize(BaseModel, CacheableModel):
             ),
             gt=0,
             lt=10000,
-            default=5000,
+            default=5000.0,
             json_schema_extra={"exclusiveMinimum": 0, "exclusiveMaximum": 10000},
         ),
-    ] = 5000
+    ] = 5000.0
 
 
 def _coerce_percentile_strings_to_floats(list: list):

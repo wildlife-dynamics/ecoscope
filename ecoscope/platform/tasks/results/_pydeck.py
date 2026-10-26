@@ -90,7 +90,7 @@ class PathLayerStyle(LayerStyleBase):
 
     get_path: Annotated[str, AdvancedField(default="geometry.coordinates")] = "geometry.coordinates"
     get_color: Annotated[ColorAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    get_width: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=3)] = 3
+    get_width: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=3.0)] = 3.0
     width_scale: Annotated[float, AdvancedField(default=1)] = 1
     width_min_pixels: Annotated[float, AdvancedField(default=0)] = 0
     width_max_pixels: Annotated[float | SkipJsonSchema[None], AdvancedField(default=None)] = None
@@ -109,8 +109,8 @@ class ScatterplotLayerStyle(LayerStyleBase):
     get_position: Annotated[str, AdvancedField(default="geometry.coordinates")] = "geometry.coordinates"
     get_fill_color: Annotated[ColorAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
     get_line_color: Annotated[ColorAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    get_radius: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=5)] = 5
-    get_line_width: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1)] = 1
+    get_radius: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=5.0)] = 5.0
+    get_line_width: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1.0)] = 1.0
     get_elevation: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
     radius_units: Annotated[UnitType, AdvancedField(default="pixels")] = "pixels"
     radius_scale: Annotated[float, AdvancedField(default=1)] = 1
@@ -166,7 +166,7 @@ class TextLayerStyle(LayerStyleBase):
     get_background_color: Annotated[ColorAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
     get_border_color: Annotated[ColorAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
     get_border_width: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    get_size: Annotated[FloatAccessor, AdvancedField(default=12)] = 12
+    get_size: Annotated[FloatAccessor, AdvancedField(default=12.0)] = 12.0
     get_angle: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
     background_border_radius: Annotated[
         float | Tuple[float, float, float, float] | SkipJsonSchema[None],
@@ -224,9 +224,9 @@ class GeoJSONLayerStyle(LayerStyleBase):
 
     get_fill_color: Annotated[ColorAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
     get_line_color: Annotated[ColorAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    get_line_width: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1)] = 1
+    get_line_width: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1.0)] = 1.0
     get_elevation: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    get_point_radius: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1)] = 1
+    get_point_radius: Annotated[FloatAccessor | SkipJsonSchema[None], AdvancedField(default=1.0)] = 1.0
 
     line_width_units: Annotated[UnitType, AdvancedField(default="pixels")] = "pixels"
     line_width_scale: Annotated[float, AdvancedField(default=1)] = 1
