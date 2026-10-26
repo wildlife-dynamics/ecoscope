@@ -9,6 +9,7 @@ starts from the declarations: if an alias or a class stopped declaring one,
 every round-trip below would still pass while nothing cached.
 """
 
+import datetime
 import importlib
 import json
 import pkgutil
@@ -136,6 +137,49 @@ def test_roundtrip_preserves_tz_aware_timestamps():
     out = roundtrip(FRAME, df)
     assert out["t"].dtype == df["t"].dtype
     pd.testing.assert_frame_equal(out, df)
+
+
+@pytest.mark.parametrize(
+    "tz",
+    [
+        datetime.timezone(datetime.timedelta(hours=3)),
+        datetime.timezone(datetime.timedelta(hours=-5, minutes=-30), "Somewhere"),
+        datetime.timezone.utc,
+    ],
+    ids=["offset", "named-offset", "utc"],
+)
+def test_roundtrip_preserves_a_fixed_offset_timezone(tz):
+    """What `convert_values_to_timezone` makes of a time range's `utc` offset.
+
+    Parquet keeps only the offset and pandas reads back a `pytz.FixedOffset`,
+    whose dtype prints differently -- so without restoring it, every step
+    computed from a hit digests differently from one computed from a miss.
+    """
+    df = pd.DataFrame({"t": pd.to_datetime(["2015-01-10T00:00:00Z", "2015-01-11T00:00:00Z"]).tz_convert(tz)})
+    out = roundtrip(FRAME, df)
+    assert str(out["t"].dtype) == str(df["t"].dtype)
+    assert out["t"].dt.tz == tz
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+def test_roundtrip_preserves_a_column_mixing_ints_and_strings():
+    """`concat_dataframes` of trajectories and events: Arrow refuses `1` beside `"1"`."""
+    df = pd.DataFrame({"serial": [23456, "23457", None]})
+    out = roundtrip(FRAME, df)
+    assert out["serial"].tolist() == [23456, "23457", None]
+
+
+def test_roundtrip_keeps_ints_beside_floats_as_ints():
+    df = pd.DataFrame({"n": pd.Series([1, 1.5], dtype=object)})
+    out = roundtrip(FRAME, df)
+    assert [type(v) for v in out["n"]] == [int, float]
+
+
+def test_a_mixed_column_does_not_digest_like_its_strings():
+    """pandas hashes object columns through `str`, which would make these collide."""
+    mixed = pd.DataFrame({"serial": [1, "x"]})
+    strings = pd.DataFrame({"serial": ["1", "x"]})
+    assert digest_dataframe(mixed) != digest_dataframe(strings)
 
 
 def test_roundtrip_preserves_dict_cells():

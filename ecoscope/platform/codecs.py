@@ -16,6 +16,7 @@ ship.
 
 from __future__ import annotations
 
+import datetime
 import hashlib
 import io
 import json
@@ -53,6 +54,12 @@ class UnencodableValue(Undigestible):
 # so `{"k": 1}` next to `{"k": 2, "j": "x"}` reads back as `{"k": 1, "j": None}`
 # -- which is `hit != miss` on the ER event-details column specifically.
 TREE_COLUMNS_KEY = b"ecoscope:tree_columns"
+
+# Schema-metadata key recording the `datetime.timezone` of each tz-aware column
+# that has one. Parquet stores only the offset, and pandas reads it back as a
+# `pytz.FixedOffset`: the same instants under a dtype that prints differently,
+# which moves the digest of a hit and of everything computed from it.
+FIXED_OFFSET_COLUMNS_KEY = b"ecoscope:fixed_offset_columns"
 
 
 def has_geometry(df: AnyDataFrame) -> bool:
@@ -104,6 +111,11 @@ def _frame_metadata(df: AnyDataFrame) -> dict[str, Any]:
     }
 
 
+def _cell_types(column: pd.Series) -> set[type]:
+    """Types of a column's cells, leaving out pandas' missing values (`None`, float NaN)."""
+    return {type(v) for v in column if not (v is None or (isinstance(v, float) and v != v))}
+
+
 def digest_dataframe(df: AnyDataFrame) -> str:
     """Return a full sha256 over a dataframe's content.
 
@@ -117,32 +129,63 @@ def digest_dataframe(df: AnyDataFrame) -> str:
     import pandas as pd
 
     digest = hashlib.sha256()
+    columns = [df.iloc[:, i] for i in range(len(df.columns))]
+    # pandas hashes an object column through `str`, without raising, so a column
+    # mixing `1` and `"1"` would digest like one holding only strings.
+    mixed = [column.dtype == object and len(_cell_types(column)) > 1 for column in columns]
     try:
+        if any(mixed):
+            raise TypeError("a mixed-type object column is hashed by repr")
         digest.update(np.ascontiguousarray(pd.util.hash_pandas_object(df).values))
     except (TypeError, ValueError, AttributeError):
         # Only now, and only for the columns that genuinely fail, pay per-column
         # costs. Every row still contributes; hashing a `head(5)` sample here
         # let two frames sharing shape and first rows collide.
-        for obj in (df.index, *(df.iloc[:, i] for i in range(len(df.columns)))):
-            digest.update(np.ascontiguousarray(_fallback_hash(obj)))
+        digest.update(np.ascontiguousarray(_fallback_hash(df.index)))
+        for column, is_mixed in zip(columns, mixed):
+            hashed = (
+                pd.util.hash_pandas_object(column.map(repr), index=False).values if is_mixed else _fallback_hash(column)
+            )
+            digest.update(np.ascontiguousarray(hashed))
     digest.update(json.dumps([[str(c), str(dt)] for c, dt in zip(df.columns, df.dtypes)]).encode())
     digest.update(json.dumps(_frame_metadata(df), sort_keys=True, default=str).encode())
     return digest.hexdigest()
 
 
 def _tree_columns(df: AnyDataFrame) -> list[str]:
-    """Object columns holding a `list`, `tuple` or `dict` in any cell.
+    """Object columns Arrow cannot carry faithfully.
 
-    One rule for all three rather than per-kind repair on the way out: the
-    structure is what Arrow flattens, and reconstructing it from a typed column
-    means guessing, which is how a column of genuine lists becomes a column of
-    tuples.
+    Those holding a `list`, `tuple` or `dict` in any cell: one rule for all
+    three rather than per-kind repair on the way out, because the structure is
+    what Arrow flattens, and reconstructing it from a typed column means
+    guessing, which is how a column of genuine lists becomes a column of tuples.
+    And those mixing scalar types, which Arrow refuses (`1` beside `"1"`) or
+    coerces (`1` beside `1.5` comes back `1.0`).
     """
     found = []
     for position, (name, dtype) in enumerate(zip(df.columns, df.dtypes)):
-        if dtype == object and any(isinstance(v, (list, tuple, dict)) for v in df.iloc[:, position]):
+        if dtype != object:
+            continue
+        types = _cell_types(df.iloc[:, position])
+        if len(types) > 1 or any(issubclass(t, (list, tuple, dict)) for t in types):
             found.append(str(name))
     return found
+
+
+def _fixed_offset_columns(df: AnyDataFrame) -> dict[str, tuple[float, str | None]]:
+    """tz-aware columns whose zone is a `datetime.timezone`, as `(offset seconds, name)`."""
+    found = {}
+    for name, dtype in zip(df.columns, df.dtypes):
+        tz = getattr(dtype, "tz", None)
+        if isinstance(tz, datetime.timezone):
+            found[str(name)] = (tz.utcoffset(None).total_seconds(), tz.tzname(None))
+    return found
+
+
+def _restore_timezone(seconds: float, name: str | None) -> datetime.timezone:
+    offset = datetime.timedelta(seconds=seconds)
+    default = datetime.timezone(offset)
+    return default if name == default.tzname(None) else datetime.timezone(offset, name)
 
 
 def _cell_to_json(value: Any) -> dict[str, Any]:
@@ -207,6 +250,7 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
     import geopandas as gpd  # type: ignore[import-untyped]
 
     trees = _tree_columns(df)
+    offsets = _fixed_offset_columns(df)
     if trees:
         df = df.copy()
         for name in trees:
@@ -220,9 +264,12 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
         df.to_parquet(buffer, index=True)
     data = buffer.getvalue()
 
-    if not trees:
-        return data
-    return _with_schema_metadata(data, {TREE_COLUMNS_KEY: json.dumps(trees).encode()})
+    extra = {}
+    if trees:
+        extra[TREE_COLUMNS_KEY] = json.dumps(trees).encode()
+    if offsets:
+        extra[FIXED_OFFSET_COLUMNS_KEY] = json.dumps(offsets).encode()
+    return _with_schema_metadata(data, extra) if extra else data
 
 
 def _with_schema_metadata(parquet: bytes, extra: dict[bytes, bytes]) -> bytes:
@@ -231,7 +278,8 @@ def _with_schema_metadata(parquet: bytes, extra: dict[bytes, bytes]) -> bytes:
     A read-and-rewrite rather than a write-time option, because neither
     `DataFrame.to_parquet` nor geopandas' geoparquet writer exposes one, and
     reimplementing the geoparquet writer to get at it would be a far larger
-    thing to keep correct. Only frames with sequence cells pay for it.
+    thing to keep correct. Only frames with sequence cells, mixed-type cells or
+    fixed-offset timestamps pay for it.
     """
     import pyarrow.parquet as pq
 
@@ -258,6 +306,9 @@ def decode_dataframe(data: bytes) -> pd.DataFrame:
     if (raw := metadata.get(TREE_COLUMNS_KEY)) is not None:
         for name in json.loads(raw):
             df[name] = _object_series([_decode_cell(v) for v in df[name]], df.index)
+    if (raw := metadata.get(FIXED_OFFSET_COLUMNS_KEY)) is not None:
+        for name, (seconds, tz_name) in json.loads(raw).items():
+            df[name] = df[name].dt.tz_convert(_restore_timezone(seconds, tz_name))
     return df
 
 
