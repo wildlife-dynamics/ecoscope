@@ -135,12 +135,11 @@ class CacheableGrouper(Cacheable):
     `grouper_codec` exists precisely because these three cannot be rebuilt from
     `model_dump`: two exclude `help_text`, `TemporalGrouper` dumps a dataclass
     holding a bound method, and `SpatialGrouper` hides its resolved regions in
-    a `PrivateAttr`. `__wt_codec_owns_round_trip__` says so, which is what lets
-    them declare on the class like every other cacheable type.
+    a `PrivateAttr`. Plain `Cacheable` rather than `ModelDumpCacheable` says so,
+    which is what lets them declare on the class like every other cacheable type.
     """
 
     __wt_codec__ = "ecoscope.platform.codecs:grouper_codec"
-    __wt_codec_owns_round_trip__ = True
 
 
 class AllGrouper(BaseModel, CacheableModel):

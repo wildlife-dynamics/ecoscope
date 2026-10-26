@@ -22,7 +22,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 from pydantic import BaseModel
 from shapely.geometry import Point
-from wt_contracts import Cacheable, declared_structure
+from wt_contracts import Cacheable, ModelDumpCacheable, declared_structure
 from wt_task.cache import Tree, Undigestible, resolve_structure
 from wt_task.skip import SKIP_SENTINEL
 
@@ -606,8 +606,8 @@ def _declared_models() -> dict[str, type]:
 # Split by which codec a model declares. The groupers encode themselves, so
 # putting them through `model_codec` below would prove the wrong thing -- their
 # round trip is covered in the grouper section above.
-DECLARED_MODELS = [cls for cls in _declared_models().values() if not cls.__wt_codec_owns_round_trip__]
-SELF_ENCODING_MODELS = [cls for cls in _declared_models().values() if cls.__wt_codec_owns_round_trip__]
+DECLARED_MODELS = [cls for cls in _declared_models().values() if issubclass(cls, ModelDumpCacheable)]
+SELF_ENCODING_MODELS = [cls for cls in _declared_models().values() if not issubclass(cls, ModelDumpCacheable)]
 
 
 def instance(cls: type[BaseModel]) -> BaseModel:
@@ -635,11 +635,11 @@ def test_the_declared_models_are_the_ones_the_plan_names():
     assert not names & set(undeclarable), f"declared despite not round-tripping: {names & set(undeclarable)}"
 
 
-def test_only_the_groupers_own_their_round_trip():
-    """The opt-out skips the structural check, so it must stay rare and deliberate.
+def test_only_the_groupers_encode_themselves():
+    """A model declared through plain `Cacheable` skips the structural check, so it must stay rare and deliberate.
 
-    A model that sets it without a codec that really does encode it would be
-    cached through `model_dump` with no check that the dump survives.
+    A model declared that way without a codec that really does encode it would
+    be cached through `model_dump` with no check that the dump survives.
     """
     assert {cls.__qualname__ for cls in SELF_ENCODING_MODELS} == {
         "ValueGrouper",

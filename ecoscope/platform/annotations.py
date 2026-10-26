@@ -7,7 +7,7 @@ from pydantic import Field, GetJsonSchemaHandler
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaValue, WithJsonSchema
 from pydantic_core import core_schema as cs
-from wt_contracts import Cacheable, CodecRef
+from wt_contracts import CodecRef, ModelDumpCacheable
 
 FP = ParamSpec("FP")
 
@@ -69,7 +69,7 @@ AdvancedField = create_custom_field(  # type: ignore[var-annotated]
 )
 
 
-class CacheableModel(Cacheable):
+class CacheableModel(ModelDumpCacheable):
     """Mixin declaring `codecs.model_codec`: `class Thing(BaseModel, CacheableModel)`.
 
     Here rather than in `codecs.py` so that a model module can declare its
