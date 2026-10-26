@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import SecretStr, validate_call
@@ -15,6 +15,7 @@ from ecoscope.platform.connections import (
     EarthRangerSourceConnection,
     SmartClient,
     SmartConnection,
+    as_backends,
     is_client,
 )
 
@@ -324,6 +325,46 @@ def test_er_connection_unset_use_warehouse_resolves_to_the_global_flag(
         with patch("ecoscope.io.EarthRangerIO", autospec=True):
             source = conn.get_client()
     assert (source.warehouse is not None) is expected
+
+
+@pytest.mark.parametrize("env_value", ["", " ", "none", "null"])
+def test_er_connection_blank_use_warehouse_is_unset(named_mock_env_with_token, env_value):
+    env = named_mock_env_with_token | {
+        "ECOSCOPE_WORKFLOWS__CONNECTIONS__EARTHRANGER__MEP_DEV__USE_WAREHOUSE": env_value
+    }
+    with patch.dict(os.environ, env, clear=True):
+        assert EarthRangerConnection.from_named_connection("MEP_DEV").use_warehouse is None
+        assert EarthRangerSourceConnection.from_named_connection("MEP_DEV").use_warehouse is None
+
+
+def test_as_backends_passes_backends_through(recwarn):
+    source = EarthRangerBackends(api=MagicMock(), warehouse=MagicMock())
+    assert as_backends(source) is source
+    assert not recwarn.list
+
+
+def _bare_api_client(token):
+    api = MagicMock()
+    api.server = "https://mep-dev.pamdas.org"
+    api.token = token
+    return api
+
+
+@pytest.mark.parametrize(
+    "global_flag,token,has_warehouse",
+    [("true", "123456789", True), ("false", "123456789", False), ("true", None, False)],
+)
+def test_as_backends_wraps_a_bare_api_client_per_the_global_flag(global_flag, token, has_warehouse):
+    """A bare client has no per-source preference, so it gets the pre-ERA-855 behavior."""
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient
+
+    api = _bare_api_client(token)
+    with patch.dict(os.environ, {"USE_EARTHRANGER_WAREHOUSE_API": global_flag}, clear=True):
+        with pytest.deprecated_call():
+            source = as_backends(api)
+
+    assert source.api is api
+    assert isinstance(source.warehouse, ERWarehouseClient) is has_warehouse
 
 
 def test_connection_field_validator_no_token():

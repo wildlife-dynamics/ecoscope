@@ -13,7 +13,7 @@ from wt_task import task
 from wt_task.skip import SkippedDependencyFallback
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, EmptyDataFrame
-from ecoscope.platform.connections import EarthRangerSource
+from ecoscope.platform.connections import EarthRangerSource, as_backends
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.jsonschema import labeled_literal_items
 from ecoscope.platform.schemas import (
@@ -520,6 +520,7 @@ def get_subjectgroup_observations(
     asked, so consumers of ``subject__additional`` -- e.g. ``assign_subject_colors``,
     which reads its ``rgb`` key -- must opt in to get the same data from both backends.
     """
+    client = as_backends(client)
     from ecoscope.relocations import Relocations
 
     filter_int = _EXCLUSION_FILTER_TO_INT[filter]
@@ -571,6 +572,7 @@ def get_patrol_observations(
     patrols_overlap_daterange: PatrolsOverlapDateRangeAnnotation = True,
 ) -> PatrolObservationsGDF | EmptyDataFrame:
     """Get observations for a patrol type from EarthRanger."""
+    client = as_backends(client)
     from ecoscope.relocations import Relocations
 
     if status is None:
@@ -624,6 +626,7 @@ def get_patrol_events(
     patrols_overlap_daterange: PatrolsOverlapDateRangeAnnotation = True,
 ) -> EventGDF | EventsWithDisplayNamesGDF | EmptyDataFrame:
     """Get events from patrols."""
+    client = as_backends(client)
 
     if status is None:
         status = ["done"]
@@ -706,6 +709,7 @@ def get_events(
     force_point_geometry: ForcePointGeometryAnnotation = True,
 ) -> EventGDF | EventsWithDisplayNamesGDF | EmptyDataFrame:
     """Get events."""
+    client = as_backends(client)
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
@@ -902,6 +906,7 @@ def get_patrols(
     sub_page_size: SubPageSizeAnnotation = 100,
     patrols_overlap_daterange: PatrolsOverlapDateRangeAnnotation = True,
 ) -> PatrolsDF | EmptyDataFrame:
+    client = as_backends(client)
     if status is None:
         status = ["done"]
 
@@ -946,6 +951,7 @@ def get_patrol_observations_from_patrols_df(
     sub_page_size: SubPageSizeAnnotation = 100,
 ) -> PatrolObservationsGDF | EmptyDataFrame:
     """Get observations for a patrol type from EarthRanger."""
+    client = as_backends(client)
     from ecoscope.relocations import Relocations
 
     if warehouse_client := client.warehouse:
@@ -1010,6 +1016,7 @@ def get_event_type_display_names_from_events(
     events_gdf: EventGDF,
     append_category_names: AppendCategorySelectionAnnotation = "duplicates",
 ) -> EventsWithDisplayNamesGDF:
+    client = as_backends(client)
     # Pre-bind: the `and` below short-circuits before the walrus when events-DWH
     # is disabled, and the ER-API fallback path references warehouse_client.
     warehouse_client = None
@@ -1166,6 +1173,7 @@ def get_choices_from_v2_event_type(
         Field(description="The choice field to lookup values from"),
     ],
 ) -> dict[str, str]:
+    client = as_backends(client)
     from ecoscope.io.earthranger import ERClientNotFound
 
     choices: dict[str, str] = {}
@@ -1182,6 +1190,7 @@ def get_spatial_features_group(
     client: EarthRangerSource,
     spatial_features_group_name: Annotated[str, Field(description="The name of the group to fetch")],
 ) -> RegionsGDF | EmptyDataFrame:
+    client = as_backends(client)
     spatial_features_group = client.api.get_spatial_features_group(
         spatial_features_group_name=spatial_features_group_name,
         spatial_features_group_id=None,
@@ -1198,6 +1207,7 @@ def get_fields_from_event_type_schema(
     client: EarthRangerSource,
     event_type: SingleEventTypeAnnotation,
 ) -> dict[str, str]:
+    client = as_backends(client)
     fields: dict[str, str] = client.api.get_fields_from_event_type_schema(event_type)
     return fields
 
@@ -1270,6 +1280,7 @@ def download_grouped_event_attachments(
         A flat list of relative paths (under `output_dir`) to every saved
         attachment across all groups.
     """
+    client = as_backends(client)
     from ecoscope.io.earthranger import ERClientNotFound  # type: ignore[import-untyped]
 
     if skip_download:
@@ -1538,6 +1549,7 @@ def process_events_details(
     Extracts and processes event details for all events in the DataFrame,
     resolving enum values from the schema for each event type and mapping keys to titles.
     """
+    client = as_backends(client)
     if df.empty or "event_details" not in df.columns or "event_type" not in df.columns:
         return df
 

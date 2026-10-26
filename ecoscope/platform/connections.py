@@ -1,5 +1,6 @@
 import logging
 import os
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from inspect import ismethod
@@ -174,8 +175,9 @@ class EarthRangerBackends:
 
     Tasks annotate the `EarthRangerSource` alias to be handed one of these. The older
     `EarthRangerClient` alias still resolves to the API client alone, which is what the
-    ext task libraries call directly (`client._get`, `client.tcp_limit`, ...), so they
-    are unaffected by this and opt in by changing annotation.
+    ext task libraries call directly (`client._get`, `client.tcp_limit`, ...). Those
+    libraries also call built-in tasks directly with that client, so the tasks pass it
+    through `as_backends`.
     """
 
     api: EarthRangerClientProtocol
@@ -185,6 +187,40 @@ class EarthRangerBackends:
     # that touches connections. Typing it buys nothing anyway -- io-core ships no
     # py.typed, so mypy reads ERWarehouseClient as Any regardless.
     warehouse: Any | None = None
+
+
+def _make_warehouse_client(server: str, token: SecretStr) -> Any:
+    from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
+
+    warehouse_base_url = os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL")
+    logger.debug("Using ERWarehouseClient (warehouse_base_url=%s)", warehouse_base_url)
+    return ERWarehouseClient(server=server, token=token, warehouse_base_url=warehouse_base_url)
+
+
+def as_backends(client: "EarthRangerBackends | EarthRangerClientProtocol") -> EarthRangerBackends:
+    """Accept a bare API client where tasks expect `EarthRangerBackends`.
+
+    The `EarthRangerSource` validator only runs when a task's arguments are validated,
+    so a direct call from code holding an `EarthRangerClient` arrives here unresolved.
+    Such a client carries no per-source preference, so it gets the global flag's
+    warehouse, which is how these tasks behaved before `EarthRangerSource`.
+    """
+    if isinstance(client, EarthRangerBackends):
+        return client
+    warnings.warn(
+        "Passing an EarthRanger API client to a task that takes `EarthRangerSource` is "
+        "deprecated and ignores the per-source `use_warehouse` setting; pass "
+        "`EarthRangerSourceConnection.client_from_named_connection(name)` instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+    token = getattr(client, "token", None)
+    warehouse = (
+        _make_warehouse_client(client.server, SecretStr(token))  # type: ignore[attr-defined]
+        if _warehouse_enabled_globally() and token
+        else None
+    )
+    return EarthRangerBackends(api=client, warehouse=warehouse)
 
 
 def _warehouse_enabled_globally() -> bool:
@@ -223,6 +259,16 @@ class _EarthRangerConnection(_DataConnection):
         ),
     ] = None
 
+    @field_validator("use_warehouse", mode="before")
+    @classmethod
+    def blank_use_warehouse_is_unset(cls, v: Any) -> Any:
+        # pydantic-settings hands an empty env var through as "", which `bool | None`
+        # rejects -- failing the whole connection, even for tasks that never touch the
+        # warehouse. The legacy global flag read blank as "no preference"; so does this.
+        if isinstance(v, str) and v.strip().lower() in ("", "none", "null"):
+            return None
+        return v
+
     @field_validator("token")
     def token_or_password(cls, v: SecretStr, info: ValidationInfo):
         if v and (info.data["username"] or info.data["password"]):
@@ -246,16 +292,7 @@ class _EarthRangerConnection(_DataConnection):
         """
         if not self.warehouse_enabled() or not self.token:
             return None
-
-        from ecoscope_earthranger_io_core.client import ERWarehouseClient  # type: ignore[import-untyped]
-
-        warehouse_base_url = os.environ.get("EARTHRANGER_WAREHOUSE_API_BASE_URL")
-        logger.debug("Using ERWarehouseClient (warehouse_base_url=%s)", warehouse_base_url)
-        return ERWarehouseClient(
-            server=self.server,
-            token=self.token,
-            warehouse_base_url=warehouse_base_url,
-        )
+        return _make_warehouse_client(self.server, self.token)
 
     def _api_client(self) -> EarthRangerClientProtocol:
         from ecoscope.io import EarthRangerIO
