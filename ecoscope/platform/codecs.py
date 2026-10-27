@@ -325,7 +325,7 @@ def _frame_digest(df: AnyDataFrame) -> str:
 
 
 # Claiming `pd.DataFrame` covers `GeoDataFrame` and pandera's alias, which is
-# why this is not `exact`. The two frame formats share no content-id space,
+# why this accepts subclasses. The two frame formats share no content-id space,
 # because ids are namespaced by codec, so the same data as a frame and as a
 # table digests differently. Cross-format dedup is the price of not having to
 # agree on a canonical form across two type systems.
@@ -498,10 +498,10 @@ def _model_json(value: BaseModel) -> bytes:
 def model_codec(cls: type[BaseModel]) -> Codec:
     """The codec every `CacheableModel` declares.
 
-    `exact`, and keyed by class in the codec id, because the payload no longer
-    names the class to rebuild: a subclass encoded through its parent's codec
-    would come back narrowed, and a declaration that moved has to miss rather
-    than decode as something else.
+    Refuses subclasses, and is keyed by class in the codec id, because the
+    payload no longer names the class to rebuild: a subclass encoded through
+    its parent's codec would come back narrowed, and a declaration that moved
+    has to miss rather than decode as something else.
     """
     return Codec(
         codec_id=f"{MODEL_CODEC_ID}/{cls.__module__}.{cls.__qualname__}",
@@ -510,7 +510,7 @@ def model_codec(cls: type[BaseModel]) -> Codec:
         encode=_model_json,
         decode=cls.model_validate_json,
         digest=lambda v: hashlib.sha256(_model_json(v)).hexdigest(),
-        exact=True,
+        accepts_subclasses=False,
     )
 
 
@@ -602,5 +602,5 @@ def grouper_codec(cls: type) -> Codec:
         encode=lambda v: _GROUPER_STATE.encode(_grouper_state(v)),
         decode=lambda d: _grouper_from_state(cls, _GROUPER_STATE.decode(d)),
         digest=lambda v: _GROUPER_STATE.digest(_grouper_state(v)),
-        exact=True,
+        accepts_subclasses=False,
     )

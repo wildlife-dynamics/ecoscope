@@ -532,7 +532,7 @@ def test_a_grouper_holding_an_undigestible_frame_is_refused():
 
 
 def test_a_grouper_codec_refuses_another_grouper_class():
-    """`exact`, so a payload can never be decoded back into the wrong class."""
+    """Refuses subclasses, so a payload can never be decoded back into the wrong class."""
     tree = Tree({"k": "ref", "codec": grouper_codec(ValueGrouper)})
     with pytest.raises(Undigestible):
         tree.digest(TemporalGrouper(temporal_index=Month()))
@@ -704,7 +704,7 @@ def test_two_models_dumping_alike_do_not_share_a_codec_id():
 
 
 def test_a_model_codec_refuses_a_subclass():
-    """`exact`: encoding a subclass through its parent would narrow it silently."""
+    """Refuses subclasses: encoding one through its parent would narrow it silently."""
 
     class Parent(BaseModel):
         name: str
