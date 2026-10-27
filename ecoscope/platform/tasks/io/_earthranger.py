@@ -14,7 +14,7 @@ from wt_task import task
 from wt_task.skip import SkippedDependencyFallback
 
 from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, EmptyDataFrame
-from ecoscope.platform.connections import EarthRangerSource, as_backends
+from ecoscope.platform.connections import EarthRangerClient, EarthRangerSource, as_backends
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.jsonschema import labeled_literal_items
 from ecoscope.platform.schemas import (
