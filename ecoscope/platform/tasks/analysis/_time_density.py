@@ -148,13 +148,10 @@ EtdPercentileAnnotation: TypeAlias = Annotated[
 ]
 
 
-# The same field as `EtdPercentileAnnotation`, with the default held in the validated
-# (float) form: pydantic does not validate defaults, so a model carrying this
-# one must still dump and revalidate unchanged for the step cache. The schema
-# keeps the string form, the only one the enum offers. A second alias rather
-# than a change to the shared one, because that one is also used on
-# `@dataclass` fields, which take their schema default from `json_schema_extra`
-# and would flip from "unset" to these six values.
+# `EtdPercentileAnnotation` with its default in validated (float) form, since
+# pydantic doesn't validate defaults and the step cache needs dump-then-revalidate
+# to be a no-op. Separate because the shared alias is also used on dataclass
+# fields, whose schema default would change.
 EtdCachedPercentileAnnotation: TypeAlias = Annotated[
     list[UDPercentiles] | SkipJsonSchema[list[float]] | SkipJsonSchema[None],
     AdvancedField(

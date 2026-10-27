@@ -109,7 +109,6 @@ DataFrame = Annotated[
     # below, which will not contain any schema-specific information. This *will not* affect
     # validation behavior, only JSON Schema generation.
     WithJsonSchema({"type": "ecoscope.platform.annotations.DataFrame"}),
-    # One edit covers every frame-returning task: all of them resolve to this alias.
     CodecRef("ecoscope.platform.codecs:FRAME"),
 ]
 

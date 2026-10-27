@@ -161,10 +161,8 @@ def _generate_utilization_distribution_raster(
     return output_path
 
 
-# `no-cache` for the same reason as the `persist_*` tasks in `tasks.io._persist`:
-# the return is a path, and its truth lives in the results store, not in the key.
-# Unlike those it is expensive to recompute, so revisit once a hit can restore
-# the file rather than only its path.
+# Expensive to recompute: revisit `no-cache` once a hit can restore the file, not
+# just its path.
 @register(tags=["no-cache"])
 def generate_etd_raster(
     trajectory_gdf: TrajectoryAnnotation,

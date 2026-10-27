@@ -294,8 +294,6 @@ def _stringify_mixed_json(df):
 GEOARROW_FILENAME_PREFIX = "geoarrow_"
 
 
-# `no-cache` for the same reason as the `persist_*` tasks in `tasks.io._persist`:
-# the return is a path, and its truth lives in the results store, not in the key.
 @register(tags=["no-cache"])
 def persist_geoarrow_for_pydeck(
     gdf: Annotated[AnyGeoDataFrame, Field(description="GeoDataframe to persist as GeoArrow-encoded parquet")],

@@ -196,11 +196,10 @@ def _config_task_json_schema(schema: dict) -> None:
     ]
 
 
-# The same default in the two forms its two consumers need. The task
-# parameter's schema default has to stay a plain JSON object, because the form
-# renders it; `ChartConfig.metrics` has to already hold what its annotation
-# validates to, because pydantic does not validate defaults and the step cache
-# needs dump-then-revalidate to be a no-op.
+# The same default in two forms: plain JSON for the form's schema default, and
+# validated models for `ChartConfig.metrics`, since pydantic doesn't validate
+# defaults and the step cache needs dump-then-revalidate to be a no-op. A
+# `default_factory` field emits no schema default, hence `json_schema_extra`.
 _DEFAULT_TREND_METRICS: tuple = ({"metric": "patrol_count"},)
 
 
@@ -216,9 +215,6 @@ class ChartConfig(BaseModel, CacheableModel):
 
     metrics: Annotated[
         Sequence[EncounterRateMetric],
-        # The factory keeps the runtime default validated; `json_schema_extra`
-        # puts the default back in the schema, which a `default_factory` field
-        # does not emit on its own and the form needs.
         Field(default_factory=_default_trend_metrics, json_schema_extra={"default": list(_DEFAULT_TREND_METRICS)}),
     ]
     time_interval: Annotated[Literal["year", "month", "week", "day", "hour"], Field(default="week")] = "week"

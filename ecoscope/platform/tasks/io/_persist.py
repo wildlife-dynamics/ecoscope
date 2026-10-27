@@ -20,14 +20,9 @@ from ecoscope.platform.tasks.transformation._sanitize import sanitize_for_arrow
 # because in the end to end test that tag is used to determine which tasks to mock.
 # Ultimately, we should make the mocking process less brittle, but to get his PR merged,
 # I'm going to leave this as is for now.
-# Tagged `no-cache`: the value these return is a *path*, and the thing that makes
-# it true is a file in the results store. Serving one from the step cache hands
-# back the path without checking that the file is still there, so a rotated or
-# re-provisioned results root yields a dashboard pointing at nothing. They are
-# also already their own content-addressed cache, with the right invalidation
-# (`_read_path_if_file_exists`) -- warm, they hash the payload and skip the
-# write -- so caching the step buys a file-existence check's worth of time and
-# gives up the check. The tag costs one step each; dependents still cache.
+# Tagged `no-cache`: the returned path is only true while its file exists, which a
+# hit would not check. These already skip rewriting an existing file
+# (`_read_path_if_file_exists`), so caching them would buy almost nothing.
 @register(tags=["no-cache"])
 def persist_text(
     text: Annotated[str, Field(description="Text to persist")],

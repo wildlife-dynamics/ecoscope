@@ -39,9 +39,6 @@ def _make_treecover_mask(gfc, tree_cover_threshold: float):
     return cover.And(cover), mask
 
 
-# Tagged `io` like `calculate_ndvi_range`: both tasks here query Earth Engine,
-# so the step cache must scope them per principal and age them by `io_ttl`, and
-# `--mock-io` swaps them for the example returns beside this module.
 @register(tags=["io"])
 def extract_forest_cover_trends(
     client: EarthEngineClient,

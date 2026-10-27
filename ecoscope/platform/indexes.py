@@ -21,9 +21,7 @@ IndexValue: TypeAlias = str
 Filter = tuple[IndexName, Literal["="], IndexValue]
 CompositeFilter = tuple[Filter, ...]
 
-# Here rather than beside the tasks that return them: the alias is the unit a
-# codec is declared on, and both `groupby` and `transformation` need the same one.
-# Only the `Any` ones need a marker -- the walk finds `FRAME` through `AnyDataFrame`.
+# Only the `Any` aliases need a marker: the walk finds `FRAME` through `AnyDataFrame`.
 _KEYED_ANY = CodecRef("ecoscope.platform.codecs:KEYED_ANY")
 
 KeyedIterableOfDataFrames = list[tuple[CompositeFilter, AnyDataFrame]]

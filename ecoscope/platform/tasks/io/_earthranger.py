@@ -791,13 +791,10 @@ def get_events(
                 crs=events_df.crs,
                 index=events_df.index,
             )
-        # Parity with the legacy path, which returns events sorted ascending by time
-        # (the warehouse serves them event_time DESC). `id` is a tie-break, not
-        # decoration: events sharing a timestamp are common, the warehouse makes no
-        # ordering guarantee within them, and a default quicksort over an unordered
-        # source yields a different row order each run -- which changes the content
-        # hash, hence the download filename and every cached step below this one.
-        # Same reasoning as `_sort_warehouse_relocations`.
+        # Ascending by time, for parity with the legacy path. `id` breaks ties: the
+        # warehouse doesn't order within a timestamp, so without it the row order,
+        # and so every digest downstream, varies between runs. Same as
+        # `_sort_warehouse_relocations`.
         if not events_df.empty:
             sort_keys = ["time", "id"] if "id" in events_df.columns else ["time"]
             events_df = events_df.sort_values(sort_keys, kind="stable")
@@ -1257,8 +1254,6 @@ def get_fields_from_event_type_schema(
     return fields
 
 
-# `no-cache`: the returned paths point at files this writes into the results
-# store, which a hit would not rewrite. See `tasks.io._persist`.
 @register(tags=["io", "no-cache"])
 def download_grouped_event_attachments(
     client: EarthRangerClient,

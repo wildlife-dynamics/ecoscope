@@ -1,9 +1,9 @@
 """How an `ecoscope.platform` task return becomes bytes, and back again.
 
 Only leaves live here. Which codec applies is declared by the task's return
-type -- `CodecRef` on a type alias, `__wt_codec__` on a class -- resolved once
-when wt-registry serializes the library, and assembled into one `wt_task.cache.Tree`
-per step at run time. Nothing in this module inspects a value to decide what it is.
+type -- `CodecRef` on a type alias, `__wt_codec__` on a class -- and wt-task
+assembles it into one `wt_task.cache.Tree` per step when the step first runs.
+Nothing in this module inspects a value to decide what it is.
 
 The digest half is also what `persist_df` and friends use for their
 content-addressed filenames, so there is one content-identity implementation
@@ -75,9 +75,8 @@ def _fallback_hash(obj: Any) -> Any:
     try:
         return pd.util.hash_pandas_object(obj, index=False).values
     except (TypeError, ValueError, AttributeError):
-        # Cells pandas can't hash (lists/dicts in event details). `repr`
-        # rather than `str`: in a mixed column `str` collapses 1 and "1"
-        # to the same text, and a filename collision serves wrong bytes.
+        # Cells pandas can't hash (lists/dicts in event details). `repr`, not
+        # `str`, which collapses 1 and "1".
         try:
             return pd.util.hash_pandas_object(obj.map(repr), index=False).values
         except Exception as e:
