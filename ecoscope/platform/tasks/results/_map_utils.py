@@ -309,7 +309,7 @@ def persist_geoarrow_for_pydeck(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field(description="Path to persisted parquet, relative to `root_path`")]:
+) -> Annotated[str, Field(description="Path to persisted parquet")]:
     """Persist a gdf as GeoArrow-encoded parquet, ready for
     use in geoarrow layers.
 

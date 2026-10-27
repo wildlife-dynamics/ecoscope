@@ -77,9 +77,9 @@ def test_export_geotiff_writes_file_with_nan_nodata(tmp_path):
 
     output_path = export_geotiff(raster_data, str(tmp_path), "out.tif")
 
-    assert output_path == "out.tif"
+    assert output_path == str(tmp_path / "out.tif")
 
-    with rio.open(tmp_path / output_path) as src:
+    with rio.open(output_path) as src:
         assert src.count == 1
         arr = src.read(1)
         assert np.isnan(src.nodata)
@@ -96,7 +96,7 @@ def test_export_geotiff_numeric_nodata(tmp_path):
 
     output_path = export_geotiff(raster_data, str(tmp_path), "out.tif", nodata=-9999.0)
 
-    with rio.open(tmp_path / output_path) as src:
+    with rio.open(output_path) as src:
         assert src.nodata == -9999.0
 
 
@@ -114,8 +114,8 @@ def test_generate_etd_raster_auto_scale(trajectory_gdf, tmp_path):
 
     output_path = generate_etd_raster(trajectory_gdf, combined_params, output_dir=str(tmp_path))
 
-    assert output_path == "etd_raster.tif"
-    with rio.open(tmp_path / output_path) as src:
+    assert output_path == str(tmp_path / "etd_raster.tif")
+    with rio.open(output_path) as src:
         assert src.count == 1
 
 
@@ -133,7 +133,7 @@ def test_generate_etd_raster_custom_cell_size(trajectory_gdf, tmp_path):
 
     output_path = generate_etd_raster(trajectory_gdf, combined_params, output_dir=str(tmp_path))
 
-    with rio.open(tmp_path / output_path) as src:
+    with rio.open(output_path) as src:
         assert abs(src.res[0] - 250.0) < 1e-6
 
 
@@ -203,8 +203,8 @@ def test_generate_bbmm_raster(trajectory_gdf, tmp_path):
 
     output_path = generate_bbmm_raster(trajectory_gdf, combined_params, output_dir=str(tmp_path))
 
-    assert output_path == "bbmm_raster.tif"
-    with rio.open(tmp_path / output_path) as src:
+    assert output_path == str(tmp_path / "bbmm_raster.tif")
+    with rio.open(output_path) as src:
         assert src.count == 1
 
 
@@ -250,4 +250,4 @@ def test_generate_bbmm_raster_with_group_key(trajectory_gdf, tmp_path):
     output_path = generate_bbmm_raster(trajectory_gdf, combined_params, output_dir=str(tmp_path), group_key=group_key)
 
     prefix = _hash_grouper_key(group_key)
-    assert output_path == f"{prefix}_bbmm_raster.tif"
+    assert output_path == str(tmp_path / f"{prefix}_bbmm_raster.tif")

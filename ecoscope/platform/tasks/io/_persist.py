@@ -46,7 +46,7 @@ def persist_text(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field(description="Path to persisted text, relative to `root_path`")]:
+) -> Annotated[str, Field(description="Path to persisted text")]:
     """Persist text to a file or cloud storage object.
 
     When the filename is generated from a hash of the text, a target that
@@ -91,7 +91,7 @@ def persist_json(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field(description="Path to persisted JSON, relative to `root_path`")]:
+) -> Annotated[str, Field(description="Path to persisted JSON")]:
     """Serialize JSON-shaped data and persist to a file or cloud storage object.
 
     When the filename is generated from a hash of the payload, a target that
@@ -155,7 +155,7 @@ def persist_df(
         ),
     ] = None,
     filetype: Annotated[FileType, Field(description="The output format")] = "csv",
-) -> Annotated[str, Field(description="Path to persisted data, relative to `root_path`")]:
+) -> Annotated[str, Field(description="Path to persisted data")]:
     """Persist dataframe to a file or cloud storage object.
 
     When the filename is generated from the df content hash, a target that
@@ -294,7 +294,7 @@ def persist_df_wrapper(
             default=False,
         ),
     ] = False,
-) -> Annotated[list[str], Field(description="A list of paths to persisted data, relative to `root_path`")]:
+) -> Annotated[list[str], Field(description="A list of paths to persisted data")]:
     """
     Save a DataFrame to disk with optional sanitization for Arrow compatibility.
 
@@ -432,7 +432,7 @@ def persist_grouped_dfs_for_results_download(
     ] = False,
 ) -> Annotated[
     list[str],
-    Field(description="A flat list of paths to all persisted group files, relative to `root_path`"),
+    Field(description="A flat list of paths to all persisted group files"),
 ]:
     """Persist grouped or ungrouped dataframes for FE results-download.
 

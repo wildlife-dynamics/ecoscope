@@ -222,7 +222,6 @@ The `view` parameter is a composite filter that identifies which grouper view th
   task: gather_dashboard
   partial:
     details: ${{ workflow.workflow_details.return }}
-    root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
     widgets:
       - ${{ workflow.events_map_widget.return }}
     groupers:
@@ -232,7 +231,7 @@ The `view` parameter is a composite filter that identifies which grouper view th
 
 This calls [`gather_dashboard`][ecoscope.platform.tasks.results.gather_dashboard].
 
-`gather_dashboard` collects all widgets, grouper definitions, and the time range into a `Dashboard` object. The terminal node of the workflow is serialized to JSON by the execution engine and sent back to Ecoscope Desktop / Ecoscope Web for visualization. The `widgets` list order determines the `widget_id` used in `layout.json` (0-indexed). `root_path` must be the same results root the persist tasks wrote to: they return paths relative to it, so that a cached step's output does not change with each run's root, and `gather_dashboard` turns them back into readable URLs.
+`gather_dashboard` collects all widgets, grouper definitions, and the time range into a `Dashboard` object. The terminal node of the workflow is serialized to JSON by the execution engine and sent back to Ecoscope Desktop / Ecoscope Web for visualization. The `widgets` list order determines the `widget_id` used in `layout.json` (0-indexed).
 
 ---
 

@@ -172,7 +172,7 @@ def generate_etd_raster(
     group_key: GroupKeyAnnotation = None,
 ) -> Annotated[
     str,
-    Field(description="Path to the written ETD utilization-distribution GeoTIFF, relative to `output_dir`."),
+    Field(description="Path to the written ETD utilization-distribution GeoTIFF."),
 ]:
     """Compute the Elliptical Time-Density (ETD) utilization distribution raster and persist it as a GeoTIFF.
 
@@ -239,7 +239,7 @@ def generate_bbmm_raster(
     group_key: GroupKeyAnnotation = None,
 ) -> Annotated[
     str,
-    Field(description="Path to the written BBMM utilization-distribution GeoTIFF, relative to `output_dir`."),
+    Field(description="Path to the written BBMM utilization-distribution GeoTIFF."),
 ]:
     """Compute the Brownian Bridge Movement Model (BBMM) utilization
     distribution raster and persist it as a GeoTIFF.

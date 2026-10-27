@@ -185,7 +185,6 @@ Text widgets display a string. Like single-value widgets, no render/persist step
   task: gather_dashboard
   partial:
     details: ${{ workflow.workflow_details.return }}
-    root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
     widgets:
       - ${{ workflow.map_widget.return }}
       - ${{ workflow.pie_widget.return }}
