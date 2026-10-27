@@ -165,7 +165,9 @@ def make_preset_or_custom_json_schema_extra(tile_layer: type[TileLayer], presets
             TileLayer(layer_name="SATELLITE", opacity=0.5)._as_json_schema_default(),
         ]
         schema["ecoscope:advanced"] = True
-        schema["items"].pop("$ref")
+        # Runs twice on pydantic>=2.9: pydantic applies it, then wt-registry re-applies it
+        # (its pydantic#9404 workaround), by which point `$ref` is already gone.
+        schema["items"].pop("$ref", None)
 
     return _preset_or_custom_json_schema_extra
 
