@@ -10,20 +10,20 @@ from ecoscope.platform.indexes import AllGrouper, SpatialGrouper, UserDefinedGro
 LEG_MEASURE_COLUMNS = ["leg_active_seconds", "leg_member_days", "patrol_elapsed_seconds"]
 
 
-def _spread_patrol_elapsed(out: pd.DataFrame, level: str, dist: pd.Series, elapsed_by_patrol: pd.Series) -> pd.Series:
+def _spread_patrol_elapsed(legs: pd.DataFrame, level: str, dist: pd.Series, elapsed_by_patrol: pd.Series) -> pd.Series:
     """Distribute each patrol's elapsed seconds over its (leg, feature) rows by the row's share
     of the patrol's total track length, so a feature gets the patrol's elapsed time in
     proportion to how much of the whole patrol's track lies in it. Rows of a patrol without
     any track keep their value (the earliest leg carries the whole, landing in "None").
     """
-    patrol_key = out["patrol_id"] if "patrol_id" in out.columns else out["patrol_segment_id"]
-    keys = pd.MultiIndex.from_arrays([out["patrol_segment_id"], out[level]])
-    seg_dist = pd.Series(dist.reindex(keys).to_numpy(), index=out.index).fillna(0.0)
+    patrol_key = legs["patrol_id"] if "patrol_id" in legs.columns else legs["patrol_segment_id"]
+    keys = pd.MultiIndex.from_arrays([legs["patrol_segment_id"], legs[level]])
+    seg_dist = pd.Series(dist.reindex(keys).to_numpy(), index=legs.index).fillna(0.0)
     patrol_dist = seg_dist.groupby(patrol_key.to_numpy()).transform("sum")
     patrol_elapsed = patrol_key.map(elapsed_by_patrol).to_numpy(dtype=float)
     spread = patrol_elapsed * seg_dist.to_numpy() / patrol_dist.where(patrol_dist > 0, 1.0).to_numpy()
-    return pd.Series(spread, index=out.index).where(
-        (patrol_dist > 0).to_numpy(), out["patrol_elapsed_seconds"].to_numpy()
+    return pd.Series(spread, index=legs.index).where(
+        (patrol_dist > 0).to_numpy(), legs["patrol_elapsed_seconds"].to_numpy()
     )
 
 
@@ -59,13 +59,12 @@ def apportion_legs_by_spatial_index(
     if isinstance(groupers, AllGrouper) or legs.empty:
         return legs
 
-    out = legs
     elapsed_spread = False
     for grouper in groupers:
         if not isinstance(grouper, SpatialGrouper) or grouper.index_name not in indexed_traj.index.names:
             continue
         level = grouper.index_name
-        if level in out.index.names:
+        if level in legs.index.names:
             continue  # already apportioned by an earlier grouper set (idempotent, like the index tasks)
         traj = indexed_traj.reset_index()
         dist = None
@@ -85,24 +84,24 @@ def apportion_legs_by_spatial_index(
             )
 
         elapsed_by_patrol = None
-        if "patrol_elapsed_seconds" in out.columns and dist is not None and not elapsed_spread:
-            patrol_key = out["patrol_id"] if "patrol_id" in out.columns else out["patrol_segment_id"]
-            elapsed_by_patrol = out["patrol_elapsed_seconds"].groupby(patrol_key.to_numpy()).sum(min_count=1)
+        if "patrol_elapsed_seconds" in legs.columns and dist is not None and not elapsed_spread:
+            patrol_key = legs["patrol_id"] if "patrol_id" in legs.columns else legs["patrol_segment_id"]
+            elapsed_by_patrol = legs["patrol_elapsed_seconds"].groupby(patrol_key.to_numpy()).sum(min_count=1)
 
-        merged = out.assign(_pos=range(len(out))).merge(shares, on="patrol_segment_id", how="left")
-        merged.index = out.index[merged.pop("_pos")]
+        merged = legs.assign(_pos=range(len(legs))).merge(shares, on="patrol_segment_id", how="left")
+        merged.index = legs.index[merged.pop("_pos")]
         if drop_unplaced:
             merged = merged[merged["share"].notna()]
-        out = merged
-        out["share"] = out["share"].fillna(1.0)
-        out[level] = out[level].astype(object).where(out[level].notna(), "None")
-        measure_columns = [col for col in LEG_MEASURE_COLUMNS if col in out.columns]
+        legs = merged
+        legs["share"] = legs["share"].fillna(1.0)
+        legs[level] = legs[level].astype(object).where(legs[level].notna(), "None")
+        measure_columns = [col for col in LEG_MEASURE_COLUMNS if col in legs.columns]
         if elapsed_by_patrol is not None and dist is not None:
-            out["patrol_elapsed_seconds"] = _spread_patrol_elapsed(out, level, dist, elapsed_by_patrol)
+            legs["patrol_elapsed_seconds"] = _spread_patrol_elapsed(legs, level, dist, elapsed_by_patrol)
             measure_columns.remove("patrol_elapsed_seconds")
             elapsed_spread = True  # later levels scale the spread value by leg share like the rest
         for col in measure_columns:
-            out[col] = out[col] * out["share"]
-        out = out.drop(columns="share")
-        out = out.set_index(level, append=True)
-    return out
+            legs[col] = legs[col] * legs["share"]
+        legs = legs.drop(columns="share")
+        legs = legs.set_index(level, append=True)
+    return legs
