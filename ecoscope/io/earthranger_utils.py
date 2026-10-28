@@ -1,7 +1,7 @@
 import json
 import logging
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import datetime, tzinfo
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
@@ -213,25 +213,43 @@ _OPTIONAL_LEG_COLUMNS = {
     "type_details": "patrol_type_details",
 }
 
+LEG_COLUMNS = [
+    "patrol_id",
+    "patrol_serial_number",
+    "patrol_segment_id",
+    "patrol_type",
+    "patrol_subject",
+    "segment_start",
+    "segment_end",
+    "leg_active_seconds",
+    "leg_member_days",
+    "patrol_elapsed_seconds",
+]
+
 
 def patrol_segments_from_patrols_df(
     patrols_df: pd.DataFrame,
     since: datetime | None = None,
     until: datetime | None = None,
+    open_leg_end: datetime | None = None,
+    tz: tzinfo | None = None,
 ) -> pd.DataFrame:
     """Build a one-row-per-leg frame from the ``patrol_segments`` of ``patrols_df``.
 
     Pause legs and legs without a start time are skipped. Legs are clipped to
-    ``[since, until]``; an open leg (no end time) ends at ``until`` or is skipped
-    when ``until`` is not given. Legs left empty by clipping are dropped.
-    ``patrol_elapsed_seconds`` (earliest start to latest end per patrol) is set on
-    each patrol's earliest leg only. ``leg_member_days`` is NaN when the leg has no
-    ``members`` key. ``patrol_serial_number`` is a string, matching the track frame's
-    group key. ``patrol_segment_details`` and ``patrol_type_details`` are JSON strings
-    so the frame can be written to parquet.
+    ``[since, until]``. An open leg (no end time) ends at ``open_leg_end``, falling
+    back to ``until``, and is skipped when neither is given. Legs left empty by
+    clipping are dropped. ``patrol_elapsed_seconds`` (earliest start to latest end per
+    patrol) is set on each patrol's earliest leg only. ``leg_member_days`` is the
+    member count times the number of calendar days the leg touches in ``tz`` (UTC when
+    not given), and NaN when the leg has no ``members`` key. ``patrol_serial_number``
+    is a string, matching the track frame's group key. ``patrol_segment_details`` and
+    ``patrol_type_details`` are JSON strings so the frame can be written to parquet.
+    An empty result still carries the base leg columns (``LEG_COLUMNS``).
     """
     since_ts = pd.Timestamp(since).tz_convert("UTC") if since is not None else None
     until_ts = pd.Timestamp(until).tz_convert("UTC") if until is not None else None
+    open_end_ts = pd.Timestamp(open_leg_end).tz_convert("UTC") if open_leg_end is not None else until_ts
 
     rows = []
     for _, row in patrols_df.iterrows():
@@ -244,7 +262,7 @@ def patrol_segments_from_patrols_df(
                 continue
             start = pd.to_datetime(start_raw, utc=True)
             end_raw = time_range.get("end_time")
-            end = pd.to_datetime(end_raw, utc=True) if end_raw else until_ts
+            end = pd.to_datetime(end_raw, utc=True) if end_raw else open_end_ts
             if end is None:
                 continue
             if since_ts is not None:
@@ -255,7 +273,8 @@ def patrol_segments_from_patrols_df(
                 continue
 
             if "members" in segment:
-                n_days = ((end - pd.Timedelta(1, unit="ns")).normalize() - start.normalize()).days + 1
+                day_start, day_end = (start, end) if tz is None else (start.tz_convert(tz), end.tz_convert(tz))
+                n_days = ((day_end - pd.Timedelta(1, unit="ns")).normalize() - day_start.normalize()).days + 1
                 member_days = float(len(segment["members"] or []) * n_days)
             else:
                 member_days = float("nan")
@@ -281,7 +300,7 @@ def patrol_segments_from_patrols_df(
             rows.append(leg)
 
     if not rows:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=LEG_COLUMNS)
 
     legs = pd.DataFrame(rows)
 

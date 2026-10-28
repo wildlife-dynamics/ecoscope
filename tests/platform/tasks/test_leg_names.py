@@ -69,10 +69,17 @@ def test_display_name_copied_by_slug_keeping_slug_and_unknown_slugs():
     assert df["patrol_type"].tolist() == ["routine", "anti_poaching", "unknown"]
 
 
-def test_display_name_copy_leaves_existing_value_column_and_frames_without_patrol_type():
-    df = pd.DataFrame({"patrol_type": ["routine"], "patrol_type__value": ["kept"]})
+def test_display_name_copy_reads_slug_from_existing_value_column_and_skips_frames_without_patrol_type():
+    # the track frame holds the type UUID in patrol_type and the slug in patrol_type__value
+    df = pd.DataFrame(
+        {
+            "patrol_type": ["uuid-1", "uuid-2", "uuid-3", None],
+            "patrol_type__value": ["routine", "anti_poaching", "unknown", None],
+        }
+    )
     out = add_patrol_type_display_from_legs(df, named_legs)
-    assert out["patrol_type"].tolist() == ["Routine Patrol"] and out["patrol_type__value"].tolist() == ["kept"]
+    assert out["patrol_type"].tolist() == ["Routine Patrol", "Anti-Poaching", "unknown", None]
+    assert out["patrol_type__value"].tolist() == ["routine", "anti_poaching", "unknown", None]
     no_type = pd.DataFrame({"n": [1]})
     assert add_patrol_type_display_from_legs(no_type, named_legs) is no_type
 

@@ -231,7 +231,11 @@ class MemberDaysMetric(BaseModel):
 
     def to_summary_param(self) -> StatSummaryParam:
         return StatSummaryParam(
-            display_name="Member-days", aggregator="sum", column="leg_member_days", decimal_places=0
+            display_name="Member-days",
+            aggregator="sum",
+            column="leg_member_days",
+            decimal_places=0,
+            blank_if_all_nan=True,  # all-NaN means the site has no member data: blank, not 0
         )
 
 

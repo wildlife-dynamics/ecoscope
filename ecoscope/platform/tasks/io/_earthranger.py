@@ -1020,15 +1020,18 @@ def get_patrol_segments_from_patrols_df(
 ) -> AnyDataFrame | EmptyDataFrame:
     """Return one row per patrol leg (segment) from a patrols dataframe.
     Pauses are never requested from EarthRanger, so pause legs are skipped. Legs are clipped
-    to `time_range` when `truncate_to_time_range` is set, and a `ValueError` is raised on an
-    empty result when `raise_on_empty` is set.
+    to `time_range` when `truncate_to_time_range` is set; either way an open leg (still in
+    progress) ends at `time_range.until`, so it is counted like its patrol is in the track
+    frame. Member-days count calendar days in the time range's timezone. A `ValueError` is
+    raised on an empty result when `raise_on_empty` is set.
     """
     from ecoscope.io.earthranger_utils import patrol_segments_from_patrols_df
 
+    tz = time_range.timezone.utc_offset_as_datetime_timezone
     if truncate_to_time_range:
-        legs = patrol_segments_from_patrols_df(patrols_df, since=time_range.since, until=time_range.until)
+        legs = patrol_segments_from_patrols_df(patrols_df, since=time_range.since, until=time_range.until, tz=tz)
     else:
-        legs = patrol_segments_from_patrols_df(patrols_df)
+        legs = patrol_segments_from_patrols_df(patrols_df, open_leg_end=time_range.until, tz=tz)
 
     if raise_on_empty and legs.empty:
         raise ValueError("No patrol segments in provided patrols_df")

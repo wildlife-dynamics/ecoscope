@@ -921,12 +921,13 @@ class EarthRangerIO(ERClient):
         -------
         patrol_teams : pd.DataFrame
             DataFrame with `id` and `name` columns, empty if the site does not expose teams
+            (no patrol configuration route, or a configuration without a `teams` key)
         """
         try:
             response = self._get("activity/patrols/config/default/")
         except ERClientNotFound:
             return pd.DataFrame(columns=["id", "name"])
-        teams = pd.DataFrame(response["teams"], columns=["id", "display", "value"])
+        teams = pd.DataFrame(response.get("teams") or [], columns=["id", "display", "value"])
         teams["name"] = teams["display"].replace("", None).fillna(teams["value"])
         return teams[["id", "name"]]
 
@@ -1205,7 +1206,8 @@ class EarthRangerIO(ERClient):
         """
 
         observations = []
-        df_pt = self.get_patrol_types()
+        # inactive types too: done patrols can sit on a type retired since
+        df_pt = self.get_patrol_types(include_inactive=True)
         for _, patrol in patrols_df.iterrows():
             for patrol_segment in patrol["patrol_segments"]:
                 subject_id = (patrol_segment.get("leader") or {}).get("id")
@@ -1219,11 +1221,10 @@ class EarthRangerIO(ERClient):
                 if None in {subject_id, patrol_start_time}:
                     continue
 
-                patrol_type = (
-                    df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
-                    if patrol_segment.get("patrol_type")
-                    else None
-                )
+                patrol_type = None
+                if patrol_segment.get("patrol_type") and "value" in df_pt.columns:
+                    matching_types = df_pt.index[df_pt["value"] == patrol_segment["patrol_type"]]
+                    patrol_type = matching_types[0] if len(matching_types) else None
 
                 try:
                     observation = self.get_subject_observations(
@@ -1268,6 +1269,7 @@ class EarthRangerIO(ERClient):
                                     pd.DataFrame(df_pt).add_prefix("patrol_type__"),
                                     left_on="patrol_type",
                                     right_on="id",
+                                    how="left",
                                 )
                                 .drop(
                                     columns=[

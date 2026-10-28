@@ -84,3 +84,10 @@ def test_explode_for_groupers_asset_explode_keeps_member_days():
     out = explode_for_groupers(df, [ValueGrouper(index_name="patrol_asset_names")])
     assert out["patrol_asset_names"].tolist() == ["LC", "Truck"]
     assert out["leg_member_days"].tolist() == [3.0, 3.0]
+
+
+def test_explode_for_groupers_splits_member_days_across_member_ids_too():
+    df = pd.DataFrame({"patrol_members": [["s1", "s2"], ["s3"]], "leg_member_days": [4.0, 1.0]})
+    out = explode_for_groupers(df, [ValueGrouper(index_name="patrol_members")])
+    assert out["patrol_members"].tolist() == ["s1", "s2", "s3"]
+    assert out["leg_member_days"].tolist() == [2.0, 2.0, 1.0]

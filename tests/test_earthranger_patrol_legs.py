@@ -160,3 +160,26 @@ def test_get_patrol_teams_empty_display_uses_value(get_mock, er_io):
 def test_get_patrol_teams_404_is_empty(get_mock, er_io):
     teams = er_io.get_patrol_teams()
     assert teams.empty and list(teams.columns) == ["id", "name"]
+
+
+@patch("ecoscope.io.earthranger.EarthRangerIO._get")
+def test_get_patrol_teams_config_without_teams_key_is_empty(get_mock, er_io):
+    get_mock.return_value = {"patrol_types": []}
+    teams = er_io.get_patrol_teams()
+    assert teams.empty and list(teams.columns) == ["id", "name"]
+
+
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_patrol_types")
+@patch("ecoscope.io.earthranger.EarthRangerIO.get_subject_observations")
+def test_get_patrol_observations_requests_inactive_types_and_keeps_legs_of_unknown_type(obs_mock, pt_mock, er_io):
+    obs_mock.side_effect = _leg_observations
+    pt_mock.return_value = _leg_patrol_types()
+    patrols_df = _leg_patrols_df([_leg("seg-a"), _leg("seg-r", patrol_type="retired_type")])
+
+    gdf = er_io.get_patrol_observations(patrols_df, include_patrol_details=True).gdf
+
+    assert pt_mock.call_args.kwargs == {"include_inactive": True}
+    assert obs_mock.call_count == 2
+    by_seg = gdf.groupby("patrol_segment_id")["patrol_type"].first()
+    assert by_seg["seg-a"] == "pt1" and pd.isna(by_seg["seg-r"])
+    assert gdf.loc[gdf["patrol_segment_id"] == "seg-a", "patrol_type__value"].iloc[0] == "foot"

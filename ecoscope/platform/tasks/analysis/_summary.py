@@ -63,6 +63,9 @@ class StatSummaryParam(_BaseSummaryParam):
     convert_units: Annotated[bool, Field(default=False, title="Convert Units")] = False
     original_unit: SkipJsonSchema[Unit | None] = None
     new_unit: SkipJsonSchema[Unit | None] = None
+    # For "sum": report NaN instead of 0 when every value is NaN, so a measure the data
+    # cannot provide (e.g. member-days at a site without patrol legs) shows blank.
+    blank_if_all_nan: SkipJsonSchema[bool] = False
 
     @model_validator(mode="before")
     @classmethod
@@ -172,8 +175,7 @@ def summarize_column(df, param):
         numerator = df[param.numerator.column].agg(param.numerator.aggregator)
         denominator = df[param.denominator.column].agg(param.denominator.aggregator)
         result = float("nan") if denominator == 0 else numerator / denominator * param.scale
-    elif isinstance(param, StatSummaryParam) and param.aggregator == "sum" and param.column == "leg_member_days":
-        # all-NaN means no member data at this site: report blank, not 0
+    elif isinstance(param, StatSummaryParam) and param.aggregator == "sum" and param.blank_if_all_nan:
         result = df[param.column].sum(min_count=1)
     else:
         result = df[param.column].agg(param.aggregator)

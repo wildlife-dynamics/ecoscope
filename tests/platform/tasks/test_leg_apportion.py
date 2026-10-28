@@ -73,3 +73,37 @@ def test_apportion_drop_unplaced_removes_legs_without_a_placeable_track():
     traj_no_id = indexed_traj.drop(columns="patrol_segment_id")
     none_left = apportion_legs_by_spatial_index(legs, traj_no_id, groupers, drop_unplaced=True)
     assert none_left.empty and "SpatialGrouper_regions" in none_left.index.names
+
+
+def test_apportion_empty_leg_frame_passes_through():
+    for empty in (pd.DataFrame(), legs.iloc[0:0]):
+        out = apportion_legs_by_spatial_index(empty, indexed_traj, groupers)
+        assert out.empty and out is empty
+
+
+def test_apportion_spreads_patrol_elapsed_by_whole_patrol_track_share():
+    # leg A (2 h, all in North) carries the patrol's 10 h elapsed; leg B (6 h) is all in South
+    patrol_legs = pd.DataFrame(
+        {
+            "patrol_id": ["p1", "p1", "p2"],
+            "patrol_segment_id": ["a", "b", "c"],
+            "leg_active_seconds": [7200.0, 21600.0, 3600.0],
+            "patrol_elapsed_seconds": [36000.0, np.nan, 3600.0],
+        }
+    )
+    traj = pd.DataFrame(
+        {
+            "patrol_segment_id": ["a", "b", "b"],
+            "dist_meters": [100.0, 200.0, 100.0],
+            "SpatialGrouper_regions": ["North", "South", "North"],
+        }
+    ).set_index("SpatialGrouper_regions", append=True)
+    out = apportion_legs_by_spatial_index(patrol_legs, traj, groupers)
+    by_region = out.groupby(level="SpatialGrouper_regions")[["leg_active_seconds", "patrol_elapsed_seconds"]].sum()
+    # p1 track: 200 m North (a:100 + b:100), 200 m South -> elapsed split 50/50; p2 has no track -> "None" whole
+    assert by_region.loc["North", "patrol_elapsed_seconds"] == 18000.0
+    assert by_region.loc["South", "patrol_elapsed_seconds"] == 18000.0
+    assert by_region.loc["None", "patrol_elapsed_seconds"] == 3600.0
+    assert by_region.loc["North", "leg_active_seconds"] == 7200.0 + 21600.0 / 3
+    assert out["patrol_elapsed_seconds"].sum() == 36000.0 + 3600.0
+    assert out["leg_active_seconds"].sum() == patrol_legs["leg_active_seconds"].sum()

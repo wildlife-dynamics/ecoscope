@@ -285,3 +285,12 @@ def test_summarize_df_coverage_groupby(coverage_trajectories):
     result = summarize_df(coverage_trajectories, summary_params, groupby_cols=["ranger"])
     assert len(result) == 2  # one row per ranger
     assert (result["Merged"] > 0).all()
+
+
+def test_summarize_df_sum_blank_if_all_nan():
+    df = pd.DataFrame({"g": ["a", "a", "b"], "v": [float("nan"), float("nan"), 2.0]})
+    blank = StatSummaryParam(display_name="blank", aggregator="sum", column="v", blank_if_all_nan=True)
+    zero = StatSummaryParam(display_name="zero", aggregator="sum", column="v")
+    out = summarize_df(df, [blank, zero], groupby_cols=["g"])
+    assert pd.isna(out.loc["a", "blank"]) and out.loc["a", "zero"] == 0.0
+    assert out.loc["b", "blank"] == 2.0 and out.loc["b", "zero"] == 2.0

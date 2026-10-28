@@ -1,10 +1,12 @@
 import json
+from datetime import timedelta, timezone
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from ecoscope.io.earthranger_utils import (
+    LEG_COLUMNS,
     decode_raw_event_details,
     normalize_column,
     patrol_segments_from_patrols_df,
@@ -338,6 +340,29 @@ def test_patrol_segments_open_leg_clips_end_to_until():
     assert patrol_segments_from_patrols_df(open_df)["patrol_segment_id"].tolist() == ["seg1"]
 
 
+def test_patrol_segments_open_leg_ends_at_open_leg_end_without_clipping_closed_legs():
+    open_df = _legs_df(
+        [
+            _leg("seg1", "2026-01-05T08:00:00Z", "2026-01-05T20:00:00Z"),
+            _leg("seg3", "2026-01-05T13:00:00Z", None),
+        ]
+    )
+    legs = patrol_segments_from_patrols_df(open_df, open_leg_end=_T("2026-01-05T18:00Z"))
+    assert legs["patrol_segment_id"].tolist() == ["seg1", "seg3"]
+    assert legs["leg_active_seconds"].tolist() == [12 * 3600.0, 5 * 3600.0]
+
+
+def test_patrol_segments_member_days_count_days_in_given_timezone():
+    # 19:00-23:00 UTC is 22:00-02:00 at UTC+3: one UTC day, two local days
+    df = _legs_df([_leg("seg1", "2026-01-05T19:00:00Z", "2026-01-05T23:00:00Z", members=["a", "b"])])
+    assert patrol_segments_from_patrols_df(df)["leg_member_days"].iloc[0] == 2.0
+    assert patrol_segments_from_patrols_df(df, tz=timezone(timedelta(hours=3)))["leg_member_days"].iloc[0] == 4.0
+    # 21:30-01:00 UTC is 00:30-04:00 at UTC+3: two UTC days, one local day
+    df = _legs_df([_leg("seg1", "2026-01-05T21:30:00Z", "2026-01-06T01:00:00Z", members=["a"])])
+    assert patrol_segments_from_patrols_df(df)["leg_member_days"].iloc[0] == 2.0
+    assert patrol_segments_from_patrols_df(df, tz=timezone(timedelta(hours=3)))["leg_member_days"].iloc[0] == 1.0
+
+
 def test_patrol_segments_member_days_spans_midnight():
     midnight_df = _legs_df([_leg("seg1", "2026-01-05T22:00:00Z", "2026-01-06T02:00:00Z", members=["a", "b"])])
     assert patrol_segments_from_patrols_df(midnight_df)["leg_member_days"].iloc[0] == 4.0
@@ -355,8 +380,11 @@ def test_patrol_segments_empty_members_gives_zero_member_days():
     assert patrol_segments_from_patrols_df(empty_members_df)["leg_member_days"].iloc[0] == 0.0
 
 
-def test_patrol_segments_empty_patrols_df_returns_empty():
-    assert patrol_segments_from_patrols_df(pd.DataFrame()).empty
+def test_patrol_segments_empty_patrols_df_returns_empty_with_leg_columns():
+    legs = patrol_segments_from_patrols_df(pd.DataFrame())
+    assert legs.empty and list(legs.columns) == LEG_COLUMNS
+    only_pause = _legs_df([_leg("seg2", "2026-01-05T12:00:00Z", "2026-01-05T13:00:00Z", is_pause=True)])
+    assert list(patrol_segments_from_patrols_df(only_pause).columns) == LEG_COLUMNS
 
 
 def test_patrol_segments_member_days_end_at_midnight_counts_one_day():

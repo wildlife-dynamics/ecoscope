@@ -75,6 +75,40 @@ def test_get_patrol_segments_from_patrols_df_no_truncation():
     assert result["leg_active_seconds"].tolist() == [4 * 3600.0, 3 * 3600.0]
 
 
+def test_get_patrol_segments_from_patrols_df_open_leg_ends_at_until_even_without_truncation():
+    patrols_df = _three_leg_patrols_df()
+    patrols_df["patrol_segments"].iloc[0][2]["time_range"]["end_time"] = None
+    result = (
+        task(get_patrol_segments_from_patrols_df)
+        .validate()
+        .call(
+            patrols_df=patrols_df,
+            time_range={"since": "2026-01-05T10:00:00Z", "until": "2026-01-05T14:00:00Z", "timezone": UTC_TZ_DICT},
+            truncate_to_time_range=False,
+        )
+    )
+    assert result["patrol_segment_id"].tolist() == ["seg1", "seg3"]
+    assert result["leg_active_seconds"].tolist() == [4 * 3600.0, 1 * 3600.0]
+
+
+def test_get_patrol_segments_from_patrols_df_member_days_use_time_range_timezone():
+    patrols_df = _three_leg_patrols_df()
+    patrols_df["patrol_segments"].iloc[0][0]["time_range"] = {
+        "start_time": "2026-01-05T19:00:00Z",
+        "end_time": "2026-01-05T23:00:00Z",
+    }
+    nairobi = {"label": "Nairobi", "tzCode": "Africa/Nairobi", "name": "EAT", "utc": "+03:00"}
+    result = (
+        task(get_patrol_segments_from_patrols_df)
+        .validate()
+        .call(
+            patrols_df=patrols_df,
+            time_range={"since": "2026-01-05T00:00:00Z", "until": "2026-01-06T00:00:00Z", "timezone": nairobi},
+        )
+    )
+    assert result["leg_member_days"].tolist()[0] == 6.0  # 3 members x 2 local days
+
+
 def test_get_patrol_segments_from_patrols_df_raise_on_empty():
     tr = TimeRange(
         since=datetime(2026, 1, 5, tzinfo=timezone.utc),
