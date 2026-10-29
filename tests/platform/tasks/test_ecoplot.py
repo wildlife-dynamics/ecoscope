@@ -1,15 +1,19 @@
+import json
 from importlib.resources import files
 
 import pandas as pd
+import pydantic
 import pytest
 
 from ecoscope.platform.mock_loaders import load_parquet
 from ecoscope.platform.tasks.results._ecoplot import (
     BarConfig,
     EcoplotConfig,
+    ExportConfig,
     LayoutStyle,
     LineStyle,
     PlotCategoryStyle,
+    PlotlyJsonSpec,
     PlotStyle,
     SmoothingConfig,
     draw_bar_chart,
@@ -308,3 +312,93 @@ def test_draw_historic_timeseries(widget_id, historic_dataframe):
     assert isinstance(plot, str)
     if widget_id:
         assert widget_id in plot
+
+
+def _json_plot_calls(sample_dataframe, pie_dataframe, historic_dataframe):
+    ts_dataframe = sample_dataframe.copy()
+    return {
+        "draw_ecoplot": lambda: draw_ecoplot(
+            sample_dataframe,
+            group_by="category",
+            ecoplot_configs=[EcoplotConfig(x_col="time", y_col="value", color_col="color_column")],
+            output_type="json",
+        ),
+        "draw_time_series_bar_chart": lambda: draw_time_series_bar_chart(
+            ts_dataframe,
+            x_axis="time",
+            y_axis="category",
+            category="category",
+            agg_function="count",
+            time_interval="month",
+            color_column="color_column",
+            output_type="json",
+        ),
+        "draw_bar_chart": lambda: draw_bar_chart(
+            sample_dataframe,
+            bar_chart_configs=[BarConfig(column="value", agg_func="sum", label="Sum")],
+            category="category",
+            output_type="json",
+        ),
+        "draw_line_chart": lambda: draw_line_chart(
+            sample_dataframe, x_column="time", y_column="value", category_column="category", output_type="json"
+        ),
+        "draw_pie_chart": lambda: draw_pie_chart(
+            pie_dataframe, value_column="value", label_column="category", output_type="json"
+        ),
+        "draw_historic_timeseries": lambda: draw_historic_timeseries(
+            historic_dataframe,
+            current_value_column="NDVI",
+            current_value_title="NDVI",
+            historic_min_column="min",
+            historic_max_column="max",
+            historic_mean_column="mean",
+            output_type="json",
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    "task_name",
+    [
+        "draw_ecoplot",
+        "draw_time_series_bar_chart",
+        "draw_bar_chart",
+        "draw_line_chart",
+        "draw_pie_chart",
+        "draw_historic_timeseries",
+    ],
+)
+def test_draw_plot_json_output(task_name, sample_dataframe, pie_dataframe, historic_dataframe):
+    spec = _json_plot_calls(sample_dataframe, pie_dataframe, historic_dataframe)[task_name]()
+
+    assert isinstance(spec, PlotlyJsonSpec)
+    assert spec.data and all("type" in trace for trace in spec.data)
+    assert isinstance(spec.layout, dict)
+    assert spec.config == ExportConfig().model_dump()
+    assert spec.config["displaylogo"] is False
+    json.loads(spec.model_dump_json())
+
+
+def test_draw_pie_chart_json_output_content(pie_dataframe):
+    spec = draw_pie_chart(
+        pie_dataframe,
+        value_column="value",
+        label_column="category",
+        layout_style=LayoutStyle(title="Pies"),
+        output_type="json",
+    )
+
+    assert spec.data[0]["type"] == "pie"
+    assert spec.layout["title"]["text"] == "Pies"
+
+
+def test_plotly_json_spec_rejects_bad_shape():
+    with pytest.raises(pydantic.ValidationError):
+        PlotlyJsonSpec.model_validate({"data": []})
+
+
+def test_plotly_json_spec_allows_extra_keys():
+    spec = PlotlyJsonSpec.model_validate({"data": [], "layout": {}, "frames": []})
+
+    assert spec.config is None
+    assert spec.model_dump()["frames"] == []

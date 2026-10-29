@@ -19,8 +19,10 @@ from ecoscope.platform.tasks.results._ecoplot import (
     MONTH_IN_MILLISECONDS,
     WEEK_IN_MILLISECONDS,
     BarLayoutStyle,
-    ExportArgs,
+    PlotlyJsonSpec,
+    PlotOutputType,
     PlotStyle,
+    _render_figure,
 )
 
 TimeInterval = Literal["year", "month", "week", "day", "hour"]
@@ -171,6 +173,10 @@ def draw_chart(
             description="Additional kwargs passed to plotly.go.Figure(layout).",
         ),
     ] = None,
+    output_type: Annotated[
+        PlotOutputType,
+        Field(description="Whether to return rendered HTML or a Plotly figure JSON spec."),
+    ] = "html",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -181,7 +187,7 @@ def draw_chart(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | PlotlyJsonSpec, Field()]:
     """
     Generates a chart of summary metrics, mixing bar and line figures freely.
 
@@ -214,7 +220,7 @@ def draw_chart(
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
     Returns:
-    The generated chart html as a string
+    The generated chart html as a string, or a PlotlyJsonSpec if output_type is "json"
     """
     import plotly.graph_objects as go  # type: ignore[import-untyped]
 
@@ -349,4 +355,4 @@ def draw_chart(
                 trace.update(width=MONTH_IN_MILLISECONDS, xperiod="M1", xperiodalignment="start")
     plot = go.Figure(data=traces, layout=go.Layout(**layout_kws))
 
-    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return _render_figure(plot, output_type, widget_id)

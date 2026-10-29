@@ -8,6 +8,7 @@ from ._ecomap import (
     draw_ecomap,
 )
 from ._ecoplot import (
+    PlotlyJsonSpec,
     SmoothingConfig,
     draw_bar_chart,
     draw_ecoplot,
@@ -57,6 +58,7 @@ __all__ = [
     "draw_ecomap",
     "set_base_maps",
     "set_layer_opacity",
+    "PlotlyJsonSpec",
     "SmoothingConfig",
     "draw_bar_chart",
     "draw_ecoplot",

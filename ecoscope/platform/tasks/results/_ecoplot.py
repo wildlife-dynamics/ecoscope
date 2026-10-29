@@ -1,6 +1,7 @@
-from typing import Annotated, Literal
+import json
+from typing import TYPE_CHECKING, Annotated, Any, Literal, TypeAlias
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -10,6 +11,9 @@ from ecoscope.platform.annotations import (
     JsonSerializableDataFrameModel,
 )
 from ecoscope.platform.tasks.analysis._summary import AggOperations
+
+if TYPE_CHECKING:
+    import plotly.graph_objects as go  # type: ignore[import-untyped]
 
 
 class SmoothingConfig(BaseModel):
@@ -150,6 +154,26 @@ class ExportArgs(BaseModel):
     config: ExportConfig = ExportConfig()
 
 
+class PlotlyJsonSpec(BaseModel):
+    """Loose schema for a Plotly figure JSON spec, as produced by ``go.Figure.to_json()``."""
+
+    model_config = ConfigDict(extra="allow")
+
+    data: list[dict[str, Any]]
+    layout: dict[str, Any]
+    config: dict[str, Any] | None = None
+
+
+PlotOutputType: TypeAlias = Literal["html", "json"]
+
+
+def _render_figure(fig: "go.Figure", output_type: PlotOutputType, widget_id: str | None) -> str | PlotlyJsonSpec:
+    if output_type == "json":
+        # Carry ExportConfig so native plots match the iframe ones (no logo, reduced modebar).
+        return PlotlyJsonSpec.model_validate({**json.loads(fig.to_json()), "config": ExportConfig().model_dump()})
+    return fig.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+
+
 class BarConfig(BaseModel):
     column: Annotated[str, Field(description="The dataframe column to aggregate.")]
     agg_func: Annotated[AggOperations, Field(description="The aggregate function to apply.")]
@@ -192,6 +216,10 @@ def draw_ecoplot(
         str,
         AdvancedField(default="%b-%Y", description="The time format for timeseries data."),
     ] = "%b-%Y",
+    output_type: Annotated[
+        PlotOutputType,
+        Field(description="Whether to return rendered HTML or a Plotly figure JSON spec."),
+    ] = "html",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -202,7 +230,7 @@ def draw_ecoplot(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | PlotlyJsonSpec, Field()]:
     """
     Generates an EcoPlot from the provided params
 
@@ -214,7 +242,7 @@ def draw_ecoplot(
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
     Returns:
-    The generated plot html as a string
+    The generated plot html as a string, or a PlotlyJsonSpec if output_type is "json"
     """
     import ecoscope.plotting as plotting
 
@@ -237,7 +265,7 @@ def draw_ecoplot(
         tickformat=tickformat,
     )
 
-    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return _render_figure(plot, output_type, widget_id)
 
 
 @register()
@@ -272,6 +300,10 @@ def draw_time_series_bar_chart(
             description="Additional kwargs passed to plotly.go.Figure(layout).",
         ),
     ] = None,
+    output_type: Annotated[
+        PlotOutputType,
+        Field(description="Whether to return rendered HTML or a Plotly figure JSON spec."),
+    ] = "html",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -282,7 +314,7 @@ def draw_time_series_bar_chart(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | PlotlyJsonSpec, Field()]:
     """
     Generates a stacked time series bar chart from the provided params
 
@@ -300,7 +332,7 @@ def draw_time_series_bar_chart(
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
     Returns:
-    The generated chart html as a string
+    The generated chart html as a string, or a PlotlyJsonSpec if output_type is "json"
     """
     import datetime
 
@@ -352,7 +384,7 @@ def draw_time_series_bar_chart(
         layout_kwargs=layout_kws,
     )
 
-    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return _render_figure(plot, output_type, widget_id)
 
 
 @register()
@@ -373,6 +405,10 @@ def draw_bar_chart(
             description="Additional kwargs passed to plotly.go.Figure(layout).",
         ),
     ] = None,
+    output_type: Annotated[
+        PlotOutputType,
+        Field(description="Whether to return rendered HTML or a Plotly figure JSON spec."),
+    ] = "html",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -383,7 +419,7 @@ def draw_bar_chart(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | PlotlyJsonSpec, Field()]:
     """
     Generates a bar chart from the provided params
 
@@ -395,7 +431,7 @@ def draw_bar_chart(
     layout_kwargs (LayoutStyle): Additional styling options passed to plotly.go.Figure(layout).
 
     Returns:
-    The generated chart html as a string
+    The generated chart html as a string, or a PlotlyJsonSpec if output_type is "json"
     """
     import ecoscope.plotting as ecoplot
 
@@ -416,7 +452,7 @@ def draw_bar_chart(
         layout_kwargs=layout_kwargs.model_dump(exclude_none=True) if layout_kwargs else {},
     )
 
-    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return _render_figure(plot, output_type, widget_id)
 
 
 @register()
@@ -451,6 +487,10 @@ def draw_line_chart(
             ),
         ),
     ] = None,
+    output_type: Annotated[
+        PlotOutputType,
+        Field(description="Whether to return rendered HTML or a Plotly figure JSON spec."),
+    ] = "html",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -461,7 +501,7 @@ def draw_line_chart(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | PlotlyJsonSpec, Field()]:
     """
     Generates a line chart from the provided params
 
@@ -476,7 +516,7 @@ def draw_line_chart(
         a smoothed line and original data point markers.
 
     Returns:
-    The generated chart html as a string
+    The generated chart html as a string, or a PlotlyJsonSpec if output_type is "json"
     """
     import ecoscope.plotting as ecoplot
     from ecoscope.analysis.smoothing import (
@@ -503,7 +543,7 @@ def draw_line_chart(
         smoothing=smoothing_config,
     )
 
-    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return _render_figure(plot, output_type, widget_id)
 
 
 @register()
@@ -541,6 +581,10 @@ def draw_pie_chart(
             description="Additional kwargs passed to plotly.go.Figure(layout).",
         ),
     ] = None,
+    output_type: Annotated[
+        PlotOutputType,
+        Field(description="Whether to return rendered HTML or a Plotly figure JSON spec."),
+    ] = "html",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -551,7 +595,7 @@ def draw_pie_chart(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | PlotlyJsonSpec, Field()]:
     """
     Generates a pie chart from the provided params
 
@@ -566,7 +610,7 @@ def draw_pie_chart(
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
     Returns:
-    The generated chart html as a string
+    The generated chart html as a string, or a PlotlyJsonSpec if output_type is "json"
     """
     from ecoscope.plotting import pie_chart
 
@@ -579,7 +623,7 @@ def draw_pie_chart(
         layout_kwargs=layout_style.model_dump(exclude_none=True) if layout_style else {},
     )
 
-    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return _render_figure(plot, output_type, widget_id)
 
 
 @register()
@@ -645,6 +689,10 @@ def draw_historic_timeseries(
         str | SkipJsonSchema[None],
         Field(description="The name of the dataframe column to pull historic max values from"),
     ] = "img_date",
+    output_type: Annotated[
+        PlotOutputType,
+        Field(description="Whether to return rendered HTML or a Plotly figure JSON spec."),
+    ] = "html",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -655,7 +703,7 @@ def draw_historic_timeseries(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | PlotlyJsonSpec, Field()]:
     """
     Creates a timeseries plot compared with historical values
     Parameters
@@ -688,7 +736,7 @@ def draw_historic_timeseries(
         If set this MUST match the widget title as defined downstream in create_widget tasks
     Returns
     -------
-    fig : The generated chart html as a string
+    fig : The generated chart html as a string, or a PlotlyJsonSpec if output_type is "json"
     """
     from ecoscope.plotting.plot import draw_historic_timeseries
 
@@ -713,4 +761,4 @@ def draw_historic_timeseries(
         current_value_style=current_value_style.model_dump(exclude_none=True) if current_value_style else {},
     )
 
-    return fig.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return _render_figure(fig, output_type, widget_id)
