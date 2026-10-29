@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -6,12 +7,17 @@ import pytest
 from ecoscope.platform.indexes import Month, TemporalGrouper, ValueGrouper, Year
 from ecoscope.platform.tasks.config._workflow_details import WorkflowDetails
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
-from ecoscope.platform.tasks.results import gather_dashboard
+from ecoscope.platform.tasks.results import (
+    create_plot_v2_widget_single_view,
+    create_table_v2_widget_single_view,
+    gather_dashboard,
+)
 from ecoscope.platform.tasks.results._dashboard import (
     Dashboard,
     EmumeratedWidgetSingleView,
     Metadata,
 )
+from ecoscope.platform.tasks.results._ecoplot import PlotlyJsonSpec
 from ecoscope.platform.tasks.results._widget_types import (
     FilesListSingleView,
     GroupedFiles,
@@ -1054,3 +1060,28 @@ def test_gather_dashboard_rejects_grouped_files_without_groupers(single_filter_d
             widgets=grouped_widgets,
             files=[FilesListSingleView(files=[Path("/tmp/jan.parquet")], view=jan_key)],
         )
+
+
+def test_gather_dashboard_serializes_v2_widgets():
+    plot = create_plot_v2_widget_single_view("P", PlotlyJsonSpec(data=[{"type": "pie"}], layout={}))
+    table = create_table_v2_widget_single_view("T", "/results/abc.parquet")
+    empty = create_table_v2_widget_single_view("E", None)
+
+    dumped = gather_dashboard(
+        details=WorkflowDetails(name="d", description="d"),
+        widgets=[plot, table, empty],
+    ).model_dump()
+
+    widgets = dumped["views"]["{}"]
+    assert widgets[0]["widget_type"] == "graph_v2"
+    assert widgets[0]["data"]["data"] == [{"type": "pie"}]
+    assert widgets[1]["widget_type"] == "table_v2"
+    assert widgets[1]["data"] == {
+        "url": "/results/abc.parquet",
+        "enable_sorting": True,
+        "enable_filtering": False,
+        "enable_download": False,
+        "hide_header": False,
+    }
+    assert widgets[2]["data"] is None
+    json.dumps(dumped)

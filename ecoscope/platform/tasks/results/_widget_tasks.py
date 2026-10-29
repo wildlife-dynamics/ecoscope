@@ -1,19 +1,24 @@
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Annotated, cast
+from urllib.parse import urlparse
 
 from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 from ecoscope.platform.annotations import AdvancedField
 from ecoscope.platform.indexes import CompositeFilter
+from ecoscope.platform.tasks.results._table import TableConfig
 from ecoscope.platform.tasks.results._widget_types import (
     FilesListSingleView,
     GroupedFiles,
     GroupedWidget,
     GroupedWidgetMergeKey,
     MapWidgetData,
+    PlotV2WidgetData,
     PrecomputedHTMLWidgetData,
+    TableV2WidgetData,
     TextWidgetData,
     WidgetData,
     WidgetSingleView,
@@ -95,6 +100,78 @@ def create_map_v2_widget_single_view(
         title=title,
         view=view,
         data=data,
+        is_filtered=(view is not None),
+    )
+
+
+@register()
+def create_plot_v2_widget_single_view(
+    title: Annotated[str, Field(description="The title of the widget")],
+    data: Annotated[
+        PlotV2WidgetData,
+        Field(description="A Plotly figure JSON spec"),
+        SkippedDependencyFallback(_fallback_to_none),
+    ],
+    view: Annotated[
+        CompositeFilter | None,
+        Field(description="If grouped, the view of the widget", exclude=True),
+    ] = None,
+) -> Annotated[WidgetSingleView, Field(description="The widget")]:
+    """Create a natively rendered plot widget with a single view.
+
+    Args:
+        title: The title of the widget.
+        data: A Plotly figure JSON spec.
+        view: If grouped, the view of the widget.
+
+    Returns:
+        The widget.
+    """
+    return WidgetSingleView(
+        widget_type="graph_v2",
+        title=title,
+        view=view,
+        data=data,
+        is_filtered=(view is not None),
+    )
+
+
+@register()
+def create_table_v2_widget_single_view(
+    title: Annotated[str, Field(description="The title of the widget")],
+    data: Annotated[
+        str | None,
+        Field(description="Path/URL of the persisted parquet table"),
+        SkippedDependencyFallback(_fallback_to_none),
+    ],
+    table_config: Annotated[
+        TableConfig | SkipJsonSchema[None],
+        AdvancedField(default=None, description="Configuration options for the table."),
+    ] = None,
+    view: Annotated[
+        CompositeFilter | None,
+        Field(description="If grouped, the view of the widget", exclude=True),
+    ] = None,
+) -> Annotated[WidgetSingleView, Field(description="The widget")]:
+    """Create a natively rendered table widget with a single view.
+
+    Args:
+        title: The title of the widget.
+        data: Path/URL of the table, as persisted by `persist_df(filetype="parquet")`.
+        table_config: Configuration options for the table.
+        view: If grouped, the view of the widget.
+
+    Returns:
+        The widget.
+    """
+    # The web loader only decodes parquet; fail here rather than as a blank widget.
+    if data is not None and PurePosixPath(urlparse(data).path).suffix != ".parquet":
+        raise ValueError(f"table_v2 widget data must be a .parquet file (persist_df filetype='parquet'), got {data!r}")
+    return WidgetSingleView(
+        widget_type="table_v2",
+        title=title,
+        view=view,
+        data=(None if data is None else TableV2WidgetData(url=data, **(table_config or TableConfig()).model_dump())),
         is_filtered=(view is not None),
     )
 

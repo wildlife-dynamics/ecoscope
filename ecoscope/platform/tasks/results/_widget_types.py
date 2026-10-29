@@ -2,19 +2,41 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypeAlias
 
+from pydantic import BaseModel
 from pydantic_core import Url
 
 from ecoscope.platform.indexes import CompositeFilter
+from ecoscope.platform.tasks.results._ecoplot import PlotlyJsonSpec
 from ecoscope.platform.tasks.results._pydeck import DeckJsonSpec
 
-WidgetTypes = Literal["graph", "map", "text", "stat", "table", "map_v2"]
+WidgetTypes = Literal["graph", "map", "text", "stat", "table", "map_v2", "graph_v2", "table_v2"]
+
+
+class TableV2WidgetData(BaseModel):
+    """A persisted table for native rendering, plus the `TableConfig` display options."""
+
+    url: str
+    enable_sorting: bool = True
+    enable_filtering: bool = False
+    enable_download: bool = False
+    hide_header: bool = False
+
 
 PrecomputedHTMLWidgetData: TypeAlias = Path | Url | None
 TextWidgetData: TypeAlias = str | None
 MapWidgetData: TypeAlias = DeckJsonSpec | None
 SingleValueWidgetData: TypeAlias = str | None
+PlotV2WidgetData: TypeAlias = PlotlyJsonSpec | None
+TableV2WidgetDataOrNone: TypeAlias = TableV2WidgetData | None
 
-WidgetData: TypeAlias = PrecomputedHTMLWidgetData | TextWidgetData | MapWidgetData | SingleValueWidgetData
+WidgetData: TypeAlias = (
+    PrecomputedHTMLWidgetData
+    | TextWidgetData
+    | MapWidgetData
+    | SingleValueWidgetData
+    | PlotV2WidgetData
+    | TableV2WidgetDataOrNone
+)
 GroupedWidgetMergeKey: TypeAlias = tuple[str, str]
 
 

@@ -2,20 +2,25 @@ import re
 from pathlib import Path
 
 import pytest
+from pydantic import TypeAdapter
 from wt_task.skip import SKIP_SENTINEL
 
 from ecoscope.platform.tasks.results import (
     create_files_single_view,
     create_map_v2_widget_single_view,
     create_map_widget_single_view,
+    create_plot_v2_widget_single_view,
     create_plot_widget_single_view,
     create_single_value_widget_single_view,
+    create_table_v2_widget_single_view,
     create_table_widget_single_view,
     create_text_widget_single_view,
     merge_file_views,
     merge_widget_views,
 )
+from ecoscope.platform.tasks.results._ecoplot import PlotlyJsonSpec
 from ecoscope.platform.tasks.results._pydeck import DeckJsonSpec
+from ecoscope.platform.tasks.results._table import TableConfig
 from ecoscope.platform.tasks.results._widget_tasks import (
     GroupedWidget,
     WidgetSingleView,
@@ -24,6 +29,8 @@ from ecoscope.platform.tasks.results._widget_tasks import (
 from ecoscope.platform.tasks.results._widget_types import (
     FilesListSingleView,
     GroupedFiles,
+    TableV2WidgetData,
+    WidgetData,
 )
 from ecoscope.platform.tasks.transformation._unit import Quantity, Unit
 
@@ -541,3 +548,78 @@ def test_grouped_files_ior_concatenates():
             feb: [Path("/feb.parquet")],
         }
     )
+
+
+def test_create_plot_v2_widget_single_view():
+    data = PlotlyJsonSpec(data=[{"type": "bar"}], layout={}, config={"displaylogo": False})
+    view = (("month", "=", "january"),)
+
+    widget = create_plot_v2_widget_single_view("Plot", data, view)
+    assert widget == WidgetSingleView(widget_type="graph_v2", title="Plot", data=data, view=view, is_filtered=True)
+
+
+def test_create_plot_v2_widget_single_view_null_data():
+    widget = create_plot_v2_widget_single_view("Plot", None)
+    assert widget.widget_type == "graph_v2"
+    assert widget.data is None
+
+
+def test_create_table_v2_widget_single_view():
+    config = TableConfig(enable_download=True, hide_header=True)
+
+    widget = create_table_v2_widget_single_view("T", "gs://bucket/run/abc123.parquet", config)
+    assert widget.widget_type == "table_v2"
+    assert widget.is_filtered is False
+    assert widget.data.model_dump() == {
+        "url": "gs://bucket/run/abc123.parquet",
+        "enable_sorting": True,
+        "enable_filtering": False,
+        "enable_download": True,
+        "hide_header": True,
+    }
+
+
+def test_create_table_v2_widget_single_view_defaults():
+    widget = create_table_v2_widget_single_view("T", "/tmp/out/abc.parquet")
+    assert widget.data == TableV2WidgetData(url="/tmp/out/abc.parquet", **TableConfig().model_dump())
+
+
+def test_create_table_v2_widget_single_view_null_data():
+    widget = create_table_v2_widget_single_view("T", None, TableConfig(enable_download=True))
+    assert widget.widget_type == "table_v2"
+    assert widget.data is None
+
+
+@pytest.mark.parametrize("path", ["/tmp/out/abc.csv", "gs://b/abc.json", "/tmp/out/abc"])
+def test_create_table_v2_widget_rejects_non_parquet(path):
+    with pytest.raises(ValueError, match="parquet"):
+        create_table_v2_widget_single_view("T", path)
+
+
+def test_table_v2_widget_data_defaults_match_table_config():
+    assert TableV2WidgetData(url="x").model_dump(exclude={"url"}) == TableConfig().model_dump()
+
+
+def test_widget_data_union_disambiguates_v2_payloads():
+    adapter = TypeAdapter(WidgetData)
+    assert isinstance(adapter.validate_python({"data": [], "layout": {}}), PlotlyJsonSpec)
+    assert isinstance(adapter.validate_python({"url": "a.parquet"}), TableV2WidgetData)
+    assert isinstance(adapter.validate_python({"layers": [], "initialViewState": {}, "views": {}}), DeckJsonSpec)
+
+
+def test_merge_widget_views_v2():
+    plot = PlotlyJsonSpec(data=[{"type": "pie"}], layout={})
+    jan, feb = (("month", "=", "january"),), (("month", "=", "february"),)
+    merged = merge_widget_views(
+        [
+            create_plot_v2_widget_single_view("P", plot, jan),
+            create_plot_v2_widget_single_view("P", None, feb),
+            create_table_v2_widget_single_view("T", "/r/a.parquet", None, jan),
+            create_table_v2_widget_single_view("T", None, None, feb),
+        ]
+    )
+
+    assert [(g.widget_type, len(g.views)) for g in merged] == [("graph_v2", 2), ("table_v2", 2)]
+    assert merged[0].views == {jan: plot, feb: None}
+    assert merged[1].views[feb] is None
+    assert merged[1].views[jan].url == "/r/a.parquet"
