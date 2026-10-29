@@ -141,7 +141,12 @@ def create_table_v2_widget_single_view(
     title: Annotated[str, Field(description="The title of the widget")],
     data: Annotated[
         str | None,
-        Field(description="Path/URL of the persisted parquet table"),
+        Field(
+            description=(
+                "Path/URL of the persisted parquet table. Persist with `columns` that exclude geometry, "
+                "which the native table cannot display."
+            )
+        ),
         SkippedDependencyFallback(_fallback_to_none),
     ],
     table_config: Annotated[
