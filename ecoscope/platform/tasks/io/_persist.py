@@ -179,13 +179,66 @@ def persist_df(
         ),
     ] = None,
     filetype: Annotated[FileType, Field(description="The output format")] = "csv",
+    columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="Dataframe columns to persist, in this order. Leave empty to persist all columns.",
+        ),
+    ] = None,
+    sanitize: Annotated[
+        bool,
+        AdvancedField(
+            description="""\
+            Whether to sanitize the dataframe for Arrow compatibility before persisting,
+            recommended when including event or observation details
+            """,
+            default=False,
+        ),
+    ] = False,
 ) -> Annotated[str, Field(description="Path to persisted data")]:
     """Persist dataframe to a file or cloud storage object.
 
     When the filename is generated from the df content hash, a target that
     already exists is returned as-is rather than serialized and rewritten.
+    Column selection and sanitization happen before hashing, so the name
+    reflects what is actually written.
     """
+    df = _select_columns(df, columns)
+    if sanitize:
+        df = _sanitize(df)
     return _persist_df(df, root_path, filename, filetype, content_addressed=not filename)
+
+
+def _select_columns(df: AnyDataFrame, columns: list[str] | None) -> AnyDataFrame:
+    """Return `df` restricted to `columns`, in that order; `None` or `[]` keeps all columns.
+
+    Dropping a GeoDataFrame's geometry column yields a plain DataFrame, so it is
+    then written as plain (non-geo) parquet.
+    """
+    if not columns:
+        return df
+    if duplicates := sorted({c for c in columns if columns.count(c) > 1}):
+        raise ValueError(f"duplicate columns requested: {duplicates}")
+    if missing := [c for c in columns if c not in df.columns]:
+        raise ValueError(f"columns not found in dataframe: {missing}")
+    return cast(AnyDataFrame, df[columns])
+
+
+def _sanitize(df: AnyDataFrame) -> AnyDataFrame:
+    """Apply `sanitize_for_arrow` to `df`'s attributes, keeping any geometry column intact."""
+    import geopandas as gpd  # type: ignore[import-untyped]
+
+    if not isinstance(df, gpd.GeoDataFrame):
+        return cast(AnyDataFrame, sanitize_for_arrow(df))
+    geom_name = df.geometry.name
+    attrs = df.drop(columns=[geom_name])
+    attrs = cast(gpd.GeoDataFrame, sanitize_for_arrow(attrs))
+    # Reattach geometry positionally rather than via `.join`.
+    # which aligns on the index, and creates duplication in
+    # cases where frames carry non-unique indexes
+    attrs[geom_name] = df[geom_name].to_numpy()
+    return cast(AnyDataFrame, gpd.GeoDataFrame(attrs, geometry=geom_name, crs=df.geometry.crs))
 
 
 def _filetype_extension(filetype: FileType) -> str:
@@ -325,6 +378,13 @@ def persist_df_wrapper(
             default=False,
         ),
     ] = False,
+    columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="Dataframe columns to persist, in this order. Leave empty to persist all columns.",
+        ),
+    ] = None,
 ) -> Annotated[list[str], Field(description="A list of paths to persisted data")]:
     """
     Save a DataFrame to disk with optional sanitization for Arrow compatibility.
@@ -350,6 +410,7 @@ def persist_df_wrapper(
         root_path: Directory where the file will be saved
         filetypes: A list of output formats - "csv", "gpkg", "geoparquet", or "parquet"
         sanitize: Whether to sanitize data for Arrow compatibility (default: False)
+        columns: Columns to persist, in this order (default: all)
 
     Returns:
         A list of paths to the saved files (one per filetype).
@@ -368,27 +429,11 @@ def persist_df_wrapper(
         ...     sanitize=True  # Converts lists/dicts to JSON strings
         ... )
     """
-    import geopandas as gpd  # type: ignore[import-untyped]
-
     if not filetypes:
         filetypes = ["csv"]
+    df_new = _select_columns(df, columns)
     if sanitize:
-        if isinstance(df, gpd.GeoDataFrame):
-            geom_name = df.geometry.name
-            attrs = df.drop(columns=[geom_name])
-            attrs = cast(gpd.GeoDataFrame, sanitize_for_arrow(attrs))
-            # Reattach geometry positionally rather than via `.join`.
-            # which aligns on the index, and creates duplication in
-            # cases where frames carry non-unique indexes
-            attrs[geom_name] = df[geom_name].to_numpy()
-            df_new = cast(
-                AnyDataFrame,
-                gpd.GeoDataFrame(attrs, geometry=geom_name, crs=df.geometry.crs),
-            )
-        else:
-            df_new = cast(AnyDataFrame, sanitize_for_arrow(df))
-    else:
-        df_new = df
+        df_new = _sanitize(df_new)
 
     filehash = _hash_df(df_new)
     filename = f"{filename_prefix}_{filehash}" if filename_prefix else filehash

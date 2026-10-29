@@ -3,6 +3,7 @@ from unittest import mock
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
+import pyarrow.parquet as pq
 import pytest
 from shapely.geometry import Point
 
@@ -403,3 +404,61 @@ def test_persist_df_wrapper_sanitize_geodataframe_with_repeat_index(tmp_path):
     assert list(written["name"]) == ["A", "B", "C"]
     # Each row keeps the geometry it came in with
     assert [g.equals(e) for g, e in zip(written["geometry"], gdf["geometry"])] == [True] * 3
+
+
+@pytest.fixture
+def abc_df():
+    return pd.DataFrame({"A": [1, 2], "B": ["x", "y"], "C": [0.1, 0.2]})
+
+
+def test_persist_df_columns_selects_and_orders(tmp_path, abc_df):
+    dst = persist_df(abc_df, str(tmp_path), None, "parquet", columns=["C", "A"])
+    assert list(pd.read_parquet(dst).columns) == ["C", "A"]
+
+
+@pytest.mark.parametrize("columns", [None, []])
+def test_persist_df_columns_none_and_empty_keep_all(tmp_path, abc_df, columns):
+    dst = persist_df(abc_df, str(tmp_path), None, "parquet", columns=columns)
+    assert list(pd.read_parquet(dst).columns) == ["A", "B", "C"]
+
+
+def test_persist_df_columns_unknown_raises(tmp_path, abc_df):
+    with pytest.raises(ValueError, match=r"columns not found in dataframe: \['nope', 'nada'\]"):
+        persist_df(abc_df, str(tmp_path), None, "parquet", columns=["A", "nope", "nada"])
+
+
+def test_persist_df_columns_duplicate_raises(tmp_path, abc_df):
+    with pytest.raises(ValueError, match="duplicate"):
+        persist_df(abc_df, str(tmp_path), None, "parquet", columns=["A", "A"])
+
+
+def test_persist_df_columns_change_content_hash(tmp_path, abc_df):
+    root = str(tmp_path)
+    paths = {
+        persist_df(abc_df, root, None, "parquet"),
+        persist_df(abc_df, root, None, "parquet", columns=["A"]),
+        persist_df(abc_df, root, None, "parquet", columns=["B", "A"]),
+        persist_df(abc_df, root, None, "parquet", columns=["A", "B"]),
+    }
+    assert len(paths) == 4
+
+
+def test_persist_df_columns_drops_geometry_when_not_selected(tmp_path):
+    gdf = gpd.GeoDataFrame({"name": ["a"], "n": [1]}, geometry=[Point(0, 0)], crs="EPSG:4326")
+    dst = persist_df(gdf, str(tmp_path), None, "parquet", columns=["name", "n"])
+    schema = pq.read_schema(dst)
+    assert schema.names == ["name", "n"]
+    assert b"geo" not in (schema.metadata or {})
+
+
+def test_persist_df_sanitize_stringifies_nested_and_mixed(tmp_path):
+    df = pd.DataFrame({"details": [{"k": "v"}, {"x": 1}], "mixed": ["a", 1]})
+    dst = persist_df(df, str(tmp_path), None, "parquet", sanitize=True)
+    out = pd.read_parquet(dst)
+    assert out["details"].tolist() == ['{"k": "v"}', '{"x": 1}']
+    assert out["mixed"].tolist() == ["a", "1"]
+
+
+def test_persist_df_wrapper_columns(tmp_path, abc_df):
+    (dst,) = persist_df_wrapper(df=abc_df, root_path=str(tmp_path), filetypes=["parquet"], columns=["B"])
+    assert list(pd.read_parquet(dst).columns) == ["B"]
