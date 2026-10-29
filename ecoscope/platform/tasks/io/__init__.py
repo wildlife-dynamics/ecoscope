@@ -1,6 +1,9 @@
 from ._downloader import download_roi
 from ._earthengine import calculate_ndvi_range, determine_season_windows
 from ._earthranger import (
+    add_patrol_roster_names,
+    add_patrol_team_names,
+    add_patrol_type_display_names,
     download_grouped_event_attachments,
     get_analysis_field_from_event_details,
     get_analysis_field_label_from_event_details,
@@ -19,6 +22,8 @@ from ._earthranger import (
     get_patrol_observations_from_combined_params,
     get_patrol_observations_from_patrols_df,
     get_patrol_observations_from_patrols_df_and_combined_params,
+    get_patrol_segments_from_patrols_df,
+    get_patrol_segments_from_patrols_df_and_combined_params,
     get_patrols,
     get_patrols_from_combined_params,
     get_spatial_features_group,
@@ -54,6 +59,9 @@ __all__ = [
     "LocalFileSpatialFeatures",
     "RemoteFileSpatialFeatures",
     "SpatialFeaturesConfig",
+    "add_patrol_roster_names",
+    "add_patrol_team_names",
+    "add_patrol_type_display_names",
     "calculate_ndvi_range",
     "determine_season_windows",
     "download_grouped_event_attachments",
@@ -77,6 +85,8 @@ __all__ = [
     "get_patrol_observations_from_patrols_df",
     "get_patrol_observations_from_patrols_df_and_combined_params",
     "get_patrol_observations_from_smart",
+    "get_patrol_segments_from_patrols_df",
+    "get_patrol_segments_from_patrols_df_and_combined_params",
     "get_patrols",
     "get_patrols_from_combined_params",
     "get_spatial_features_group",

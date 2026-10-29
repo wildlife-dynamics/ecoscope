@@ -14,7 +14,7 @@ from ._conversion import (
 )
 from ._crs import convert_crs, ensure_wgs84
 from ._decompose_datetime import decompose_datetime
-from ._exploding import explode
+from ._exploding import explode, explode_for_groupers
 from ._extract import extract_column_as_type, extract_value_from_json_column
 from ._filter import filter_df
 from ._filter_by_geometry_type import filter_by_geometry_type
@@ -35,6 +35,8 @@ from ._indexing import (
     resolve_spatial_feature_groups_for_spatial_groupers,
     trend_groupby_columns,
 )
+from ._leg_apportion import apportion_legs_by_spatial_index
+from ._leg_names import add_leg_names_to_tracks, add_patrol_type_display_from_legs
 from ._mapping import (
     RenameColumn,
     assign_value,
@@ -56,6 +58,9 @@ from ._transpose import transpose
 from ._unit import with_unit
 
 __all__ = [
+    "add_leg_names_to_tracks",
+    "add_patrol_type_display_from_legs",
+    "apportion_legs_by_spatial_index",
     "align_keyed_iterable_to_reference",
     "apply_classification",
     "apply_color_map",
@@ -71,6 +76,7 @@ __all__ = [
     "drop_column_prefix",
     "drop_duplicate_columns",
     "explode",
+    "explode_for_groupers",
     "extract_column_as_type",
     "extract_value_from_json_column",
     "filter_df",

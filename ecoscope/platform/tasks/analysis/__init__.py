@@ -29,7 +29,13 @@ from ._patrol_summary import (
     set_patrol_summary_metrics,
 )
 from ._raster import BbmmRasterArgs, generate_bbmm_raster, generate_etd_raster
-from ._summary import aggregate_over_rows, summarize_df
+from ._summary import (
+    aggregate_over_rows,
+    join_summary_tables,
+    select_leg_metrics,
+    select_track_metrics,
+    summarize_df,
+)
 from ._time_density import (
     TimeDensityReturnGDF,
     TimeDensityReturnGDFSchema,
@@ -88,6 +94,9 @@ __all__ = [
     "predict_trend_model",
     "set_encounter_rate_metrics",
     "set_event_aggregation",
+    "join_summary_tables",
+    "select_leg_metrics",
+    "select_track_metrics",
     "set_patrol_summary_metrics",
     "set_patrol_weighting_spec",
     "set_trend_model",
