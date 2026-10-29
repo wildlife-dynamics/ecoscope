@@ -144,3 +144,25 @@ def test_create_forest_layers(client, roi):
     assert len(result.bounds) == 4
     assert result.legend is not None
     assert [v.label for v in result.legend.values] == ["Forest Cover", "Forest Loss"]
+
+
+@pytest.mark.parametrize("task", ["extract_forest_cover_trends", "create_forest_layers"])
+def test_hansen_tasks_are_io_and_mockable(task):
+    """Both query Earth Engine, so the step cache must scope and age them.
+
+    The `io` tag also makes `--mock-io` replace them with their example return,
+    so the tag is only safe to carry alongside a fixture that loads.
+    """
+    from wt_registry import get_registry
+    from wt_task.testing import create_func_magicmock
+
+    import ecoscope.platform.tasks  # noqa: F401  # populates the registry
+
+    entry = get_registry()[f"ecoscope.platform.tasks.analysis._hansen_forest_change.{task}"]
+    assert "io" in entry.metadata.tags
+
+    mocked = create_func_magicmock(anchor="ecoscope.platform.tasks.analysis", func_name=task)()
+    if task == "create_forest_layers":
+        BitmapLayerDefinition.model_validate(mocked)
+    else:
+        assert list(mocked.columns) == ["year", "loss_area", "cumsum_loss_area", "survival_area", "cumsum_loss_pct"]

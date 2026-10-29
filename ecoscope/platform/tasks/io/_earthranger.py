@@ -760,10 +760,13 @@ def get_events(
                 crs=events_df.crs,
                 index=events_df.index,
             )
-        # Parity with the legacy path, which returns events sorted ascending by time
-        # (the warehouse serves them event_time DESC).
+        # Ascending by time, for parity with the legacy path. `id` breaks ties: the
+        # warehouse doesn't order within a timestamp, so without it the row order,
+        # and so every digest downstream, varies between runs. Same as
+        # `_sort_warehouse_relocations`.
         if not events_df.empty:
-            events_df = events_df.sort_values("time")
+            sort_keys = ["time", "id"] if "id" in events_df.columns else ["time"]
+            events_df = events_df.sort_values(sort_keys, kind="stable")
         # Synthesize the ER-native `location` JSON ({"latitude", "longitude"}) from
         # geometry so workflows that read it keep working — e.g. the event-details
         # workflow's extract_value_from_json_column steps that build lat/lon columns.
@@ -1333,7 +1336,7 @@ def get_fields_from_event_type_schema(
     return fields
 
 
-@register(tags=["io"])
+@register(tags=["io", "no-cache"])
 def download_grouped_event_attachments(
     client: EarthRangerSource,
     grouped_event_gdfs: Annotated[

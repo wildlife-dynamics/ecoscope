@@ -1,4 +1,4 @@
-from typing import Annotated, Any, cast
+from typing import Annotated, cast
 
 import pandas as pd
 from pydantic import Field
@@ -6,10 +6,7 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrame
-from ecoscope.platform.indexes import CompositeFilter
-
-KeyedIterableOfDataFrames = list[tuple[CompositeFilter, AnyDataFrame]]
-KeyedIterableOfAny = list[tuple[CompositeFilter, Any]]
+from ecoscope.platform.indexes import CompositeFilter, KeyedIterableOfAny, KeyedIterableOfDataFrames
 
 
 @register()

@@ -403,3 +403,77 @@ def test_persist_df_wrapper_sanitize_geodataframe_with_repeat_index(tmp_path):
     assert list(written["name"]) == ["A", "B", "C"]
     # Each row keeps the geometry it came in with
     assert [g.equals(e) for g, e in zip(written["geometry"], gdf["geometry"])] == [True] * 3
+
+
+def test_hash_df_filenames_are_pinned():
+    """Content-addressed persist filenames must not drift unintentionally.
+
+    `_hash_df` now truncates `codecs.digest_dataframe`, which is shared with the
+    step cache; widening or reordering what that digest covers renames every
+    content-addressed result file. That is a decision, so pin it: update these
+    literals deliberately, and only together with the reason.
+    """
+    df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+    gdf = gpd.GeoDataFrame({"a": [1]}, geometry=[Point(0, 0)], crs="EPSG:4326")
+
+    assert _hash_df(df) == "2af484c"
+    assert _hash_df(gdf) == "abb8f29"
+
+
+def test_hash_df_stays_seven_characters():
+    """The truncation is a filename property, not a content-identity one.
+
+    `digest_dataframe` is a full sha256 because the cache keys on it; the name
+    keeps the width it has always had.
+    """
+    from ecoscope.platform.codecs import digest_dataframe
+
+    df = pd.DataFrame({"a": [1]})
+    assert len(_hash_df(df)) == 7
+    assert digest_dataframe(df).startswith(_hash_df(df))
+    assert len(digest_dataframe(df)) == 64
+
+
+def test_persist_tasks_agree_on_one_frame_hash(tmp_path):
+    """`persist_df` and `persist_geoarrow_for_pydeck` name the same gdf alike.
+
+    Only the `geoarrow_` prefix tells the two encodings apart, so they have to
+    be hashing the same thing for that to mean anything.
+    """
+    from ecoscope.platform.tasks.results._map_utils import (
+        GEOARROW_FILENAME_PREFIX,
+        persist_geoarrow_for_pydeck,
+    )
+
+    gdf = gpd.GeoDataFrame({"a": [1, 2]}, geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:4326")
+    root_path = str(tmp_path / "test")
+
+    plain = Path(persist_df(gdf, root_path, None, "geoparquet")).name
+    geoarrow = Path(persist_geoarrow_for_pydeck(gdf, root_path)).name
+
+    assert plain == f"{_hash_df(gdf)}.parquet"
+    assert geoarrow == f"{GEOARROW_FILENAME_PREFIX}{_hash_df(gdf)}.parquet"
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        "persist_text",
+        "persist_json",
+        "persist_df",
+        "persist_df_wrapper",
+        "persist_grouped_dfs_for_results_download",
+    ],
+)
+def test_persist_tasks_are_tagged_no_cache(task):
+    """Their return is a path; a cache hit would skip the write that makes it true.
+
+    A misspelled tag is dropped silently by the compiler, so assert the exact
+    string rather than trusting the decorator was written correctly.
+    """
+    from wt_registry import get_registry
+
+    import ecoscope.platform.tasks  # noqa: F401  # populates the registry
+
+    entry = get_registry()[f"ecoscope.platform.tasks.io._persist.{task}"]
+    assert "no-cache" in entry.metadata.tags
