@@ -1,4 +1,7 @@
+import importlib
+
 import geopandas as gpd  # type: ignore[import-untyped]
+import pytest
 from shapely.geometry import box
 from wt_contracts import declared_structure
 from wt_task.cache import resolve_structure
@@ -76,3 +79,28 @@ def test_encounter_rate_map_options_codec_round_trips():
     assert back == value
     assert tree.digest(back) == tree.digest(value)
     assert tree.digest(value) != tree.digest(set_encounter_rate_map_options())
+
+
+@pytest.mark.parametrize(
+    ("subpackage", "name"),
+    [
+        ("config", "set_encounter_rate_map_options"),
+        ("config", "call_meshgrid_from_map_options"),
+        ("config", "get_agg_column_from_map_options"),
+        ("config", "get_base_maps_from_map_options"),
+        ("config", "get_mask_threshold_from_map_options"),
+        ("analysis", "calculate_encounter_rate_grid"),
+        ("analysis", "drop_inactive_grid_cells"),
+        ("analysis", "mask_low_effort_cells"),
+        ("transformation", "merge_two_dataframes"),
+    ],
+)
+def test_encounter_rate_map_tasks_are_registered_and_cacheable(subpackage, name):
+    """Upstreamed from ecoscope-workflows-ext-custom under the same names, which workflows reference bare."""
+    from wt_registry import get_registry
+
+    package = importlib.import_module(f"ecoscope.platform.tasks.{subpackage}")
+    assert name in package.__all__
+    (entry,) = [e for e in get_registry().values() if e.function_name == name]
+    assert entry.module_path.startswith(package.__name__)
+    assert entry.declares_codec, entry.cache_declaration_error
