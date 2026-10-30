@@ -47,6 +47,7 @@ from ._mapping import (
     strip_prefix_from_column_names,
     title_case_columns_by_prefix,
 )
+from ._merge import merge_two_dataframes
 from ._normalize import normalize_json_column, normalize_numeric_column
 from ._rings import apply_rings_correction_if_enabled, convert_to_nonoverlapping_rings
 from ._sorting import sort_values
@@ -98,6 +99,7 @@ __all__ = [
     "reorder_columns",
     "strip_prefix_from_column_names",
     "title_case_columns_by_prefix",
+    "merge_two_dataframes",
     "normalize_json_column",
     "normalize_numeric_column",
     "apply_rings_correction_if_enabled",

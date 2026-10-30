@@ -10,6 +10,7 @@ from pydantic import (
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
+from ecoscope.platform.annotations import CacheableModel
 from ecoscope.platform.tasks.analysis._summary import (
     CoverageSummaryParam,
     RatioOperand,
@@ -419,7 +420,7 @@ _DEFAULT_ENCOUNTER_RATE_METRICS: tuple = (
 )
 
 
-class CountAggregation(BaseModel):
+class CountAggregation(BaseModel, CacheableModel):
     """Count rows — no column needed."""
 
     model_config = ConfigDict(json_schema_extra={"title": "Count"})
@@ -429,7 +430,7 @@ class CountAggregation(BaseModel):
     ] = "Count"
 
 
-class SumOfColumnAggregation(BaseModel):
+class SumOfColumnAggregation(BaseModel, CacheableModel):
     """Sum the values of a chosen column."""
 
     model_config = ConfigDict(json_schema_extra={"title": "Sum of Column"})
