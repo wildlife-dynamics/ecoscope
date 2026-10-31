@@ -146,7 +146,7 @@ class Dashboard(BaseModel):
     metadata: Metadata = Field(default_factory=Metadata)
 
     def _get_view(self, view: CompositeFilter | None) -> list[EmumeratedWidgetSingleView]:
-        """Get the overal view for the dashboard, by fetching that view for each widget.
+        """Get the overall view for the dashboard, by fetching that view for each widget.
         and returning a list of `EmumeratedWidgetSingleView` instances for that view.
         If the dashboard contains a mix of grouped and ungrouped widgets, the ungrouped
         widgets will not have a view for the requested CompositeFilter, so in that case

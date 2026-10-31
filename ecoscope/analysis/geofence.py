@@ -67,7 +67,7 @@ class GeoFenceCrossing:
         geocrossing_profile: GeoCrossingProfile
             Object that contains the geonfences and regions
         trajectory: ecoscope.Trajectory
-            Geodataframe stores goemetry, speed_kmhr, heading etc. for each subject.
+            Geodataframe stores geometry, speed_kmhr, heading etc. for each subject.
 
         Returns
         -------
