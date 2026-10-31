@@ -38,22 +38,27 @@ class TestValidateSQLQuery:
         result = validate_sql_query("SELECT * FROM df;")
         assert result == "SELECT * FROM df;"
 
-    def test_reject_dangerous_keywords(self):
-        """Test rejection of dangerous SQL operations."""
-        dangerous_queries = [
+    @pytest.mark.parametrize(
+        "query",
+        [
             "DROP TABLE df",
             "DELETE FROM df WHERE x = 1",
             "INSERT INTO df VALUES (1, 2)",
             "UPDATE df SET x = 1",
             "CREATE TABLE new_table AS SELECT * FROM df",
             "ALTER TABLE df ADD COLUMN x INT",
-            "TRUNCATE TABLE df",
             "PRAGMA table_info(df)",
-        ]
+            "ATTACH DATABASE 'x.db' AS x",
+        ],
+    )
+    def test_reject_non_select_statements(self, query):
+        with pytest.raises(ValueError, match="Only SELECT queries"):
+            validate_sql_query(query)
 
-        for query in dangerous_queries:
-            with pytest.raises(ValueError, match="Forbidden SQL keyword"):
-                validate_sql_query(query)
+    def test_allows_identifiers_containing_sql_keywords(self):
+        """The old substring blocklist rejected created_at/updated_at and replace()."""
+        query = "SELECT created_at, updated_at, replace(title, 'a', 'b') AS t FROM df"
+        assert validate_sql_query(query) == query
 
     def test_reject_multiple_statements(self):
         """Test rejection of multiple statements."""
@@ -298,7 +303,7 @@ class TestApplySQLQuery:
 
         df = pd.DataFrame({"x": [1, 2, 3]})
 
-        with pytest.raises(PandaSQLException):
+        with pytest.raises(ValueError, match="SQL query failed"):
             apply_sql_query(df, "SELECT * FORM df")  # Typo: FORM instead of FROM
 
     def test_nonexistent_column(self):
@@ -306,7 +311,7 @@ class TestApplySQLQuery:
 
         df = pd.DataFrame({"x": [1, 2, 3]})
 
-        with pytest.raises(PandaSQLException):
+        with pytest.raises(ValueError, match="no such column: missing_column"):
             apply_sql_query(df, "SELECT missing_column FROM df")
 
     def test_columns_parameter_filters_columns(self):
@@ -338,7 +343,7 @@ class TestApplySQLQuery:
         )
 
         # Try to query excluded column - should fail
-        with pytest.raises(PandaSQLException):
+        with pytest.raises(ValueError, match="no such column: excluded"):
             apply_sql_query(df, "SELECT id, excluded FROM df", columns=["id", "value"])
 
     def test_columns_parameter_with_geodataframe(self):
@@ -658,3 +663,84 @@ def test_sanitize_geodataframe_with_non_default_geometry_name():
     assert result.crs == gdf.crs
     assert len(result) == 2
     assert result["geom"].iloc[1].equals(Point(1, 1))
+
+
+class TestSQLQuerySandbox:
+    """The SQLite authorizer confines queries to the `df` table and allowlisted functions."""
+
+    @pytest.fixture
+    def df(self):
+        return pd.DataFrame(
+            {
+                "a": [1, 2, 3],
+                "created_at": pd.to_datetime(["2024-01-01", "2024-02-01", "2024-03-01"]),
+                "s": ["x", "y", "z"],
+            }
+        )
+
+    # Payloads from the security assessment (finding 2130333), plus neighbours.
+    @pytest.mark.parametrize(
+        "query",
+        [
+            "SELECT sqlite_version()",
+            "SELECT sqlite_source_id()",
+            "SELECT * FROM (WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i+1 FROM n WHERE i < 100) "
+            "SELECT sqlite_compileoption_get(i) AS opt FROM n) WHERE opt IS NOT NULL",
+            "SELECT * FROM sqlite_stmt",
+            "SELECT * FROM sqlite_master",
+            "SELECT * FROM sqlite_schema",
+            "SELECT * FROM pragma_compile_options",
+            "SELECT * FROM pragma_table_info('df')",
+            "SELECT load_extension('x')",
+            "SELECT a, sqlite_version() AS v FROM df",
+        ],
+    )
+    def test_engine_introspection_is_denied(self, df, query):
+        with pytest.raises(ValueError, match="not authorized|prohibited"):
+            apply_sql_query(df, query)
+
+    @pytest.mark.parametrize(
+        "query, expected_rows",
+        [
+            ("SELECT count(*) AS n FROM df", 1),
+            ("SELECT a, upper(s) AS s FROM df WHERE created_at > '2024-01-15'", 2),
+            ("SELECT * FROM (WITH t AS (SELECT a FROM df) SELECT sum(a) AS total FROM t)", 1),
+            (
+                "SELECT * FROM (WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 3) "
+                "SELECT i FROM n)",
+                4,
+            ),
+            ("SELECT a, row_number() OVER (ORDER BY a DESC) AS rn FROM df", 3),
+            ("SELECT s FROM df WHERE s LIKE 'x%'", 1),
+            ("SELECT strftime('%Y-%m', created_at) AS month FROM df", 3),
+        ],
+    )
+    def test_ordinary_queries_still_run(self, df, query, expected_rows):
+        assert len(apply_sql_query(df, query)) == expected_rows
+
+    def test_query_error_hides_driver_traceback(self, df):
+        """Finding 2130331: no SQLAlchemy/pandasql chain behind the user-facing error."""
+        with pytest.raises(ValueError) as exc_info:
+            apply_sql_query(df, "SELECT * FROM users")
+
+        assert str(exc_info.value) == "SQL query failed: no such table: users"
+        assert exc_info.value.__cause__ is None
+        assert exc_info.value.__suppress_context__
+
+
+def test_json_each_explodes_sanitized_list_column():
+    """Mirrors the wt-download-events `events_exploded` test case."""
+    df = pd.DataFrame({"serial_number": [1, 2], "species_observed": [["lion", "zebra"], ["elephant"]]})
+    result = apply_sql_query(
+        df,
+        "SELECT df.*, je.value AS species FROM df, json_each(df.species_observed) AS je "
+        "ORDER BY df.serial_number, je.id",
+    )
+    assert list(result["species"]) == ["lion", "zebra", "elephant"]
+
+
+def test_iif_is_allowed():
+    """Guards the allowlist entry codespell's -w once rewrote to "if"."""
+    df = pd.DataFrame({"a": [1, 5]})
+    result = apply_sql_query(df, "SELECT iif(a > 2, 'big', 'small') AS size FROM df")  # codespell:ignore iif
+    assert list(result["size"]) == ["small", "big"]
