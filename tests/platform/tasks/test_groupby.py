@@ -17,6 +17,7 @@ from ecoscope.platform.tasks.groupby._groupby import (
     _drop_skip_sentinels,
     _groupkey_to_composite_filter,
 )
+from ecoscope.platform.tasks.transformation import explode_for_groupers
 
 
 def getvalue(key: CompositeFilter, groups: KeyedIterableOfAny) -> pd.DataFrame:
@@ -415,3 +416,11 @@ def test_groupbykey_passthrough_skip_all_none_keys():
         iterables=[[(None, SKIP_SENTINEL)], [(None, SKIP_SENTINEL)]],
     )
     assert output == SKIP_SENTINEL
+
+
+def test_split_groups_after_explode_for_groupers_gives_full_credit():
+    df = pd.DataFrame({"patrol_member_names": [["Asha", "Ben", "Chidi"]], "dist_meters": [12000.0]})
+    groupers = [ValueGrouper(index_name="patrol_member_names")]
+    groups = split_groups(explode_for_groupers(df, groupers), groupers)
+    assert len(groups) == 3
+    assert all(g["dist_meters"].sum() == 12000.0 for _, g in groups)

@@ -7,6 +7,7 @@ from wt_registry import register
 from ecoscope.platform.indexes import (  # type: ignore[import-untyped]
     SpatialGrouper,
     UserDefinedGroupers,
+    ValueGrouper,
 )
 from ecoscope.platform.tasks.analysis._patrol_summary import (
     EncounterRateMetric,
@@ -302,6 +303,18 @@ def get_chart_mode_spatial_groupers(
 ) -> UserDefinedGroupers:
     if isinstance(config.mode, SpatialBreakdownMode):
         return [SpatialGrouper(spatial_index_name=config.mode.spatial_feature_group)]
+    return []
+
+
+@register()
+def get_chart_mode_category_groupers(
+    config: Annotated[ChartConfig, Field(title="")],
+) -> UserDefinedGroupers:
+    """The Category breakdown as a one-element grouper list (empty in every other mode),
+    so `explode_for_groupers` can give a list-valued category (members, assets) one row
+    per element before the chart splits series on it."""
+    if isinstance(config.mode, CategoryBreakdownMode):
+        return [ValueGrouper(index_name=config.mode.category)]
     return []
 
 
