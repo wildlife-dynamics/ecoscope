@@ -1628,6 +1628,10 @@ def _resolve_event_details(
         ordered_keys = list(details.keys())
 
     def resolve(value, prop_def):
+        # Arrow-backed details (e.g. the warehouse's typed struct) carry ndarrays where
+        # the ER API serves lists; an ndarray would otherwise reach `enum_names.get`.
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
         enum_names = prop_def.get("enumNames") or prop_def.get("items", {}).get("enumNames")
         if isinstance(enum_names, dict) and enum_names:
             if isinstance(value, list):
