@@ -20,6 +20,7 @@ from ecoscope.platform.tasks.results._ecoplot import (
     WEEK_IN_MILLISECONDS,
     BarLayoutStyle,
     ExportArgs,
+    ExportConfig,
     PlotStyle,
 )
 
@@ -36,6 +37,14 @@ _INTERVAL_DTICKS = {
     "day": DAY_IN_MILLISECONDS,
     "hour": HOUR_IN_MILLISECONDS,
 }
+
+# Bucket-start frequencies matching _truncate (weeks start Monday).
+_INTERVAL_FREQS = {"year": "YS", "month": "MS", "week": "W-MON", "day": "D", "hour": "h"}
+
+# Panel layout, in pixels: the gap between stacked panels and the figure margins.
+_PANEL_GAP = 8
+_PANEL_MARGIN_TOP = 16
+_PANEL_MARGIN_BOTTOM = 56
 
 # 2000 is a leap year, so Feb 29 buckets survive the rebase.
 _REBASE_YEAR = 2000
@@ -105,6 +114,45 @@ class ChartFigure(BaseModel):
     ] = "bar"
 
 
+def _bucket_range(buckets, interval: str) -> list:
+    """Every bucket start from the earliest to the latest of the given buckets."""
+    import pandas as pd
+
+    return list(pd.date_range(min(buckets), max(buckets), freq=_INTERVAL_FREQS[interval]).to_pydatetime())
+
+
+def _fill_buckets(x: list, y: list, full: list) -> tuple[list, list]:
+    """A series reindexed onto every bucket in full, with 0 where it had none."""
+    values = dict(zip(x, y))
+    return full, [values.get(bucket, 0) for bucket in full]
+
+
+def _css_color(value) -> str | None:
+    """A color cell as a css color: an (r, g, b[, a]) 0-255 tuple, as apply_color_map and
+    assign_subject_colors write, or a css color string passed through."""
+    if isinstance(value, str):
+        return value or None
+    try:
+        channels = [float(channel) for channel in value]
+    except TypeError:
+        return None
+    if len(channels) == 3:
+        return "rgb({:g}, {:g}, {:g})".format(*channels)
+    if len(channels) == 4:
+        return "rgba({:g}, {:g}, {:g}, {:g})".format(*channels[:3], channels[3] / 255)
+    return None
+
+
+def _category_colors(dataframe, category: str, color_column: str) -> dict:
+    """Each category value's first parseable color in color_column."""
+    colors: dict = {}
+    for value, group in dataframe.groupby(category):
+        color = next((c for c in map(_css_color, group[color_column]) if c is not None), None)
+        if color is not None:
+            colors[value] = color
+    return colors
+
+
 def _resolve_palette_colors(palette: str | list[str] | None, n: int) -> list[str] | None:
     """Palette as css color strings: a hex list passes through; a string is
     resolved as a named matplotlib colormap sampled over the series count
@@ -171,6 +219,40 @@ def draw_chart(
             description="Additional kwargs passed to plotly.go.Figure(layout).",
         ),
     ] = None,
+    category_layout: Annotated[
+        Literal["overlay", "panels"],
+        AdvancedField(
+            default="overlay",
+            description="How a category breakdown is drawn: every series on one chart, or one panel per "
+            "category value, stacked on a shared x axis and labelled with the value.",
+        ),
+    ] = "overlay",
+    panel_height: Annotated[
+        int,
+        AdvancedField(
+            default=90,
+            ge=40,
+            description="The height of each panel in pixels. The chart grows with the number of panels and "
+            "scrolls rather than squashing them.",
+        ),
+    ] = 90,
+    fill_empty_buckets: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description="Draw every time bucket from the earliest to the latest in the data, at 0 where a "
+            "series has no rows, so gaps show as zero rather than being bridged. Use with count or sum "
+            "metrics. Requires a time_interval; period comparisons are drawn as-is.",
+        ),
+    ] = False,
+    color_column: Annotated[
+        str | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="A column holding each category value's color, e.g. the output of "
+            "assign_subject_colors. Overrides the palette for every category value that has one.",
+        ),
+    ] = None,
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -197,6 +279,9 @@ def draw_chart(
       periods can be compared; time_interval must be strictly finer. Week
       intervals overlay on an integer week-of-period axis (week 1 = the
       first 7 days of the period) so week series align across periods.
+    A category breakdown can instead be drawn as one stacked panel per value
+    (category_layout="panels"), each panel_height pixels tall, colored per value
+    from color_column. fill_empty_buckets draws empty time buckets as 0.
 
     Args:
     dataframe (pd.DataFrame): The input dataframe.
@@ -210,6 +295,10 @@ def draw_chart(
     palette (str | list[str]): A named matplotlib colormap or a list of colors, cycled in series order.
     plot_style (PlotStyle): Style arguments applied to every trace.
     layout_style (LayoutStyle): Additional kwargs passed to plotly.go.Figure(layout).
+    category_layout (str): Draw a category breakdown overlaid on one chart, or as one panel per value.
+    panel_height (int): The height of each panel in pixels.
+    fill_empty_buckets (bool): Draw empty time buckets between the first and last as 0.
+    color_column (str): A column holding each category value's color, overriding the palette.
     widget_id (str): The id of the dashboard widget that this tile layer belongs to.
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
@@ -239,6 +328,8 @@ def draw_chart(
                 f"The Time Interval ({time_interval}) must be smaller than the compared "
                 f"Period ({time_breakdown}) — e.g. a Month interval to compare Years."
             )
+    if fill_empty_buckets and time_interval is None:
+        raise ValueError("fill_empty_buckets requires a time_interval to define the buckets")
 
     layout_kws = layout_style.model_dump(exclude_none=True) if layout_style else {}
     plot_style = plot_style if plot_style else PlotStyle()
@@ -250,6 +341,14 @@ def draw_chart(
     else:
         dataframe["truncated_time"] = dataframe[x_axis].apply(lambda x: _truncate(x, time_interval))
         layout_kws["xaxis_dtick"] = _INTERVAL_DTICKS[time_interval]
+    fill = fill_empty_buckets and time_breakdown is None and not dataframe.empty
+
+    def filled(x: list, y: list) -> tuple[list, list]:
+        return _fill_buckets(x, y, full_buckets) if fill else (x, y)
+
+    if fill:
+        assert time_interval is not None  # validated above
+        full_buckets = _bucket_range(dataframe["truncated_time"], time_interval)
     # plotly hides the legend on single-trace figures; the series name is the
     # only place the metric is identified.
     layout_kws.setdefault("showlegend", True)
@@ -314,13 +413,13 @@ def draw_chart(
         # key=str: category values from event details can mix types (ints, strings)
         keys = sorted(series, key=str)
         colors = _resolve_palette_colors(palette, len(keys))
+        value_colors = _category_colors(dataframe, category, color_column) if color_column else {}
         traces = [
             make_trace(
                 figure.chart_type,
-                series[value][0],
-                series[value][1],
+                *filled(*series[value]),
                 str(value),
-                colors[i % len(colors)] if colors else None,
+                value_colors.get(value, colors[i % len(colors)] if colors else None),
             )
             for i, value in enumerate(keys)
         ]
@@ -331,8 +430,7 @@ def draw_chart(
         traces = [
             make_trace(
                 figure.chart_type,
-                x_values,
-                [summarize_column(group, figure.metric) for _, group in groups],
+                *filled(x_values, [summarize_column(group, figure.metric) for _, group in groups]),
                 figure.metric.display_name,
                 colors[i % len(colors)] if colors else None,
             )
@@ -347,6 +445,57 @@ def draw_chart(
             # multi-series bars would overlap neighboring groups.
             for trace in bar_traces:
                 trace.update(width=MONTH_IN_MILLISECONDS, xperiod="M1", xperiodalignment="start")
+    if category is not None and time_breakdown is None and category_layout == "panels":
+        return _draw_panels(traces, keys, layout_kws, panel_height, widget_id)
     plot = go.Figure(data=traces, layout=go.Layout(**layout_kws))
 
     return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+
+
+def _draw_panels(traces: list, keys: list, layout_kws: dict, panel_height: int, widget_id: str | None) -> str:
+    """One panel per trace, stacked on a shared x axis, each labelled with its category value.
+
+    The figure has a fixed pixel height, so a long list of panels scrolls in its widget rather
+    than being squashed to fit.
+    """
+    from plotly.subplots import make_subplots  # type: ignore[import-untyped]
+
+    rows = max(len(traces), 1)
+    plot_area = rows * panel_height
+    plot = make_subplots(
+        rows=rows,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=min(_PANEL_GAP / plot_area, 1 / rows) if rows > 1 else 0.0,
+    )
+    for row, (trace, value) in enumerate(zip(traces, keys), 1):
+        plot.add_trace(trace, row=row, col=1)
+        # Labels sit on a light backing, so a series running along the top stays readable.
+        plot.add_annotation(
+            text=str(value),
+            showarrow=False,
+            xref="x domain",
+            yref="y domain",
+            x=0.005,
+            y=0.98,
+            xanchor="left",
+            yanchor="top",
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            row=row,
+            col=1,
+        )
+    height = plot_area + _PANEL_MARGIN_TOP + _PANEL_MARGIN_BOTTOM
+    # A tick per bucket crowds a long panel axis (a year of days or hours), so plotly picks the
+    # ticks here instead.
+    layout_kws.pop("xaxis_dtick", None)
+    layout_kws["showlegend"] = False  # each panel carries its own label
+    plot.update_layout(height=height, margin={"t": _PANEL_MARGIN_TOP, "b": _PANEL_MARGIN_BOTTOM}, **layout_kws)
+    # Panels are short: anchor each y axis at zero so heights compare honestly, with few ticks.
+    plot.update_yaxes(rangemode="tozero", nticks=3)
+    # fillFrame sizes the figure to the window and hides the page's overflow, which would stop a
+    # chart taller than its widget from scrolling.
+    return plot.to_html(
+        **ExportArgs(div_id=widget_id, default_height=f"{height}px", config=ExportConfig(fillFrame=False)).model_dump(
+            exclude_none=True
+        )
+    )
