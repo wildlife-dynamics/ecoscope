@@ -535,6 +535,42 @@ def test_get_events_via_warehouse_client_typed_details_arrive_as_dicts():
 
 
 @requires_dwh_events
+def test_get_events_via_warehouse_client_typed_details_lists_are_lists():
+    """from_arrow lands list fields inside the typed struct as numpy arrays; they must
+    arrive as lists, as the ER API serves them, or process_events_details raises
+    `TypeError: unhashable type: 'numpy.ndarray'` resolving a multi-select's choices."""
+    import pyarrow as pa
+
+    details_type = pa.struct(
+        [
+            ("species", pa.list_(pa.string())),
+            ("sightings", pa.list_(pa.struct([("tags", pa.list_(pa.string())), ("count", pa.int64())]))),
+        ]
+    )
+    mock_legacy_client = _source()
+    mock_warehouse_client = MagicMock()
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
+        event_details=[{"species": ["elephant", "lion"], "sightings": [{"tags": ["calf"], "count": 2}]}],
+        details_type=details_type,
+    )
+
+    mock_legacy_client.warehouse = mock_warehouse_client
+    result = get_events(
+        client=mock_legacy_client,
+        time_range=_EVENT_TIME_RANGE,
+        event_types=["hwc_rep"],
+        include_details=True,
+        raise_on_empty=False,
+    )
+
+    details = result["event_details"].iloc[0]
+    assert details == {"species": ["elephant", "lion"], "sightings": [{"tags": ["calf"], "count": 2}]}
+    assert type(details["species"]) is list
+    assert type(details["sightings"]) is list
+    assert type(details["sightings"][0]["tags"]) is list
+
+
+@requires_dwh_events
 @pytest.mark.parametrize("mode", ["typed", "raw"])
 def test_get_events_via_warehouse_client_details_normalize_into_columns(mode):
     """End-to-end contract the download-events and event-details workflows rely on: in

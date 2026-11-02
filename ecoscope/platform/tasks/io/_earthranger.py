@@ -725,7 +725,7 @@ def get_events(
         # schema and so requires a single-type selection. Workflows also allow zero or
         # many types (download-events offers "leave empty for all event types"), so fall
         # back to the raw JSON form there and decode it below — either way the column
-        # ends up dicts, as the ER API path serves it.
+        # ends up dicts of plain lists, as the ER API path serves it.
         raw_details = include_details and len(event_types) != 1
         table = warehouse_client.get_events(
             since=time_range.since.isoformat(),
@@ -749,6 +749,10 @@ def get_events(
             from ecoscope.io.earthranger_utils import decode_raw_event_details
 
             decode_raw_event_details(events_df)
+        elif include_details:
+            from ecoscope.io.earthranger_utils import listify_typed_event_details
+
+            listify_typed_event_details(events_df)
         # Parity with the legacy path (geometry_from_event_geojson): when
         # force_point_geometry is set, reduce geometry to its centroid so downstream
         # point layers / gridding / .geometry.x|y keep working. Done per-geometry on

@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from datetime import datetime, tzinfo
 
 import geopandas as gpd  # type: ignore[import-untyped]
+import numpy as np
 import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
 import shapely.geometry
@@ -84,6 +85,26 @@ def decode_raw_event_details(df: pd.DataFrame, col: str = "event_details") -> No
 
     if bad:
         logger.warning("Could not decode %s of %s `%s` JSON payloads; used {} instead.", bad, len(df), col)
+
+
+def listify_typed_event_details(df: pd.DataFrame, col: str = "event_details") -> None:
+    """Replace numpy arrays in a warehouse typed-struct ``event_details`` column with lists, in place.
+
+    ``from_arrow`` lands list fields inside the struct as ``np.ndarray``; the ER API and
+    raw-JSON paths serve lists, which ``process_events_details`` relies on to resolve
+    multi-select choices (an ndarray there raises ``unhashable type``).
+    """
+    if col not in df.columns:
+        return
+
+    def listify(value):
+        if isinstance(value, np.ndarray):
+            return [listify(v) for v in value]
+        if isinstance(value, dict):
+            return {k: listify(v) for k, v in value.items()}
+        return value
+
+    df[col] = [listify(v) for v in df[col]]
 
 
 def dataframe_to_dict_or_list(events: gpd.GeoDataFrame | pd.DataFrame | dict | list[dict]) -> dict | list[dict]:
