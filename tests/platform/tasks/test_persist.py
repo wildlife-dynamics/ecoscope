@@ -403,3 +403,40 @@ def test_persist_df_wrapper_sanitize_geodataframe_with_repeat_index(tmp_path):
     assert list(written["name"]) == ["A", "B", "C"]
     # Each row keeps the geometry it came in with
     assert [g.equals(e) for g, e in zip(written["geometry"], gdf["geometry"])] == [True] * 3
+
+
+@pytest.mark.parametrize("payload", ["=7*7", "+1+1", "-1+1", "@SUM(1+9)", "\t=1", "\r=1"])
+def test_persist_df_csv_neutralizes_formulas(tmp_path, payload):
+    """Finding 2130332: formula-like strings must not be live formulas in the CSV."""
+    df = pd.DataFrame({f"{payload}col": [payload], "n": [-5]}, index=pd.Index([payload], name=f"{payload}idx"))
+    dst = persist_df(df, str(tmp_path / "test"), "out", "csv")
+
+    df_read = pd.read_csv(dst, index_col=0, keep_default_na=False)
+    assert df_read.index.name == f"'{payload}idx"
+    assert df_read.index[0] == f"'{payload}"
+    assert list(df_read.columns) == [f"'{payload}col", "n"]
+    assert df_read.iloc[0, 0] == f"'{payload}"
+    # Numeric columns are untouched, negative or not.
+    assert df_read["n"].iloc[0] == -5
+
+
+def test_persist_df_csv_quotes_every_field(tmp_path):
+    df = pd.DataFrame({"title": ['say "hi"', "plain"], "n": [1, 2]})
+    dst = persist_df(df, str(tmp_path / "test"), "out", "csv")
+
+    lines = Path(dst).read_text().splitlines()
+    assert lines[0] == '"","title","n"'
+    assert lines[1] == '"0","say ""hi""","1"'
+
+
+def test_persist_df_csv_leaves_safe_strings_and_input_alone(tmp_path):
+    df = pd.DataFrame({"title": ["Elephant sighting", "a=b", None], "cat": pd.Categorical(["=x", "y", "y"])})
+    original = df.copy()
+    dst = persist_df(df, str(tmp_path / "test"), "out", "csv")
+
+    df_read = pd.read_csv(dst, index_col=0)
+    assert df_read["title"].iloc[0] == "Elephant sighting"
+    assert df_read["title"].iloc[1] == "a=b"
+    assert pd.isna(df_read["title"].iloc[2])
+    assert list(df_read["cat"]) == ["'=x", "y", "y"]
+    pd.testing.assert_frame_equal(df, original)

@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import io
 import json
@@ -222,6 +223,30 @@ def _require_geometry(df: AnyDataFrame, filetype: FileType) -> None:
         )
 
 
+# Leading characters that make Excel/LibreOffice evaluate a cell as a formula (OWASP CSV injection).
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _neutralize_formula(value: Any) -> Any:
+    return f"'{value}" if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES) else value
+
+
+def _neutralize_csv_formulas(df: AnyDataFrame) -> AnyDataFrame:
+    """Prefix formula-like strings with `'` so spreadsheets show them as text.
+
+    Applied to every CSV, not just SQL-query output: cell values (event titles,
+    notes) and labels (SQL aliases) are user-authored. Only string-like columns
+    are touched, so real negative numbers are left alone.
+    """
+    out = df.copy()
+    for col in out.select_dtypes(include=["object", "string", "category"]).columns:
+        out[col] = out[col].map(_neutralize_formula)
+    out = out.rename(columns=_neutralize_formula, index=_neutralize_formula)
+    out.columns.names = [_neutralize_formula(n) for n in out.columns.names]
+    out.index.names = [_neutralize_formula(n) for n in out.index.names]
+    return out
+
+
 def _persist_df(
     df: AnyDataFrame,
     root_path: str,
@@ -254,7 +279,7 @@ def _persist_df(
     match filetype:
         case "csv":
             csv_buffer = io.StringIO()
-            df.to_csv(csv_buffer)
+            _neutralize_csv_formulas(df).to_csv(csv_buffer, quoting=csv.QUOTE_ALL)
             return _persist_text(csv_buffer.getvalue(), root_path, target)
         case "gpkg":
             buffer = io.BytesIO()
