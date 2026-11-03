@@ -3,15 +3,17 @@ from importlib.resources import files
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from ecoscope.platform.tasks.preprocessing import (
     TrajectorySegmentFilter,
+    TrajectorySegmentFilterOverrides,
     convert_trajectory_to_relocations,
     process_relocations,
     relocations_to_trajectory,
 )
 from ecoscope.platform.tasks.transformation._filtering import Coordinate
+from ecoscope.trajectory import TrajSegFilter
 
 
 def test_process_relocations():
@@ -146,6 +148,31 @@ def test_traj_segment_filter_maximum_greater_than_minimum():
             max_speed_kmhr=6,
             min_speed_kmhr=7,
         )
+
+
+def test_preset_is_accepted_and_omitted_from_schema():
+    f = TrajectorySegmentFilter(preset="elephant", max_speed_kmhr=12)
+    assert f.preset == "elephant"
+    assert "preset" not in TrajectorySegmentFilter.model_json_schema()["properties"]
+
+
+def test_preset_is_ignored_by_task():
+    core = TrajectorySegmentFilter(preset="elephant", max_speed_kmhr=12).to_traj_seg_filter()
+    assert core == TrajSegFilter(
+        min_length_meters=0.001,
+        max_length_meters=100000,
+        min_time_secs=1,
+        max_time_secs=172800,
+        min_speed_kmhr=0.01,
+        max_speed_kmhr=12,
+    )
+
+
+def test_duplicate_override_keys_rejected():
+    ta = TypeAdapter(TrajectorySegmentFilterOverrides)
+    row = {"key": "elephant", "filter": {}}
+    with pytest.raises(ValidationError, match="Duplicate .* elephant"):
+        ta.validate_python([row, row])
 
 
 def test_convert_trajectory_to_relocations():

@@ -1,6 +1,7 @@
-from typing import Annotated
+from collections import Counter
+from typing import TYPE_CHECKING, Annotated
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -11,6 +12,9 @@ from ecoscope.platform.schemas import (
     TrajectoryGDF,
 )
 from ecoscope.platform.tasks.transformation._filtering import Coordinate
+
+if TYPE_CHECKING:
+    from ecoscope.trajectory import TrajSegFilter
 
 
 class TrajectorySegmentFilter(BaseModel):
@@ -68,6 +72,9 @@ class TrajectorySegmentFilter(BaseModel):
             json_schema_extra={"exclusiveMinimum": 0.001},
         ),
     ] = 500
+    # Provenance only (e.g. which named preset produced these bounds); not a user-facing
+    # field, so it's excluded from the schema and from the core TrajSegFilter translation.
+    preset: SkipJsonSchema[str | None] = None
 
     @model_validator(mode="after")
     def validate_filter_values(self) -> "TrajectorySegmentFilter":
@@ -78,6 +85,37 @@ class TrajectorySegmentFilter(BaseModel):
         if self.max_speed_kmhr <= self.min_speed_kmhr:
             raise ValueError("max_speed_kmhr must be greater than min_speed_kmhr")
         return self
+
+    def to_traj_seg_filter(self) -> "TrajSegFilter":
+        from ecoscope.trajectory import TrajSegFilter
+
+        return TrajSegFilter(
+            min_length_meters=self.min_length_meters,
+            max_length_meters=self.max_length_meters,
+            min_time_secs=self.min_time_secs,
+            max_time_secs=self.max_time_secs,
+            min_speed_kmhr=self.min_speed_kmhr,
+            max_speed_kmhr=self.max_speed_kmhr,
+        )
+
+
+class TrajectorySegmentFilterOverride(BaseModel):
+    key: Annotated[str, Field(title="Value")]
+    filter: Annotated[TrajectorySegmentFilter, Field(title="Filter")]
+
+
+def _unique_override_keys(
+    overrides: list[TrajectorySegmentFilterOverride],
+) -> list[TrajectorySegmentFilterOverride]:
+    duplicates = [key for key, count in Counter(o.key for o in overrides).items() if count > 1]
+    if duplicates:
+        raise ValueError(f"Duplicate trajectory segment filter override key(s): {', '.join(duplicates)}")
+    return overrides
+
+
+TrajectorySegmentFilterOverrides = Annotated[
+    list[TrajectorySegmentFilterOverride], AfterValidator(_unique_override_keys)
+]
 
 
 @register()
@@ -132,10 +170,7 @@ def relocations_to_trajectory(
     ] = None,
 ) -> TrajectoryGDF:
     from ecoscope.relocations import Relocations
-    from ecoscope.trajectory import (
-        Trajectory,
-        TrajSegFilter,
-    )
+    from ecoscope.trajectory import Trajectory
 
     if trajectory_segment_filter is None:
         trajectory_segment_filter = TrajectorySegmentFilter()
@@ -143,7 +178,7 @@ def relocations_to_trajectory(
     # trajectory creation
     traj = Trajectory.from_relocations(Relocations(gdf=relocations))
 
-    traj_seg_filter = TrajSegFilter(**trajectory_segment_filter.model_dump())
+    traj_seg_filter = trajectory_segment_filter.to_traj_seg_filter()
 
     # trajectory filtering
     traj.apply_traj_filter(traj_seg_filter, inplace=True)
