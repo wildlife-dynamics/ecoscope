@@ -1,7 +1,7 @@
 from collections import Counter
 from typing import TYPE_CHECKING, Annotated
 
-from pydantic import AfterValidator, BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_serializer, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -75,6 +75,16 @@ class TrajectorySegmentFilter(BaseModel):
     # Provenance only (e.g. which named preset produced these bounds); not a user-facing
     # field, so it's excluded from the schema and from the core TrajSegFilter translation.
     preset: SkipJsonSchema[str | None] = None
+
+    @model_serializer(mode="wrap")
+    def _drop_unset_preset(self, handler):
+        # `SkipJsonSchema` only hides `preset` from $defs; the field-level `default` on
+        # `trajectory_segment_filter` (serialized from `TrajectorySegmentFilter()`) would
+        # otherwise still surface a `"preset": null` that has no corresponding property.
+        dumped = handler(self)
+        if dumped.get("preset") is None:
+            dumped.pop("preset", None)
+        return dumped
 
     @model_validator(mode="after")
     def validate_filter_values(self) -> "TrajectorySegmentFilter":
@@ -176,14 +186,13 @@ def relocations_to_trajectory(
             description=(
                 "Use a different segment filter for specific values, e.g. a subject subtype or"
                 " patrol type. Values without an override use the filter above."
+                " Only used by workflows that support per-type filtering."
             ),
         ),
     ] = None,
-    # Bare `SkipJsonSchema[str | None]` crashes schema generation for a *function*
-    # parameter (unlike a BaseModel field, pydantic's callable-arguments schema path
-    # doesn't catch the PydanticOmit it raises); `T | SkipJsonSchema[None]` plus
-    # `Field(exclude=True)` is the pattern this codebase already uses for hidden task
-    # params (see `warning` on `gather_dashboard`), and it is schema-safe.
+    # Bare `SkipJsonSchema[str | None]` crashes schema generation for a function param
+    # (unlike a model field); the `T | SkipJsonSchema[None]` + `Field(exclude=True)`
+    # idiom (see `warning` on `gather_dashboard`) is schema-safe.
     trajectory_segment_filter_override_column: Annotated[str | SkipJsonSchema[None], Field(exclude=True)] = None,
 ) -> TrajectoryGDF:
     from ecoscope.relocations import Relocations
@@ -194,7 +203,7 @@ def relocations_to_trajectory(
 
     if trajectory_segment_filter_overrides:
         if trajectory_segment_filter_override_column is None:
-            raise ValueError("trajectory_segment_filter_override_column must be set when overrides are given")
+            raise ValueError("Filter overrides aren't supported by this workflow; remove them to run it.")
         if trajectory_segment_filter_override_column not in relocations.columns:
             raise ValueError(
                 f"trajectory_segment_filter_override_column "
@@ -208,10 +217,11 @@ def relocations_to_trajectory(
 
     if trajectory_segment_filter_overrides:
         gdf = traj.gdf
-        # `_create_trajsegments` renames relocation-side columns to `extra__<col>` unless
-        # they already start with `extra_` (ecoscope/trajectory.py)
+        # `_create_trajsegments` renames relocation-side columns to `extra__<col>`, except when
+        # the name collides with a core trajectory column, in which case it drops the extra
+        # column instead of prefixing it (ecoscope/trajectory.py) - so the bare name wins if present.
         traj_col = trajectory_segment_filter_override_column
-        if not traj_col.startswith("extra_"):
+        if traj_col not in gdf.columns and not traj_col.startswith("extra_"):
             traj_col = f"extra__{traj_col}"
         key = gdf[traj_col]
         lookup = {o.key: o.filter.to_traj_seg_filter() for o in trajectory_segment_filter_overrides}
@@ -221,7 +231,6 @@ def relocations_to_trajectory(
             junk |= traj_seg_filter_mask(gdf, f) & (key == k)
         gdf.loc[junk, "junk_status"] = True
     else:
-        # trajectory filtering
         traj.apply_traj_filter(default, inplace=True)
 
     traj.remove_filtered(inplace=True)

@@ -259,7 +259,7 @@ def test_overrides_categorical_key_column():
 
 
 def test_overrides_without_column_raises():
-    with pytest.raises(ValueError, match="override_column must be set"):
+    with pytest.raises(ValueError, match="Filter overrides aren't supported by this workflow"):
         relocations_to_trajectory(
             _relocs({"ele": "elephant"}),
             None,
@@ -278,11 +278,34 @@ def test_overrides_missing_column_raises():
         )
 
 
+def test_overrides_keyed_on_core_trajectory_column():
+    # `groupby_col` is a core trajectory column, not an `extra__`-prefixed relocation column
+    # (`_create_trajsegments` drops the extra copy rather than prefixing it) - exercises the
+    # bare-name resolution path, keying directly on subject id.
+    default = TrajectorySegmentFilter(max_speed_kmhr=50)
+    overrides = [
+        TrajectorySegmentFilterOverride(
+            key="heli", filter=TrajectorySegmentFilter(max_speed_kmhr=300, max_length_meters=150000)
+        )
+    ]
+    out = relocations_to_trajectory(
+        _relocs({"ele": "elephant", "heli": "helicopter"}), default, overrides, "groupby_col"
+    )
+    assert set(out["groupby_col"]) == {"ele", "heli"}
+
+
+def test_overrides_unmatched_key_matches_no_overrides():
+    relocs = _relocs({"ele": "elephant", "heli": "helicopter"})
+    f = TrajectorySegmentFilter(max_speed_kmhr=50)
+    overrides = [TrajectorySegmentFilterOverride(key="zebra", filter=TrajectorySegmentFilter(max_speed_kmhr=300))]
+    pd.testing.assert_frame_equal(
+        relocations_to_trajectory(relocs, f, overrides, "subject_subtype"),
+        relocations_to_trajectory(relocs, f),
+    )
+
+
 def test_overrides_schema():
-    # Regression guard: a bare `SkipJsonSchema[T | None]` *function* parameter (as opposed
-    # to a BaseModel field) crashes pydantic's callable-arguments schema generation, so
-    # `trajectory_segment_filter_override_column` must use the `T | SkipJsonSchema[None]`
-    # plus `Field(exclude=True)` idiom instead.
+    # Regression guard: see `trajectory_segment_filter_override_column`'s annotation comment.
     schema = get_registry()[
         "ecoscope.platform.tasks.preprocessing._preprocessing.relocations_to_trajectory"
     ].json_schema
@@ -291,6 +314,22 @@ def test_overrides_schema():
     assert props["trajectory_segment_filter_overrides"]["items"] == {"$ref": "#/$defs/TrajectorySegmentFilterOverride"}
     assert "trajectory_segment_filter_override_column" not in props
     assert "preset" not in schema["$defs"]["TrajectorySegmentFilter"]["properties"]
+
+
+def test_preset_omitted_from_serialized_defaults():
+    # `SkipJsonSchema` only hides `preset` from $defs; the field-level `default` for
+    # `trajectory_segment_filter` is separately serialized from a `TrajectorySegmentFilter()`
+    # instance, so it needs its own guard (the `model_serializer` on the class).
+    from ecoscope.platform.tasks.config import set_traj_filters  # noqa: F401  (registers it)
+
+    relocs_schema = get_registry()[
+        "ecoscope.platform.tasks.preprocessing._preprocessing.relocations_to_trajectory"
+    ].json_schema
+    set_filters_schema = get_registry()["ecoscope.platform.tasks.config._set_traj_filters.set_traj_filters"].json_schema
+
+    assert "preset" not in relocs_schema["properties"]["trajectory_segment_filter"]["default"]
+    assert "preset" not in set_filters_schema["properties"]["trajectory_segment_filter"]["default"]
+    assert TrajectorySegmentFilter(preset="elephant").model_dump()["preset"] == "elephant"
 
 
 def test_empty_overrides_match_no_overrides():
