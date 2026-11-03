@@ -24,7 +24,7 @@ This package registers an `EcoscopeEventsMapExampleProvider` under the `wt_compi
 | `license_type` | License (`BSD-3-Clause`, `MIT`, `Apache-2.0`) | `BSD-3-Clause` |
 | `events_map_title` | Display title for the events map widget (max 50 chars) | `"Events Map"` |
 
-The `requirements` question is skipped — the template hardcodes a dependency on `ecoscope-platform>=2.11.3,<3` from the `ecoscope-workflows` prefix.dev channel.
+The `requirements` question is skipped — the template hardcodes a dependency on `ecoscope-platform>=2.29.0,<3` from the `ecoscope-workflows` prefix.dev channel.
 
 ## Installation
 
