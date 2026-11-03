@@ -168,20 +168,62 @@ def relocations_to_trajectory(
             ),
         ),
     ] = None,
+    trajectory_segment_filter_overrides: Annotated[
+        TrajectorySegmentFilterOverrides | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            title="Filter Overrides",
+            description=(
+                "Use a different segment filter for specific values, e.g. a subject subtype or"
+                " patrol type. Values without an override use the filter above."
+            ),
+        ),
+    ] = None,
+    # Bare `SkipJsonSchema[str | None]` crashes schema generation for a *function*
+    # parameter (unlike a BaseModel field, pydantic's callable-arguments schema path
+    # doesn't catch the PydanticOmit it raises); `T | SkipJsonSchema[None]` plus
+    # `Field(exclude=True)` is the pattern this codebase already uses for hidden task
+    # params (see `warning` on `gather_dashboard`), and it is schema-safe.
+    trajectory_segment_filter_override_column: Annotated[str | SkipJsonSchema[None], Field(exclude=True)] = None,
 ) -> TrajectoryGDF:
     from ecoscope.relocations import Relocations
-    from ecoscope.trajectory import Trajectory
+    from ecoscope.trajectory import Trajectory, traj_seg_filter_mask
 
     if trajectory_segment_filter is None:
         trajectory_segment_filter = TrajectorySegmentFilter()
 
+    if trajectory_segment_filter_overrides:
+        if trajectory_segment_filter_override_column is None:
+            raise ValueError("trajectory_segment_filter_override_column must be set when overrides are given")
+        if trajectory_segment_filter_override_column not in relocations.columns:
+            raise ValueError(
+                f"trajectory_segment_filter_override_column "
+                f"{trajectory_segment_filter_override_column!r} not found in relocations columns"
+            )
+
     # trajectory creation
     traj = Trajectory.from_relocations(Relocations(gdf=relocations))
 
-    traj_seg_filter = trajectory_segment_filter.to_traj_seg_filter()
+    default = trajectory_segment_filter.to_traj_seg_filter()
 
-    # trajectory filtering
-    traj.apply_traj_filter(traj_seg_filter, inplace=True)
+    if trajectory_segment_filter_overrides:
+        gdf = traj.gdf
+        # `_create_trajsegments` renames relocation-side columns to `extra__<col>` unless
+        # they already start with `extra_` (ecoscope/trajectory.py)
+        traj_col = trajectory_segment_filter_override_column
+        if not traj_col.startswith("extra_"):
+            traj_col = f"extra__{traj_col}"
+        key = gdf[traj_col]
+        lookup = {o.key: o.filter.to_traj_seg_filter() for o in trajectory_segment_filter_overrides}
+
+        junk = traj_seg_filter_mask(gdf, default) & ~key.isin(lookup)  # NaN keys fall here
+        for k, f in lookup.items():
+            junk |= traj_seg_filter_mask(gdf, f) & (key == k)
+        gdf.loc[junk, "junk_status"] = True
+    else:
+        # trajectory filtering
+        traj.apply_traj_filter(default, inplace=True)
+
     traj.remove_filtered(inplace=True)
 
     if traj.gdf.empty:

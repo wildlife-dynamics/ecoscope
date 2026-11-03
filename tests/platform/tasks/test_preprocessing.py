@@ -1,12 +1,16 @@
+import datetime
 from importlib.resources import files
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
+import shapely
 from pydantic import TypeAdapter, ValidationError
+from wt_registry import get_registry
 
 from ecoscope.platform.tasks.preprocessing import (
     TrajectorySegmentFilter,
+    TrajectorySegmentFilterOverride,
     TrajectorySegmentFilterOverrides,
     convert_trajectory_to_relocations,
     process_relocations,
@@ -14,6 +18,27 @@ from ecoscope.platform.tasks.preprocessing import (
 )
 from ecoscope.platform.tasks.transformation._filtering import Coordinate
 from ecoscope.trajectory import TrajSegFilter
+
+# Degrees of longitude stepped per hourly fix, keyed by the test subject id below;
+# at the equator this gives ~1.1 km/h ("ele") and ~111 km/h ("heli").
+_LON_STEP_DEG = {"ele": 0.01, "heli": 1.0}
+
+
+def _relocs(subtypes: dict[str, str | None]) -> gpd.GeoDataFrame:
+    """Build a SubjectGroupObservationsGDF-shaped frame: one subject per key, 5 hourly fixes each."""
+    start = pd.Timestamp("2024-01-01", tz="UTC")
+    rows = [
+        {
+            "groupby_col": subject_id,
+            "fixtime": start + datetime.timedelta(hours=i),
+            "junk_status": False,
+            "subject_subtype": subtype,
+            "geometry": shapely.Point(_LON_STEP_DEG[subject_id] * i, 0.0),
+        }
+        for subject_id, subtype in subtypes.items()
+        for i in range(5)
+    ]
+    return gpd.GeoDataFrame(rows, geometry="geometry", crs=4326)
 
 
 def test_process_relocations():
@@ -173,6 +198,108 @@ def test_duplicate_override_keys_rejected():
     row = {"key": "elephant", "filter": {}}
     with pytest.raises(ValidationError, match="Duplicate .* elephant"):
         ta.validate_python([row, row])
+
+
+def test_overrides_validate_from_dicts():
+    # Exercises the pydantic validation path the server's dict payload goes through;
+    # `relocations_to_trajectory` itself is called directly in tests below (unvalidated,
+    # like the other task tests in this file), so construct the models explicitly there.
+    ta = TypeAdapter(TrajectorySegmentFilterOverrides)
+    parsed = ta.validate_python([{"key": "helicopter", "filter": {"max_speed_kmhr": 300}}])
+    assert parsed == [
+        TrajectorySegmentFilterOverride(key="helicopter", filter=TrajectorySegmentFilter(max_speed_kmhr=300))
+    ]
+
+
+def test_overrides_apply_per_kind():
+    default = TrajectorySegmentFilter(max_speed_kmhr=50)
+    # heli's ~111km/hour segments also exceed the 100km default max_length_meters, so its
+    # override must raise that bound too, or the length check would mask the speed override.
+    overrides = [
+        TrajectorySegmentFilterOverride(
+            key="helicopter", filter=TrajectorySegmentFilter(max_speed_kmhr=300, max_length_meters=150000)
+        )
+    ]
+    out = relocations_to_trajectory(
+        _relocs({"ele": "elephant", "heli": "helicopter"}), default, overrides, "subject_subtype"
+    )
+    assert set(out["groupby_col"]) == {"ele", "heli"}  # heli kept by its override
+
+
+def test_overrides_drop_only_their_kind():
+    default = TrajectorySegmentFilter(max_speed_kmhr=300, max_length_meters=150000)
+    overrides = [TrajectorySegmentFilterOverride(key="elephant", filter=TrajectorySegmentFilter(max_speed_kmhr=0.5))]
+    out = relocations_to_trajectory(
+        _relocs({"ele": "elephant", "heli": "helicopter"}), default, overrides, "subject_subtype"
+    )
+    assert set(out["groupby_col"]) == {"heli"}
+
+
+def test_overrides_nan_key_uses_default():
+    default = TrajectorySegmentFilter(max_speed_kmhr=50)
+    overrides = [TrajectorySegmentFilterOverride(key="helicopter", filter=TrajectorySegmentFilter(max_speed_kmhr=300))]
+    out = relocations_to_trajectory(_relocs({"ele": None, "heli": None}), default, overrides, "subject_subtype")
+    assert set(out["groupby_col"]) == {"ele"}  # heli has no key -> default drops it
+
+
+def test_overrides_categorical_key_column():
+    relocs = _relocs({"ele": "elephant", "heli": "helicopter"})
+    relocs["subject_subtype"] = relocs["subject_subtype"].astype("category")
+    out = relocations_to_trajectory(
+        relocs,
+        TrajectorySegmentFilter(max_speed_kmhr=50),
+        [
+            TrajectorySegmentFilterOverride(
+                key="helicopter", filter=TrajectorySegmentFilter(max_speed_kmhr=300, max_length_meters=150000)
+            )
+        ],
+        "subject_subtype",
+    )
+    assert set(out["groupby_col"]) == {"ele", "heli"}
+
+
+def test_overrides_without_column_raises():
+    with pytest.raises(ValueError, match="override_column must be set"):
+        relocations_to_trajectory(
+            _relocs({"ele": "elephant"}),
+            None,
+            [TrajectorySegmentFilterOverride(key="elephant", filter=TrajectorySegmentFilter())],
+            None,
+        )
+
+
+def test_overrides_missing_column_raises():
+    with pytest.raises(ValueError, match="patrol_type__value"):
+        relocations_to_trajectory(
+            _relocs({"ele": "elephant"}),
+            None,
+            [TrajectorySegmentFilterOverride(key="elephant", filter=TrajectorySegmentFilter())],
+            "patrol_type__value",
+        )
+
+
+def test_overrides_schema():
+    # Regression guard: a bare `SkipJsonSchema[T | None]` *function* parameter (as opposed
+    # to a BaseModel field) crashes pydantic's callable-arguments schema generation, so
+    # `trajectory_segment_filter_override_column` must use the `T | SkipJsonSchema[None]`
+    # plus `Field(exclude=True)` idiom instead.
+    schema = get_registry()[
+        "ecoscope.platform.tasks.preprocessing._preprocessing.relocations_to_trajectory"
+    ].json_schema
+    props = schema["properties"]
+    assert props["trajectory_segment_filter_overrides"]["ecoscope:advanced"] is True
+    assert props["trajectory_segment_filter_overrides"]["items"] == {"$ref": "#/$defs/TrajectorySegmentFilterOverride"}
+    assert "trajectory_segment_filter_override_column" not in props
+    assert "preset" not in schema["$defs"]["TrajectorySegmentFilter"]["properties"]
+
+
+def test_empty_overrides_match_no_overrides():
+    relocs = _relocs({"ele": "elephant", "heli": "helicopter"})
+    f = TrajectorySegmentFilter(max_speed_kmhr=50)
+    pd.testing.assert_frame_equal(
+        relocations_to_trajectory(relocs, f, [], "subject_subtype"),
+        relocations_to_trajectory(relocs, f),
+    )
 
 
 def test_convert_trajectory_to_relocations():
