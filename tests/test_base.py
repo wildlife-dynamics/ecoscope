@@ -284,6 +284,27 @@ def test_apply_traj_filter(movebank_relocations):
     assert filtered.gdf["speed_kmhr"].max() <= max_speed
 
 
+def test_traj_seg_filter_mask_matches_apply_traj_filter(movebank_relocations):
+    from ecoscope.trajectory import traj_seg_filter_mask
+
+    traj = ecoscope.Trajectory.from_relocations(movebank_relocations)
+    f = ecoscope.base.TrajSegFilter(
+        min_length_meters=0.2,
+        max_length_meters=6000,
+        min_time_secs=100,
+        max_time_secs=10 * 60 * 60,
+        min_speed_kmhr=0.1,
+        max_speed_kmhr=5,
+    )
+    mask = traj_seg_filter_mask(traj.gdf, f)
+    before = traj.gdf["junk_status"].copy()
+    traj.apply_traj_filter(f, inplace=True)
+
+    assert mask.dtype == bool
+    assert mask.index.equals(traj.gdf.index)
+    assert (traj.gdf["junk_status"] == (before | mask)).all()
+
+
 def test_trajectory_with_single_relocation(sample_single_relocs):
     assert len(sample_single_relocs.gdf["extra__subject_id"].unique()) == 3
     trajectory = ecoscope.Trajectory.from_relocations(sample_single_relocs)
