@@ -2,6 +2,8 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError
 
+from ecoscope.platform.indexes import ValueGrouper
+from ecoscope.platform.tasks.analysis._patrol_summary import EncounterRateMetric
 from ecoscope.platform.tasks.analysis._summary import (
     RatioOperand,
     RatioSummaryParam,
@@ -15,6 +17,7 @@ from ecoscope.platform.tasks.config.set_chart import (
     TimeBreakdownMode,
     get_chart_metrics,
     get_chart_mode_category_column,
+    get_chart_mode_category_groupers,
     get_chart_mode_spatial_groupers,
     get_chart_mode_time_unit,
     get_chart_time_interval,
@@ -742,3 +745,41 @@ def test_chart_style_schema_reveals_barmode_for_bars_only():
     palette: dict = {"anyOf": [{"type": "string"}, {"items": {"type": "string"}, "type": "array"}]}
     _palette_schema(palette)
     assert [b.get("title") for b in palette["anyOf"]] == ["Color Map", "Custom Colors"]
+
+
+def test_chart_mode_category_groupers():
+    metrics_only = set_chart_config()
+    category = ChartConfig(mode={"mode": "category", "category": "patrol_member_names"})
+    spatial = ChartConfig(mode={"mode": "spatial", "spatial_feature_group": "Regions"})
+    time_mode = ChartConfig(time_interval="month", mode={"mode": "time", "unit": "year"})
+
+    assert get_chart_mode_category_groupers(metrics_only) == []
+    assert get_chart_mode_category_groupers(spatial) == []
+    assert get_chart_mode_category_groupers(time_mode) == []
+    assert get_chart_mode_category_groupers(category) == [ValueGrouper(index_name="patrol_member_names")]
+
+
+def test_encounter_rate_metric_union_carries_leg_presets_in_title_order():
+    import typing
+
+    members = typing.get_args(typing.get_args(EncounterRateMetric)[0])
+    titles = [m.model_config["title"] for m in members]
+    assert len(titles) == 17
+    assert titles == sorted(titles, key=str.lower)
+    assert {"Active Duration", "Elapsed Duration", "Leg Count", "Member-days"} <= set(titles)
+
+    config = set_chart_config(
+        metrics=[
+            {"metric": "active_duration", "unit": "h"},
+            {"metric": "elapsed_duration", "unit": "d"},
+            {"metric": "leg_count"},
+            {"metric": "member_days"},
+        ]
+    )
+    params = get_chart_metrics(config)
+    assert [(p.display_name, p.aggregator, p.column) for p in params] == [
+        ("Active Duration (hrs)", "sum", "leg_active_seconds"),
+        ("Elapsed Duration (days)", "sum", "patrol_elapsed_seconds"),
+        ("Leg Count", "nunique", "patrol_segment_id"),
+        ("Member-days", "sum", "leg_member_days"),
+    ]

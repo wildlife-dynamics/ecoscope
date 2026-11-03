@@ -14,7 +14,7 @@ test_io_earthranger.py they are NOT marked ``io`` and run in the default test jo
 
 import json
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
@@ -24,6 +24,7 @@ from pydantic import TypeAdapter
 from shapely.geometry import Point
 
 from ecoscope.platform.annotations import EmptyDataFrame
+from ecoscope.platform.connections import EarthRangerBackends
 from ecoscope.platform.schemas import SubjectGroupObservationsGDF
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import get_subjectgroup_observations
@@ -47,22 +48,26 @@ _RED = json.dumps({"rgb": "255, 0, 0", "sex": "female", "region": "Gourma"})
 _BLUE = json.dumps({"rgb": "0, 0, 255", "sex": "male", "region": "Gourma"})
 
 
+def _source(api=None, warehouse=None):
+    """An `EarthRangerBackends` standing in for a resolved data source.
+
+    `api` defaults to a bare mock; `warehouse` stays None for the ER-API path.
+    """
+    return EarthRangerBackends(api=api if api is not None else MagicMock(), warehouse=warehouse)
+
+
 def _call_via_warehouse(table, **task_kwargs):
     """Run the task against a mocked warehouse client; return (result, call kwargs)."""
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_subjectgroup_observations.return_value = table
 
-    with patch(
-        "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-        return_value=mock_warehouse_client,
-    ):
-        result = get_subjectgroup_observations(
-            client=MagicMock(),
-            time_range=_TIME_RANGE,
-            subject_group_name="Ecoscope-5-Subs",
-            raise_on_empty=False,
-            **task_kwargs,
-        )
+    result = get_subjectgroup_observations(
+        client=_source(warehouse=mock_warehouse_client),
+        time_range=_TIME_RANGE,
+        subject_group_name="Ecoscope-5-Subs",
+        raise_on_empty=False,
+        **task_kwargs,
+    )
 
     return result, mock_warehouse_client.get_subjectgroup_observations.call_args.kwargs
 
@@ -89,22 +94,19 @@ class TestFlagForwarding:
         The EarthRanger API serves `additional` unconditionally, so there is nothing to
         request on that path.
         """
-        mock_legacy_client = MagicMock()
-        mock_legacy_client.get_subjectgroup_observations.return_value = gpd.GeoDataFrame()
+        mock_legacy_client = _source()
+        mock_legacy_client.api.get_subjectgroup_observations.return_value = gpd.GeoDataFrame()
 
-        with patch(
-            "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-            return_value=None,
-        ):
-            get_subjectgroup_observations(
-                client=mock_legacy_client,
-                time_range=_TIME_RANGE,
-                subject_group_name="Ecoscope-5-Subs",
-                raise_on_empty=False,
-                include_subject_additional=requested,
-            )
+        mock_legacy_client.warehouse = None
+        get_subjectgroup_observations(
+            client=mock_legacy_client,
+            time_range=_TIME_RANGE,
+            subject_group_name="Ecoscope-5-Subs",
+            raise_on_empty=False,
+            include_subject_additional=requested,
+        )
 
-        call_kwargs = mock_legacy_client.get_subjectgroup_observations.call_args.kwargs
+        call_kwargs = mock_legacy_client.api.get_subjectgroup_observations.call_args.kwargs
         assert "include_subject_additional" not in call_kwargs
 
 

@@ -913,6 +913,24 @@ class EarthRangerIO(ERClient):
             df = df.set_index("id")
         return df
 
+    def get_patrol_teams(self) -> pd.DataFrame:
+        """
+        Return dataframe of ER patrol teams, including retired ones.
+
+        Returns
+        -------
+        patrol_teams : pd.DataFrame
+            DataFrame with `id` and `name` columns, empty if the site does not expose teams
+            (no patrol configuration route, or a configuration without a `teams` key)
+        """
+        try:
+            response = self._get("activity/patrols/config/default/")
+        except ERClientNotFound:
+            return pd.DataFrame(columns=["id", "name"])
+        teams = pd.DataFrame(response.get("teams") or [], columns=["id", "display", "value"])
+        teams["name"] = teams["display"].replace("", None).fillna(teams["value"])
+        return teams[["id", "name"]]
+
     def get_patrols(
         self,
         since: str | None = None,
@@ -1188,7 +1206,8 @@ class EarthRangerIO(ERClient):
         """
 
         observations = []
-        df_pt = self.get_patrol_types()
+        # inactive types too: done patrols can sit on a type retired since
+        df_pt = self.get_patrol_types(include_inactive=True)
         for _, patrol in patrols_df.iterrows():
             for patrol_segment in patrol["patrol_segments"]:
                 subject_id = (patrol_segment.get("leader") or {}).get("id")
@@ -1196,14 +1215,16 @@ class EarthRangerIO(ERClient):
                 patrol_start_time = (patrol_segment.get("time_range") or {}).get("start_time")
                 patrol_end_time = (patrol_segment.get("time_range") or {}).get("end_time")
 
-                patrol_type = (
-                    df_pt[df_pt["value"] == patrol_segment.get("patrol_type")].reset_index()["id"][0]
-                    if patrol_segment.get("patrol_type")
-                    else None
-                )
+                if patrol_segment.get("is_pause"):
+                    continue
 
                 if None in {subject_id, patrol_start_time}:
                     continue
+
+                patrol_type = None
+                if patrol_segment.get("patrol_type") and "value" in df_pt.columns:
+                    matching_types = df_pt.index[df_pt["value"] == patrol_segment["patrol_type"]]
+                    patrol_type = matching_types[0] if len(matching_types) else None
 
                 try:
                     observation = self.get_subject_observations(
@@ -1225,12 +1246,30 @@ class EarthRangerIO(ERClient):
                             observation.gdf["patrol_type"] = patrol_type
                             observation.gdf["patrol_status"] = patrol["state"]
                             observation.gdf["patrol_subject"] = subject_name
+                            observation.gdf["patrol_segment_id"] = patrol_segment.get("id")
+                            for api_key, col in [
+                                ("team", "patrol_team"),
+                                ("members", "patrol_members"),
+                                ("assets", "patrol_assets"),
+                                ("segment_details", "patrol_segment_details"),
+                                ("type_details", "patrol_type_details"),
+                            ]:
+                                if api_key in patrol_segment:
+                                    value = patrol_segment[api_key]
+                                    # details objects are JSON strings: dict columns cannot be written to parquet
+                                    if api_key.endswith("_details") and value is not None:
+                                        value = json.dumps(value)
+                                    observation.gdf[col] = pd.Series(
+                                        [value] * len(observation.gdf),
+                                        index=observation.gdf.index,
+                                    )
                             observation.gdf = (
                                 observation.gdf.reset_index()
                                 .merge(
                                     pd.DataFrame(df_pt).add_prefix("patrol_type__"),
                                     left_on="patrol_type",
                                     right_on="id",
+                                    how="left",
                                 )
                                 .drop(
                                     columns=[

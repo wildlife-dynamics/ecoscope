@@ -13,11 +13,12 @@ default (non-io) test job.
 """
 
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import geopandas as gpd  # type: ignore[import-untyped]
 import pytest
 
+from ecoscope.platform.connections import EarthRangerBackends
 from ecoscope.platform.tasks.filter._filter import UTC_TIMEZONEINFO, TimeRange
 from ecoscope.platform.tasks.io import get_subjectgroup_observations
 from ecoscope.platform.tasks.io._earthranger import _sort_warehouse_relocations
@@ -27,6 +28,14 @@ _TIME_RANGE = TimeRange(
     until=datetime(2015, 1, 31, tzinfo=timezone.utc),
     timezone=UTC_TIMEZONEINFO,
 )
+
+
+def _source(api=None, warehouse=None):
+    """An `EarthRangerBackends` standing in for a resolved data source.
+
+    `api` defaults to a bare mock; `warehouse` stays None for the ER-API path.
+    """
+    return EarthRangerBackends(api=api if api is not None else MagicMock(), warehouse=warehouse)
 
 
 def _fixtimes(minutes):
@@ -92,23 +101,20 @@ class TestGetSubjectgroupObservationsRowOrder:
     """The warehouse branch of get_subjectgroup_observations must return sorted rows."""
 
     def _call_with_table(self, table):
-        mock_legacy_client = MagicMock()
+        mock_legacy_client = _source()
         mock_warehouse_client = MagicMock()
         mock_warehouse_client.get_subjectgroup_observations.return_value = table
 
-        with patch(
-            "ecoscope.platform.tasks.io._earthranger._make_warehouse_client_from_env",
-            return_value=mock_warehouse_client,
-        ):
-            result = get_subjectgroup_observations(
-                client=mock_legacy_client,
-                time_range=_TIME_RANGE,
-                subject_group_name="Ecoscope-5-Subs",
-                raise_on_empty=False,
-            )
+        mock_legacy_client.warehouse = mock_warehouse_client
+        result = get_subjectgroup_observations(
+            client=mock_legacy_client,
+            time_range=_TIME_RANGE,
+            subject_group_name="Ecoscope-5-Subs",
+            raise_on_empty=False,
+        )
 
         mock_warehouse_client.get_subjectgroup_observations.assert_called_once()
-        mock_legacy_client.get_subjectgroup_observations.assert_not_called()
+        mock_legacy_client.api.get_subjectgroup_observations.assert_not_called()
         return result
 
     def test_unordered_warehouse_rows_are_sorted(self, warehouse_observations_table):

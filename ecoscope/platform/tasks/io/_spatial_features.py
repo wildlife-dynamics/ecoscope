@@ -10,7 +10,7 @@ from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AdvancedField
-from ecoscope.platform.connections import EarthRangerConnection
+from ecoscope.platform.connections import EarthRangerSourceConnection
 from ecoscope.platform.schemas import EmptyDataFrame, RegionsGDF
 from ecoscope.platform.tasks.io._earthranger import (
     get_spatial_features_group,
@@ -189,7 +189,7 @@ def load_spatial_features_group(
     """
 
     if isinstance(config, EarthRangerSpatialFeatures):
-        client = EarthRangerConnection.client_from_named_connection(config.data_source)
+        client = EarthRangerSourceConnection.client_from_named_connection(config.data_source)
         regions_gdf = get_spatial_features_group(
             client=client,
             spatial_features_group_name=config.spatial_features_group_name,

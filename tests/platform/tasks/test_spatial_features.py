@@ -299,7 +299,7 @@ def test_earthranger_requires_data_source():
         )
 
 
-@patch("ecoscope.platform.connections.EarthRangerConnection.client_from_named_connection")
+@patch("ecoscope.platform.connections.EarthRangerSourceConnection.client_from_named_connection")
 @patch("ecoscope.platform.tasks.io._spatial_features.get_spatial_features_group")
 def test_loads_from_earthranger(mock_get_sfg, mock_get_client):
     """Test loading spatial features from EarthRanger via the old task."""
@@ -323,7 +323,7 @@ def test_loads_from_earthranger(mock_get_sfg, mock_get_client):
     assert result["metadata"].iloc[0]["id"] == "efddee80-8072-4bb1-8078-b391c1b39dac"
 
 
-@patch("ecoscope.platform.connections.EarthRangerConnection.client_from_named_connection")
+@patch("ecoscope.platform.connections.EarthRangerSourceConnection.client_from_named_connection")
 @patch("ecoscope.platform.tasks.io._spatial_features.get_spatial_features_group")
 def test_filters_non_polygons_from_earthranger(mock_get_sfg, mock_get_client):
     """Test that non-polygon geometries from EarthRanger are silently dropped."""
@@ -356,7 +356,7 @@ def test_filters_non_polygons_from_earthranger(mock_get_sfg, mock_get_client):
     assert result["name"].iloc[0] == "Polygon"
 
 
-@patch("ecoscope.platform.connections.EarthRangerConnection.client_from_named_connection")
+@patch("ecoscope.platform.connections.EarthRangerSourceConnection.client_from_named_connection")
 @patch("ecoscope.platform.tasks.io._spatial_features.get_spatial_features_group")
 def test_rejects_duplicate_names_from_earthranger(mock_get_sfg, mock_get_client):
     """Test that duplicate names from EarthRanger raise ValueError."""
