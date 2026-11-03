@@ -3,12 +3,13 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
+from pydantic_core import TzInfo
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField
+from ecoscope.platform.annotations import AdvancedField, CacheableModel
 
 
-class TimezoneInfo(BaseModel):
+class TimezoneInfo(BaseModel, CacheableModel):
     label: str
     tzCode: str
     name: str
@@ -27,7 +28,13 @@ DEFAULT_TIME_FORMAT = "%d %b %Y %H:%M:%S"
 UTC_TIMEZONEINFO = TimezoneInfo(label="UTC", tzCode="UTC", name="UTC", utc_offset="+00:00")
 
 
-class TimeRange(BaseModel):
+def _parsed_offset_as_timezone(value: datetime) -> datetime:
+    if isinstance(value.tzinfo, TzInfo):
+        return value.replace(tzinfo=timezone(value.utcoffset()))  # type: ignore[arg-type]
+    return value
+
+
+class TimeRange(BaseModel, CacheableModel):
     since: datetime
     until: datetime
     timezone: TimezoneInfo
@@ -43,6 +50,12 @@ class TimeRange(BaseModel):
             tz = self.timezone.utc_offset_as_datetime_timezone
             self.since = self.since.replace(tzinfo=tz)
             self.until = self.until.replace(tzinfo=tz)
+        else:
+            # A dumped `TimeRange` validates back with pydantic's `TzInfo`, whose
+            # `%Z` spells the offset differently from the `datetime.timezone` it
+            # was built with; normalizing keeps a cached copy formatting the same.
+            self.since = _parsed_offset_as_timezone(self.since)
+            self.until = _parsed_offset_as_timezone(self.until)
         return self
 
 

@@ -8,7 +8,7 @@ from pydantic import (
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame, CacheableModel
 from ecoscope.platform.tasks.results._map_utils import (
     OpacityAnnotation,
     TileLayer,
@@ -18,7 +18,7 @@ UnitType = Literal["meters", "pixels", "common"]
 WidgetPlacement = Literal["top-left", "top-right", "bottom-left", "bottom-right", "fill"]
 
 
-class LayerStyleBase(BaseModel):
+class LayerStyleBase(BaseModel, CacheableModel):
     auto_highlight: Annotated[bool, AdvancedField(default=False)] = False
     opacity: OpacityAnnotation = 1
     pickable: Annotated[bool, AdvancedField(default=True)] = True
@@ -87,7 +87,7 @@ class LegendStyle(BaseModel):
         return self.title.replace("_", " ").title() if self.format_title else self.title
 
 
-class ViewState(BaseModel):
+class ViewState(BaseModel, CacheableModel):
     longitude: Annotated[float, AdvancedField(default=0, le=180, ge=-180)] = 0
     latitude: Annotated[float, AdvancedField(default=0, le=90, ge=-90)] = 0
     zoom: Annotated[float, AdvancedField(default=0, le=20, ge=0)] = 0

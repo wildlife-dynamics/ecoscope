@@ -7,6 +7,7 @@ from pydantic import Field, GetJsonSchemaHandler
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import JsonSchemaValue, WithJsonSchema
 from pydantic_core import core_schema as cs
+from wt_contracts import CodecRef, ModelDumpCacheable
 
 FP = ParamSpec("FP")
 
@@ -68,6 +69,17 @@ AdvancedField = create_custom_field(  # type: ignore[var-annotated]
 )
 
 
+class CacheableModel(ModelDumpCacheable):
+    """Mixin declaring `codecs.model_codec`: `class Thing(BaseModel, CacheableModel)`.
+
+    Here rather than in `codecs.py` so that a model module can declare its
+    codec without importing pandas, and so that the import path is a string
+    nothing has to resolve until a step is actually cached.
+    """
+
+    __wt_codec__ = "ecoscope.platform.codecs:model_codec"
+
+
 class JsonSerializableDataFrameModel(pa.DataFrameModel):
     @classmethod
     def __get_pydantic_json_schema__(cls, core_schema: cs.CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
@@ -97,6 +109,7 @@ DataFrame = Annotated[
     # below, which will not contain any schema-specific information. This *will not* affect
     # validation behavior, only JSON Schema generation.
     WithJsonSchema({"type": "ecoscope.platform.annotations.DataFrame"}),
+    CodecRef("ecoscope.platform.codecs:FRAME"),
 ]
 
 

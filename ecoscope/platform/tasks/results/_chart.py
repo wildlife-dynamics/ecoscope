@@ -6,6 +6,7 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import (
     AdvancedField,
+    CacheableModel,
     DataFrame,
     JsonSerializableDataFrameModel,
 )
@@ -95,7 +96,7 @@ def _rebase(bucket, unit: str):
             raise NotImplementedError(f"Unsupported time_breakdown: {unit}")
 
 
-class ChartFigure(BaseModel):
+class ChartFigure(BaseModel, CacheableModel):
     """One drawn series: a summary metric and how to render it."""
 
     metric: Annotated[SummaryParam, Field(description="The summary metric computed per x-axis bucket.")]
