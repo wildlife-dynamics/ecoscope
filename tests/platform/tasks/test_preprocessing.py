@@ -2,6 +2,7 @@ import datetime
 from importlib.resources import files
 
 import geopandas as gpd  # type: ignore[import-untyped]
+import jsonschema
 import pandas as pd
 import pytest
 import shapely
@@ -311,9 +312,31 @@ def test_overrides_schema():
     ].json_schema
     props = schema["properties"]
     assert props["trajectory_segment_filter_overrides"]["ecoscope:advanced"] is True
-    assert props["trajectory_segment_filter_overrides"]["items"] == {"$ref": "#/$defs/TrajectorySegmentFilterOverride"}
+    assert props["trajectory_segment_filter_overrides"]["anyOf"][0]["items"] == {
+        "$ref": "#/$defs/TrajectorySegmentFilterOverride"
+    }
     assert "trajectory_segment_filter_override_column" not in props
     assert "preset" not in schema["$defs"]["TrajectorySegmentFilter"]["properties"]
+
+
+def test_overrides_schema_accepts_null_and_empty_and_populated():
+    # Regression test: `SkipJsonSchema[None]` used to hide the null branch, so the generated
+    # schema said `type: array` with `default: null` -- a config carrying that default failed
+    # jsonschema validation. `null` ("not decided") and `[]` ("deliberately none") are both
+    # meaningful and must validate, same as a populated list.
+    schema = get_registry()[
+        "ecoscope.platform.tasks.preprocessing._preprocessing.relocations_to_trajectory"
+    ].json_schema
+    overrides_schema = {"$defs": schema["$defs"], **schema["properties"]["trajectory_segment_filter_overrides"]}
+
+    assert overrides_schema["anyOf"] == [
+        {"type": "array", "items": {"$ref": "#/$defs/TrajectorySegmentFilterOverride"}},
+        {"type": "null"},
+    ]
+    assert overrides_schema["default"] is None
+
+    for value in (None, [], [{"key": "elephant", "filter": {}}]):
+        jsonschema.validate(instance=value, schema=overrides_schema)
 
 
 def test_preset_omitted_from_serialized_defaults():

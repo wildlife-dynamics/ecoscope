@@ -179,7 +179,10 @@ def relocations_to_trajectory(
         ),
     ] = None,
     trajectory_segment_filter_overrides: Annotated[
-        TrajectorySegmentFilterOverrides | SkipJsonSchema[None],
+        # `None` must stay visible in the schema (unlike `trajectory_segment_filter` above):
+        # its default is `None` itself, and `null` is a meaningful value downstream
+        # ("not decided" vs. `[]`'s "deliberately none"), so the schema must accept it.
+        TrajectorySegmentFilterOverrides | None,
         AdvancedField(
             default=None,
             title="Filter Overrides",
