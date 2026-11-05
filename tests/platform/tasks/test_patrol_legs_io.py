@@ -158,10 +158,42 @@ def test_add_patrol_team_names_resolves_and_falls_back(roster_client):
     assert out["patrol_team_name"].tolist() == ["Alpha", "t9", "None"]
 
 
+def test_add_patrol_team_names_resolves_warehouse_structs(roster_client):
+    """The warehouse serves `patrol_team` as a resolved struct where the ER API serves an id:
+    resolve by its id, else fall back to the struct's own display, then value."""
+    df = pd.DataFrame(
+        {
+            "patrol_team": [
+                {"id": "t1", "value": "alpha", "display": "Alpha Team", "ordernum": 1, "is_active": True},
+                {"id": "t9", "value": "niner", "display": "Niner", "ordernum": 2, "is_active": True},
+                {"id": "t8", "value": "eight", "display": None, "ordernum": 3, "is_active": False},
+                None,
+            ]
+        }
+    )
+    out = add_patrol_team_names(df, roster_client)
+    assert out["patrol_team_name"].tolist() == ["Alpha", "Niner", "eight", "None"]
+
+
 def test_add_patrol_team_names_without_column_fills_none(roster_client):
     out = add_patrol_team_names(pd.DataFrame({"x": [1, 2]}), roster_client)
     assert out["patrol_team_name"].tolist() == ["None", "None"]
     roster_client.get_patrol_teams.assert_not_called()
+
+
+def test_add_patrol_roster_names_resolves_warehouse_structs(roster_client):
+    """Warehouse rosters are lists of resolved subject structs: resolve by id, else keep the
+    struct's own name, else the id."""
+    df = pd.DataFrame(
+        {
+            "patrol_members": [[{"id": "s1", "name": "Old Name"}, {"id": "zz", "name": "Zed"}]],
+            "patrol_assets": [np.array([{"id": "v1", "name": None}, {"id": "v2", "name": None}], dtype=object)],
+        }
+    )
+    out = add_patrol_roster_names(df, roster_client)
+    assert out["patrol_member_names"].tolist() == [["Asha", "Zed"]]
+    assert out["patrol_asset_names"].tolist() == [["Land Cruiser", "v2"]]
+    assert set(roster_client.get_subjects.call_args.kwargs["id"].split(",")) == {"s1", "zz", "v1", "v2"}
 
 
 def test_add_patrol_roster_names_resolves_lists(roster_client):
