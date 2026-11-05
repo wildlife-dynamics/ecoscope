@@ -1073,11 +1073,29 @@ def _id_name_lookup(frame: pd.DataFrame) -> dict:
     return dict(zip(named["id"], named["name"]))
 
 
+def _ref_id(ref):
+    """The id of an EarthRanger reference: a bare id as the ER API serves it, or the `id` of a
+    resolved struct as the warehouse serves it (`{"id", "display", "value", ...}` for a team,
+    `{"id", "name", ...}` for a subject).
+    """
+    return ref.get("id") if isinstance(ref, dict) else ref
+
+
+def _ref_name(ref, *keys):
+    """The first non-empty name a resolved struct carries under `keys`, else None."""
+    if isinstance(ref, dict):
+        for key in keys:
+            if ref.get(key):
+                return ref[key]
+    return None
+
+
 @register(tags=["io"])
 def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDataFrame:
     """Add a `patrol_team_name` column by resolving `patrol_team` ids to team names.
     Unresolved ids keep the id; missing teams and sites without the `patrol_schemas` flag
-    (no `patrol_team` column) are filled with "None".
+    (no `patrol_team` column) are filled with "None". A `patrol_team` that is already a
+    resolved warehouse struct resolves by its `id`, falling back to its own `display` / `value`.
     """
     df = df.copy()
     if "patrol_team" not in df.columns:
@@ -1085,7 +1103,14 @@ def add_patrol_team_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyDat
         return df
 
     lookup = _id_name_lookup(client.get_patrol_teams())
-    df["patrol_team_name"] = df["patrol_team"].map(lambda t: "None" if pd.isna(t) else lookup.get(t, t))
+
+    def _name(team):
+        team_id = _ref_id(team)
+        if team_id is None or (not isinstance(team_id, str) and pd.isna(team_id)):
+            return "None"
+        return lookup.get(team_id) or _ref_name(team, "display", "value") or team_id
+
+    df["patrol_team_name"] = df["patrol_team"].map(_name)
     return df
 
 
@@ -1114,6 +1139,8 @@ def add_patrol_roster_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyD
     """Add `patrol_member_names` and `patrol_asset_names` columns (lists of names) by
     resolving the ids in `patrol_members` and `patrol_assets`. Unresolved ids keep the id;
     a column whose source is absent (no `patrol_schemas` flag) is filled with "None".
+    Roster entries that are already resolved warehouse structs resolve by their `id`,
+    falling back to their own `name`.
     """
     df = df.copy()
     pairs = {"patrol_members": "patrol_member_names", "patrol_assets": "patrol_asset_names"}
@@ -1129,12 +1156,16 @@ def add_patrol_roster_names(df: AnyDataFrame, client: EarthRangerClient) -> AnyD
             return v.tolist()
         return list(v) if isinstance(v, (list, tuple)) else []
 
-    ids = sorted({i for src in present for v in df[src] for i in _as_list(v)})
+    ids = sorted({_ref_id(i) for src in present for v in df[src] for i in _as_list(v)} - {None})
     lookup: dict = {}
     if ids:
         lookup = _id_name_lookup(client.get_subjects(id=",".join(ids), include_inactive=True))
+
+    def _name(ref):
+        return lookup.get(_ref_id(ref)) or _ref_name(ref, "name") or _ref_id(ref)
+
     for src, dst in present.items():
-        df[dst] = df[src].map(lambda v: [lookup.get(i, i) for i in _as_list(v)])
+        df[dst] = df[src].map(lambda v: [_name(i) for i in _as_list(v)])
     return df
 
 

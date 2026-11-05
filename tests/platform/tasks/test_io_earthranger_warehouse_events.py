@@ -7,6 +7,7 @@ tests in test_io_earthranger.py they are NOT marked ``io`` and therefore run in 
 default (non-io) test job -- providing coverage for the warehouse code paths on PRs.
 """
 
+import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
@@ -119,9 +120,12 @@ def _make_events_arrow_table(
     )
 
 
-def _make_nested_patrols_arrow_table(event_times=("2015-02-01",), event_type="hwc_rep", states=None):
+def _make_nested_patrols_arrow_table(
+    event_times=("2015-02-01",), event_type="hwc_rep", states=None, segment_extra=None
+):
     """Build a pa.Table matching PATROLS_WITH_EVENTS_NESTED_SCHEMA_V1 (one patrol,
-    one segment, one event per provided event_time)."""
+    one segment, one event per provided event_time). `segment_extra` adds or overrides
+    segment fields (team / members / assets / *_details)."""
     import datetime as dt
 
     import pyarrow as pa
@@ -158,6 +162,7 @@ def _make_nested_patrols_arrow_table(event_times=("2015-02-01",), event_type="hw
         "start_location": None,
         "end_location": None,
         "events": events,
+        **(segment_extra or {}),
     }
     patrol = {
         "id": "p1",
@@ -694,6 +699,55 @@ def test_get_patrols_via_warehouse_client_synthesized_shape_feeds_unpack():
     assert "geometry" in events.columns
     assert (events["patrol_subject"] == "eco_1").all()
     _assert_valid_events_gdf(events)
+
+
+def test_warehouse_patrols_table_reduces_segment_refs_to_ids():
+    """The warehouse serves `team` as a resolved struct and `members` / `assets` as lists of
+    resolved subject structs; the ER API serves bare ids. The legs frame must carry the ids
+    (add_patrol_team_names fails hashing a dict otherwise), and the warehouse's JSON-string
+    details must not be JSON-encoded a second time."""
+    from ecoscope.io.earthranger_utils import (
+        patrol_segments_from_patrols_df,
+        warehouse_patrols_table_to_patrols_df,
+    )
+
+    table = _make_nested_patrols_arrow_table(
+        segment_extra={
+            "team": {"id": "t1", "value": "alpha", "display": "Alpha", "ordernum": 1, "is_active": True},
+            "members": [
+                {"id": "s1", "name": "Asha", "subject_type": "person", "subject_subtype": "ranger"},
+                {"id": "s2", "name": "Ben", "subject_type": "person", "subject_subtype": "ranger"},
+            ],
+            "assets": None,
+            "segment_details": json.dumps({"weather": "dry"}),
+        }
+    )
+    patrols_df = warehouse_patrols_table_to_patrols_df(table)
+    segment = patrols_df["patrol_segments"].iloc[0][0]
+    assert segment["team"] == "t1"
+    assert segment["members"] == ["s1", "s2"]
+    assert segment["assets"] == []
+
+    legs = patrol_segments_from_patrols_df(patrols_df)
+    assert legs["patrol_team"].tolist() == ["t1"]
+    assert legs["patrol_members"].tolist() == [["s1", "s2"]]
+    assert legs["patrol_assets"].tolist() == [[]]
+    assert legs["leg_member_days"].tolist() == [2.0]
+    assert json.loads(legs["patrol_segment_details"].iloc[0]) == {"weather": "dry"}
+    assert legs["patrol_type_details"].isna().all()
+
+
+def test_warehouse_patrols_table_null_team_struct_is_none():
+    from ecoscope.io.earthranger_utils import (
+        patrol_segments_from_patrols_df,
+        warehouse_patrols_table_to_patrols_df,
+    )
+
+    patrols_df = warehouse_patrols_table_to_patrols_df(_make_nested_patrols_arrow_table())
+    segment = patrols_df["patrol_segments"].iloc[0][0]
+    assert segment["team"] is None and segment["members"] == [] and segment["assets"] == []
+    legs = patrol_segments_from_patrols_df(patrols_df)
+    assert legs["patrol_team"].isna().all()
 
 
 @requires_dwh_events
