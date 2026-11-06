@@ -5,6 +5,7 @@ import pytest
 from ecoscope.platform.tasks.transformation import (
     assign_value,
     fill_na,
+    format_numeric_columns,
     map_values,
     map_values_with_unit,
 )
@@ -174,3 +175,29 @@ def test_fill_na_string():
     result = fill_na(df_with_nans, value="None", columns=["col_a"])
     assert result["col_a"].equals(column_with_nans_filled)
     assert result["col_b"].equals(column_with_nans)
+
+
+def test_format_numeric_columns_fixed_decimals_in_place():
+    df = pd.DataFrame({"rate": [0.5, 1.23456, np.nan], "effort": [3.5, 10.0, 0.004], "label": ["a", "b", "c"]})
+    result = format_numeric_columns(df, columns=["rate", "effort", "label"], decimal_places=2)
+    assert result["rate"].tolist() == ["0.50", "1.23", ""]
+    assert result["effort"].tolist() == ["3.50", "10.00", "0.00"]
+    assert result["label"].tolist() == ["a", "b", "c"]
+    assert result.index.tolist() == [0, 1, 2]
+    # the input frame is untouched
+    assert df["rate"].tolist()[:2] == [0.5, 1.23456]
+
+
+def test_format_numeric_columns_skips_absent_unless_asked():
+    df = pd.DataFrame({"count": [3.0, 4.0]})
+    result = format_numeric_columns(df, columns=["count", "event_sum"], decimal_places=0)
+    assert result["count"].tolist() == ["3", "4"]
+    assert "event_sum" not in result.columns
+    with pytest.raises(KeyError):
+        format_numeric_columns(df, columns=["event_sum"], raise_if_not_found=True)
+
+
+def test_format_numeric_columns_empty_frame():
+    df = pd.DataFrame({"rate": pd.Series([], dtype=float)})
+    result = format_numeric_columns(df, columns=["rate"])
+    assert result.empty and list(result.columns) == ["rate"]
