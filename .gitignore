@@ -181,3 +181,4 @@ uv.lock
 # Local planning artifacts (superpowers skills); the design doc lives in Claude Docs
 docs/superpowers/
 .superpowers/
+.local-channel/
