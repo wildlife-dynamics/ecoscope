@@ -1362,6 +1362,20 @@ def get_spatial_features_group(
 
 
 @register(tags=["io"])
+def get_spatial_features_groups(client: EarthRangerSource) -> RegionsGDF | EmptyDataFrame:
+    client = as_backends(client)
+    regions: list[pd.DataFrame] = []
+    for group in client.api.get_spatial_features_groups():
+        sfg = SpatialFeaturesGroup(**group)  # type: ignore[arg-type]
+        regions_gdf = sfg.features
+        regions_gdf["metadata"] = [{"id": sfg.id, "display_name": sfg.name}] * len(regions_gdf)  # type: ignore[assignment]
+        regions.append(regions_gdf)  # type: ignore[arg-type]
+    if not regions:
+        return cast(EmptyDataFrame, pd.DataFrame())
+    return cast(RegionsGDF, pd.concat(regions, ignore_index=True))
+
+
+@register(tags=["io"])
 def get_fields_from_event_type_schema(
     client: EarthRangerSource,
     event_type: SingleEventTypeAnnotation,

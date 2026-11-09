@@ -1384,6 +1384,23 @@ class EarthRangerIO(ERClient):
         features_gdf = pd.concat(spatial_features)
         return {**spatial_features_group, "features": features_gdf} if with_group_data else features_gdf
 
+    def get_spatial_features_groups(self) -> list[dict[str, str | gpd.GeoDataFrame]]:
+        """
+        Download every spatial features group on the site, each with its features.
+
+        Returns
+        -------
+        A list of dicts shaped like `get_spatial_features_group(..., with_group_data=True)`: the group data
+        and a "features" field containing a GDF of the features within the group. Groups with no features
+        are omitted.
+        """
+        groups = []
+        for sfg in self._get("spatialfeaturegroup"):
+            if sfg.get("feature_count") == 0:
+                continue
+            groups.append(self.get_spatial_features_group(spatial_features_group_id=sfg["id"], with_group_data=True))
+        return groups
+
     def get_spatial_feature(self, spatial_feature_id: str | None = None, **addl_kwargs) -> gpd.GeoDataFrame:
         """
         Download spatial feature for a given  `spatial feature id`.
