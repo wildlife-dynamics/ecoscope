@@ -59,3 +59,24 @@ def test_gather_writes_a_columnless_empty_frame_from_the_registry_schema(tmp_pat
     frame = table_to_frame(read_table(str(tmp_path), "patrol_legs", "1"), "patrol_legs")
     assert len(frame) == 0
     assert set(TABLE_TYPES["patrol_legs"].schema.names) <= set(frame.columns)
+
+
+def test_gather_writes_a_skipped_step_as_an_empty_table(tmp_path, patrol_legs_df):
+    from wt_task import SKIP_SENTINEL, task
+
+    manifest = (
+        task(gather_data_sets)
+        .validate()
+        .call(
+            data_set="patrols",
+            tables={"patrol_events": SKIP_SENTINEL, "patrol_legs": patrol_legs_df},
+            root_path=str(tmp_path),
+        )
+    )
+    assert manifest.tables["patrol_events"].rows == 0
+    assert manifest.tables["patrol_legs"].rows == 2
+    frame = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
+    assert len(frame) == 0
+    assert set(TABLE_TYPES["patrol_events"].schema.names) <= set(frame.columns)
+    legs = table_to_frame(read_table(str(tmp_path), "patrol_legs", "1"), "patrol_legs")
+    assert legs["patrol_id"].tolist() == patrol_legs_df["patrol_id"].tolist()
