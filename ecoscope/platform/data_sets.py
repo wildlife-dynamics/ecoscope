@@ -71,7 +71,7 @@ TABLE_TYPES: dict[str, TableType] = {
                 ("junk_status", pa.bool_()),
                 ("geometry", _geometry()),
                 ("patrol_id", _STR),
-                ("patrol_serial_number", _STR),
+                ("patrol_serial_number", pa.int64()),
                 ("patrol_type", _STR),
                 ("patrol_start_time", _STR),
                 ("patrol_end_time", _STR),

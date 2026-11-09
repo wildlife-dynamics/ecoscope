@@ -56,3 +56,10 @@ def test_manifest_round_trips_through_json():
     )
     assert DataSetManifest.model_validate_json(m.model_dump_json()) == m
     assert table_filename("patrol_legs") == "data_sets/patrol_legs.arrow"
+
+
+def test_validate_table_names_mistyped_fields(spatial_feature_groups_table):
+    idx = spatial_feature_groups_table.schema.get_field_index("pk")
+    bad = spatial_feature_groups_table.set_column(idx, "pk", pa.array([1, 2]))
+    with pytest.raises(DataSetSchemaError, match=r"spatial_feature_groups.*mistyped.*pk"):
+        validate_table(bad, "spatial_feature_groups")
