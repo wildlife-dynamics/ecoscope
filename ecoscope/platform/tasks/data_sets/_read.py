@@ -1,15 +1,15 @@
 import json
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import Field, ValidationError
 from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrameOrEmpty, AnyGeoDataFrameOrEmpty
 from ecoscope.platform.data_sets import (
     MANIFEST_FILENAME,
-    TABLE_TYPES,
     DataSetManifest,
     DataSetSchemaError,
+    get_table_type,
     read_table,
     table_to_frame,
 )
@@ -18,12 +18,15 @@ from ecoscope.platform.serde import _get_path
 
 def _read_manifest(root: str, table_type: str | None = None) -> DataSetManifest:
     path, _ = _get_path(root, MANIFEST_FILENAME)
+    subject = f"{table_type}: " if table_type else ""
     try:
         text = path.read_text()
     except FileNotFoundError as e:
-        subject = f"{table_type}: " if table_type else ""
         raise DataSetSchemaError(f"{subject}no data set manifest found at {root!r}") from e
-    return DataSetManifest.model_validate_json(text)
+    try:
+        return DataSetManifest.model_validate_json(text)
+    except ValidationError as e:
+        raise DataSetSchemaError(f"{subject}invalid data set manifest at {root!r}: {e}") from e
 
 
 @register()
@@ -70,12 +73,11 @@ def read_data_set_table(
     if not isinstance(roots, dict):
         raise DataSetSchemaError("ECOSCOPE_WORKFLOWS_DATA_SETS is not a JSON object")
 
-    if table_type not in TABLE_TYPES:
-        raise DataSetSchemaError(f"unknown table type {table_type!r}; known: {sorted(TABLE_TYPES)}")
+    registered = get_table_type(table_type)
 
     if table_type not in roots:
         if optional:
-            return table_to_frame(TABLE_TYPES[table_type].schema.empty_table(), table_type)  # type: ignore[return-value]
+            return table_to_frame(registered.schema.empty_table(), table_type)  # type: ignore[return-value]
         raise DataSetSchemaError(f"{table_type}: no data set bound; bound: {', '.join(sorted(roots))}")
 
     root = roots[table_type]

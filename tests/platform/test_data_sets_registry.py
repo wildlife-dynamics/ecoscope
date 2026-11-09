@@ -36,6 +36,11 @@ def test_validate_table_names_missing_fields():
         validate_table(t, "spatial_feature_groups")
 
 
+def test_validate_table_rejects_unknown_table_type():
+    with pytest.raises(DataSetSchemaError, match="unknown table type 'legs'"):
+        validate_table(pa.table({"x": [1]}), "legs")
+
+
 def test_validate_table_rejects_unknown_schema_version(spatial_feature_groups_table):
     with pytest.raises(DataSetSchemaError, match=r"schema_version.*expected 1.*found 9"):
         validate_table(spatial_feature_groups_table, "spatial_feature_groups", schema_version="9")

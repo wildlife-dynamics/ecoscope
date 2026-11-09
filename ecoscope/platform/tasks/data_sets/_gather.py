@@ -11,9 +11,9 @@ from ecoscope.platform.data_sets import (
     MANIFEST_FILENAME,
     TABLE_TYPES,
     DataSetManifest,
-    DataSetSchemaError,
     DataSetTable,
     frame_to_table,
+    get_table_type,
     table_filename,
     write_table,
 )
@@ -50,9 +50,8 @@ def gather_data_sets(
         The manifest describing the written tables.
     """
     manifest_path, _ = _get_path(root_path, MANIFEST_FILENAME)
-    unknown = [t for t in tables if t not in TABLE_TYPES]
-    if unknown:
-        raise DataSetSchemaError(f"unknown table type {unknown[0]!r}; known: {sorted(TABLE_TYPES)}")
+    for table_type in tables:
+        get_table_type(table_type)
 
     converted = {}
     for table_type, df in tables.items():

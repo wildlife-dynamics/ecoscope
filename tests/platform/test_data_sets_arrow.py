@@ -38,3 +38,15 @@ def test_plain_dataframe_table_type_returns_dataframe(tmp_path, patrol_legs_df):
 def test_frame_to_table_rejects_wrong_shape(patrol_legs_df):
     with pytest.raises(DataSetSchemaError, match="patrol_events"):
         frame_to_table(patrol_legs_df, "patrol_events")
+
+
+def test_frame_to_table_wraps_conflicting_dict_value_types(patrol_events_gdf):
+    gdf = patrol_events_gdf.copy()
+    gdf["details"] = [{"count": 1}, {"count": "3"}, {"count": 2}]
+    with pytest.raises(DataSetSchemaError, match=r"patrol_events.*details"):
+        frame_to_table(gdf, "patrol_events")
+
+
+def test_frame_to_table_wraps_plain_dataframe_for_spatial_type(patrol_events_gdf):
+    with pytest.raises(DataSetSchemaError, match=r"patrol_events.*geometry"):
+        frame_to_table(pd.DataFrame(patrol_events_gdf), "patrol_events")

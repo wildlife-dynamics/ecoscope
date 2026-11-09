@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -130,10 +131,14 @@ def _is_compatible(expected: pa.DataType, found: pa.DataType) -> bool:
     return expected == found
 
 
-def validate_table(table: pa.Table, table_type: str, schema_version: str | None = None) -> None:
+def get_table_type(table_type: str) -> TableType:
     if table_type not in TABLE_TYPES:
-        raise DataSetSchemaError(f"Unknown table type {table_type!r}; known: {sorted(TABLE_TYPES)}")
-    registered = TABLE_TYPES[table_type]
+        raise DataSetSchemaError(f"unknown table type {table_type!r}; known: {sorted(TABLE_TYPES)}")
+    return TABLE_TYPES[table_type]
+
+
+def validate_table(table: pa.Table, table_type: str, schema_version: str | None = None) -> None:
+    registered = get_table_type(table_type)
     if schema_version is not None and schema_version != registered.schema_version:
         raise DataSetSchemaError(
             f"{table_type}: schema_version mismatch, expected {registered.schema_version}, found {schema_version}"
@@ -160,10 +165,15 @@ def validate_table(table: pa.Table, table_type: str, schema_version: str | None 
 
 
 def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.Table:
-    if isinstance(df, gpd.GeoDataFrame):
-        table = pa.table(df.to_arrow(geometry_encoding="WKB", index=False))
-    else:
-        table = pa.Table.from_pandas(df, preserve_index=False)
+    try:
+        if isinstance(df, gpd.GeoDataFrame):
+            table = pa.table(df.to_arrow(geometry_encoding="WKB", index=False))
+        else:
+            table = pa.Table.from_pandas(df, preserve_index=False)
+    except pa.ArrowException as e:
+        match = re.search(r"Conversion failed for column (\S+)", str(e))
+        column = f" column {match.group(1)!r}" if match else ""
+        raise DataSetSchemaError(f"{table_type}: cannot convert{column} to Arrow: {e}") from e
     validate_table(table, table_type)
     return table
 
@@ -188,6 +198,10 @@ def write_table(table: pa.Table, root_path: str, table_type: str) -> tuple[str, 
 
 def read_table(root_path: str, table_type: str, schema_version: str) -> pa.Table:
     write_path, _ = _get_path(root_path, table_filename(table_type))
-    table = pa.ipc.open_file(pa.BufferReader(write_path.read_bytes())).read_all()
+    try:
+        data = write_path.read_bytes()
+    except FileNotFoundError as e:
+        raise DataSetSchemaError(f"{table_type}: no table file {table_filename(table_type)} at {root_path!r}") from e
+    table = pa.ipc.open_file(pa.BufferReader(data)).read_all()
     validate_table(table, table_type, schema_version)
     return table
