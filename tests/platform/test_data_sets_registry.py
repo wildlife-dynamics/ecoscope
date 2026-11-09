@@ -63,3 +63,22 @@ def test_validate_table_names_mistyped_fields(spatial_feature_groups_table):
     bad = spatial_feature_groups_table.set_column(idx, "pk", pa.array([1, 2]))
     with pytest.raises(DataSetSchemaError, match=r"spatial_feature_groups.*mistyped.*pk"):
         validate_table(bad, "spatial_feature_groups")
+
+
+def test_patrol_tracks_match_what_the_patrols_workflow_produces():
+    t = TABLE_TYPES["patrol_tracks"].schema.empty_table()
+    for name, typ in [
+        ("patrol_serial_number", pa.string()),
+        ("patrol_start_time", pa.timestamp("ns", tz="+03:00")),
+        ("patrol_end_time", pa.timestamp("ns", tz="+03:00")),
+    ]:
+        idx = t.schema.get_field_index(name)
+        col = pa.array([], type=typ)
+        t = t.set_column(idx, name, col) if idx >= 0 else t.append_column(name, col)
+    validate_table(t, "patrol_tracks")
+    validate_table(t.drop_columns(["patrol_start_time", "patrol_end_time"]), "patrol_tracks")
+
+    idx = t.schema.get_field_index("patrol_serial_number")
+    bad = t.set_column(idx, "patrol_serial_number", pa.array([], type=pa.int64()))
+    with pytest.raises(DataSetSchemaError, match=r"patrol_tracks.*mistyped.*patrol_serial_number"):
+        validate_table(bad, "patrol_tracks")
