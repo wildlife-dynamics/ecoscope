@@ -1,8 +1,10 @@
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
+import pandas as pd
 from pydantic import Field
 from wt_registry import register
+from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 from ecoscope.platform.annotations import AnyDataFrameOrEmpty, AnyGeoDataFrameOrEmpty
 from ecoscope.platform.data_sets import (
@@ -18,6 +20,10 @@ from ecoscope.platform.data_sets import (
 from ecoscope.platform.serde import _get_path, _persist_text
 
 
+def _skipped_to_empty(df: Any) -> Any:
+    return pd.DataFrame() if isinstance(df, SkipSentinel) else df
+
+
 @register(tags=["no-cache"])
 def gather_data_sets(
     data_set: Annotated[
@@ -25,8 +31,11 @@ def gather_data_sets(
         Field(description="The dataset output key (outputs/<key>.yaml), e.g. patrols", exclude=True),
     ],
     tables: Annotated[
-        dict[str, AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty],
-        Field(description="Table type to frame", exclude=True),
+        dict[
+            str,
+            Annotated[AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty, SkippedDependencyFallback(_skipped_to_empty)],
+        ],
+        Field(description="Table type to frame; a skipped step is written as an empty table", exclude=True),
     ],
     root_path: Annotated[str, Field(exclude=True)],
 ) -> Annotated[DataSetManifest, Field()]:
