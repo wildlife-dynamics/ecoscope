@@ -85,6 +85,20 @@ def test_read_table_rejects_newer_schema_version(data_set_root):
         read_data_set_table(data_set_roots=json.dumps({"patrol_legs": data_set_root}), table_type="patrol_legs")
 
 
+def test_read_table_wraps_an_invalid_manifest(data_set_root):
+    (Path(data_set_root) / "data_sets" / "manifest.json").write_text('{"data_set": "patrols"}')
+    with pytest.raises(
+        DataSetSchemaError, match=r"patrol_legs.*invalid data set manifest.*" + Path(data_set_root).name
+    ):
+        read_data_set_table(data_set_roots=json.dumps({"patrol_legs": data_set_root}), table_type="patrol_legs")
+
+
+def test_read_table_wraps_a_missing_table_file(data_set_root):
+    (Path(data_set_root) / "data_sets" / "patrol_legs.arrow").unlink()
+    with pytest.raises(DataSetSchemaError, match=r"patrol_legs.*no table file.*" + Path(data_set_root).name):
+        read_data_set_table(data_set_roots=json.dumps({"patrol_legs": data_set_root}), table_type="patrol_legs")
+
+
 def test_read_table_returns_empty_frame_for_zero_rows(tmp_path, patrol_events_gdf):
     gather_data_sets(data_set="p", tables={"patrol_events": patrol_events_gdf.iloc[0:0]}, root_path=str(tmp_path))
     roots = json.dumps({"patrol_events": str(tmp_path)})
