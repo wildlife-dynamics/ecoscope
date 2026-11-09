@@ -75,7 +75,7 @@ def read_data_set_table(
 
     if table_type not in roots:
         if optional:
-            return table_to_frame(TABLE_TYPES[table_type].schema.empty_table(), table_type)
+            return table_to_frame(TABLE_TYPES[table_type].schema.empty_table(), table_type)  # type: ignore[return-value]
         raise DataSetSchemaError(f"{table_type}: no data set bound; bound: {', '.join(sorted(roots))}")
 
     root = roots[table_type]
@@ -85,4 +85,4 @@ def read_data_set_table(
             f"{table_type}: not in the data set at {root!r}; available: {', '.join(sorted(manifest.tables))}"
         )
     table = read_table(root, table_type, manifest.tables[table_type].schema_version)
-    return table_to_frame(table, table_type)
+    return table_to_frame(table, table_type)  # type: ignore[return-value]
