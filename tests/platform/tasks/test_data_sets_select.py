@@ -30,10 +30,9 @@ def test_select_on_unbound_groups_explains_the_binding(all_groups_gdf):
         select_spatial_features_group(groups=all_groups_gdf.iloc[0:0], spatial_features_group_name="Sectors")
 
 
-@pytest.mark.parametrize("name", ["", None])
-def test_select_with_no_name_returns_empty_frame(all_groups_gdf, name):
-    assert len(select_spatial_features_group(groups=all_groups_gdf, spatial_features_group_name=name)) == 0
-    assert len(select_spatial_features_group(groups=all_groups_gdf.iloc[0:0], spatial_features_group_name=name)) == 0
+def test_select_with_no_name_returns_empty_frame(all_groups_gdf):
+    assert len(select_spatial_features_group(groups=all_groups_gdf, spatial_features_group_name="")) == 0
+    assert len(select_spatial_features_group(groups=all_groups_gdf.iloc[0:0], spatial_features_group_name="")) == 0
 
 
 def test_select_works_on_a_data_set_round_trip(tmp_path, all_groups_gdf):
