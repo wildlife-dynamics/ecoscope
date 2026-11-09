@@ -1,6 +1,7 @@
+import pandas as pd
 import pytest
 
-from ecoscope.platform.data_sets import DataSetManifest, DataSetSchemaError
+from ecoscope.platform.data_sets import TABLE_TYPES, DataSetManifest, DataSetSchemaError, read_table, table_to_frame
 from ecoscope.platform.tasks.data_sets import gather_data_sets
 
 
@@ -39,3 +40,22 @@ def test_gather_is_discoverable_by_the_registry():
     from wt_registry import get_registry
 
     assert any(e.function_name == "gather_data_sets" for e in get_registry().values())
+
+
+def test_gather_validates_every_table_before_writing_any(tmp_path, patrol_legs_df):
+    with pytest.raises(DataSetSchemaError):
+        gather_data_sets(
+            data_set="p",
+            tables={"patrol_legs": patrol_legs_df, "patrol_events": pd.DataFrame({"x": [1]})},
+            root_path=str(tmp_path),
+        )
+    assert not list(tmp_path.glob("data_sets/*.arrow"))
+
+
+def test_gather_writes_a_columnless_empty_frame_from_the_registry_schema(tmp_path):
+    manifest = gather_data_sets(data_set="p", tables={"patrol_legs": pd.DataFrame()}, root_path=str(tmp_path))
+    assert manifest.tables["patrol_legs"].rows == 0
+    assert (tmp_path / "data_sets" / "patrol_legs.arrow").exists()
+    frame = table_to_frame(read_table(str(tmp_path), "patrol_legs", "1"), "patrol_legs")
+    assert len(frame) == 0
+    assert set(TABLE_TYPES["patrol_legs"].schema.names) <= set(frame.columns)

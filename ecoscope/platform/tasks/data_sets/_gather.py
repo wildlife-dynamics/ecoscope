@@ -45,12 +45,15 @@ def gather_data_sets(
     if unknown:
         raise DataSetSchemaError(f"unknown table type {unknown[0]!r}; known: {sorted(TABLE_TYPES)}")
 
-    entries = {}
+    converted = {}
     for table_type, df in tables.items():
         if df.empty and len(df.columns) == 0:
-            table = TABLE_TYPES[table_type].schema.empty_table()
+            converted[table_type] = TABLE_TYPES[table_type].schema.empty_table()
         else:
-            table = frame_to_table(df, table_type)
+            converted[table_type] = frame_to_table(df, table_type)
+
+    entries = {}
+    for table_type, table in converted.items():
         _, rows = write_table(table, root_path, table_type)
         entries[table_type] = DataSetTable(
             path=table_filename(table_type),
