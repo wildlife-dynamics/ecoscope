@@ -1,10 +1,14 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 import geoarrow.pyarrow as ga  # type: ignore[import-untyped]
+import geopandas as gpd  # type: ignore[import-untyped]
+import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
 from ecoscope.platform.annotations import CacheableModel
+from ecoscope.platform.serde import _get_path, _persist_bytes
 
 MANIFEST_FILENAME = "data_sets/manifest.json"
 
@@ -155,3 +159,37 @@ def validate_table(table: pa.Table, table_type: str, schema_version: str | None 
         raise DataSetSchemaError(
             f"{table_type} (schema_version {registered.schema_version}) failed validation; " + "; ".join(problems)
         )
+
+
+def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.Table:
+    if isinstance(df, gpd.GeoDataFrame):
+        table = pa.table(df.to_arrow(geometry_encoding="WKB", index=False))
+    else:
+        table = pa.Table.from_pandas(df, preserve_index=False)
+    validate_table(table, table_type)
+    return table
+
+
+def table_to_frame(table: pa.Table, table_type: str) -> pd.DataFrame | gpd.GeoDataFrame:
+    if TABLE_TYPES[table_type].spatial:
+        return gpd.GeoDataFrame.from_arrow(table)
+    return table.to_pandas()
+
+
+def write_table(table: pa.Table, root_path: str, table_type: str) -> tuple[str, int]:
+    filename = table_filename(table_type)
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_file(sink, table.schema) as writer:
+        writer.write_table(table)
+    write_path, _ = _get_path(root_path, filename)
+    if isinstance(write_path, Path):
+        write_path.parent.mkdir(parents=True, exist_ok=True)
+    read_path = _persist_bytes(sink.getvalue().to_pybytes(), root_path, filename)
+    return read_path, table.num_rows
+
+
+def read_table(root_path: str, table_type: str, schema_version: str) -> pa.Table:
+    write_path, _ = _get_path(root_path, table_filename(table_type))
+    table = pa.ipc.open_file(pa.BufferReader(write_path.read_bytes())).read_all()
+    validate_table(table, table_type, schema_version)
+    return table
