@@ -47,7 +47,7 @@ _F64 = pa.float64()
 
 
 def _geometry() -> pa.DataType:
-    return ga.wkb()
+    return ga.wkb().with_crs("EPSG:4326")
 
 
 def _table_type(name: str, fields: list[tuple[str, pa.DataType]], spatial: bool) -> TableType:
