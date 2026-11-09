@@ -52,6 +52,12 @@ def test_gather_validates_every_table_before_writing_any(tmp_path, patrol_legs_d
     assert not list(tmp_path.glob("data_sets/*.arrow"))
 
 
+def test_gather_writes_a_columnless_empty_spatial_frame_with_crs(tmp_path):
+    gather_data_sets(data_set="p", tables={"patrol_events": pd.DataFrame()}, root_path=str(tmp_path))
+    frame = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
+    assert len(frame) == 0 and frame.crs == "EPSG:4326"
+
+
 def test_gather_writes_a_columnless_empty_frame_from_the_registry_schema(tmp_path):
     manifest = gather_data_sets(data_set="p", tables={"patrol_legs": pd.DataFrame()}, root_path=str(tmp_path))
     assert manifest.tables["patrol_legs"].rows == 0
@@ -78,5 +84,6 @@ def test_gather_writes_a_skipped_step_as_an_empty_table(tmp_path, patrol_legs_df
     frame = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
     assert len(frame) == 0
     assert set(TABLE_TYPES["patrol_events"].schema.names) <= set(frame.columns)
+    assert frame.crs == "EPSG:4326"
     legs = table_to_frame(read_table(str(tmp_path), "patrol_legs", "1"), "patrol_legs")
     assert legs["patrol_id"].tolist() == patrol_legs_df["patrol_id"].tolist()

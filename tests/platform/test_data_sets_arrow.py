@@ -25,8 +25,11 @@ def test_all_null_geometry_round_trips(tmp_path, patrol_events_gdf):
     gdf = patrol_events_gdf.copy()
     gdf["geometry"] = None
     write_table(frame_to_table(gdf, "patrol_events"), str(tmp_path), "patrol_events")
-    back = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
+    raw = read_table(str(tmp_path), "patrol_events", "1")
+    assert raw.schema.field("geometry").type.extension_name == "geoarrow.wkb"
+    back = table_to_frame(raw, "patrol_events")
     assert back.geometry.isna().all()
+    assert back.crs == "EPSG:4326"
 
 
 def test_plain_dataframe_table_type_returns_dataframe(tmp_path, patrol_legs_df):

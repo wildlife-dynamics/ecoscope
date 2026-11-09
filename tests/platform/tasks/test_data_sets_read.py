@@ -53,6 +53,7 @@ def test_read_table_missing_manifest_names_type_and_root(tmp_path):
 def test_optional_read_returns_empty_frame_when_unbound(roots):
     gdf = read_data_set_table(data_set_roots=roots, table_type="spatial_feature_groups", optional=True)
     assert isinstance(gdf, gpd.GeoDataFrame) and len(gdf) == 0 and "pk" in gdf.columns
+    assert gdf.crs == "EPSG:4326"
 
 
 def test_optional_read_returns_plain_dataframe_for_non_spatial_type():
