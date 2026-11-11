@@ -196,7 +196,7 @@ def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.T
     conflicting value types and reads back as something other than what was written.
     """
     registered = get_table_type(table_type)
-    trees = [name for name in tree_columns(df) if name not in registered.schema.names]
+    trees = [name for name in tree_columns(df) if name not in registered.schema.names]  # type: ignore[arg-type]
     if trees:
         df = df.copy()
         for name in trees:
