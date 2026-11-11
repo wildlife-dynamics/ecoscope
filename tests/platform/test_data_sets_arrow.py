@@ -1,4 +1,5 @@
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pytest
@@ -57,6 +58,25 @@ def test_nested_extra_column_round_trips_as_written(tmp_path, patrol_events_gdf)
     assert back["details"].tolist() == details
     # What the step cache refused when Arrow handed nested cells back as arrays.
     assert decode_dataframe(encode_dataframe(back))["details"].tolist() == details
+
+
+def test_numpy_arrays_inside_a_nested_cell_are_stored_as_lists(tmp_path, patrol_events_gdf):
+    """GeoJSON read back from Parquet holds its coordinates as arrays."""
+    gdf = patrol_events_gdf.copy()
+    gdf["geojson"] = [
+        {"type": "Point", "coordinates": np.array([36.8, -1.3]), "n": np.int64(2)},
+        {"type": "Point", "coordinates": np.array([36.9, -1.4]), "n": np.int64(3)},
+        None,
+    ]
+    write_table(frame_to_table(gdf, "patrol_events"), str(tmp_path), "patrol_events")
+    back = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
+    assert back["geojson"].tolist() == [
+        {"type": "Point", "coordinates": [36.8, -1.3], "n": 2},
+        {"type": "Point", "coordinates": [36.9, -1.4], "n": 3},
+        None,
+    ]
+    # Lists, so the step cache takes the frame.
+    assert decode_dataframe(encode_dataframe(back))["geojson"].tolist() == back["geojson"].tolist()
 
 
 def test_registered_struct_column_stays_a_struct():
