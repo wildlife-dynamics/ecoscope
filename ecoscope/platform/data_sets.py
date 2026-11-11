@@ -5,6 +5,7 @@ from pathlib import Path, PurePosixPath
 
 import geoarrow.pyarrow as ga  # type: ignore[import-untyped]
 import geopandas as gpd  # type: ignore[import-untyped]
+import numpy as np
 import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
 from pydantic import BaseModel
@@ -186,14 +187,35 @@ def validate_table(table: pa.Table, table_type: str, schema_version: str | None 
         )
 
 
+def _plain(value: object) -> object:
+    """A nested cell with numpy arrays as lists and numpy scalars as Python ones.
+
+    Frames read back from Parquet or Arrow hold arrays where the source held lists
+    (GeoJSON coordinates, for one). The step cache refuses them because it must hand
+    back the same type; a data set table only has to carry the values.
+    """
+    if isinstance(value, np.ndarray):
+        return [_plain(v) for v in value.tolist()]
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, dict):
+        return {k: _plain(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_plain(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_plain(v) for v in value)
+    return value
+
+
 def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.Table:
     """Convert a frame to the Arrow table of its type, index dropped.
 
     Columns beyond the registered schema that hold a `list`, `tuple` or `dict`, or
     mix scalar types, are stored as JSON text the way the step cache stores them
     (`codecs.encode_cell`), and named in the schema metadata so `table_to_frame`
-    restores them. Arrow would otherwise infer a struct per column, which fails on
-    conflicting value types and reads back as something other than what was written.
+    restores them; a numpy array inside such a cell is stored as a list. Arrow would
+    otherwise infer a struct per column, which fails on conflicting value types and
+    reads back as something other than what was written.
     """
     registered = get_table_type(table_type)
     trees = [name for name in tree_columns(df) if name not in registered.schema.names]  # type: ignore[arg-type]
@@ -201,7 +223,7 @@ def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.T
         df = df.copy()
         for name in trees:
             try:
-                df[name] = [encode_cell(v) for v in df[name]]
+                df[name] = [encode_cell(_plain(v)) for v in df[name]]
             except UnencodableValue as e:
                 raise DataSetSchemaError(f"{table_type}: cannot store column {name!r}: {e}") from e
     try:
