@@ -26,7 +26,7 @@ def test_select_unknown_name_raises_with_available_names(all_groups_gdf):
 
 
 def test_select_on_unbound_groups_explains_the_binding(all_groups_gdf):
-    with pytest.raises(ValueError, match="Spatial feature groups data set bound"):
+    with pytest.raises(ValueError, match="the bound data set has none"):
         select_spatial_features_group(groups=all_groups_gdf.iloc[0:0], spatial_features_group_name="Sectors")
 
 
