@@ -1,7 +1,10 @@
 import geopandas as gpd
 import pandas as pd
+import pyarrow as pa
 import pytest
+from shapely.geometry import Point
 
+from ecoscope.platform.codecs import TREE_COLUMNS_KEY, decode_dataframe, encode_dataframe
 from ecoscope.platform.data_sets import (
     DataSetSchemaError,
     frame_to_table,
@@ -43,11 +46,53 @@ def test_frame_to_table_rejects_wrong_shape(patrol_legs_df):
         frame_to_table(patrol_legs_df, "patrol_events")
 
 
-def test_frame_to_table_wraps_conflicting_dict_value_types(patrol_events_gdf):
+def test_nested_extra_column_round_trips_as_written(tmp_path, patrol_events_gdf):
     gdf = patrol_events_gdf.copy()
-    gdf["details"] = [{"count": 1}, {"count": "3"}, {"count": 2}]
+    details = [{"count": 1, "tags": ["a", "b"]}, {"count": "3"}, None]
+    gdf["details"] = details
+    table = frame_to_table(gdf, "patrol_events")
+    assert table.schema.field("details").type == "string"
+    write_table(table, str(tmp_path), "patrol_events")
+    back = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
+    assert back["details"].tolist() == details
+    # What the step cache refused when Arrow handed nested cells back as arrays.
+    assert decode_dataframe(encode_dataframe(back))["details"].tolist() == details
+
+
+def test_registered_struct_column_stays_a_struct():
+    gdf = gpd.GeoDataFrame(
+        {
+            "pk": ["a"],
+            "name": ["North"],
+            "short_name": ["N"],
+            "feature_type": ["sector"],
+            "metadata": [{"id": "g1", "display_name": "Sectors"}],
+        },
+        geometry=[Point(36.8, -1.3)],
+        crs="EPSG:4326",
+    )
+    table = frame_to_table(gdf, "spatial_feature_groups")
+    assert pa.types.is_struct(table.schema.field("metadata").type)
+    assert TREE_COLUMNS_KEY not in (table.schema.metadata or {})
+
+
+def test_frame_to_table_wraps_a_cell_json_cannot_carry(patrol_events_gdf):
+    gdf = patrol_events_gdf.copy()
+    gdf["details"] = [{"when": pd.Timestamp("2025-01-01")}, {}, {}]
     with pytest.raises(DataSetSchemaError, match=r"patrol_events.*details"):
         frame_to_table(gdf, "patrol_events")
+
+
+def test_read_table_reads_the_path_it_is_given(tmp_path, patrol_legs_df):
+    write_table(frame_to_table(patrol_legs_df, "patrol_legs"), str(tmp_path), "patrol_legs")
+    (tmp_path / "data_sets" / "patrol_legs.arrow").rename(tmp_path / "legs.arrow")
+    assert read_table(str(tmp_path), "patrol_legs", "1", "legs.arrow").num_rows == len(patrol_legs_df)
+
+
+@pytest.mark.parametrize("path", ["/etc/passwd", "../other/patrol_legs.arrow"])
+def test_read_table_rejects_a_path_outside_the_root(tmp_path, path):
+    with pytest.raises(DataSetSchemaError, match="leaves the data set root"):
+        read_table(str(tmp_path), "patrol_legs", "1", path)
 
 
 def test_frame_to_table_wraps_plain_dataframe_for_spatial_type(patrol_events_gdf):

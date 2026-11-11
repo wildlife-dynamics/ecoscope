@@ -1,6 +1,7 @@
+import json
 import re
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import geoarrow.pyarrow as ga  # type: ignore[import-untyped]
 import geopandas as gpd  # type: ignore[import-untyped]
@@ -9,6 +10,14 @@ import pyarrow as pa  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
 from ecoscope.platform.annotations import CacheableModel
+from ecoscope.platform.codecs import (
+    TREE_COLUMNS_KEY,
+    UnencodableValue,
+    decode_cell,
+    encode_cell,
+    object_series,
+    tree_columns,
+)
 from ecoscope.platform.serde import _get_path, _persist_bytes
 
 MANIFEST_FILENAME = "data_sets/manifest.json"
@@ -36,9 +45,22 @@ class DataSetTable(BaseModel):
     schema_version: str
 
 
+# A key of `TABLE_TYPES`.
+TableTypeName = str
+
+
 class DataSetManifest(BaseModel, CacheableModel):
+    """What a data set run wrote: one entry per table, keyed by table type name.
+
+    The `TableType` itself is not here: its Arrow schema lives in `TABLE_TYPES`, the
+    one definition writer and reader both import, and `schema_version` says which
+    version of it the file was written with. Keys are not checked against the
+    registry, so a reader can take its table from a manifest that also lists a type
+    it does not know yet.
+    """
+
     data_set: str
-    tables: dict[str, DataSetTable]
+    tables: dict[TableTypeName, DataSetTable]
 
 
 _STR = pa.string()
@@ -165,6 +187,23 @@ def validate_table(table: pa.Table, table_type: str, schema_version: str | None 
 
 
 def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.Table:
+    """Convert a frame to the Arrow table of its type, index dropped.
+
+    Columns beyond the registered schema that hold a `list`, `tuple` or `dict`, or
+    mix scalar types, are stored as JSON text the way the step cache stores them
+    (`codecs.encode_cell`), and named in the schema metadata so `table_to_frame`
+    restores them. Arrow would otherwise infer a struct per column, which fails on
+    conflicting value types and reads back as something other than what was written.
+    """
+    registered = get_table_type(table_type)
+    trees = [name for name in tree_columns(df) if name not in registered.schema.names]
+    if trees:
+        df = df.copy()
+        for name in trees:
+            try:
+                df[name] = [encode_cell(v) for v in df[name]]
+            except UnencodableValue as e:
+                raise DataSetSchemaError(f"{table_type}: cannot store column {name!r}: {e}") from e
     try:
         if isinstance(df, gpd.GeoDataFrame):
             table = pa.table(df.to_arrow(geometry_encoding="WKB", index=False))
@@ -174,14 +213,20 @@ def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.T
         match = re.search(r"Conversion failed for column (\S+)", str(e))
         column = f" column {match.group(1)!r}" if match else ""
         raise DataSetSchemaError(f"{table_type}: cannot convert{column} to Arrow: {e}") from e
+    if trees:
+        table = table.replace_schema_metadata(
+            {**(table.schema.metadata or {}), TREE_COLUMNS_KEY: json.dumps(trees).encode()}
+        )
     validate_table(table, table_type)
     return table
 
 
 def table_to_frame(table: pa.Table, table_type: str) -> pd.DataFrame | gpd.GeoDataFrame:
-    if TABLE_TYPES[table_type].spatial:
-        return gpd.GeoDataFrame.from_arrow(table)
-    return table.to_pandas()
+    df = gpd.GeoDataFrame.from_arrow(table) if TABLE_TYPES[table_type].spatial else table.to_pandas()
+    if (raw := (table.schema.metadata or {}).get(TREE_COLUMNS_KEY)) is not None:
+        for name in json.loads(raw):
+            df[name] = object_series([decode_cell(v) for v in df[name]], df.index)
+    return df
 
 
 def write_table(table: pa.Table, root_path: str, table_type: str) -> tuple[str, int]:
@@ -196,12 +241,16 @@ def write_table(table: pa.Table, root_path: str, table_type: str) -> tuple[str, 
     return read_path, table.num_rows
 
 
-def read_table(root_path: str, table_type: str, schema_version: str) -> pa.Table:
-    write_path, _ = _get_path(root_path, table_filename(table_type))
+def read_table(root_path: str, table_type: str, schema_version: str, path: str | None = None) -> pa.Table:
+    """Read and validate one table; `path` is its manifest entry's, relative to the root."""
+    filename = table_filename(table_type) if path is None else path
+    if PurePosixPath(filename).is_absolute() or ".." in PurePosixPath(filename).parts:
+        raise DataSetSchemaError(f"{table_type}: table path {filename!r} leaves the data set root")
+    write_path, _ = _get_path(root_path, filename)
     try:
         data = write_path.read_bytes()
     except FileNotFoundError as e:
-        raise DataSetSchemaError(f"{table_type}: no table file {table_filename(table_type)} at {root_path!r}") from e
+        raise DataSetSchemaError(f"{table_type}: no table file {filename} at {root_path!r}") from e
     table = pa.ipc.open_file(pa.BufferReader(data)).read_all()
     validate_table(table, table_type, schema_version)
     return table
