@@ -50,23 +50,6 @@ def test_read_table_missing_manifest_names_type_and_root(tmp_path):
         read_data_set_table(data_set_roots=json.dumps({"patrol_legs": root}), table_type="patrol_legs")
 
 
-def test_optional_read_returns_empty_frame_when_unbound(roots):
-    gdf = read_data_set_table(data_set_roots=roots, table_type="spatial_feature_groups", optional=True)
-    assert isinstance(gdf, gpd.GeoDataFrame) and len(gdf) == 0 and "pk" in gdf.columns
-    assert gdf.crs == "EPSG:4326"
-
-
-def test_optional_read_returns_plain_dataframe_for_non_spatial_type():
-    df = read_data_set_table(data_set_roots="{}", table_type="patrol_legs", optional=True)
-    assert not isinstance(df, gpd.GeoDataFrame) and len(df) == 0 and "patrol_id" in df.columns
-
-
-def test_optional_read_still_raises_for_bound_root_without_manifest(tmp_path):
-    roots = json.dumps({"patrol_legs": str(tmp_path / "nope")})
-    with pytest.raises(DataSetSchemaError, match="no data set manifest"):
-        read_data_set_table(data_set_roots=roots, table_type="patrol_legs", optional=True)
-
-
 def test_read_table_rejects_non_object_roots():
     with pytest.raises(DataSetSchemaError, match="not a JSON object"):
         read_data_set_table(data_set_roots="[]", table_type="patrol_tracks")

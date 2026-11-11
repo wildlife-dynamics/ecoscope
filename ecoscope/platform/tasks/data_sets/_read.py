@@ -51,17 +51,12 @@ def read_data_set_table(
         Field(description="JSON map of table type to data set results root", exclude=True),
     ],
     table_type: Annotated[str, Field(description="The table type to read", exclude=True)],
-    optional: Annotated[
-        bool,
-        Field(description="Return an empty frame if the table type is not bound to a root", exclude=True),
-    ] = False,
 ) -> Annotated[AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty, Field()]:
     """Read one typed table from the data set results root bound to its table type.
 
     Args:
         data_set_roots: JSON map of table type to data set results root.
         table_type: The table type to read.
-        optional: Return an empty frame if the table type is absent from the map.
 
     Returns:
         A GeoDataFrame for spatial table types, otherwise a DataFrame.
@@ -73,11 +68,9 @@ def read_data_set_table(
     if not isinstance(roots, dict):
         raise DataSetSchemaError("ECOSCOPE_WORKFLOWS_DATA_SETS is not a JSON object")
 
-    registered = get_table_type(table_type)
+    get_table_type(table_type)
 
     if table_type not in roots:
-        if optional:
-            return table_to_frame(registered.schema.empty_table(), table_type)  # type: ignore[return-value]
         raise DataSetSchemaError(f"{table_type}: no data set bound; bound: {', '.join(sorted(roots))}")
 
     root = roots[table_type]
