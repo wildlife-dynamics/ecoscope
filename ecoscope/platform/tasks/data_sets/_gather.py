@@ -24,6 +24,9 @@ def _skipped_to_empty(df: Any) -> Any:
     return pd.DataFrame() if isinstance(df, SkipSentinel) else df
 
 
+# Tagged `no-cache`: the task exists for the files it writes into this run's results
+# folder. A hit would return the manifest without writing them, and the manifest
+# would name tables that are not there.
 @register(tags=["no-cache"])
 def gather_data_sets(
     data_set: Annotated[

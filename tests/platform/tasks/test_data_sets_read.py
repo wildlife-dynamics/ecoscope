@@ -94,6 +94,17 @@ def test_read_table_wraps_an_invalid_manifest(data_set_root):
         read_data_set_table(data_set_roots=json.dumps({"patrol_legs": data_set_root}), table_type="patrol_legs")
 
 
+def test_read_table_follows_the_manifest_path(data_set_root):
+    root = Path(data_set_root)
+    (root / "data_sets" / "patrol_legs.arrow").rename(root / "data_sets" / "legs-v1.arrow")
+    p = root / "data_sets" / "manifest.json"
+    m = json.loads(p.read_text())
+    m["tables"]["patrol_legs"]["path"] = "data_sets/legs-v1.arrow"
+    p.write_text(json.dumps(m))
+    df = read_data_set_table(data_set_roots=json.dumps({"patrol_legs": data_set_root}), table_type="patrol_legs")
+    assert len(df) > 0
+
+
 def test_read_table_wraps_a_missing_table_file(data_set_root):
     (Path(data_set_root) / "data_sets" / "patrol_legs.arrow").unlink()
     with pytest.raises(DataSetSchemaError, match=r"patrol_legs.*no table file.*" + Path(data_set_root).name):

@@ -86,5 +86,6 @@ def read_data_set_table(
         raise DataSetSchemaError(
             f"{table_type}: not in the data set at {root!r}; available: {', '.join(sorted(manifest.tables))}"
         )
-    table = read_table(root, table_type, manifest.tables[table_type].schema_version)
+    entry = manifest.tables[table_type]
+    table = read_table(root, table_type, entry.schema_version, entry.path)
     return table_to_frame(table, table_type)  # type: ignore[return-value]
