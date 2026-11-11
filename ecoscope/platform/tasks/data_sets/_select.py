@@ -24,7 +24,7 @@ def select_spatial_features_group(
     if not spatial_features_group_name:
         return cast(EmptyDataFrame, groups.iloc[0:0])
     if groups.empty:
-        raise ValueError("Spatial groupers need a Spatial feature groups data set bound to this output.")
+        raise ValueError("Spatial groupers need spatial feature groups; the bound data set has none.")
     names = groups["metadata"].map(lambda m: m["display_name"])
     if spatial_features_group_name not in set(names):
         raise ValueError(
