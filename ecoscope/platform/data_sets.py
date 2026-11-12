@@ -290,16 +290,15 @@ def write_table(table: pa.Table, root_path: str, table_id: str) -> tuple[str, in
     return read_path, table.num_rows
 
 
-def read_table(root_path: str, table_type: str, schema_version: str, path: str | None = None) -> pa.Table:
+def read_table(root_path: str, table_type: str, schema_version: str, path: str) -> pa.Table:
     """Read and validate one table; `path` is its manifest entry's, relative to the root."""
-    filename = table_filename(table_type) if path is None else path
-    if PurePosixPath(filename).is_absolute() or ".." in PurePosixPath(filename).parts:
-        raise DataSetSchemaError(f"{table_type}: table path {filename!r} leaves the data set root")
-    write_path, _ = _get_path(root_path, filename)
+    if PurePosixPath(path).is_absolute() or ".." in PurePosixPath(path).parts:
+        raise DataSetSchemaError(f"{table_type}: table path {path!r} leaves the data set root")
+    write_path, _ = _get_path(root_path, path)
     try:
         data = write_path.read_bytes()
     except FileNotFoundError as e:
-        raise DataSetSchemaError(f"{table_type}: no table file {filename} at {root_path!r}") from e
+        raise DataSetSchemaError(f"{table_type}: no table file {path} at {root_path!r}") from e
     table = pa.ipc.open_file(pa.BufferReader(data)).read_all()
     validate_table(table, table_type, schema_version)
     return table
