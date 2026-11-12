@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import geopandas as gpd
+import pytest
 from shapely.geometry import Point
 
 from ecoscope.io.earthranger import EarthRangerIO
@@ -54,3 +55,36 @@ def test_get_spatial_features_groups_skips_empty_groups_and_handles_no_groups():
     ):
         assert er.get_spatial_features_groups() == []
     single.assert_not_called()
+
+
+def _collection(crs=True):
+    fc = {
+        "type": "FeatureCollection",
+        "features": [{"type": "Feature", "properties": {}, "geometry": {"type": "Point", "coordinates": [1, 1]}}],
+    }
+    if crs:
+        fc["crs"] = {"type": "name", "properties": {"name": "EPSG:4326"}}
+    return fc
+
+
+def test_get_spatial_features_groups_skips_a_group_it_cannot_read():
+    er = _io()
+    responses = {
+        "spatialfeaturegroup": [
+            {"id": "good", "name": "Blocks", "feature_count": 1},
+            {"id": "hollow", "name": "Hollow", "feature_count": 3},
+            {"id": "no-crs", "name": "No CRS"},
+        ],
+        "spatialfeaturegroup/good/": {"id": "good", "name": "Blocks", "features": [_collection()]},
+        "spatialfeaturegroup/hollow/": {"id": "hollow", "name": "Hollow", "features": []},
+        "spatialfeaturegroup/no-crs/": {"id": "no-crs", "name": "No CRS", "features": [_collection(crs=False)]},
+    }
+    with patch.object(EarthRangerIO, "_get", side_effect=lambda path, **kw: responses[path]):
+        with pytest.warns(UserWarning) as caught:
+            groups = er.get_spatial_features_groups()
+
+    assert [g["id"] for g in groups] == ["good"]
+    assert len(groups[0]["features"]) == 1
+    messages = [str(w.message) for w in caught]
+    assert any("Hollow" in m for m in messages)
+    assert any("No CRS" in m for m in messages)
