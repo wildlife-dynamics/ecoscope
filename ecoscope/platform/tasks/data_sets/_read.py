@@ -86,7 +86,9 @@ def read_data_set_table(
         raise DataSetSchemaError(f"{name}: no data set bound; bound: {', '.join(sorted(roots))}")
 
     bound = roots[name]
-    root, table_id = (bound["url"], bound.get("table_id", name)) if isinstance(bound, dict) else (bound, name)
+    root, table_id = (bound.get("url"), bound.get("table_id", name)) if isinstance(bound, dict) else (bound, name)
+    if not isinstance(root, str) or not isinstance(table_id, str):
+        raise DataSetSchemaError(f"{name}: a binding is a results root or {{url, table_id}}, not {bound!r}")
     manifest = _read_manifest(root, name)
     if table_id not in manifest.tables:
         raise DataSetSchemaError(

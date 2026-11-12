@@ -163,3 +163,9 @@ def test_a_manifest_from_before_table_ids_still_reads(data_set_root):
     p.write_text(json.dumps(m))
     df = read_data_set_table(data_set_roots=json.dumps({"patrol_legs": data_set_root}), table_type="patrol_legs")
     assert len(df) == 2
+
+
+@pytest.mark.parametrize("bound", [None, 3, {"table_id": "patrol_legs"}, {"url": None}, {"url": "x", "table_id": 1}])
+def test_read_refuses_a_binding_that_is_not_a_root_or_a_url_and_table(bound):
+    with pytest.raises(DataSetSchemaError, match="patrol_legs: a binding is a results root or"):
+        read_data_set_table(data_set_roots=json.dumps({"patrol_legs": bound}), table_type="patrol_legs")
