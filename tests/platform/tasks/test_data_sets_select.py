@@ -8,6 +8,11 @@ from ecoscope.platform.schemas import RegionsGDFSchema
 from ecoscope.platform.tasks.data_sets import gather_data_sets, read_data_set_table, select_spatial_features_group
 
 
+def typed(tables):
+    """Each frame as a table named after its type."""
+    return {k: {"table_type": k, "frame": v} for k, v in tables.items()}
+
+
 @pytest.fixture
 def all_groups_gdf():
     path = Path(tasks_io.__file__).parent / "get-spatial-features-groups.example-return.parquet"
@@ -36,9 +41,11 @@ def test_select_with_no_name_returns_empty_frame(all_groups_gdf):
 
 
 def test_select_works_on_a_data_set_round_trip(tmp_path, all_groups_gdf):
-    gather_data_sets(data_set="spatial", tables={"spatial_feature_groups": all_groups_gdf}, root_path=str(tmp_path))
+    gather_data_sets(
+        data_set="spatial", tables=typed({"spatial_feature_groups": all_groups_gdf}), root_path=str(tmp_path)
+    )
     roots = f'{{"spatial_feature_groups": "{tmp_path}"}}'
-    groups = read_data_set_table(data_set_roots=roots, table_type="spatial_feature_groups")
+    groups = read_data_set_table(data_set_roots=roots, table_id="spatial_feature_groups")
     out = select_spatial_features_group(groups=groups, spatial_features_group_name="Sectors")
     assert len(out) == 2
     RegionsGDFSchema.validate(out)

@@ -8,7 +8,7 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from ecoscope.platform.annotations import CacheableModel
 from ecoscope.platform.codecs import (
@@ -24,8 +24,14 @@ from ecoscope.platform.serde import _get_path, _persist_bytes
 MANIFEST_FILENAME = "data_sets/manifest.json"
 
 
-def table_filename(table_type: str) -> str:
-    return f"data_sets/{table_type}.arrow"
+_TABLE_ID = re.compile(r"[a-z0-9][a-z0-9_]*")
+
+
+def table_filename(table_id: str) -> str:
+    """Where a data set keeps the table with this id; the id is the file's stem."""
+    if not _TABLE_ID.fullmatch(table_id):
+        raise DataSetSchemaError(f"table id {table_id!r} must be lowercase letters, digits and underscores")
+    return f"data_sets/{table_id}.arrow"
 
 
 class DataSetSchemaError(ValueError):
@@ -40,28 +46,49 @@ class TableType:
     spatial: bool
 
 
+# A key of `TABLE_TYPES`.
+TableTypeName = str
+# What one table is called inside its data set. Several tables of one data set may
+# share a type; their ids tell them apart. Where a data set has one table of a type,
+# the id is by convention the type's name.
+TableId = str
+
+
 class DataSetTable(BaseModel):
+    table_type: TableTypeName
     path: str
     rows: int
     schema_version: str
 
 
-# A key of `TABLE_TYPES`.
-TableTypeName = str
-
-
 class DataSetManifest(BaseModel, CacheableModel):
-    """What a data set run wrote: one entry per table, keyed by table type name.
+    """What a data set run wrote: one entry per table, keyed by table id.
 
-    The `TableType` itself is not here: its Arrow schema lives in `TABLE_TYPES`, the
-    one definition writer and reader both import, and `schema_version` says which
-    version of it the file was written with. Keys are not checked against the
-    registry, so a reader can take its table from a manifest that also lists a type
-    it does not know yet.
+    Each entry names its table type. The `TableType` itself is not here: its Arrow
+    schema lives in `TABLE_TYPES`, the one definition writer and reader both import,
+    and `schema_version` says which version of it the file was written with. Types
+    are not checked against the registry, so a reader can take its table from a
+    manifest that also lists a type it does not know yet.
+
+    A manifest written before tables had ids is keyed by type name and its entries
+    carry no `table_type`; such an entry is read as a table whose id is its type.
     """
 
     data_set: str
-    tables: dict[TableTypeName, DataSetTable]
+    tables: dict[TableId, DataSetTable]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _type_defaults_to_id(cls, data: object) -> object:
+        if isinstance(data, dict) and isinstance(data.get("tables"), dict):
+            data = {
+                **data,
+                "tables": {
+                    table_id: {"table_type": table_id, **entry} if isinstance(entry, dict) else entry
+                    for table_id, entry in data["tables"].items()
+                },
+            }
+        return data
 
 
 _STR = pa.string()
@@ -251,8 +278,8 @@ def table_to_frame(table: pa.Table, table_type: str) -> pd.DataFrame | gpd.GeoDa
     return df
 
 
-def write_table(table: pa.Table, root_path: str, table_type: str) -> tuple[str, int]:
-    filename = table_filename(table_type)
+def write_table(table: pa.Table, root_path: str, table_id: str) -> tuple[str, int]:
+    filename = table_filename(table_id)
     sink = pa.BufferOutputStream()
     with pa.ipc.new_file(sink, table.schema) as writer:
         writer.write_table(table)

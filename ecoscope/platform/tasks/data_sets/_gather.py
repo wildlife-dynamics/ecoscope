@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import pandas as pd
-from pydantic import Field
+from pydantic import BeforeValidator, Field
+from typing_extensions import TypedDict
 from wt_registry import register
 from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
@@ -24,6 +25,19 @@ def _skipped_to_empty(df: Any) -> Any:
     return pd.DataFrame() if isinstance(df, SkipSentinel) else df
 
 
+class GatherTable(TypedDict):
+    """One table of a data set: its registered type and the frame holding its rows."""
+
+    table_type: str
+    # A skipped step is written as an empty table. Both spellings: the task framework
+    # reads the first, plain validation of the nested value the second.
+    frame: Annotated[
+        AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty,
+        SkippedDependencyFallback(_skipped_to_empty),
+        BeforeValidator(_skipped_to_empty),
+    ]
+
+
 # Tagged `no-cache`: the task exists for the files it writes into this run's results
 # folder. A hit would return the manifest without writing them, and the manifest
 # would name tables that are not there.
@@ -34,11 +48,8 @@ def gather_data_sets(
         Field(description="The dataset output key (outputs/<key>.yaml), e.g. patrols", exclude=True),
     ],
     tables: Annotated[
-        dict[
-            str,
-            Annotated[AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty, SkippedDependencyFallback(_skipped_to_empty)],
-        ],
-        Field(description="Table type to frame; a skipped step is written as an empty table", exclude=True),
+        dict[str, GatherTable],
+        Field(description="Table id to its table type and frame", exclude=True),
     ],
     root_path: Annotated[str, Field(exclude=True)],
 ) -> Annotated[DataSetManifest, Field()]:
@@ -46,28 +57,33 @@ def gather_data_sets(
 
     Args:
         data_set: The dataset output key.
-        tables: Mapping of table type to the frame holding its rows.
+        tables: Mapping of table id to `{table_type, frame}`. Two tables may share a
+            type; where a data set has one table of a type, name it after the type.
         root_path: The results folder.
 
     Returns:
         The manifest describing the written tables.
     """
     manifest_path, _ = _get_path(root_path, MANIFEST_FILENAME)
-    for table_type in tables:
-        get_table_type(table_type)
+    for table_id, entry in tables.items():
+        table_filename(table_id)
+        get_table_type(entry["table_type"])
 
     converted = {}
-    for table_type, df in tables.items():
+    for table_id, entry in tables.items():
+        table_type, df = entry["table_type"], entry["frame"]
         if df.empty and len(df.columns) == 0:
-            converted[table_type] = TABLE_TYPES[table_type].schema.empty_table()
+            converted[table_id] = TABLE_TYPES[table_type].schema.empty_table()
         else:
-            converted[table_type] = frame_to_table(df, table_type)
+            converted[table_id] = frame_to_table(df, table_type)
 
     entries = {}
-    for table_type, table in converted.items():
-        _, rows = write_table(table, root_path, table_type)
-        entries[table_type] = DataSetTable(
-            path=table_filename(table_type),
+    for table_id, table in converted.items():
+        _, rows = write_table(table, root_path, table_id)
+        table_type = tables[table_id]["table_type"]
+        entries[table_id] = DataSetTable(
+            table_type=table_type,
+            path=table_filename(table_id),
             rows=rows,
             schema_version=TABLE_TYPES[table_type].schema_version,
         )

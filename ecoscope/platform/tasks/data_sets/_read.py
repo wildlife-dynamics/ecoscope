@@ -48,15 +48,25 @@ def read_data_set_manifest(
 def read_data_set_table(
     data_set_roots: Annotated[
         str,
-        Field(description="JSON map of table type to data set results root", exclude=True),
+        Field(description="JSON map of table id to where the bound table is", exclude=True),
     ],
-    table_type: Annotated[str, Field(description="The table type to read", exclude=True)],
+    table_id: Annotated[str, Field(description="What this workflow calls the table it reads", exclude=True)],
+    table_type: Annotated[
+        str | None,
+        Field(description="The table type this workflow expects; defaults to the table id", exclude=True),
+    ] = None,
 ) -> Annotated[AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty, Field()]:
-    """Read one typed table from the data set results root bound to its table type.
+    """Read the typed table bound to one of this workflow's table ids.
+
+    A workflow names each table it reads and says which type it must be. What it is
+    bound to is matched by type, not by name: the map gives, per table id, either the
+    results root of a data set whose table has the same id, or `{"url": root,
+    "table_id": id}` naming another table of that data set.
 
     Args:
-        data_set_roots: JSON map of table type to data set results root.
-        table_type: The table type to read.
+        data_set_roots: JSON map of this workflow's table ids to bound tables.
+        table_id: The table to read, as this workflow names it.
+        table_type: The type the table must have. Defaults to `table_id`.
 
     Returns:
         A GeoDataFrame for spatial table types, otherwise a DataFrame.
@@ -68,17 +78,25 @@ def read_data_set_table(
     if not isinstance(roots, dict):
         raise DataSetSchemaError("ECOSCOPE_WORKFLOWS_DATA_SETS is not a JSON object")
 
-    get_table_type(table_type)
+    expected = table_type or table_id
+    get_table_type(expected)
 
-    if table_type not in roots:
-        raise DataSetSchemaError(f"{table_type}: no data set bound; bound: {', '.join(sorted(roots))}")
+    if table_id not in roots:
+        raise DataSetSchemaError(f"{table_id}: no data set bound; bound: {', '.join(sorted(roots))}")
 
-    root = roots[table_type]
-    manifest = _read_manifest(root, table_type)
-    if table_type not in manifest.tables:
+    bound = roots[table_id]
+    root, source_id = (bound["url"], bound.get("table_id", table_id)) if isinstance(bound, dict) else (bound, table_id)
+    manifest = _read_manifest(root, table_id)
+    if source_id not in manifest.tables:
         raise DataSetSchemaError(
-            f"{table_type}: not in the data set at {root!r}; available: {', '.join(sorted(manifest.tables))}"
+            f"{table_id}: no table {source_id!r} in the data set at {root!r}; "
+            f"available: {', '.join(sorted(manifest.tables))}"
         )
-    entry = manifest.tables[table_type]
-    table = read_table(root, table_type, entry.schema_version, entry.path)
-    return table_to_frame(table, table_type)  # type: ignore[return-value]
+    entry = manifest.tables[source_id]
+    if entry.table_type != expected:
+        raise DataSetSchemaError(
+            f"{table_id}: expected a {expected} table, but {source_id!r} in the data set at {root!r} "
+            f"is a {entry.table_type} table"
+        )
+    table = read_table(root, expected, entry.schema_version, entry.path)
+    return table_to_frame(table, expected)  # type: ignore[return-value]
