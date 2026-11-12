@@ -170,7 +170,7 @@ class ExportArgs(BaseModel):
     config: ExportConfig = ExportConfig()
 
 
-class PlotlyJsonSpec(BaseModel):
+class PlotlyJsonSpec(BaseModel, CacheableModel):
     """Loose schema for a Plotly figure JSON spec, as produced by ``go.Figure.to_json()``."""
 
     model_config = ConfigDict(extra="allow")
