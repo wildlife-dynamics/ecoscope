@@ -2,6 +2,7 @@ import datetime
 import json
 import math
 import typing
+import warnings
 from contextlib import contextmanager
 from typing import Any, Literal
 
@@ -1392,13 +1393,19 @@ class EarthRangerIO(ERClient):
         -------
         A list of dicts shaped like `get_spatial_features_group(..., with_group_data=True)`: the group data
         and a "features" field containing a GDF of the features within the group. Groups with no features
-        are omitted.
+        are omitted, and so is a group whose features cannot be read (no features returned, or no CRS),
+        with a warning, so that one malformed group does not fail the whole listing.
         """
         groups = []
         for sfg in self._get("spatialfeaturegroup"):
             if sfg.get("feature_count") == 0:
                 continue
-            groups.append(self.get_spatial_features_group(spatial_features_group_id=sfg["id"], with_group_data=True))
+            try:
+                group = self.get_spatial_features_group(spatial_features_group_id=sfg["id"], with_group_data=True)
+            except (ValueError, KeyError) as exc:
+                warnings.warn(f"Skipping spatial feature group {sfg.get('name')!r} ({sfg['id']}): {exc}")
+                continue
+            groups.append(group)
         return groups
 
     def get_spatial_feature(self, spatial_feature_id: str | None = None, **addl_kwargs) -> gpd.GeoDataFrame:
