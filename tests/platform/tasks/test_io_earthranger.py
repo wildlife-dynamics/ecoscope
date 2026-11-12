@@ -2087,6 +2087,38 @@ def test_resolve_event_details_nested_subform_enums():
     assert resolved["my_list"] == [{"Status": "Okay"}]
 
 
+def test_resolve_event_details_numpy_arrays():
+    """Arrow-backed details carry numpy arrays where the ER API serves lists."""
+    import numpy as np
+
+    schema = {
+        "properties": {
+            "tags": {"type": "array", "items": {"enumNames": {"t1": "Tag 1"}}},
+            "my_list": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "status": {"title": "Status", "enumNames": {"ok": "Okay"}},
+                        "codes": {"title": "Codes", "items": {"enumNames": {"c1": "Code 1"}}},
+                    },
+                },
+            },
+        },
+        "ordered_keys": ["tags", "my_list"],
+    }
+    details = {
+        "tags": np.array(["t1", "t2"], dtype=object),
+        "my_list": np.array([{"status": "ok", "codes": np.array(["c1"], dtype=object)}], dtype=object),
+    }
+
+    resolved = _resolve_event_details(details, schema)
+    assert resolved == {
+        "tags": ["Tag 1", "t2"],
+        "my_list": [{"Status": "Okay", "Codes": ["Code 1"]}],
+    }
+
+
 # ---------------------------------------------------------------------------
 # _normalize_v1_schema tests
 # ---------------------------------------------------------------------------

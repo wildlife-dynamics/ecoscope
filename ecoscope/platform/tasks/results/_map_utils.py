@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame, CacheableModel
 from ecoscope.platform.serde import _persist_bytes, _read_path_if_file_exists
 from ecoscope.platform.tasks.io._persist import _hash_df
 
@@ -58,7 +58,7 @@ DEFAULT_TILE_LAYER_PRESETS = {
 }
 
 
-class TileLayer(BaseModel):
+class TileLayer(BaseModel, CacheableModel):
     """A tiled raster layer loaded on-demand from a URL template (e.g., base maps)."""
 
     layer_name: SkipJsonSchema[str] = ""
@@ -94,9 +94,11 @@ class TileLayer(BaseModel):
     @field_validator("layer_name", mode="before")
     def _tile_layer_name_from_string(v: Any):
         if isinstance(v, str):
-            for layer_name in DEFAULT_TILE_LAYER_PRESETS.keys():
-                if layer_name == v:
-                    return v
+            # "" is this field's own default and the sentinel for a custom-URL
+            # layer, which `set_url` below already leaves alone. Rejecting it
+            # left a custom layer unable to validate its own `model_dump`.
+            if v == "" or v in DEFAULT_TILE_LAYER_PRESETS:
+                return v
             raise ValueError(
                 f"String input must match one of: {[layer_name for layer_name in DEFAULT_TILE_LAYER_PRESETS.keys()]}"
             )
@@ -292,7 +294,7 @@ def _stringify_mixed_json(df):
 GEOARROW_FILENAME_PREFIX = "geoarrow_"
 
 
-@register()
+@register(tags=["no-cache"])
 def persist_geoarrow_for_pydeck(
     gdf: Annotated[AnyGeoDataFrame, Field(description="GeoDataframe to persist as GeoArrow-encoded parquet")],
     root_path: Annotated[str, Field(description="Root path to persist parquet to")],

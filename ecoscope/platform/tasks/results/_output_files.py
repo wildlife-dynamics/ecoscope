@@ -3,10 +3,11 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 from wt_registry import register
 
+from ecoscope.platform.annotations import CacheableModel
 from ecoscope.platform.indexes import CompositeFilter
 
 
-class OutputFiles(BaseModel):
+class OutputFiles(BaseModel, CacheableModel):
     files: list[str | list[tuple[CompositeFilter, str]]]
 
 

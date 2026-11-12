@@ -406,6 +406,117 @@ def test_persist_df_wrapper_sanitize_geodataframe_with_repeat_index(tmp_path):
     assert [g.equals(e) for g, e in zip(written["geometry"], gdf["geometry"])] == [True] * 3
 
 
+def test_hash_df_filenames_are_pinned():
+    """Content-addressed persist filenames must not drift unintentionally.
+
+    `_hash_df` now truncates `codecs.digest_dataframe`, which is shared with the
+    step cache; widening or reordering what that digest covers renames every
+    content-addressed result file. That is a decision, so pin it: update these
+    literals deliberately, and only together with the reason.
+    """
+    df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+    gdf = gpd.GeoDataFrame({"a": [1]}, geometry=[Point(0, 0)], crs="EPSG:4326")
+
+    assert _hash_df(df) == "2af484c"
+    assert _hash_df(gdf) == "abb8f29"
+
+
+def test_hash_df_stays_seven_characters():
+    """The truncation is a filename property, not a content-identity one.
+
+    `digest_dataframe` is a full sha256 because the cache keys on it; the name
+    keeps the width it has always had.
+    """
+    from ecoscope.platform.codecs import digest_dataframe
+
+    df = pd.DataFrame({"a": [1]})
+    assert len(_hash_df(df)) == 7
+    assert digest_dataframe(df).startswith(_hash_df(df))
+    assert len(digest_dataframe(df)) == 64
+
+
+def test_persist_tasks_agree_on_one_frame_hash(tmp_path):
+    """`persist_df` and `persist_geoarrow_for_pydeck` name the same gdf alike.
+
+    Only the `geoarrow_` prefix tells the two encodings apart, so they have to
+    be hashing the same thing for that to mean anything.
+    """
+    from ecoscope.platform.tasks.results._map_utils import (
+        GEOARROW_FILENAME_PREFIX,
+        persist_geoarrow_for_pydeck,
+    )
+
+    gdf = gpd.GeoDataFrame({"a": [1, 2]}, geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:4326")
+    root_path = str(tmp_path / "test")
+
+    plain = Path(persist_df(gdf, root_path, None, "geoparquet")).name
+    geoarrow = Path(persist_geoarrow_for_pydeck(gdf, root_path)).name
+
+    assert plain == f"{_hash_df(gdf)}.parquet"
+    assert geoarrow == f"{GEOARROW_FILENAME_PREFIX}{_hash_df(gdf)}.parquet"
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        "persist_text",
+        "persist_json",
+        "persist_df",
+        "persist_df_wrapper",
+        "persist_grouped_dfs_for_results_download",
+    ],
+)
+def test_persist_tasks_are_tagged_no_cache(task):
+    """Their return is a path; a cache hit would skip the write that makes it true.
+
+    A misspelled tag is dropped silently by the compiler, so assert the exact
+    string rather than trusting the decorator was written correctly.
+    """
+    from wt_registry import get_registry
+
+    import ecoscope.platform.tasks  # noqa: F401  # populates the registry
+
+    entry = get_registry()[f"ecoscope.platform.tasks.io._persist.{task}"]
+    assert "no-cache" in entry.metadata.tags
+
+
+@pytest.mark.parametrize("payload", ["=7*7", "+1+1", "-1+1", "@SUM(1+9)", "\t=1", "\r=1"])
+def test_persist_df_csv_neutralizes_formulas(tmp_path, payload):
+    """Finding 2130332: formula-like strings must not be live formulas in the CSV."""
+    df = pd.DataFrame({f"{payload}col": [payload], "n": [-5]}, index=pd.Index([payload], name=f"{payload}idx"))
+    dst = persist_df(df, str(tmp_path / "test"), "out", "csv")
+
+    df_read = pd.read_csv(dst, index_col=0, keep_default_na=False)
+    assert df_read.index.name == f"'{payload}idx"
+    assert df_read.index[0] == f"'{payload}"
+    assert list(df_read.columns) == [f"'{payload}col", "n"]
+    assert df_read.iloc[0, 0] == f"'{payload}"
+    # Numeric columns are untouched, negative or not.
+    assert df_read["n"].iloc[0] == -5
+
+
+def test_persist_df_csv_quotes_every_field(tmp_path):
+    df = pd.DataFrame({"title": ['say "hi"', "plain"], "n": [1, 2]})
+    dst = persist_df(df, str(tmp_path / "test"), "out", "csv")
+
+    lines = Path(dst).read_text().splitlines()
+    assert lines[0] == '"","title","n"'
+    assert lines[1] == '"0","say ""hi""","1"'
+
+
+def test_persist_df_csv_leaves_safe_strings_and_input_alone(tmp_path):
+    df = pd.DataFrame({"title": ["Elephant sighting", "a=b", None], "cat": pd.Categorical(["=x", "y", "y"])})
+    original = df.copy()
+    dst = persist_df(df, str(tmp_path / "test"), "out", "csv")
+
+    df_read = pd.read_csv(dst, index_col=0)
+    assert df_read["title"].iloc[0] == "Elephant sighting"
+    assert df_read["title"].iloc[1] == "a=b"
+    assert pd.isna(df_read["title"].iloc[2])
+    assert list(df_read["cat"]) == ["'=x", "y", "y"]
+    pd.testing.assert_frame_equal(df, original)
+
+
 @pytest.fixture
 def abc_df():
     return pd.DataFrame({"A": [1, 2], "B": ["x", "y"], "C": [0.1, 0.2]})

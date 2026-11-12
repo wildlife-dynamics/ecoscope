@@ -17,7 +17,7 @@ repos:
       - id: nbstripout
         args: ["--extra-keys", "metadata.colab metadata.vscode cell.metadata.colab cell.metadata.executionInfo cell.metadata.id cell.metadata.outputId", "--strip-empty-cells"]
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.1.0
+    rev: v2.4.3
     hooks:
     - id: codespell
       files: ^.*\.(py|md|rst|ipynb)$

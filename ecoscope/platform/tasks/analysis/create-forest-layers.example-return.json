@@ -1,0 +1,23 @@
+{
+    "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+    "bounds": [
+        36.95,
+        -0.45,
+        37.45,
+        0.05
+    ],
+    "opacity": 1.0,
+    "legend": {
+        "title": "Forest Change",
+        "values": [
+            {
+                "label": "Forest Cover",
+                "color": "rgba(35, 111, 33, 1)"
+            },
+            {
+                "label": "Forest Loss",
+                "color": "rgba(255, 0, 0, 1)"
+            }
+        ]
+    }
+}

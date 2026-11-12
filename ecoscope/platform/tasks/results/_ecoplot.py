@@ -7,6 +7,7 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import (
     AdvancedField,
+    CacheableModel,
     DataFrame,
     JsonSerializableDataFrameModel,
 )
@@ -79,7 +80,7 @@ class AxisStyle(BaseModel):
     ] = None
 
 
-class PlotStyle(BaseModel):
+class PlotStyle(BaseModel, CacheableModel):
     xperiodalignment: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     marker_colors: Annotated[list[str] | SkipJsonSchema[None], AdvancedField(default=None)] = None
     textinfo: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
@@ -104,6 +105,9 @@ class GroupedPlotStyle(BaseModel):
     plot_style: Annotated[PlotCategoryStyle, AdvancedField(default=PlotCategoryStyle())] = PlotCategoryStyle()
 
 
+# The bounds sit on the float arm rather than on the union: applied to the
+# whole `float | None` they reject the model's own dumped `None`, so the
+# model cannot read back what it just wrote.
 class LayoutStyle(BaseModel):
     font_size: Annotated[float | SkipJsonSchema[None], AdvancedField(default=None)] = None
     font_color: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
@@ -113,15 +117,27 @@ class LayoutStyle(BaseModel):
     hovermode: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     legend_title: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
     title: Annotated[str | SkipJsonSchema[None], AdvancedField(default=None)] = None
-    title_x: Annotated[float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)] = None
-    title_y: Annotated[float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)] = None
+    title_x: Annotated[
+        Annotated[float, Field(ge=0.0, le=1.0)] | SkipJsonSchema[None],
+        AdvancedField(default=None),
+    ] = None
+    title_y: Annotated[
+        Annotated[float, Field(ge=0.0, le=1.0)] | SkipJsonSchema[None],
+        AdvancedField(default=None),
+    ] = None
     xaxis: Annotated[AxisStyle | SkipJsonSchema[None], AdvancedField(default=None)] = None
     yaxis: Annotated[AxisStyle | SkipJsonSchema[None], AdvancedField(default=None)] = None
 
 
-class BarLayoutStyle(LayoutStyle):
-    bargap: Annotated[float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)] = None
-    bargroupgap: Annotated[float | SkipJsonSchema[None], AdvancedField(ge=0.0, le=1.0, default=None)] = None
+class BarLayoutStyle(LayoutStyle, CacheableModel):
+    bargap: Annotated[
+        Annotated[float, Field(ge=0.0, le=1.0)] | SkipJsonSchema[None],
+        AdvancedField(default=None),
+    ] = None
+    bargroupgap: Annotated[
+        Annotated[float, Field(ge=0.0, le=1.0)] | SkipJsonSchema[None],
+        AdvancedField(default=None),
+    ] = None
 
 
 class ExportConfig(BaseModel):
