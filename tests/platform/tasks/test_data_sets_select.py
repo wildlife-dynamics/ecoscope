@@ -45,7 +45,7 @@ def test_select_works_on_a_data_set_round_trip(tmp_path, all_groups_gdf):
         data_set="spatial", tables=typed({"spatial_feature_groups": all_groups_gdf}), root_path=str(tmp_path)
     )
     roots = f'{{"spatial_feature_groups": "{tmp_path}"}}'
-    groups = read_data_set_table(data_set_roots=roots, table_id="spatial_feature_groups")
+    groups = read_data_set_table(data_set_roots=roots, table_type="spatial_feature_groups")
     out = select_spatial_features_group(groups=groups, spatial_features_group_name="Sectors")
     assert len(out) == 2
     RegionsGDFSchema.validate(out)
