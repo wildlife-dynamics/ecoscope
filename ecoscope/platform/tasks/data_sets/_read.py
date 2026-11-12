@@ -48,25 +48,26 @@ def read_data_set_manifest(
 def read_data_set_table(
     data_set_roots: Annotated[
         str,
-        Field(description="JSON map of table id to where the bound table is", exclude=True),
+        Field(description="JSON map of binding name to the table bound to it", exclude=True),
     ],
-    table_id: Annotated[str, Field(description="What this workflow calls the table it reads", exclude=True)],
-    table_type: Annotated[
+    table_type: Annotated[str, Field(description="The table type this step needs", exclude=True)],
+    binding: Annotated[
         str | None,
-        Field(description="The table type this workflow expects; defaults to the table id", exclude=True),
+        Field(description="The binding's name in the map; defaults to the table type", exclude=True),
     ] = None,
 ) -> Annotated[AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty, Field()]:
-    """Read the typed table bound to one of this workflow's table ids.
+    """Read the table bound to this step.
 
-    A workflow names each table it reads and says which type it must be. What it is
-    bound to is matched by type, not by name: the map gives, per table id, either the
-    results root of a data set whose table has the same id, or `{"url": root,
-    "table_id": id}` naming another table of that data set.
+    A workflow says only which type of table it needs. Which table of which data set
+    feeds it is decided at run time, in the map: per binding name, `{"url": the data
+    set's results root, "table_id": the table's id there}`, or a bare root when the
+    table's id is the binding's name. The binding is named after the table type unless
+    a workflow reads two tables of one type and names them apart.
 
     Args:
-        data_set_roots: JSON map of this workflow's table ids to bound tables.
-        table_id: The table to read, as this workflow names it.
-        table_type: The type the table must have. Defaults to `table_id`.
+        data_set_roots: JSON map of binding names to bound tables.
+        table_type: The type the bound table must have.
+        binding: The binding's name in the map. Defaults to `table_type`.
 
     Returns:
         A GeoDataFrame for spatial table types, otherwise a DataFrame.
@@ -78,25 +79,25 @@ def read_data_set_table(
     if not isinstance(roots, dict):
         raise DataSetSchemaError("ECOSCOPE_WORKFLOWS_DATA_SETS is not a JSON object")
 
-    expected = table_type or table_id
-    get_table_type(expected)
+    get_table_type(table_type)
+    name = binding or table_type
 
-    if table_id not in roots:
-        raise DataSetSchemaError(f"{table_id}: no data set bound; bound: {', '.join(sorted(roots))}")
+    if name not in roots:
+        raise DataSetSchemaError(f"{name}: no data set bound; bound: {', '.join(sorted(roots))}")
 
-    bound = roots[table_id]
-    root, source_id = (bound["url"], bound.get("table_id", table_id)) if isinstance(bound, dict) else (bound, table_id)
-    manifest = _read_manifest(root, table_id)
-    if source_id not in manifest.tables:
+    bound = roots[name]
+    root, table_id = (bound["url"], bound.get("table_id", name)) if isinstance(bound, dict) else (bound, name)
+    manifest = _read_manifest(root, name)
+    if table_id not in manifest.tables:
         raise DataSetSchemaError(
-            f"{table_id}: no table {source_id!r} in the data set at {root!r}; "
+            f"{name}: no table {table_id!r} in the data set at {root!r}; "
             f"available: {', '.join(sorted(manifest.tables))}"
         )
-    entry = manifest.tables[source_id]
-    if entry.table_type != expected:
+    entry = manifest.tables[table_id]
+    if entry.table_type != table_type:
         raise DataSetSchemaError(
-            f"{table_id}: expected a {expected} table, but {source_id!r} in the data set at {root!r} "
+            f"{name}: expected a {table_type} table, but {table_id!r} in the data set at {root!r} "
             f"is a {entry.table_type} table"
         )
-    table = read_table(root, expected, entry.schema_version, entry.path)
-    return table_to_frame(table, expected)  # type: ignore[return-value]
+    table = read_table(root, table_type, entry.schema_version, entry.path)
+    return table_to_frame(table, table_type)  # type: ignore[return-value]
