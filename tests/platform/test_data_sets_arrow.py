@@ -10,6 +10,7 @@ from ecoscope.platform.data_sets import (
     DataSetSchemaError,
     frame_to_table,
     read_table,
+    table_filename,
     table_to_frame,
     write_table,
 )
@@ -19,7 +20,9 @@ def test_geodataframe_round_trips_with_tz_aware_timestamps(tmp_path, patrol_even
     table = frame_to_table(patrol_events_gdf, "patrol_events")
     read_path, rows = write_table(table, str(tmp_path), "patrol_events")
     assert rows == len(patrol_events_gdf) and read_path.endswith("data_sets/patrol_events.arrow")
-    back = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
+    back = table_to_frame(
+        read_table(str(tmp_path), "patrol_events", "1", table_filename("patrol_events")), "patrol_events"
+    )
     assert isinstance(back, gpd.GeoDataFrame)
     assert str(back["time"].dt.tz) == str(patrol_events_gdf["time"].dt.tz)
     assert back.geometry.equals(patrol_events_gdf.geometry.reset_index(drop=True))
@@ -29,7 +32,7 @@ def test_all_null_geometry_round_trips(tmp_path, patrol_events_gdf):
     gdf = patrol_events_gdf.copy()
     gdf["geometry"] = None
     write_table(frame_to_table(gdf, "patrol_events"), str(tmp_path), "patrol_events")
-    raw = read_table(str(tmp_path), "patrol_events", "1")
+    raw = read_table(str(tmp_path), "patrol_events", "1", table_filename("patrol_events"))
     assert raw.schema.field("geometry").type.extension_name == "geoarrow.wkb"
     back = table_to_frame(raw, "patrol_events")
     assert back.geometry.isna().all()
@@ -38,7 +41,7 @@ def test_all_null_geometry_round_trips(tmp_path, patrol_events_gdf):
 
 def test_plain_dataframe_table_type_returns_dataframe(tmp_path, patrol_legs_df):
     write_table(frame_to_table(patrol_legs_df, "patrol_legs"), str(tmp_path), "patrol_legs")
-    back = table_to_frame(read_table(str(tmp_path), "patrol_legs", "1"), "patrol_legs")
+    back = table_to_frame(read_table(str(tmp_path), "patrol_legs", "1", table_filename("patrol_legs")), "patrol_legs")
     assert type(back) is pd.DataFrame and list(back.columns) == list(patrol_legs_df.columns)
 
 
@@ -54,7 +57,9 @@ def test_nested_extra_column_round_trips_as_written(tmp_path, patrol_events_gdf)
     table = frame_to_table(gdf, "patrol_events")
     assert table.schema.field("details").type == "string"
     write_table(table, str(tmp_path), "patrol_events")
-    back = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
+    back = table_to_frame(
+        read_table(str(tmp_path), "patrol_events", "1", table_filename("patrol_events")), "patrol_events"
+    )
     assert back["details"].tolist() == details
     # What the step cache refused when Arrow handed nested cells back as arrays.
     assert decode_dataframe(encode_dataframe(back))["details"].tolist() == details
@@ -69,7 +74,9 @@ def test_numpy_arrays_inside_a_nested_cell_are_stored_as_lists(tmp_path, patrol_
         None,
     ]
     write_table(frame_to_table(gdf, "patrol_events"), str(tmp_path), "patrol_events")
-    back = table_to_frame(read_table(str(tmp_path), "patrol_events", "1"), "patrol_events")
+    back = table_to_frame(
+        read_table(str(tmp_path), "patrol_events", "1", table_filename("patrol_events")), "patrol_events"
+    )
     assert back["geojson"].tolist() == [
         {"type": "Point", "coordinates": [36.8, -1.3], "n": 2},
         {"type": "Point", "coordinates": [36.9, -1.4], "n": 3},
