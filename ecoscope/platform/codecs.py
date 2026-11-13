@@ -151,7 +151,7 @@ def digest_dataframe(df: AnyDataFrame) -> str:
     return digest.hexdigest()
 
 
-def _tree_columns(df: AnyDataFrame) -> list[str]:
+def tree_columns(df: AnyDataFrame) -> list[str]:
     """Object columns Arrow cannot carry faithfully.
 
     Those holding a `list`, `tuple` or `dict` in any cell: one rule for all
@@ -216,15 +216,15 @@ def _cell_from_json(node: dict[str, Any]) -> Any:
     return {k: _cell_from_json(n) for k, n in node["v"].items()}
 
 
-def _encode_cell(value: Any) -> str:
+def encode_cell(value: Any) -> str:
     return json.dumps(_cell_to_json(value))
 
 
-def _decode_cell(text: str) -> Any:
+def decode_cell(text: str) -> Any:
     return _cell_from_json(json.loads(text))
 
 
-def _object_series(values: list[Any], index: Any) -> pd.Series:
+def object_series(values: list[Any], index: Any) -> pd.Series:
     """Build an object-dtype Series without pandas unpacking the sequences."""
     import numpy as np
     import pandas as pd
@@ -248,13 +248,13 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
     """
     import geopandas as gpd  # type: ignore[import-untyped]
 
-    trees = _tree_columns(df)
+    trees = tree_columns(df)
     offsets = _fixed_offset_columns(df)
     if trees:
         df = df.copy()
         for name in trees:
             column = df[name]
-            df[name] = [_encode_cell(v) for v in column]
+            df[name] = [encode_cell(v) for v in column]
 
     buffer = io.BytesIO()
     if has_geometry(df):
@@ -304,7 +304,7 @@ def decode_dataframe(data: bytes) -> pd.DataFrame:
     metadata = pq.read_schema(io.BytesIO(data)).metadata or {}
     if (raw := metadata.get(TREE_COLUMNS_KEY)) is not None:
         for name in json.loads(raw):
-            df[name] = _object_series([_decode_cell(v) for v in df[name]], df.index)
+            df[name] = object_series([decode_cell(v) for v in df[name]], df.index)
     if (raw := metadata.get(FIXED_OFFSET_COLUMNS_KEY)) is not None:
         for name, (seconds, tz_name) in json.loads(raw).items():
             df[name] = df[name].dt.tz_convert(_restore_timezone(seconds, tz_name))

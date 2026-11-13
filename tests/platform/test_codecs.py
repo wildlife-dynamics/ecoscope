@@ -587,6 +587,10 @@ REQUIRED_FIELDS: dict[str, dict] = {
         "views": [{"@@type": "MapView"}],
     },
     "Coordinate": {"x": 1.5, "y": -2.5},
+    "DataSetManifest": {
+        "data_set": "ds",
+        "tables": {"events": {"path": "events.parquet", "rows": 1, "schema_version": "1"}},
+    },
     "TileLayer": {"layer_name": "TERRAIN"},
     "CustomMetric": {"display_name": "Total", "aggregator": "sum", "column": "distance"},
 }
