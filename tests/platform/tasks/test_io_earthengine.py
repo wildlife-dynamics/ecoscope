@@ -190,6 +190,39 @@ def test_calculate_ndvi_range_mask_water(client, ndvi_method):
     assert masked["NDVI"].mean() > unmasked["NDVI"].mean()
 
 
+@pytest.mark.parametrize(
+    "ndvi_method",
+    ["MODIS MYD13A1 16-Day Composite", "MODIS MCD43A4 Daily NBAR"],
+)
+def test_create_ndvi_tile_mask_water(client, ndvi_method):
+    """Masking water raises the bottom of the NDVI map's legend range over Lake Edward.
+
+    Open water has NDVI near or below zero, so without the mask it sets the legend
+    minimum; with the mask the minimum comes from land pixels only.
+    """
+    from shapely.geometry import box
+
+    from ecoscope.platform.tasks.analysis import create_ndvi_tile
+
+    roi = gpd.GeoDataFrame({"name": ["lake_edward"], "geometry": [box(29.3, -0.7, 29.95, 0.0)]}, crs="EPSG:4326")
+    kwargs = dict(
+        client=client,
+        roi=roi,
+        time_range=TimeRange(
+            since=datetime(2023, 1, 1, tzinfo=timezone.utc),
+            until=datetime(2023, 3, 31, tzinfo=timezone.utc),
+            timezone=UTC_TIMEZONEINFO,
+        ),
+        ndvi_method=ndvi_method,
+    )
+    unmasked = create_ndvi_tile(**kwargs, mask_water=False)
+    masked = create_ndvi_tile(**kwargs, mask_water=True)
+
+    assert masked.image.startswith("data:image/png;base64,")
+    assert masked.bounds == unmasked.bounds
+    assert float(masked.legend.values[0].label) > float(unmasked.legend.values[0].label)
+
+
 def test_determine_season_windows(client):
     example_input_df_path = files("ecoscope.platform.tasks.io") / "download-roi.example-return.parquet"
     roi = gpd.read_parquet(example_input_df_path).loc[["Mara / Serengeti"]].reset_index(drop=True)

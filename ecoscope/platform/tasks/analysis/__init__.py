@@ -24,6 +24,7 @@ from ._encounter_rate_grid import calculate_encounter_rate_grid
 from ._hansen_forest_change import create_forest_layers, extract_forest_cover_trends
 from ._low_effort_mask import drop_inactive_grid_cells, mask_low_effort_cells
 from ._mcp import calculate_minimum_convex_polygon
+from ._ndvi_tile import create_ndvi_tile
 from ._patrol_density import set_patrol_weighting_spec
 from ._patrol_summary import (
     set_encounter_rate_metrics,
@@ -76,6 +77,7 @@ __all__ = [
     "calculate_minimum_convex_polygon",
     "create_forest_layers",
     "create_meshgrid",
+    "create_ndvi_tile",
     "dataframe_column_first_unique",
     "dataframe_column_max",
     "dataframe_column_mean",
