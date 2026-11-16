@@ -38,8 +38,11 @@ def test_create_meshgrid_aligned(aoi_gdf):
         aoi, in_crs="EPSG:4326", out_crs=out_crs, xlen=100000, ylen=100000, align_to_existing=aoi_gdf
     )
 
-    assert len(mesh) == 4
-    assert mesh.intersects(aoi_gdf.to_crs(out_crs).dissolve().iloc[0]["geometry"]).all()
+    existing = aoi_gdf.to_crs(out_crs)
+    # Grid starts on the existing min corner, so no cells merely touch the aoi edge
+    assert list(mesh.total_bounds[:2]) == pytest.approx(list(existing.total_bounds[:2]))
+    assert len(mesh) == 3
+    assert (mesh.intersection(existing.dissolve().iloc[0]["geometry"]).area > 0).all()
 
 
 def test_groupby_intervals(movebank_relocations):

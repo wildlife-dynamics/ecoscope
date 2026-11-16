@@ -11,6 +11,7 @@ from wt_registry import register
 from ecoscope.platform.annotations import (
     AdvancedField,
     AnyGeoDataFrame,
+    CacheableModel,
     DataFrame,
     JsonSerializableDataFrameModel,
 )
@@ -27,7 +28,7 @@ class TimeDensityReturnGDFSchema(JsonSerializableDataFrameModel):
 TimeDensityReturnGDF: TypeAlias = DataFrame[TimeDensityReturnGDFSchema]
 
 
-class AutoScaleGridCellSize(BaseModel):
+class AutoScaleGridCellSize(BaseModel, CacheableModel):
     model_config = ConfigDict(json_schema_extra={"title": "Auto-scale"})
     auto_scale_or_custom: Annotated[
         Literal["Auto-scale"],
@@ -38,7 +39,7 @@ class AutoScaleGridCellSize(BaseModel):
     ] = "Auto-scale"
 
 
-class CustomGridCellSize(BaseModel):
+class CustomGridCellSize(BaseModel, CacheableModel):
     model_config = ConfigDict(json_schema_extra={"title": "Customize"})
     auto_scale_or_custom: Annotated[
         Literal["Customize"],
@@ -58,10 +59,10 @@ class CustomGridCellSize(BaseModel):
             ),
             gt=0,
             lt=10000,
-            default=5000,
+            default=5000.0,
             json_schema_extra={"exclusiveMinimum": 0, "exclusiveMaximum": 10000},
         ),
-    ] = 5000
+    ] = 5000.0
 
 
 def _coerce_percentile_strings_to_floats(list: list):
@@ -142,6 +143,22 @@ EtdPercentileAnnotation: TypeAlias = Annotated[
         description="Choose the time density percentile bins to display.",
         title="Percentile Levels",
         json_schema_extra={"uniqueItems": True, "minItems": 1},
+    ),
+    AfterValidator(_coerce_percentile_strings_to_floats),
+]
+
+
+# `EtdPercentileAnnotation` with its default in validated (float) form, since
+# pydantic doesn't validate defaults and the step cache needs dump-then-revalidate
+# to be a no-op. Separate because the shared alias is also used on dataclass
+# fields, whose schema default would change.
+EtdCachedPercentileAnnotation: TypeAlias = Annotated[
+    list[UDPercentiles] | SkipJsonSchema[list[float]] | SkipJsonSchema[None],
+    AdvancedField(
+        default=_coerce_percentile_strings_to_floats(ETD_DEFAULT_PERCENTILES),
+        description="Choose the time density percentile bins to display.",
+        title="Percentile Levels",
+        json_schema_extra={"uniqueItems": True, "minItems": 1, "default": ETD_DEFAULT_PERCENTILES},
     ),
     AfterValidator(_coerce_percentile_strings_to_floats),
 ]

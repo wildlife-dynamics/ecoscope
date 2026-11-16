@@ -105,6 +105,38 @@ def map_values_with_unit(
     return df
 
 
+@register()
+def format_numeric_columns(
+    df: AnyDataFrame,
+    columns: Annotated[list[str], Field(description="The numeric columns to format in place.")],
+    decimal_places: Annotated[
+        int,
+        AdvancedField(default=2, description="The number of decimal places to display."),
+    ] = 2,
+    raise_if_not_found: Annotated[
+        bool,
+        AdvancedField(default=False, description="Whether to raise when a listed column is absent."),
+    ] = False,
+) -> AnyDataFrame:
+    """Rewrite each listed numeric column in place as a fixed-decimal string (`f"{v:.{n}f}"`),
+    so a map tooltip or table shows exactly `decimal_places` decimals. NaN becomes "". A listed
+    column that is absent is skipped (or raises a KeyError when `raise_if_not_found`); a listed
+    column that is not numeric is left unchanged. Row order and index are preserved.
+    """
+    import pandas as pd
+    from pandas.api.types import is_numeric_dtype
+
+    missing = [c for c in columns if c not in df.columns]
+    if missing and raise_if_not_found:
+        raise KeyError(f"Columns not found: {missing}")
+    df = df.copy()
+    for column in columns:
+        if column in missing or not is_numeric_dtype(df[column]):
+            continue
+        df[column] = ["" if pd.isna(v) else f"{v:.{decimal_places}f}" for v in df[column]]
+    return cast(AnyDataFrame, df)
+
+
 RenameDuplicateStrategy = Literal["suffix", "skip", "overwrite", "error"]
 
 

@@ -89,3 +89,19 @@ def test_display_name_copy_keeps_slug_when_legs_empty_or_unnamed():
     for legs in (named_legs.iloc[0:0], named_legs.drop(columns=["patrol_type__value"])):
         out = add_patrol_type_display_from_legs(df, legs)
         assert out["patrol_type"].tolist() == ["routine"] and out["patrol_type__value"].tolist() == ["routine"]
+
+
+def test_display_name_copy_builds_patrol_type_when_frame_has_only_the_value_column():
+    # warehouse track frames carry the slug in patrol_type__value and no patrol_type at all
+    df = pd.DataFrame({"patrol_type__value": ["routine", "anti_poaching", "unknown", None]}, index=[7, 8, 9, 10])
+    out = add_patrol_type_display_from_legs(df, named_legs)
+    assert list(out.index) == [7, 8, 9, 10]
+    assert out["patrol_type"].tolist() == ["Routine Patrol", "Anti-Poaching", "unknown", None]
+    assert out["patrol_type__value"].tolist() == ["routine", "anti_poaching", "unknown", None]
+    assert "patrol_type" not in df.columns
+    for legs in (named_legs.iloc[0:0], named_legs.drop(columns=["patrol_type__value"])):
+        assert add_patrol_type_display_from_legs(df, legs)["patrol_type"].tolist()[:3] == [
+            "routine",
+            "anti_poaching",
+            "unknown",
+        ]

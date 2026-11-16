@@ -9,17 +9,18 @@ from ecoscope.platform.annotations import (
     AdvancedField,
     AnyDataFrame,
     AnyGeoDataFrame,
+    CacheableModel,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class Coordinate(BaseModel):
+class Coordinate(BaseModel, CacheableModel):
     y: Annotated[float, Field(title="Latitude", description="Example -0.15293")]
     x: Annotated[float, Field(title="Longitude", description="Example 37.30906")]
 
 
-class BoundingBox(BaseModel):
+class BoundingBox(BaseModel, CacheableModel):
     min_y: Annotated[float, AdvancedField(default=-90.0, title="Min Latitude")] = -90.0
     max_y: Annotated[float, AdvancedField(default=90.0, title="Max Latitude")] = 90.0
     min_x: Annotated[float, AdvancedField(default=-180.0, title="Min Longitude")] = -180.0

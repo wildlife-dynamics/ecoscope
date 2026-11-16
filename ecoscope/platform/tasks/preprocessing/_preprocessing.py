@@ -5,7 +5,7 @@ from pydantic import AfterValidator, BaseModel, Field, model_serializer, model_v
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
-from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyGeoDataFrame, CacheableModel
 from ecoscope.platform.schemas import (
     PatrolObservationsGDF,
     SubjectGroupObservationsGDF,
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from ecoscope.trajectory import TrajSegFilter
 
 
-class TrajectorySegmentFilter(BaseModel):
+class TrajectorySegmentFilter(BaseModel, CacheableModel):
     min_length_meters: Annotated[
         float,
         AdvancedField(

@@ -315,7 +315,9 @@ def patrol_segments_from_patrols_df(
             for key, col in _OPTIONAL_LEG_COLUMNS.items():
                 if key in segment:
                     value = segment[key]
-                    if key.endswith("_details") and value is not None:
+                    # The ER API serves details as dicts; the warehouse already serves
+                    # them as JSON strings, which must not be encoded a second time.
+                    if key.endswith("_details") and value is not None and not isinstance(value, str):
                         value = json.dumps(value)
                     leg[col] = value
             rows.append(leg)
@@ -332,6 +334,20 @@ def patrol_segments_from_patrols_df(
     is_earliest = legs.index == legs.groupby("patrol_id")["segment_start"].transform("idxmin")
     legs.loc[~is_earliest, "patrol_elapsed_seconds"] = float("nan")
     return legs
+
+
+def _reduce_warehouse_segment_refs(segment: dict) -> None:
+    """Reduce a warehouse segment's resolved ``team`` / ``members`` / ``assets`` to ids, in place.
+
+    Keys the warehouse did not serve are left absent, as on an ER site without the
+    ``patrol_schemas`` flag; a null struct becomes ``None`` and a null roster an empty list.
+    """
+    if "team" in segment:
+        team = segment["team"]
+        segment["team"] = team.get("id") if isinstance(team, dict) else team
+    for key in ("members", "assets"):
+        if key in segment:
+            segment[key] = [m.get("id") if isinstance(m, dict) else m for m in segment[key] or []]
 
 
 def _synthesize_event_geojson(event: dict) -> dict:
@@ -386,7 +402,11 @@ def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
     - the warehouse serves the leader's ``leader_id`` and resolved ``leader_name``, so
       ``leader = {"id": <leader_id>, "name": <leader_name>}`` and ``patrol_subject``
       populates in ``unpack_events_from_patrols_df`` (``name`` is ``None`` when the
-      leader is absent or unresolved).
+      leader is absent or unresolved);
+    - the warehouse serves ``team`` as a resolved struct and ``members`` / ``assets``
+      as lists of resolved subject structs, where the ER API serves bare ids; they are
+      reduced to those ids so ``patrol_segments_from_patrols_df`` and the name-resolving
+      tasks see one shape (``add_patrol_team_names`` otherwise fails hashing a dict).
     """
     records = table.to_pylist()
     for patrol in records:
@@ -396,6 +416,7 @@ def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
                 "end_time": segment.get("time_range_end"),
             }
             segment["leader"] = {"id": segment.get("leader_id"), "name": segment.get("leader_name")}
+            _reduce_warehouse_segment_refs(segment)
             for event in segment.get("events") or []:
                 event["geojson"] = _synthesize_event_geojson(event)
     return pd.DataFrame(records)

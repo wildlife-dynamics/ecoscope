@@ -64,12 +64,16 @@ def add_patrol_type_display_from_legs(
     frame stores the type's UUID in `patrol_type` and the slug in `patrol_type__value`), else
     from `patrol_type`, which is then copied into `patrol_type__value`. `patrol_type` becomes
     the display name; slugs the leg frame does not carry become the slug, which is also what
-    every row gets when the leg frame is empty or lacks the two columns. A frame without
-    `patrol_type` is returned unchanged. Row count, order and index are preserved.
+    every row gets when the leg frame is empty or lacks the two columns. A frame with only
+    `patrol_type__value` (warehouse track frames carry no `patrol_type`) gets `patrol_type`
+    built from it. A frame with neither column is returned unchanged. Row count, order and
+    index are preserved.
     """
-    if "patrol_type" not in df.columns:
+    if "patrol_type" not in df.columns and "patrol_type__value" not in df.columns:
         return df
     df = df.copy()
+    if "patrol_type" not in df.columns:
+        df["patrol_type"] = df["patrol_type__value"]
     lookup: dict = {}
     if not legs.empty and {"patrol_type", "patrol_type__value"} <= set(legs.columns):
         named = legs[["patrol_type__value", "patrol_type"]].dropna().drop_duplicates("patrol_type__value")
