@@ -569,6 +569,139 @@ def pie_chart(
     return fig
 
 
+def _ring_label(value) -> str | None:
+    """A ring value as slice text; missing or "" ends the path (None). 2020.0 -> "2020", since
+    pandas stores a whole-number column that has a missing value as floats."""
+    if pd.isna(value) or value == "":
+        return None
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def _lump_to_top_n(
+    data: pd.DataFrame, parents: list[str], ring: str, size: pd.Series, top_n: int, pinned: set
+) -> tuple[pd.Series, set[str]]:
+    """The ring's values with all but the top_n largest per parent (pinned values aside) as
+    "Other (k values)", and the "Other" labels made. A single leftover value keeps its own
+    slice: an "Other" holding one value would hide its label without saving any room."""
+    groups = [data[p] for p in parents] if parents else [pd.Series(0, index=data.index)]
+    lumped, others = data[ring].copy(), set()
+    for _, idx in data.groupby(groups, dropna=False).groups.items():
+        sub = data.loc[idx, ring]
+        totals = size.loc[idx].groupby(sub).sum()
+        ranked = sorted((v for v in totals.index if v not in pinned), key=lambda v: (-totals[v], v))
+        rest = ranked[top_n:]
+        if len(rest) > 1:
+            label = f"Other ({len(rest)} values)"
+            lumped.loc[sub.index[sub.isin(rest)]] = label
+            others.add(label)
+    return lumped, others
+
+
+def _path_id(path: tuple[str, ...]) -> str:
+    """A slice id: the path joined by "/", with "/" (and "\\") inside values escaped so
+    "x/y" and x -> y stay two slices."""
+    return "/".join(part.replace("\\", "\\\\").replace("/", "\\/") for part in path)
+
+
+def sunburst_chart(
+    data: pd.DataFrame,
+    ring_columns: list[str],
+    value_column: str | None = None,
+    color_column: str | None = None,
+    palette: list[str] | None = None,
+    top_n: int | None = None,
+    pinned_values: list[str] | None = None,
+    other_color: str = "#c9c7c0",
+    style_kwargs: dict | None = None,
+    layout_kwargs: dict | None = None,
+) -> go.Figure:
+    """
+    Creates a sunburst chart from the provided dataframe
+    Parameters
+    ----------
+    data: pd.Dataframe
+        The data to plot, one row per record
+    ring_columns: list[str]
+        The columns drawn as rings, inside out. Values are shown as text, so 1 and "1" are
+        one slice. A missing value (or "") ends that record's path: it adds no slice in
+        that ring or any ring outside it
+    value_column: str
+        A numeric column summed for each slice's size; missing values count as 0.
+        If not set, each record counts once
+    color_column: str
+        A column of colours for the inner ring's values (RGBA tuples or css strings);
+        the first colour seen for a value is used. Outer slices take their inner ring's colour
+    palette: list[str]
+        Css colours cycled over the inner ring's values; ignored if color_column is set
+    top_n: int
+        Keep the top_n largest slices within each parent and merge the rest into "Other (k values)",
+        when two or more are left over
+    pinned_values: list[str]
+        Values never merged into "Other" and not counted towards top_n
+    other_color: str
+        The colour of "Other" slices
+    style_kwargs: dict
+        Additional style kwargs passed to go.Sunburst()
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly sunburst chart
+    """
+    # a fresh index: top_n lumping looks rows up by index label, which a duplicated index breaks
+    data = data.reset_index(drop=True)
+    for ring in ring_columns:
+        data[ring] = data[ring].map(_ring_label)
+    data = data.dropna(subset=ring_columns[:1])
+    if data.empty:
+        return go.Figure(layout=layout_kwargs)
+
+    size = data[value_column].fillna(0) if value_column else pd.Series(1, index=data.index)
+    others: list[set[str]] = [set() for _ in ring_columns]
+    if top_n is not None:
+        pinned = {_ring_label(v) for v in pinned_values or []}  # compared as text, like the rings
+        for depth, ring in enumerate(ring_columns):
+            data[ring], others[depth] = _lump_to_top_n(data, ring_columns[:depth], ring, size, top_n, pinned)
+
+    inner_colors: dict = {}
+    if color_column:
+        firsts = data.groupby(ring_columns[0], sort=False)[color_column].first()
+        inner_colors = {v: c if isinstance(c, str) else color_tuple_to_css(c) for v, c in firsts.items()}
+    elif palette:
+        inner = data[ring_columns[0]].unique()
+        inner_colors = {v: palette[i % len(palette)] for i, v in enumerate(inner)}
+
+    ids, labels, parents, values, colors = [], [], [], [], []
+    for depth in range(len(ring_columns)):
+        path_columns = ring_columns[: depth + 1]
+        rows = data[path_columns].notna().all(axis=1)
+        totals = size[rows].groupby([data.loc[rows, c] for c in path_columns], sort=False).sum()
+        for path, value in totals.items():
+            path = path if isinstance(path, tuple) else (path,)
+            ids.append(_path_id(path))
+            parents.append(_path_id(path[:-1]))
+            labels.append(path[-1])
+            values.append(value)
+            in_other = any(part in others[d] for d, part in enumerate(path))
+            colors.append(other_color if in_other else inner_colors.get(path[0], ""))
+
+    trace_kwargs = {
+        "branchvalues": "total",
+        "textinfo": "label+percent parent",
+        "hovertemplate": "<b>%{label}</b><br>%{value}<br>%{percentParent:.1%} of %{parent}"
+        "<br>%{percentRoot:.1%} of total<extra></extra>",
+        **(style_kwargs or {}),
+    }
+    fig = go.Figure(
+        data=go.Sunburst(ids=ids, labels=labels, parents=parents, values=values, marker_colors=colors, **trace_kwargs),
+        layout=layout_kwargs,
+    )
+    return fig
+
+
 def draw_historic_timeseries(
     df: pd.DataFrame,
     current_value_column: str,

@@ -19,6 +19,7 @@ from ecoscope.platform.tasks.results._ecoplot import (
     draw_pie_chart,
     draw_time_series_bar_chart,
 )
+from ecoscope.platform.tasks.results._sunburst import SunburstStyle, draw_sunburst_chart
 
 
 @pytest.fixture
@@ -308,3 +309,37 @@ def test_draw_historic_timeseries(widget_id, historic_dataframe):
     assert isinstance(plot, str)
     if widget_id:
         assert widget_id in plot
+
+
+@pytest.mark.parametrize("widget_id", ["THIS IS A TEST ID", None])
+def test_draw_sunburst_chart(widget_id, pie_dataframe):
+    plot = draw_sunburst_chart(
+        pie_dataframe,
+        ring_columns=["category"],
+        value_column="value",
+        palette="Set2",
+        top_n=2,
+        plot_style=SunburstStyle(insidetextorientation="radial", maxdepth=2),
+        layout_style=LayoutStyle(title="t"),
+        widget_id=widget_id,
+    )
+
+    assert isinstance(plot, str)
+    assert "sunburst" in plot
+    if widget_id:
+        assert widget_id in plot
+
+
+def test_draw_sunburst_chart_color_column_wins_over_palette(pie_dataframe):
+    plot = draw_sunburst_chart(
+        pie_dataframe, ring_columns=["category"], color_column="color_column", palette=["#123456"]
+    )
+
+    assert "rgba(255, 0, 0, 1.0)" in plot
+    assert "#123456" not in plot
+
+
+def test_sunburst_style_round_trip():
+    style = SunburstStyle(rotation=90, sort=False)
+
+    assert SunburstStyle.model_validate(style.model_dump()) == style
