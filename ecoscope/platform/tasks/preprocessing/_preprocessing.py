@@ -1,7 +1,7 @@
 from collections import Counter
 from typing import TYPE_CHECKING, Annotated
 
-from pydantic import AfterValidator, BaseModel, Field, model_serializer, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -74,17 +74,9 @@ class TrajectorySegmentFilter(BaseModel, CacheableModel):
     ] = 500
     # Provenance only (e.g. which named preset produced these bounds); not a user-facing
     # field, so it's excluded from the schema and from the core TrajSegFilter translation.
-    preset: SkipJsonSchema[str | None] = None
-
-    @model_serializer(mode="wrap")
-    def _drop_unset_preset(self, handler):
-        # `SkipJsonSchema` only hides `preset` from $defs; the field-level `default` on
-        # `trajectory_segment_filter` (serialized from `TrajectorySegmentFilter()`) would
-        # otherwise still surface a `"preset": null` that has no corresponding property.
-        dumped = handler(self)
-        if dumped.get("preset") is None:
-            dumped.pop("preset", None)
-        return dumped
+    # Dropped from dumps when unset: schema defaults are serialized instances, and a
+    # `"preset": null` there would have no matching property.
+    preset: SkipJsonSchema[str | None] = Field(default=None, exclude_if=lambda v: v is None)
 
     @model_validator(mode="after")
     def validate_filter_values(self) -> "TrajectorySegmentFilter":
@@ -109,7 +101,7 @@ class TrajectorySegmentFilter(BaseModel, CacheableModel):
         )
 
 
-class TrajectorySegmentFilterOverride(BaseModel):
+class TrajectorySegmentFilterOverride(BaseModel, CacheableModel):
     key: Annotated[str, Field(title="Value")]
     filter: Annotated[TrajectorySegmentFilter, Field(title="Filter")]
 
@@ -189,7 +181,7 @@ def relocations_to_trajectory(
             description=(
                 "Use a different segment filter for specific values, e.g. a subject subtype or"
                 " patrol type. Values without an override use the filter above."
-                " Only used by workflows that support per-type filtering."
+                " Leave empty unless the workflow supports per-type filtering."
             ),
         ),
     ] = None,
@@ -220,13 +212,18 @@ def relocations_to_trajectory(
 
     if trajectory_segment_filter_overrides:
         gdf = traj.gdf
-        # `_create_trajsegments` renames relocation-side columns to `extra__<col>`, except when
-        # the name collides with a core trajectory column, in which case it drops the extra
-        # column instead of prefixing it (ecoscope/trajectory.py) - so the bare name wins if present.
-        traj_col = trajectory_segment_filter_override_column
-        if traj_col not in gdf.columns and not traj_col.startswith("extra_"):
-            traj_col = f"extra__{traj_col}"
-        key = gdf[traj_col]
+        # Relocation columns reach the trajectory as `extra__<col>`; one named like a
+        # trajectory column is dropped instead, and only `groupby_col` keeps its values.
+        col = trajectory_segment_filter_override_column
+        assert isinstance(col, str)  # checked above; narrows `SkipJsonSchema[None]` for mypy
+        if col.startswith("extra_") or col == "groupby_col":
+            traj_col = col
+        else:
+            traj_col = f"extra__{col}"
+        if traj_col not in gdf.columns:
+            raise ValueError(f"{col!r} can't key filter overrides: building the trajectory replaces that column.")
+        # Override keys are strings, whatever the column's dtype.
+        key = gdf[traj_col].map(str, na_action="ignore")
         lookup = {o.key: o.filter.to_traj_seg_filter() for o in trajectory_segment_filter_overrides}
 
         junk = traj_seg_filter_mask(gdf, default) & ~key.isin(lookup)  # NaN keys fall here

@@ -69,7 +69,7 @@ mapping = [
 plotting = ["plotly", "scikit-learn"]
 platform = [
     "pandera>=0.28,<0.29",
-    "pydantic",
+    "pydantic>=2.12",
     "pydantic-settings",
     "cloudpathlib[gs]",
     "wt-contracts>=0.3.0,<0.4.0",

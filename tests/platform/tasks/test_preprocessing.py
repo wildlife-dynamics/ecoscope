@@ -295,6 +295,33 @@ def test_overrides_keyed_on_core_trajectory_column():
     assert set(out["groupby_col"]) == {"ele", "heli"}
 
 
+def test_overrides_match_non_string_key_column():
+    out = relocations_to_trajectory(
+        _relocs({"ele": 1, "heli": 2}),
+        TrajectorySegmentFilter(max_speed_kmhr=50),
+        [
+            TrajectorySegmentFilterOverride(
+                key="2", filter=TrajectorySegmentFilter(max_speed_kmhr=300, max_length_meters=150000)
+            )
+        ],
+        "subject_subtype",
+    )
+    assert set(out["groupby_col"]) == {"ele", "heli"}
+
+
+@pytest.mark.parametrize("column", ["heading", "fixtime"])
+def test_overrides_column_replaced_by_trajectory_raises(column):
+    relocs = _relocs({"ele": "elephant", "heli": "helicopter"})
+    relocs["heading"] = "helicopter"
+    with pytest.raises(ValueError, match=f"'{column}' can't key filter overrides"):
+        relocations_to_trajectory(
+            relocs,
+            None,
+            [TrajectorySegmentFilterOverride(key="helicopter", filter=TrajectorySegmentFilter())],
+            column,
+        )
+
+
 def test_overrides_unmatched_key_matches_no_overrides():
     relocs = _relocs({"ele": "elephant", "heli": "helicopter"})
     f = TrajectorySegmentFilter(max_speed_kmhr=50)
@@ -358,7 +385,7 @@ def test_overrides_schema_accepts_null_and_empty_and_populated():
 def test_preset_omitted_from_serialized_defaults():
     # `SkipJsonSchema` only hides `preset` from $defs; the field-level `default` for
     # `trajectory_segment_filter` is separately serialized from a `TrajectorySegmentFilter()`
-    # instance, so it needs its own guard (the `model_serializer` on the class).
+    # instance, so it needs its own guard (`exclude_if` on the field).
     from ecoscope.platform.tasks.config import set_traj_filters  # noqa: F401  (registers it)
 
     relocs_schema = get_registry()[

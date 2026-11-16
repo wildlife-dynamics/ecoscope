@@ -589,6 +589,7 @@ REQUIRED_FIELDS: dict[str, dict] = {
     "Coordinate": {"x": 1.5, "y": -2.5},
     "TileLayer": {"layer_name": "TERRAIN"},
     "CustomMetric": {"display_name": "Total", "aggregator": "sum", "column": "distance"},
+    "TrajectorySegmentFilterOverride": {"key": "elephant", "filter": {"preset": "elephant", "max_speed_kmhr": 12}},
 }
 
 

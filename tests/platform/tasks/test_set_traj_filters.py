@@ -1,3 +1,4 @@
+import pytest
 from wt_registry import get_registry
 
 from ecoscope.platform.tasks.config import (
@@ -91,3 +92,12 @@ def test_overrides_schema_matches_relocations_to_trajectory():
     assert (
         set_filters["$defs"]["TrajectorySegmentFilterOverride"] == to_traj["$defs"]["TrajectorySegmentFilterOverride"]
     )
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["set_traj_filters", "get_segment_filter", "get_segment_filter_overrides"],
+)
+def test_traj_filter_tasks_are_cacheable(name):
+    entry = get_registry()[f"ecoscope.platform.tasks.config._set_traj_filters.{name}"]
+    assert entry.declares_codec, entry.cache_declaration_error

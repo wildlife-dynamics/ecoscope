@@ -62,7 +62,7 @@ def set_traj_filters(
             description=(
                 "Use a different segment filter for specific values, e.g. a subject subtype or"
                 " patrol type. Values without an override use the filter above."
-                " Only used by workflows that support per-type filtering."
+                " Leave empty unless the workflow supports per-type filtering."
             ),
         ),
     ] = None,
