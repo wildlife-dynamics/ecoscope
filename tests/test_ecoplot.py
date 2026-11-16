@@ -493,3 +493,27 @@ def test_sunburst_other_children_take_other_color():
     ).data[0]
 
     assert dict(zip(t.ids, t.marker.colors))["Other (2 values)/r"] == "#999999"
+
+
+def test_sunburst_top_n_duplicate_index():
+    df = pd.DataFrame({"a": ["x", "y", "y", "y"], "b": ["p", "q", "r", "r"]}, index=[0, 0, 1, 1])
+
+    assert _slices(sunburst_chart(df, ring_columns=["a", "b"], top_n=1)) == {
+        "y": 3,
+        "Other (1 value)": 1,
+        "y/r": 2,
+        "y/Other (1 value)": 1,
+        "Other (1 value)/p": 1,
+    }
+
+
+def test_sunburst_whole_number_floats_label_as_ints():
+    df = pd.DataFrame({"year": [2020, 2021, None], "c": [1, None, 2.5]})
+
+    assert set(sunburst_chart(df, ring_columns=["year", "c"]).data[0].ids) == {"2020", "2021", "2020/1"}
+
+
+def test_sunburst_empty_string_ends_path():
+    df = pd.DataFrame({"a": ["", "x"], "b": ["p", ""]})
+
+    assert _slices(sunburst_chart(df, ring_columns=["a", "b"])) == {"x": 1}

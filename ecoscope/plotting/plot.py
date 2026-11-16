@@ -569,6 +569,16 @@ def pie_chart(
     return fig
 
 
+def _ring_label(value) -> str | None:
+    """A ring value as slice text; missing or "" ends the path (None). 2020.0 -> "2020", since
+    pandas stores a whole-number column that has a missing value as floats."""
+    if pd.isna(value) or value == "":
+        return None
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
 def _lump_to_top_n(
     data: pd.DataFrame, parents: list[str], ring: str, size: pd.Series, top_n: int, pinned: set
 ) -> pd.Series:
@@ -629,14 +639,15 @@ def sunburst_chart(
     fig : plotly.graph_objects.Figure
         The plotly sunburst chart
     """
-    data = data.dropna(subset=ring_columns[:1]).copy()
+    # a fresh index: top_n lumping looks rows up by index label, which a duplicated index breaks
+    data = data.reset_index(drop=True)
+    for ring in ring_columns:
+        data[ring] = data[ring].map(_ring_label)
+    data = data.dropna(subset=ring_columns[:1])
     if data.empty:
         return go.Figure(layout=layout_kwargs)
 
     size = data[value_column].fillna(0) if value_column else pd.Series(1, index=data.index)
-    # ring values become text (numbers like years too); missing stays missing
-    for ring in ring_columns:
-        data[ring] = data[ring].where(data[ring].isna(), data[ring].astype(str))
     if top_n is not None:
         pinned = set(pinned_values or [])
         for depth, ring in enumerate(ring_columns):
