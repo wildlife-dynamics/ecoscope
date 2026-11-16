@@ -18,6 +18,7 @@ from typing import Any
 
 import dateutil.tz
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pytest
@@ -30,6 +31,7 @@ from wt_task.cache import Tree, Undigestible, resolve_structure
 from wt_task.skip import SKIP_SENTINEL
 
 import ecoscope.platform
+from ecoscope.platform import codecs
 from ecoscope.platform.annotations import AnyDataFrame
 from ecoscope.platform.codecs import (
     ARROW,
@@ -302,6 +304,100 @@ def test_roundtrip_preserves_timedelta_cells(delta):
     assert out["d"][0][0].unit == delta.unit
     assert out["d"][1][0] is pd.NaT
     assert digest_dataframe(out) == digest_dataframe(df)
+
+
+@pytest.mark.parametrize(
+    "tz",
+    [datetime.timezone(datetime.timedelta(0), "UTC"), datetime.timezone(datetime.timedelta(hours=3), "UTC+03:00")],
+    ids=repr,
+)
+def test_roundtrip_keeps_a_fixed_offset_name_that_matches_the_default(tz):
+    """`timezone(0, "UTC")` is what `astimezone()` gives on a UTC host, and it does not print like `timezone.utc`."""
+    moment = datetime.datetime(2024, 1, 1, 12, tzinfo=tz)
+    df = pd.DataFrame({"t": [{"at": moment}]})
+    out = roundtrip(FRAME, df)
+    assert_same_cell(out["t"][0]["at"], moment)
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+@pytest.mark.parametrize(
+    "moment",
+    [
+        datetime.datetime(2024, 1, 1, 12).replace(tzinfo=pytz.timezone("Africa/Nairobi")),  # LMT+2:27
+        pytz.timezone("Europe/London").localize(datetime.datetime(2024, 10, 27, 1, 30), is_dst=True),
+        datetime.datetime(2024, 3, 31, 1, 30, tzinfo=zoneinfo.ZoneInfo("Europe/London")),  # in the gap
+        datetime.datetime(2024, 10, 27, 1, 30, fold=1, tzinfo=zoneinfo.ZoneInfo("Europe/London")),
+        datetime.datetime(2024, 10, 27, 1, 30, fold=1),
+    ],
+    ids=repr,
+)
+def test_roundtrip_keeps_a_datetime_cells_wall_clock(moment):
+    df = pd.DataFrame({"t": [{"at": moment}]})
+    out = roundtrip(FRAME, df)
+    assert_same_cell(out["t"][0]["at"], moment)
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+@pytest.mark.parametrize(
+    "stamp",
+    [
+        pd.Timestamp(np.datetime64("-0100-01-01", "s")),
+        pd.Timestamp(np.datetime64("20000-01-01", "s")),
+        pd.Timestamp(year=2024, month=10, day=27, hour=1, minute=30, fold=1),
+    ],
+    ids=repr,
+)
+def test_roundtrip_preserves_timestamps_text_cannot_carry(stamp):
+    df = pd.DataFrame({"t": [[stamp]]})
+    out = roundtrip(FRAME, df)["t"][0][0]
+    assert_same_cell(out, stamp)
+    assert (out.unit, out.fold) == (stamp.unit, stamp.fold)
+
+
+def test_roundtrip_preserves_a_timedelta_cell_beyond_the_nanosecond_range():
+    delta = pd.Timedelta.max.as_unit("s") * 5
+    out = roundtrip(FRAME, pd.DataFrame({"d": [[delta]]}))["d"][0][0]
+    assert_same_cell(out, delta)
+    assert out.unit == "s"
+
+
+def test_roundtrip_preserves_stdlib_timedelta_cells():
+    """Arrow would retype a column of them as `timedelta64`."""
+    cells = [datetime.timedelta(seconds=5), datetime.timedelta(days=-1, microseconds=7)]
+    df = pd.DataFrame({"d": pd.Series(cells, dtype=object), "nested": [[cells[0], pd.Timedelta(1, "s")], [cells[1]]]})
+    out = roundtrip(FRAME, df)
+    assert out["d"].dtype == object
+    for got, expected in zip(out["d"], cells):
+        assert_same_cell(got, expected)
+    assert_same_cell(out["nested"][0][0], cells[0])
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+def _object_frame(cells):
+    return pd.DataFrame({"t": pd.Series(cells, dtype=object)})
+
+
+@pytest.mark.parametrize(
+    "other",
+    [
+        "2024-01-01 03:00:00+03:00",
+        pd.Timestamp("2024-01-01T03:00", tz=datetime.timezone(datetime.timedelta(hours=3))),
+        pd.Timestamp("2024-01-01T03:00", tz=pytz.timezone("Africa/Nairobi")),
+        pd.Timestamp("2024-01-01T03:00", tz=zoneinfo.ZoneInfo("Africa/Nairobi")).as_unit("ns"),
+        datetime.datetime(2024, 1, 1, 3, tzinfo=zoneinfo.ZoneInfo("Africa/Nairobi")),
+    ],
+    ids=repr,
+)
+def test_an_object_column_of_timestamps_digests_by_type_zone_and_unit(other):
+    """pandas hashes such a column through `str`, under which all of these are one value."""
+    stamp = pd.Timestamp("2024-01-01T03:00", tz=zoneinfo.ZoneInfo("Africa/Nairobi"))
+    assert str(stamp) == str(other)
+    assert digest_dataframe(_object_frame([stamp])) != digest_dataframe(_object_frame([other]))
+
+
+def test_a_cell_of_an_unknown_kind_is_refused_rather_than_read_as_a_dict():
+    with pytest.raises(ValueError, match="unknown cell kind"):
+        codecs._cell_from_json({"k": "from-the-future", "v": "x"})
 
 
 def test_a_timestamp_in_a_zone_the_codec_cannot_name_is_declined():

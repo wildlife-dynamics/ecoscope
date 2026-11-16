@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
     from ecoscope.platform.annotations import AnyDataFrame
 
-FRAME_CODEC_ID = "ecoscope.frame/v1"
+FRAME_CODEC_ID = "ecoscope.frame/v2"
 ARROW_CODEC_ID = "ecoscope.arrow/v1"
 KEYED_CODEC_ID = "ecoscope.keyed/v1"
 GROUPER_CODEC_ID = "ecoscope.grouper/v1"
@@ -117,6 +117,30 @@ def _cell_types(column: pd.Series) -> set[type]:
     return {type(v) for v in column if not (v is None or (isinstance(v, float) and v != v))}
 
 
+_TEMPORAL_CELL_TYPES = (datetime.datetime, datetime.timedelta, type(pd.NaT))
+
+
+def _cell_token(value: Any) -> str:
+    """`repr`, plus what pandas leaves out of it: the unit, a naive fold, and which library the zone is from."""
+    if isinstance(value, pd.Timestamp):
+        return f"{value!r}/{value.unit}/{value.fold}/{type(value.tz).__module__}"
+    if isinstance(value, pd.Timedelta):
+        return f"{value!r}/{value.unit}"
+    return repr(value)
+
+
+def _hashed_by_cell(column: pd.Series) -> bool:
+    """Whether pandas' own hash would lose a distinction between this column's cells.
+
+    It hashes an object column through `str`, without raising, so `1` digests
+    like `"1"` and a Timestamp like its text, whatever its zone.
+    """
+    if column.dtype != object:
+        return False
+    types = _cell_types(column)
+    return len(types) > 1 or any(issubclass(t, _TEMPORAL_CELL_TYPES) for t in types)
+
+
 def digest_dataframe(df: AnyDataFrame) -> str:
     """Return a full sha256 over a dataframe's content.
 
@@ -131,21 +155,21 @@ def digest_dataframe(df: AnyDataFrame) -> str:
 
     digest = hashlib.sha256()
     columns = [df.iloc[:, i] for i in range(len(df.columns))]
-    # pandas hashes an object column through `str`, without raising, so a column
-    # mixing `1` and `"1"` would digest like one holding only strings.
-    mixed = [column.dtype == object and len(_cell_types(column)) > 1 for column in columns]
+    by_cell = [_hashed_by_cell(column) for column in columns]
     try:
-        if any(mixed):
-            raise TypeError("a mixed-type object column is hashed by repr")
+        if any(by_cell):
+            raise TypeError("an object column is hashed cell by cell")
         digest.update(np.ascontiguousarray(pd.util.hash_pandas_object(df).values))
     except (TypeError, ValueError, AttributeError):
         # Only now, and only for the columns that genuinely fail, pay per-column
         # costs. Every row still contributes; hashing a `head(5)` sample here
         # let two frames sharing shape and first rows collide.
         digest.update(np.ascontiguousarray(_fallback_hash(df.index)))
-        for column, is_mixed in zip(columns, mixed):
+        for column, is_by_cell in zip(columns, by_cell):
             hashed = (
-                pd.util.hash_pandas_object(column.map(repr), index=False).values if is_mixed else _fallback_hash(column)
+                pd.util.hash_pandas_object(column.map(_cell_token), index=False).values
+                if is_by_cell
+                else _fallback_hash(column)
             )
             digest.update(np.ascontiguousarray(hashed))
     digest.update(json.dumps([[str(c), str(dt)] for c, dt in zip(df.columns, df.dtypes)]).encode())
@@ -153,7 +177,7 @@ def digest_dataframe(df: AnyDataFrame) -> str:
     return digest.hexdigest()
 
 
-_TREE_CELL_TYPES = (list, tuple, dict, datetime.datetime, pd.Timedelta, type(pd.NaT))
+_TREE_CELL_TYPES = (list, tuple, dict, *_TEMPORAL_CELL_TYPES)
 
 
 def _tree_columns(df: AnyDataFrame) -> list[str]:
@@ -177,20 +201,25 @@ def _tree_columns(df: AnyDataFrame) -> list[str]:
     return found
 
 
-def _fixed_offset_columns(df: AnyDataFrame) -> dict[str, tuple[float, str]]:
+def _fixed_offset(tz: datetime.timezone) -> tuple[float, str | None]:
+    """`(offset seconds, name)`, the name `None` unless one was given: `timezone.utc` is not `timezone(0, "UTC")`."""
+    offset, *name = tz.__getinitargs__()  # type: ignore[attr-defined]
+    return offset.total_seconds(), name[0] if name else None
+
+
+def _fixed_offset_columns(df: AnyDataFrame) -> dict[str, tuple[float, str | None]]:
     """tz-aware columns whose zone is a `datetime.timezone`, as `(offset seconds, name)`."""
     found = {}
     for name, dtype in zip(df.columns, df.dtypes):
         tz = getattr(dtype, "tz", None)
         if isinstance(tz, datetime.timezone):
-            found[str(name)] = (tz.utcoffset(None).total_seconds(), tz.tzname(None))
+            found[str(name)] = _fixed_offset(tz)
     return found
 
 
-def _restore_timezone(seconds: float, name: str) -> datetime.timezone:
+def _restore_timezone(seconds: float, name: str | None) -> datetime.timezone:
     offset = datetime.timedelta(seconds=seconds)
-    default = datetime.timezone(offset)
-    return default if name == default.tzname(None) else datetime.timezone(offset, name)
+    return datetime.timezone(offset) if name is None else datetime.timezone(offset, name)
 
 
 def _timezone_to_json(tz: datetime.tzinfo | None) -> dict[str, Any] | None:
@@ -202,7 +231,7 @@ def _timezone_to_json(tz: datetime.tzinfo | None) -> dict[str, Any] | None:
     if tz is None:
         return None
     if isinstance(tz, datetime.timezone):
-        return {"k": "offset", "v": [tz.utcoffset(None).total_seconds(), tz.tzname(None)]}
+        return {"k": "offset", "v": list(_fixed_offset(tz))}
     if isinstance(tz, zoneinfo.ZoneInfo) and tz.key is not None:
         return {"k": "zoneinfo", "v": tz.key}
     if isinstance(tz, pytz.BaseTzInfo) and tz.zone is not None:
@@ -223,6 +252,15 @@ def _timezone_from_json(node: dict[str, Any]) -> datetime.tzinfo:
     return pytz.FixedOffset(node["v"])
 
 
+def _pytz_variants(wall: datetime.datetime, zone: Any) -> list[datetime.tzinfo]:
+    """The tzinfo objects pytz attaches to `wall`: the zone itself under `replace`, then each `is_dst` reading.
+
+    A pytz zone is one object per offset it has ever had, and a cell's `repr`
+    names which.
+    """
+    return [zone, *(zone.localize(wall, is_dst=is_dst).tzinfo for is_dst in (False, True))]
+
+
 def _cell_to_json(value: Any) -> dict[str, Any]:
     """Describe a structural cell as a tree JSON can carry.
 
@@ -240,26 +278,38 @@ def _cell_to_json(value: Any) -> dict[str, Any]:
         return {"k": "dict", "v": {k: _cell_to_json(v) for k, v in value.items()}}
     if value is pd.NaT:  # before the datetime kinds: it is an instance of `datetime`
         return {"k": "nat"}
-    # Aware times are stored as their UTC instant, which no DST fold makes ambiguous.
+    # Integers in the cell's own unit: text is exact only for years 1-9999, and
+    # nanoseconds overflow for a coarser unit.
     if isinstance(value, pd.Timestamp):
-        instant = value if value.tz is None else value.tz_convert(None)
-        return {"k": "timestamp", "v": instant.isoformat(), "u": value.unit, "z": _timezone_to_json(value.tz)}
+        return {
+            "k": "timestamp",
+            "v": int(value.asm8.astype("int64")),  # the UTC instant, if aware
+            "u": value.unit,
+            "f": value.fold if value.tz is None else 0,
+            "z": _timezone_to_json(value.tz),
+        }
     if isinstance(value, datetime.datetime):
-        if value.tzinfo is None:
-            if value.fold:
-                raise UnencodableValue("a naive datetime with fold=1 cannot be stored inside a dataframe cell")
-            return {"k": "datetime", "v": value.isoformat(), "z": None}
-        utc = value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-        return {"k": "datetime", "v": utc.isoformat(), "z": _timezone_to_json(value.tzinfo)}
+        # The wall clock, not the instant: one that its zone would not produce
+        # (a gap time, pytz's LMT) has to come back as it was.
+        wall = value.replace(tzinfo=None, fold=0)
+        node = {"k": "datetime", "v": wall.isoformat(), "f": value.fold, "z": _timezone_to_json(value.tzinfo)}
+        if isinstance(value.tzinfo, pytz.BaseTzInfo) and value.tzinfo.zone is not None:
+            variants = _pytz_variants(wall, pytz.timezone(value.tzinfo.zone))
+            position = next((i for i, v in enumerate(variants) if v is value.tzinfo), None)
+            if position is None:
+                raise UnencodableValue(f"{value!r} carries a zone variant pytz would not give that wall time")
+            node["p"] = position
+        return node
     if isinstance(value, pd.Timedelta):
-        try:
-            return {"k": "timedelta", "v": value.value, "u": value.unit}
-        except (OverflowError, ValueError) as e:
-            raise UnencodableValue(f"{value!r} does not fit in nanoseconds") from e
+        return {"k": "timedelta", "v": int(value.asm8.astype("int64")), "u": value.unit}
+    if isinstance(value, datetime.timedelta):
+        return {"k": "pytimedelta", "v": [value.days, value.seconds, value.microseconds]}
     raise UnencodableValue(f"{type(value).__name__} cannot be stored inside a dataframe cell")
 
 
 def _cell_from_json(node: dict[str, Any]) -> Any:
+    import numpy as np
+
     kind = node["k"]
     if kind == "j":
         return node["v"]
@@ -270,18 +320,26 @@ def _cell_from_json(node: dict[str, Any]) -> Any:
     if kind == "nat":
         return pd.NaT
     if kind == "timestamp":
-        timestamp = pd.Timestamp(node["v"]).as_unit(node["u"])
+        timestamp = pd.Timestamp(np.datetime64(node["v"], node["u"]))
         if node["z"] is None:
-            return timestamp
+            return timestamp.replace(fold=1) if node["f"] else timestamp
         return timestamp.tz_localize(datetime.timezone.utc).tz_convert(_timezone_from_json(node["z"]))
     if kind == "datetime":
-        moment = datetime.datetime.fromisoformat(node["v"])
+        wall = datetime.datetime.fromisoformat(node["v"])
         if node["z"] is None:
-            return moment
-        return moment.replace(tzinfo=datetime.timezone.utc).astimezone(_timezone_from_json(node["z"]))
+            return wall.replace(fold=node["f"])
+        zone = _timezone_from_json(node["z"])
+        if "p" in node:
+            zone = _pytz_variants(wall, zone)[node["p"]]
+        return wall.replace(tzinfo=zone, fold=node["f"])
     if kind == "timedelta":
-        return pd.Timedelta(node["v"], unit="ns").as_unit(node["u"])
-    return {k: _cell_from_json(n) for k, n in node["v"].items()}
+        return pd.Timedelta(np.timedelta64(node["v"], node["u"]))
+    if kind == "pytimedelta":
+        days, seconds, microseconds = node["v"]
+        return datetime.timedelta(days=days, seconds=seconds, microseconds=microseconds)
+    if kind == "dict":
+        return {k: _cell_from_json(n) for k, n in node["v"].items()}
+    raise ValueError(f"unknown cell kind {kind!r}")
 
 
 def _encode_cell(value: Any) -> str:
