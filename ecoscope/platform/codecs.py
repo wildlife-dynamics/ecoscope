@@ -242,14 +242,17 @@ def _timezone_to_json(tz: datetime.tzinfo | None) -> dict[str, Any] | None:
 
 
 def _timezone_from_json(node: dict[str, Any]) -> datetime.tzinfo:
-    kind = node["k"]
-    if kind == "offset":
-        return _restore_timezone(*node["v"])
-    if kind == "zoneinfo":
-        return zoneinfo.ZoneInfo(node["v"])
-    if kind == "pytz":
-        return pytz.timezone(node["v"])
-    return pytz.FixedOffset(node["v"])
+    match node:
+        case {"k": "offset", "v": [seconds, name]}:
+            return _restore_timezone(seconds, name)
+        case {"k": "zoneinfo", "v": key}:
+            return zoneinfo.ZoneInfo(key)
+        case {"k": "pytz", "v": zone}:
+            return pytz.timezone(zone)
+        case {"k": "pytz_offset", "v": minutes}:
+            return pytz.FixedOffset(minutes)
+        case _:
+            raise ValueError(f"unreadable timezone node {node!r}")
 
 
 def _pytz_variants(wall: datetime.datetime, zone: Any) -> list[datetime.tzinfo]:
@@ -307,39 +310,49 @@ def _cell_to_json(value: Any) -> dict[str, Any]:
     raise UnencodableValue(f"{type(value).__name__} cannot be stored inside a dataframe cell")
 
 
+def _timestamp_from_json(epoch: int, unit: Any, fold: int, zone: dict[str, Any] | None) -> pd.Timestamp:
+    import numpy as np
+
+    timestamp = pd.Timestamp(np.datetime64(epoch, unit))
+    if zone is None:
+        return timestamp.replace(fold=1) if fold else timestamp
+    return timestamp.tz_localize(datetime.timezone.utc).tz_convert(_timezone_from_json(zone))
+
+
+def _datetime_from_json(text: str, fold: int, zone: dict[str, Any] | None, variant: int | None) -> datetime.datetime:
+    wall = datetime.datetime.fromisoformat(text)
+    if zone is None:
+        return wall.replace(fold=fold)
+    tz = _timezone_from_json(zone)
+    if variant is not None:
+        tz = _pytz_variants(wall, tz)[variant]
+    return wall.replace(tzinfo=tz, fold=fold)
+
+
 def _cell_from_json(node: dict[str, Any]) -> Any:
     import numpy as np
 
-    kind = node["k"]
-    if kind == "j":
-        return node["v"]
-    if kind == "list":
-        return [_cell_from_json(n) for n in node["v"]]
-    if kind == "tuple":
-        return tuple(_cell_from_json(n) for n in node["v"])
-    if kind == "nat":
-        return pd.NaT
-    if kind == "timestamp":
-        timestamp = pd.Timestamp(np.datetime64(node["v"], node["u"]))
-        if node["z"] is None:
-            return timestamp.replace(fold=1) if node["f"] else timestamp
-        return timestamp.tz_localize(datetime.timezone.utc).tz_convert(_timezone_from_json(node["z"]))
-    if kind == "datetime":
-        wall = datetime.datetime.fromisoformat(node["v"])
-        if node["z"] is None:
-            return wall.replace(fold=node["f"])
-        zone = _timezone_from_json(node["z"])
-        if "p" in node:
-            zone = _pytz_variants(wall, zone)[node["p"]]
-        return wall.replace(tzinfo=zone, fold=node["f"])
-    if kind == "timedelta":
-        return pd.Timedelta(np.timedelta64(node["v"], node["u"]))
-    if kind == "pytimedelta":
-        days, seconds, microseconds = node["v"]
-        return datetime.timedelta(days=days, seconds=seconds, microseconds=microseconds)
-    if kind == "dict":
-        return {k: _cell_from_json(n) for k, n in node["v"].items()}
-    raise ValueError(f"unknown cell kind {kind!r}")
+    match node:
+        case {"k": "j", "v": value}:
+            return value
+        case {"k": "list", "v": items}:
+            return [_cell_from_json(n) for n in items]
+        case {"k": "tuple", "v": items}:
+            return tuple(_cell_from_json(n) for n in items)
+        case {"k": "dict", "v": items}:
+            return {k: _cell_from_json(n) for k, n in items.items()}
+        case {"k": "nat"}:
+            return pd.NaT
+        case {"k": "timestamp", "v": epoch, "u": unit, "f": fold, "z": zone}:
+            return _timestamp_from_json(epoch, unit, fold, zone)
+        case {"k": "datetime", "v": text, "f": fold, "z": zone, **rest}:
+            return _datetime_from_json(text, fold, zone, rest.get("p"))
+        case {"k": "timedelta", "v": count, "u": unit}:
+            return pd.Timedelta(np.timedelta64(count, unit))
+        case {"k": "pytimedelta", "v": [days, seconds, microseconds]}:
+            return datetime.timedelta(days=days, seconds=seconds, microseconds=microseconds)
+        case _:
+            raise ValueError(f"unreadable cell node {node!r}")
 
 
 def _encode_cell(value: Any) -> str:

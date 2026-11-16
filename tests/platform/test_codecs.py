@@ -396,7 +396,7 @@ def test_an_object_column_of_timestamps_digests_by_type_zone_and_unit(other):
 
 
 def test_a_cell_of_an_unknown_kind_is_refused_rather_than_read_as_a_dict():
-    with pytest.raises(ValueError, match="unknown cell kind"):
+    with pytest.raises(ValueError, match="unreadable cell node"):
         codecs._cell_from_json({"k": "from-the-future", "v": "x"})
 
 
