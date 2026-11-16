@@ -11,6 +11,7 @@ from ecoscope.plotting.plot import (
     plot_seasonal_dist,
     speed,
     stacked_bar_chart,
+    sunburst_chart,
 )
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     "plot_seasonal_dist",
     "stacked_bar_chart",
     "pie_chart",
+    "sunburst_chart",
     "BarConfig",
     "bar_chart",
     "line_chart",

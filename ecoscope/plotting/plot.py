@@ -569,6 +569,114 @@ def pie_chart(
     return fig
 
 
+def _lump_to_top_n(
+    data: pd.DataFrame, parents: list[str], ring: str, size: pd.Series, top_n: int, pinned: set
+) -> pd.Series:
+    """The ring's values with all but the top_n largest per parent (pinned values aside) as "Other (k values)"."""
+    groups = [data[p] for p in parents] if parents else [pd.Series(0, index=data.index)]
+    lumped = data[ring].copy()
+    for _, idx in data.groupby(groups, dropna=False).groups.items():
+        sub = data.loc[idx, ring]
+        totals = size.loc[idx].groupby(sub).sum()
+        ranked = sorted((v for v in totals.index if v not in pinned), key=lambda v: (-totals[v], v))
+        rest = ranked[top_n:]
+        if rest:
+            lumped.loc[sub.index[sub.isin(rest)]] = f"Other ({len(rest)} value{'s' if len(rest) > 1 else ''})"
+    return lumped
+
+
+def sunburst_chart(
+    data: pd.DataFrame,
+    ring_columns: list[str],
+    value_column: str | None = None,
+    color_column: str | None = None,
+    palette: list[str] | None = None,
+    top_n: int | None = None,
+    pinned_values: list[str] | None = None,
+    other_color: str = "#c9c7c0",
+    style_kwargs: dict | None = None,
+    layout_kwargs: dict | None = None,
+) -> go.Figure:
+    """
+    Creates a sunburst chart from the provided dataframe
+    Parameters
+    ----------
+    data: pd.Dataframe
+        The data to plot, one row per record
+    ring_columns: list[str]
+        The columns drawn as rings, inside out. A missing value ends that record's
+        path: it adds no slice in that ring or any ring outside it
+    value_column: str
+        A numeric column summed for each slice's size; missing values count as 0.
+        If not set, each record counts once
+    color_column: str
+        A column of colours for the inner ring's values (RGBA tuples or css strings);
+        the first colour seen for a value is used. Outer slices take their inner ring's colour
+    palette: list[str]
+        Css colours cycled over the inner ring's values; ignored if color_column is set
+    top_n: int
+        Keep the top_n largest slices within each parent and merge the rest into "Other (k values)"
+    pinned_values: list[str]
+        Values never merged into "Other" and not counted towards top_n
+    other_color: str
+        The colour of "Other" slices
+    style_kwargs: dict
+        Additional style kwargs passed to go.Sunburst()
+    layout_kwargs: dict
+        Additional kwargs passed to plotly.go.Figure(layout)
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        The plotly sunburst chart
+    """
+    data = data.dropna(subset=ring_columns[:1]).copy()
+    if data.empty:
+        return go.Figure(layout=layout_kwargs)
+
+    size = data[value_column].fillna(0) if value_column else pd.Series(1, index=data.index)
+    # ring values become text (numbers like years too); missing stays missing
+    for ring in ring_columns:
+        data[ring] = data[ring].where(data[ring].isna(), data[ring].astype(str))
+    if top_n is not None:
+        pinned = set(pinned_values or [])
+        for depth, ring in enumerate(ring_columns):
+            data[ring] = _lump_to_top_n(data, ring_columns[:depth], ring, size, top_n, pinned)
+
+    inner_colors: dict = {}
+    if color_column:
+        firsts = data.groupby(ring_columns[0], sort=False)[color_column].first()
+        inner_colors = {v: c if isinstance(c, str) else color_tuple_to_css(c) for v, c in firsts.items()}
+    elif palette:
+        inner = data[ring_columns[0]].unique()
+        inner_colors = {v: palette[i % len(palette)] for i, v in enumerate(inner)}
+
+    ids, labels, parents, values, colors = [], [], [], [], []
+    for depth in range(len(ring_columns)):
+        path_columns = ring_columns[: depth + 1]
+        rows = data[path_columns].notna().all(axis=1)
+        totals = size[rows].groupby([data.loc[rows, c] for c in path_columns], sort=False).sum()
+        for path, value in totals.items():
+            path = path if isinstance(path, tuple) else (path,)
+            ids.append("/".join(path))
+            parents.append("/".join(path[:-1]))
+            labels.append(path[-1])
+            values.append(value)
+            colors.append(other_color if path[-1].startswith("Other (") else inner_colors.get(path[0], ""))
+
+    trace_kwargs = {
+        "branchvalues": "total",
+        "textinfo": "label+percent parent",
+        "hovertemplate": "<b>%{label}</b><br>%{value}<br>%{percentParent:.1%} of %{parent}"
+        "<br>%{percentRoot:.1%} of total<extra></extra>",
+        **(style_kwargs or {}),
+    }
+    fig = go.Figure(
+        data=go.Sunburst(ids=ids, labels=labels, parents=parents, values=values, marker_colors=colors, **trace_kwargs),
+        layout=layout_kwargs,
+    )
+    return fig
+
+
 def draw_historic_timeseries(
     df: pd.DataFrame,
     current_value_column: str,
