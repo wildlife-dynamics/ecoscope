@@ -21,10 +21,12 @@ import hashlib
 import io
 import json
 import struct
+import zoneinfo
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
+import pytz
 from wt_task.cache import SKIP, Codec, Tree, Undigestible
 
 if TYPE_CHECKING:
@@ -151,6 +153,9 @@ def digest_dataframe(df: AnyDataFrame) -> str:
     return digest.hexdigest()
 
 
+_TREE_CELL_TYPES = (list, tuple, dict, datetime.datetime, pd.Timedelta, type(pd.NaT))
+
+
 def _tree_columns(df: AnyDataFrame) -> list[str]:
     """Object columns Arrow cannot carry faithfully.
 
@@ -158,15 +163,16 @@ def _tree_columns(df: AnyDataFrame) -> list[str]:
     three rather than per-kind repair on the way out, because the structure is
     what Arrow flattens, and reconstructing it from a typed column means
     guessing, which is how a column of genuine lists becomes a column of tuples.
-    And those mixing scalar types, which Arrow refuses (`1` beside `"1"`) or
-    coerces (`1` beside `1.5` comes back `1.0`).
+    Those holding datetimes or timedeltas, which Arrow retypes as one column in
+    one zone and unit. And those mixing scalar types, which Arrow refuses (`1`
+    beside `"1"`) or coerces (`1` beside `1.5` comes back `1.0`).
     """
     found = []
     for position, (name, dtype) in enumerate(zip(df.columns, df.dtypes)):
         if dtype != object:
             continue
         types = _cell_types(df.iloc[:, position])
-        if len(types) > 1 or any(issubclass(t, (list, tuple, dict)) for t in types):
+        if len(types) > 1 or any(issubclass(t, _TREE_CELL_TYPES) for t in types):
             found.append(str(name))
     return found
 
@@ -187,6 +193,36 @@ def _restore_timezone(seconds: float, name: str) -> datetime.timezone:
     return default if name == default.tzname(None) else datetime.timezone(offset, name)
 
 
+def _timezone_to_json(tz: datetime.tzinfo | None) -> dict[str, Any] | None:
+    """Name a zone so that decode rebuilds the same kind of object.
+
+    A cell's `repr` spells out its zone object and a mixed column is digested by
+    `repr`, so the same zone under another implementation is a different digest.
+    """
+    if tz is None:
+        return None
+    if isinstance(tz, datetime.timezone):
+        return {"k": "offset", "v": [tz.utcoffset(None).total_seconds(), tz.tzname(None)]}
+    if isinstance(tz, zoneinfo.ZoneInfo) and tz.key is not None:
+        return {"k": "zoneinfo", "v": tz.key}
+    if isinstance(tz, pytz.BaseTzInfo) and tz.zone is not None:
+        return {"k": "pytz", "v": tz.zone}
+    if isinstance(tz, pytz._FixedOffset) and (offset := tz.utcoffset(None)) is not None:
+        return {"k": "pytz_offset", "v": offset.total_seconds() / 60}
+    raise UnencodableValue(f"timezone {tz!r} cannot be stored inside a dataframe cell")
+
+
+def _timezone_from_json(node: dict[str, Any]) -> datetime.tzinfo:
+    kind = node["k"]
+    if kind == "offset":
+        return _restore_timezone(*node["v"])
+    if kind == "zoneinfo":
+        return zoneinfo.ZoneInfo(node["v"])
+    if kind == "pytz":
+        return pytz.timezone(node["v"])
+    return pytz.FixedOffset(node["v"])
+
+
 def _cell_to_json(value: Any) -> dict[str, Any]:
     """Describe a structural cell as a tree JSON can carry.
 
@@ -202,6 +238,24 @@ def _cell_to_json(value: Any) -> dict[str, Any]:
         if not all(isinstance(k, str) for k in value):
             raise UnencodableValue(f"dict with non-string keys: {list(value)[:3]!r}")
         return {"k": "dict", "v": {k: _cell_to_json(v) for k, v in value.items()}}
+    if value is pd.NaT:  # before the datetime kinds: it is an instance of `datetime`
+        return {"k": "nat"}
+    # Aware times are stored as their UTC instant, which no DST fold makes ambiguous.
+    if isinstance(value, pd.Timestamp):
+        instant = value if value.tz is None else value.tz_convert(None)
+        return {"k": "timestamp", "v": instant.isoformat(), "u": value.unit, "z": _timezone_to_json(value.tz)}
+    if isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            if value.fold:
+                raise UnencodableValue("a naive datetime with fold=1 cannot be stored inside a dataframe cell")
+            return {"k": "datetime", "v": value.isoformat(), "z": None}
+        utc = value.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        return {"k": "datetime", "v": utc.isoformat(), "z": _timezone_to_json(value.tzinfo)}
+    if isinstance(value, pd.Timedelta):
+        try:
+            return {"k": "timedelta", "v": value.value, "u": value.unit}
+        except (OverflowError, ValueError) as e:
+            raise UnencodableValue(f"{value!r} does not fit in nanoseconds") from e
     raise UnencodableValue(f"{type(value).__name__} cannot be stored inside a dataframe cell")
 
 
@@ -213,6 +267,20 @@ def _cell_from_json(node: dict[str, Any]) -> Any:
         return [_cell_from_json(n) for n in node["v"]]
     if kind == "tuple":
         return tuple(_cell_from_json(n) for n in node["v"])
+    if kind == "nat":
+        return pd.NaT
+    if kind == "timestamp":
+        timestamp = pd.Timestamp(node["v"]).as_unit(node["u"])
+        if node["z"] is None:
+            return timestamp
+        return timestamp.tz_localize(datetime.timezone.utc).tz_convert(_timezone_from_json(node["z"]))
+    if kind == "datetime":
+        moment = datetime.datetime.fromisoformat(node["v"])
+        if node["z"] is None:
+            return moment
+        return moment.replace(tzinfo=datetime.timezone.utc).astimezone(_timezone_from_json(node["z"]))
+    if kind == "timedelta":
+        return pd.Timedelta(node["v"], unit="ns").as_unit(node["u"])
     return {k: _cell_from_json(n) for k, n in node["v"].items()}
 
 

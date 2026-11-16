@@ -13,12 +13,15 @@ import datetime
 import importlib
 import json
 import pkgutil
+import zoneinfo
 from typing import Any
 
+import dateutil.tz
 import geopandas as gpd
 import pandas as pd
 import pyarrow as pa
 import pytest
+import pytz
 from pandas.testing import assert_frame_equal
 from pydantic import BaseModel
 from shapely.geometry import Point
@@ -34,6 +37,7 @@ from ecoscope.platform.codecs import (
     FRAME,
     FRAME_CODEC_ID,
     KEYED_ANY,
+    UnencodableValue,
     digest_dataframe,
     grouper_codec,
     model_codec,
@@ -215,6 +219,96 @@ def test_roundtrip_handles_a_column_mixing_lists_and_tuples():
     assert out["mixed"][0] == (1, 2)
     assert out["mixed"][1] == [3, 4]
     assert out["mixed"][2] is None
+
+
+TIMEZONES = [
+    None,
+    datetime.timezone.utc,
+    datetime.timezone(datetime.timedelta(hours=-5, minutes=-30), "Somewhere"),
+    zoneinfo.ZoneInfo("Africa/Nairobi"),
+    pytz.timezone("Europe/London"),
+    pytz.FixedOffset(90),
+]
+
+
+def assert_same_cell(out, expected):
+    """Equal, of the same type, and printing alike -- the digest of a mixed column is over `repr`."""
+    assert type(out) is type(expected)
+    assert repr(out) == repr(expected)
+    if expected is not pd.NaT:
+        assert out == expected
+
+
+@pytest.mark.parametrize("tz", TIMEZONES, ids=repr)
+def test_roundtrip_preserves_timestamps_nested_in_cells(tz):
+    """ER patrol segments carry parsed times inside their dict and list cells."""
+    start = pd.Timestamp("2024-03-31T00:30:00.123456789", tz=tz)
+    df = pd.DataFrame({"segments": [{"time_range": [start, pd.NaT]}, {"time_range": (start, None)}]})
+    out = roundtrip(FRAME, df)
+    assert_same_cell(out["segments"][0]["time_range"][0], start)
+    assert out["segments"][0]["time_range"][1] is pd.NaT
+    assert out["segments"][1] == df["segments"][1]
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+@pytest.mark.parametrize("tz", TIMEZONES, ids=repr)
+def test_roundtrip_preserves_timestamps_mixed_into_an_object_column(tz):
+    in_the_fold = pd.Timestamp("2024-10-27T00:30:00")  # 01:30 in London, for the second time
+    cells = [in_the_fold if tz is None else in_the_fold.tz_localize("UTC").tz_convert(tz), "unknown", pd.NaT, None, 3]
+    df = pd.DataFrame({"t": pd.Series(cells, dtype=object)})
+    out = roundtrip(FRAME, df)
+    assert out["t"].dtype == object
+    for got, expected in zip(out["t"], cells):
+        assert_same_cell(got, expected)
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+def test_roundtrip_keeps_an_object_column_of_timestamps_as_objects():
+    """Arrow would retype it as one datetime column, in one zone."""
+    cells = [pd.Timestamp("2024-01-01", tz="UTC"), pd.Timestamp("2024-01-02", tz=zoneinfo.ZoneInfo("Africa/Nairobi"))]
+    df = pd.DataFrame({"t": pd.Series(cells, dtype=object)})
+    out = roundtrip(FRAME, df)
+    assert out["t"].dtype == object
+    for got, expected in zip(out["t"], cells):
+        assert_same_cell(got, expected)
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+@pytest.mark.parametrize("unit", ["s", "ms", "us", "ns"])
+def test_roundtrip_preserves_a_timestamp_cells_unit(unit):
+    df = pd.DataFrame({"t": [[pd.Timestamp("2024-01-01", tz="UTC").as_unit(unit)]]})
+    assert roundtrip(FRAME, df)["t"][0][0].unit == unit
+
+
+@pytest.mark.parametrize("tz", TIMEZONES, ids=repr)
+def test_roundtrip_preserves_datetime_cells(tz):
+    moment = datetime.datetime(2024, 10, 27, 1, 30, 0, 123456)
+    moment = moment if tz is None else moment.replace(tzinfo=datetime.timezone.utc).astimezone(tz)
+    df = pd.DataFrame({"t": [{"at": moment}, {"at": None}]})
+    out = roundtrip(FRAME, df)
+    assert_same_cell(out["t"][0]["at"], moment)
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+@pytest.mark.parametrize(
+    "delta",
+    [pd.Timedelta(-1500, "ms"), pd.Timedelta(1, "ns"), pd.Timedelta(400, "D").as_unit("s")],
+    ids=str,
+)
+def test_roundtrip_preserves_timedelta_cells(delta):
+    df = pd.DataFrame({"d": [[delta], [pd.NaT]]})
+    out = roundtrip(FRAME, df)
+    assert_same_cell(out["d"][0][0], delta)
+    assert out["d"][0][0].unit == delta.unit
+    assert out["d"][1][0] is pd.NaT
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+def test_a_timestamp_in_a_zone_the_codec_cannot_name_is_declined():
+    """Stored under another zone object, a hit would digest differently from a miss."""
+    df = pd.DataFrame({"t": [[pd.Timestamp("2024-01-01", tz=dateutil.tz.tzutc())]]})
+    with pytest.raises(UnencodableValue, match="timezone"):
+        FRAME.encode(df)
 
 
 def test_roundtrip_of_an_empty_geodataframe():
