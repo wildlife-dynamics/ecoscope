@@ -10,7 +10,7 @@ on:
   pull_request:
 
 env:
-  PYTHON_VERSION: "3.10.12"
+  PYTHON_VERSION: "3.10"
   PACKAGE: "ecoscope"
   
 jobs:

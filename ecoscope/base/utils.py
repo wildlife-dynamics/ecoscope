@@ -52,10 +52,8 @@ def create_meshgrid(
 
     bounds = aoi.bounds
 
-    x1 = bounds[0] - bounds[0] % xlen
-    y1 = bounds[1] - bounds[1] % ylen
-    x2 = bounds[2]
-    y2 = bounds[3]
+    # Grid lines fall on multiples of the cell size from this origin
+    x0, y0 = 0.0, 0.0
 
     if align_to_existing is not None:
         align_to_existing = align_to_existing.geometry  # Treat GeoDataFrame as GeoSeries
@@ -64,10 +62,13 @@ def create_meshgrid(
 
         align_to_existing = align_to_existing.to_crs(out_crs)
 
-        total_existing_bounds = align_to_existing.total_bounds
+        x0, y0 = align_to_existing.total_bounds[:2]
 
-        x1 += total_existing_bounds[0] % xlen - xlen
-        y1 += total_existing_bounds[1] % ylen - ylen
+    # Last grid line at or below the aoi's min bounds
+    x1 = bounds[0] - (bounds[0] - x0) % xlen
+    y1 = bounds[1] - (bounds[1] - y0) % ylen
+    x2 = bounds[2]
+    y2 = bounds[3]
 
     boxes = [box(x, y, x + xlen, y + ylen) for x in np.arange(x1, x2, xlen) for y in np.arange(y1, y2, ylen)]
 
