@@ -581,18 +581,28 @@ def _ring_label(value) -> str | None:
 
 def _lump_to_top_n(
     data: pd.DataFrame, parents: list[str], ring: str, size: pd.Series, top_n: int, pinned: set
-) -> pd.Series:
-    """The ring's values with all but the top_n largest per parent (pinned values aside) as "Other (k values)"."""
+) -> tuple[pd.Series, set[str]]:
+    """The ring's values with all but the top_n largest per parent (pinned values aside) as
+    "Other (k values)", and the "Other" labels made. A single leftover value keeps its own
+    slice: an "Other" holding one value would hide its label without saving any room."""
     groups = [data[p] for p in parents] if parents else [pd.Series(0, index=data.index)]
-    lumped = data[ring].copy()
+    lumped, others = data[ring].copy(), set()
     for _, idx in data.groupby(groups, dropna=False).groups.items():
         sub = data.loc[idx, ring]
         totals = size.loc[idx].groupby(sub).sum()
         ranked = sorted((v for v in totals.index if v not in pinned), key=lambda v: (-totals[v], v))
         rest = ranked[top_n:]
-        if rest:
-            lumped.loc[sub.index[sub.isin(rest)]] = f"Other ({len(rest)} value{'s' if len(rest) > 1 else ''})"
-    return lumped
+        if len(rest) > 1:
+            label = f"Other ({len(rest)} values)"
+            lumped.loc[sub.index[sub.isin(rest)]] = label
+            others.add(label)
+    return lumped, others
+
+
+def _path_id(path: tuple[str, ...]) -> str:
+    """A slice id: the path joined by "/", with "/" (and "\\") inside values escaped so
+    "x/y" and x -> y stay two slices."""
+    return "/".join(part.replace("\\", "\\\\").replace("/", "\\/") for part in path)
 
 
 def sunburst_chart(
@@ -614,8 +624,9 @@ def sunburst_chart(
     data: pd.Dataframe
         The data to plot, one row per record
     ring_columns: list[str]
-        The columns drawn as rings, inside out. A missing value ends that record's
-        path: it adds no slice in that ring or any ring outside it
+        The columns drawn as rings, inside out. Values are shown as text, so 1 and "1" are
+        one slice. A missing value (or "") ends that record's path: it adds no slice in
+        that ring or any ring outside it
     value_column: str
         A numeric column summed for each slice's size; missing values count as 0.
         If not set, each record counts once
@@ -625,7 +636,8 @@ def sunburst_chart(
     palette: list[str]
         Css colours cycled over the inner ring's values; ignored if color_column is set
     top_n: int
-        Keep the top_n largest slices within each parent and merge the rest into "Other (k values)"
+        Keep the top_n largest slices within each parent and merge the rest into "Other (k values)",
+        when two or more are left over
     pinned_values: list[str]
         Values never merged into "Other" and not counted towards top_n
     other_color: str
@@ -648,10 +660,11 @@ def sunburst_chart(
         return go.Figure(layout=layout_kwargs)
 
     size = data[value_column].fillna(0) if value_column else pd.Series(1, index=data.index)
+    others: list[set[str]] = [set() for _ in ring_columns]
     if top_n is not None:
-        pinned = set(pinned_values or [])
+        pinned = {_ring_label(v) for v in pinned_values or []}  # compared as text, like the rings
         for depth, ring in enumerate(ring_columns):
-            data[ring] = _lump_to_top_n(data, ring_columns[:depth], ring, size, top_n, pinned)
+            data[ring], others[depth] = _lump_to_top_n(data, ring_columns[:depth], ring, size, top_n, pinned)
 
     inner_colors: dict = {}
     if color_column:
@@ -668,11 +681,11 @@ def sunburst_chart(
         totals = size[rows].groupby([data.loc[rows, c] for c in path_columns], sort=False).sum()
         for path, value in totals.items():
             path = path if isinstance(path, tuple) else (path,)
-            ids.append("/".join(path))
-            parents.append("/".join(path[:-1]))
+            ids.append(_path_id(path))
+            parents.append(_path_id(path[:-1]))
             labels.append(path[-1])
             values.append(value)
-            in_other = any(part.startswith("Other (") for part in path)
+            in_other = any(part in others[d] for d, part in enumerate(path))
             colors.append(other_color if in_other else inner_colors.get(path[0], ""))
 
     trace_kwargs = {

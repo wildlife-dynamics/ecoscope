@@ -429,10 +429,10 @@ def test_sunburst_top_n():
 
 
 def test_sunburst_top_n_pinned():
-    df = pd.DataFrame({"a": ["x"] * 9, "b": list("vvvwwy") + ["(blank)"] * 3})
+    df = pd.DataFrame({"a": ["x"] * 10, "b": list("vvvwwyz") + ["(blank)"] * 3})
     labels = set(sunburst_chart(df, ring_columns=["a", "b"], top_n=2, pinned_values=["(blank)"]).data[0].labels)
 
-    assert {"v", "w", "(blank)", "Other (1 value)"} <= labels
+    assert {"v", "w", "(blank)", "Other (2 values)"} <= labels
 
 
 def test_sunburst_top_n_no_other(sunburst_df):
@@ -496,14 +496,15 @@ def test_sunburst_other_children_take_other_color():
 
 
 def test_sunburst_top_n_duplicate_index():
-    df = pd.DataFrame({"a": ["x", "y", "y", "y"], "b": ["p", "q", "r", "r"]}, index=[0, 0, 1, 1])
+    df = pd.DataFrame({"a": ["x", "y", "y", "y", "z"], "b": ["p", "q", "r", "r", "s"]}, index=[0, 0, 1, 1, 2])
 
     assert _slices(sunburst_chart(df, ring_columns=["a", "b"], top_n=1)) == {
         "y": 3,
-        "Other (1 value)": 1,
+        "Other (2 values)": 2,
         "y/r": 2,
-        "y/Other (1 value)": 1,
-        "Other (1 value)/p": 1,
+        "y/q": 1,
+        "Other (2 values)/p": 1,
+        "Other (2 values)/s": 1,
     }
 
 
@@ -517,3 +518,30 @@ def test_sunburst_empty_string_ends_path():
     df = pd.DataFrame({"a": ["", "x"], "b": ["p", ""]})
 
     assert _slices(sunburst_chart(df, ring_columns=["a", "b"])) == {"x": 1}
+
+
+def test_sunburst_slash_in_value_keeps_ids_distinct():
+    df = pd.DataFrame({"a": ["x/y", "x"], "b": [None, "y"]})
+    ids = list(sunburst_chart(df, ring_columns=["a", "b"]).data[0].ids)
+
+    assert len(ids) == len(set(ids)) == 3
+
+
+def test_sunburst_real_other_value_keeps_its_colour():
+    df = pd.DataFrame({"a": ["Other (misc)", "v"]})
+    t = sunburst_chart(df, ring_columns=["a"], palette=["#111111", "#222222"]).data[0]
+
+    assert dict(zip(t.labels, t.marker.colors))["Other (misc)"] == "#111111"
+
+
+def test_sunburst_top_n_keeps_single_leftover():
+    df = pd.DataFrame({"a": ["x", "x", "y"]})
+
+    assert set(sunburst_chart(df, ring_columns=["a"], top_n=1).data[0].labels) == {"x", "y"}
+
+
+def test_sunburst_numeric_pinned_values():
+    df = pd.DataFrame({"year": [2020, 2020, 2021, 2022, 2023]})
+    labels = set(sunburst_chart(df, ring_columns=["year"], top_n=1, pinned_values=[2023]).data[0].labels)
+
+    assert labels == {"2020", "2023", "Other (2 values)"}
