@@ -661,7 +661,8 @@ def sunburst_chart(
             parents.append("/".join(path[:-1]))
             labels.append(path[-1])
             values.append(value)
-            colors.append(other_color if path[-1].startswith("Other (") else inner_colors.get(path[0], ""))
+            in_other = any(part.startswith("Other (") for part in path)
+            colors.append(other_color if in_other else inner_colors.get(path[0], ""))
 
     trace_kwargs = {
         "branchvalues": "total",

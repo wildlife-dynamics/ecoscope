@@ -132,6 +132,7 @@ The leg frame and the track frame must share group-key values for `join_summary_
 | Draw a time-series bar chart | [`draw_time_series_bar_chart`][ecoscope.platform.tasks.results.draw_time_series_bar_chart] |
 | Draw a bar chart | [`draw_bar_chart`][ecoscope.platform.tasks.results.draw_bar_chart] |
 | Draw a pie chart | [`draw_pie_chart`][ecoscope.platform.tasks.results.draw_pie_chart] |
+| Draw a sunburst chart | [`draw_sunburst_chart`][ecoscope.platform.tasks.results.draw_sunburst_chart] |
 | Draw a line chart | [`draw_line_chart`][ecoscope.platform.tasks.results.draw_line_chart] |
 | Draw an EcoPlot | [`draw_ecoplot`][ecoscope.platform.tasks.results.draw_ecoplot] |
 | Draw a historic timeseries | [`draw_historic_timeseries`][ecoscope.platform.tasks.results.draw_historic_timeseries] |

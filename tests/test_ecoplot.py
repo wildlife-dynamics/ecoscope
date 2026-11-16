@@ -484,3 +484,12 @@ def test_sunburst_all_missing_inner_ring():
     df = pd.DataFrame({"a": [None, None], "b": ["x", "y"]})
 
     assert len(sunburst_chart(df, ring_columns=["a", "b"]).data) == 0
+
+
+def test_sunburst_other_children_take_other_color():
+    df = pd.DataFrame({"a": list("vvwy"), "b": list("pqrs")})
+    t = sunburst_chart(
+        df, ring_columns=["a", "b"], top_n=1, palette=["#111111", "#222222"], other_color="#999999"
+    ).data[0]
+
+    assert dict(zip(t.ids, t.marker.colors))["Other (2 values)/r"] == "#999999"
