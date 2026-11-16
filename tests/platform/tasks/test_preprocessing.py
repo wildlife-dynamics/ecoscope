@@ -305,6 +305,22 @@ def test_overrides_unmatched_key_matches_no_overrides():
     )
 
 
+def test_overrides_through_set_traj_filters():
+    from ecoscope.platform.tasks.config import get_segment_filter, get_segment_filter_overrides, set_traj_filters
+
+    relocs = _relocs({"ele": "elephant", "heli": "helicopter"})
+    f = TrajectorySegmentFilter(max_speed_kmhr=50)
+    overrides = [TrajectorySegmentFilterOverride(key="helicopter", filter=TrajectorySegmentFilter(max_speed_kmhr=300))]
+    filters = set_traj_filters(trajectory_segment_filter=f, trajectory_segment_filter_overrides=overrides)
+
+    pd.testing.assert_frame_equal(
+        relocations_to_trajectory(
+            relocs, get_segment_filter(filters), get_segment_filter_overrides(filters), "subject_subtype"
+        ),
+        relocations_to_trajectory(relocs, f, overrides, "subject_subtype"),
+    )
+
+
 def test_overrides_schema():
     # Regression guard: see `trajectory_segment_filter_override_column`'s annotation comment.
     schema = get_registry()[
