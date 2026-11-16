@@ -34,6 +34,7 @@ from ._pydeck import (
     view_state_from_geodataframes,
     view_state_from_layers,
 )
+from ._sunburst import SunburstStyle, draw_sunburst_chart
 from ._table import draw_table
 from ._widget_tasks import (
     create_files_single_view,
@@ -63,6 +64,8 @@ __all__ = [
     "draw_historic_timeseries",
     "draw_line_chart",
     "draw_pie_chart",
+    "SunburstStyle",
+    "draw_sunburst_chart",
     "draw_time_series_bar_chart",
     "draw_chart",
     "ChartFigure",
