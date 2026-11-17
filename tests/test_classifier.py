@@ -105,44 +105,6 @@ def test_apply_mpl_colormap_loops():
     assert len(more_classes_than_colors["colormap"].unique()) != len(more_classes_than_colors["value"].unique())
 
 
-def test_apply_named_colormap_by_frequency():
-    df = pd.DataFrame({"value": ["rare", "common", "common"]})
-    first = apply_color_map(df.copy(), "value", "tab10", output_column_name="c")
-    by_freq = apply_color_map(df.copy(), "value", "tab10", output_column_name="c", order="frequency")
-
-    assert first["c"][0] == by_freq["c"][1]  # the first color moves from the first-seen to the most common value
-    assert by_freq["c"][1] == by_freq["c"][2] != by_freq["c"][0]
-
-
-def test_frequency_order_leaves_numeric_and_dict_cmaps_alone():
-    numbers = pd.DataFrame({"value": [1, 5, 5, 9]})
-    words = pd.DataFrame({"value": ["a", "b", "b"]})
-    lookup = {"a": "#FF0000", "b": "#00FF00"}
-
-    assert list(apply_color_map(numbers.copy(), "value", "viridis", order="frequency")["value_colormap"]) == list(
-        apply_color_map(numbers.copy(), "value", "viridis")["value_colormap"]
-    )
-    assert list(apply_color_map(words, "value", lookup, order="frequency")["value_colormap"]) == [
-        (255, 0, 0, 255),
-        (0, 255, 0, 255),
-        (0, 255, 0, 255),
-    ]
-
-
-def test_frequency_order_cycles_a_short_list():
-    df = pd.DataFrame({"value": ["a", "b", "c", "c", "c"]})
-    colors = apply_color_map(df, "value", ["#FF0000", "#00FF00"], order="frequency")["value_colormap"]
-
-    assert list(colors) == [(0, 255, 0, 255), (255, 0, 0, 255), (255, 0, 0, 255), (255, 0, 0, 255), (255, 0, 0, 255)]
-
-
-def test_frequency_order_on_categorical_with_unused_category():
-    df = pd.DataFrame({"value": pd.Categorical(["b", "a", "a"], categories=["z", "a", "b"])})
-    colors = apply_color_map(df, "value", ["#FF0000", "#00FF00", "#0000FF"], order="frequency")["value_colormap"]
-
-    assert list(colors) == [(0, 255, 0, 255), (255, 0, 0, 255), (255, 0, 0, 255)]
-
-
 def test_apply_colormap_with_nan():
     df = pd.DataFrame(
         data={"value": [1, 2, 3, 4, np.nan]},

@@ -22,6 +22,7 @@ from ecoscope.platform.tasks.transformation._classification import (
     apply_color_map,
     classify_is_night,
     classify_seasons,
+    color_map_by_frequency,
 )
 
 
@@ -48,22 +49,58 @@ def test_color_map():
         )
 
 
-def test_color_map_most_frequent_first():
+def test_color_map_by_frequency_most_common_first():
     df = pd.DataFrame({"column_name": ["A", "C", "B", "C", "B", None, "C"]})
-    result = apply_color_map(df, "column_name", ["#FF0000", "#00FF00", "#0000FF"], order="frequency")
+
+    assert color_map_by_frequency(df, "column_name", ["#FF0000", "#00FF00", "#0000FF"]) == {
+        "C": "#FF0000",  # 3 rows
+        "B": "#00FF00",  # 2 rows
+        "A": "#0000FF",  # 1 row
+    }
+
+
+def test_color_map_by_frequency_ties_by_name_whatever_the_row_order():
+    colors = ["#FF0000", "#00FF00"]
+
+    assert color_map_by_frequency(pd.DataFrame({"c": ["B", "A"]}), "c", colors) == {"A": "#FF0000", "B": "#00FF00"}
+    assert color_map_by_frequency(pd.DataFrame({"c": ["A", "B"]}), "c", colors) == {"A": "#FF0000", "B": "#00FF00"}
+
+
+def test_color_map_by_frequency_cycles_short_list():
+    df = pd.DataFrame({"c": ["A", "A", "A", "B", "B", "C"]})
+
+    assert color_map_by_frequency(df, "c", ["#FF0000", "#00FF00"]) == {"A": "#FF0000", "B": "#00FF00", "C": "#FF0000"}
+
+
+def test_color_map_by_frequency_skips_unused_categories():
+    df = pd.DataFrame({"c": pd.Categorical(["B", "B", "A"], categories=["A", "B", "Z"])})
+
+    assert color_map_by_frequency(df, "c", ["#FF0000", "#00FF00", "#0000FF"]) == {"B": "#FF0000", "A": "#00FF00"}
+
+
+def test_color_map_by_frequency_validates_colormap():
+    df = pd.DataFrame({"c": ["B", "A", "B"]})
+    validated = task(color_map_by_frequency).validate()
+
+    assert validated.call(df=df, input_column_name="c", colormap=["#FF0000", "#00FF00"]) == {
+        "B": "#FF0000",
+        "A": "#00FF00",
+    }
+    with pytest.raises(ValidationError):
+        validated.call(df=df, input_column_name="c", colormap=[])
+
+
+def test_color_map_by_frequency_into_apply_color_map():
+    df = pd.DataFrame({"column_name": ["A", "C", "B", "C", "B", None, "C"]})
+    colormap = color_map_by_frequency(df, "column_name", ["#FF0000", "#00FF00", "#0000FF"])
+    result = apply_color_map(df, "column_name", colormap)
 
     colors = dict(zip(result["column_name"], result["column_name_colormap"]))
-    assert colors["C"] == (255, 0, 0, 255)  # 3 rows
-    assert colors["B"] == (0, 255, 0, 255)  # 2 rows
-    assert colors["A"] == (0, 0, 255, 255)  # 1 row
+    assert colors["C"] == (255, 0, 0, 255)
+    assert colors["B"] == (0, 255, 0, 255)
+    assert colors["A"] == (0, 0, 255, 255)
     assert colors[None] == (0, 0, 0, 0)
-
-
-def test_color_map_frequency_ties_by_name():
-    df = pd.DataFrame({"column_name": ["B", "A"]})
-    result = apply_color_map(df, "column_name", ["#FF0000", "#00FF00"], order="frequency")
-
-    assert list(result["column_name_colormap"]) == [(0, 255, 0, 255), (255, 0, 0, 255)]
+    assert list(result["column_name"]) == ["A", "C", "B", "C", "B", None, "C"]  # rows untouched
 
 
 def test_color_map_from_dict():

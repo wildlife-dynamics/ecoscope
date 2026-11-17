@@ -143,7 +143,6 @@ def apply_color_map(
     input_column_name: str,
     cmap: str | list[HexColor] | dict[ColorValue, HexColor],
     output_column_name: str | None = None,
-    order: Literal["appearance", "frequency"] = "appearance",
 ) -> pd.DataFrame:
     """
     Creates a new column on the provided dataframe with the given cmap applied over the specified input column
@@ -157,8 +156,6 @@ def apply_color_map(
         dict are given set as fully transparent.
     output_column_name(str): The dataframe column that will contain the classification.
         Defaults to "<input_column_name>_colormap"
-    order (str): Which values get the first colors of a list or categorical cmap: "appearance" (first seen
-        first) or "frequency" (most common first, ties by name).
 
     Returns:
     The input dataframe with a color map appended.
@@ -169,10 +166,6 @@ def apply_color_map(
     NAN_COLOR = (0, 0, 0, 0)
 
     unique_non_na = s.dropna().unique()
-    if order == "frequency":
-        counts = s.value_counts()
-        counts = counts[counts > 0]  # unused categories of a categorical column get no color
-        unique_non_na = pd.Index(sorted(counts.index, key=lambda v: (-counts[v], str(v))))
     k = len(unique_non_na)
 
     if k == 0:

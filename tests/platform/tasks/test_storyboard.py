@@ -258,18 +258,18 @@ def test_all_events_without_time():
     assert "No incidents" in draw_incident_storyboard(df)
 
 
-def test_colors_from_apply_color_map_by_frequency():
-    from ecoscope.platform.tasks.transformation import apply_color_map
+def test_colors_from_color_map_by_frequency():
+    from ecoscope.platform.tasks.transformation import apply_color_map, color_map_by_frequency
 
     events = [
         ("#1 A", "2025-01-01T00:00:00Z", "Fire", 1),
         ("#1 A", "2025-01-03T00:00:00Z", "Snare", 2),
         ("#1 A", "2025-01-05T00:00:00Z", "Snare", 3),
     ]
-    df = apply_color_map(
-        _df(events), "event_type_display", ["#2a78d6", "#eb6834"], order="frequency", output_column_name="type_color"
-    )
-    html = draw_incident_storyboard(df, color_column="type_color")
+    df = _df(events)
+    colormap = color_map_by_frequency(df, "event_type_display", ["#2a78d6", "#eb6834"])
+    df = apply_color_map(df, "event_type_display", colormap, output_column_name="event_type_color")
+    html = draw_incident_storyboard(df, color_column="event_type_color")
 
     assert "--c:rgba(42, 120, 214, 1.0)" in html  # Snare, the most common, takes the first color
     assert "--c:rgba(235, 104, 52, 1.0)" in html

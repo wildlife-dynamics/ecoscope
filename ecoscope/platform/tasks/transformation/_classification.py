@@ -155,13 +155,6 @@ def apply_color_map(
         str | SkipJsonSchema[None],
         Field(description="The dataframe column that will contain the color values."),
     ] = None,
-    order: Annotated[
-        Literal["appearance", "frequency"],
-        AdvancedField(
-            default="appearance",
-            description="Which values get the first colors: in order of appearance, or the most common first.",
-        ),
-    ] = "appearance",
 ) -> AnyDataFrame:
     """
     Adds a color column to the dataframe based on the categorical values in the specified column.
@@ -172,7 +165,6 @@ def apply_color_map(
     colormap (str): Either a named mpl.colormap or a list of string hex values.
     output_column_name (str): The dataframe column that will contain the classification.
             Defaults to "<input_column_name>_colormap"
-    order (str): "appearance" (first seen first) or "frequency" (most common first, ties by name).
 
     Returns:
     pd.DataFrame: The dataframe with an additional color column.
@@ -186,8 +178,44 @@ def apply_color_map(
         input_column_name=input_column_name,
         cmap=colormap,
         output_column_name=output_column_name,
-        order=order,
     )
+
+
+@register()
+def color_map_by_frequency(
+    df: Annotated[
+        AnyDataFrame,
+        Field(description="The dataframe whose values are counted.", exclude=True),
+    ],
+    input_column_name: Annotated[str, Field(description="The name of the column with categorical values.")],
+    colormap: Annotated[
+        list[HexColor],
+        Field(
+            description="Hex colors to give out, the first to the most common value. "
+            "Repeats from the start if there are more values than colors.",
+            min_length=1,
+        ),
+    ],
+) -> dict[ColorValue, HexColor]:
+    """
+    Builds a {value: color} map where the most common value gets the first color.
+
+    Ties are broken by name, so the same data always gives the same colors, whatever
+    the row order. Pass the result as `colormap` to `apply_color_map`. Missing values
+    are not counted, so `apply_color_map` leaves them transparent.
+
+    Args:
+    df (pd.DataFrame): The input dataframe.
+    input_column_name (str): The name of the column with categorical values.
+    colormap (list[str]): Hex colors, the first for the most common value.
+
+    Returns:
+    dict: Each value in the column mapped to a hex color.
+    """
+    counts = df[input_column_name].value_counts()
+    counts = counts[counts > 0]  # unused categories of a categorical column get no color
+    values = sorted(counts.index.tolist(), key=lambda v: (-counts[v], str(v)))
+    return {v: colormap[i % len(colormap)] for i, v in enumerate(values)}
 
 
 @register()
