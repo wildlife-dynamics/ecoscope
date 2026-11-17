@@ -58,6 +58,7 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 | I need to... | Task |
 |--------------|------|
 | Apply a colormap to a column | [`apply_color_map`][ecoscope.platform.tasks.transformation.apply_color_map] |
+| Give the most common values the first colors | [`color_map_by_frequency`][ecoscope.platform.tasks.transformation.color_map_by_frequency] |
 | Classify day vs. night | [`classify_is_night`][ecoscope.platform.tasks.transformation.classify_is_night] |
 | Classify by season | [`classify_seasons`][ecoscope.platform.tasks.transformation.classify_seasons] |
 | Apply a custom classification | [`apply_classification`][ecoscope.platform.tasks.transformation.apply_classification] |

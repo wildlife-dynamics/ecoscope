@@ -182,6 +182,43 @@ def apply_color_map(
 
 
 @register()
+def color_map_by_frequency(
+    df: Annotated[
+        AnyDataFrame,
+        Field(description="The dataframe whose values are counted.", exclude=True),
+    ],
+    input_column_name: Annotated[str, Field(description="The name of the column with categorical values.")],
+    colormap: Annotated[
+        list[HexColor],
+        Field(
+            description="Hex colors to give out, the first to the most common value. "
+            "Repeats from the start if there are more values than colors.",
+            min_length=1,
+        ),
+    ],
+) -> dict[ColorValue, HexColor]:
+    """
+    Builds a {value: color} map where the most common value gets the first color.
+
+    Ties are broken by name, so the same data always gives the same colors, whatever
+    the row order. Pass the result as `colormap` to `apply_color_map`. Missing values
+    are not counted, so `apply_color_map` leaves them transparent.
+
+    Args:
+    df (pd.DataFrame): The input dataframe.
+    input_column_name (str): The name of the column with categorical values.
+    colormap (list[str]): Hex colors, the first for the most common value.
+
+    Returns:
+    dict: Each value in the column mapped to a hex color.
+    """
+    counts = df[input_column_name].value_counts()
+    counts = counts[counts > 0]  # unused categories of a categorical column get no color
+    values = sorted(counts.index.tolist(), key=lambda v: (-counts[v], str(v)))
+    return {v: colormap[i % len(colormap)] for i, v in enumerate(values)}
+
+
+@register()
 def classify_is_night(
     relocations: Annotated[
         AnyDataFrame,
