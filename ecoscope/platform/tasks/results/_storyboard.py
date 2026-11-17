@@ -97,11 +97,12 @@ def _empty(message: str = "No incidents in this period.") -> str:
 def _duration(seconds: float) -> str:
     if pd.isna(seconds) or seconds < 60:
         return "same time"
-    for unit, n in (("day", 86400), ("h", 3600), ("min", 60)):
-        if seconds >= n:
-            v = round(seconds / n)
-            return f"{v} {unit}{'s' if unit == 'day' and v != 1 else ''}"
-    return ""
+    if seconds >= 86400:
+        days = round(seconds / 86400)
+        return f"{days} day{'s' if days != 1 else ''}"
+    if seconds >= 3600:
+        return f"{round(seconds / 3600)} h"
+    return f"{round(seconds / 60)} min"
 
 
 def _located(geom: Any) -> bool:

@@ -233,3 +233,26 @@ def test_whole_tile_shows_full_type_on_hover():
     html = draw_incident_storyboard(_df([("#1 A", "2025-01-01T00:00:00Z", name, 1)]))
 
     assert re.search(rf"<div class='tile' title='{name}'", html)
+
+
+def test_more_types_than_default_colours():
+    from ecoscope.platform.tasks.results._storyboard import TYPE_COLORS
+
+    events = [("#1 A", f"2025-01-{d + 1:02d}T00:00:00Z", f"Type {d:02d}", d) for d in range(18)]
+    colors = re.findall(r"--c:(#[0-9a-f]{6})", draw_incident_storyboard(_df(events)))
+
+    assert len(set(colors)) == 18
+    assert colors[16] not in TYPE_COLORS and colors[17] not in TYPE_COLORS
+
+
+def test_undecodable_icon_data_is_kept_as_given():
+    bad = "data:image/svg+xml;base64,abc"  # bad padding: not decodable
+    html = draw_incident_storyboard(_df([("#1 A", "2025-01-01T00:00:00Z", "Snare", 1, {"icon": bad})]))
+
+    assert "url('data:image/svg+xml;base64,abc')" in html
+
+
+def test_all_events_without_time():
+    df = _df([("#1 A", None, "Snare", 1), ("#1 A", None, "Fire", 2)])
+
+    assert "No incidents" in draw_incident_storyboard(df)
