@@ -1,8 +1,8 @@
 import base64
 import colorsys
 import html
-from urllib.parse import quote
 from typing import Annotated, Any
+from urllib.parse import quote
 
 import pandas as pd
 from pydantic import Field
@@ -57,7 +57,8 @@ STORYBOARD_CSS = (
     + """
 .row { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; padding: 8px 0;
        border-bottom: 1px solid #eef0f3; } .row:last-child { border-bottom: 0; }
-.meta { color: var(--muted); font-size: 12px; margin-top: 8px; } .ttl { font-size: 13px; margin-top: 6px; color: #4a5560; }
+.meta { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.ttl { font-size: 13px; margin-top: 6px; color: #4a5560; }
 .scroll { overflow-x: auto; padding-bottom: 4px; }
 .board { display: flex; align-items: flex-start; width: max-content; padding: 10px 0 4px; }
 .tile { width: 116px; text-align: center; }
@@ -67,14 +68,18 @@ STORYBOARD_CSS = (
 .ico i.ic { width: 34px; height: 34px; border-radius: 0; background-color: transparent; }
 .ico b { position: absolute; top: -8px; right: -10px; background: #1f2933; color: #fff; font-size: 11px;
          border-radius: 999px; padding: 1px 6px; }
-.ty { font-size: 12px; font-weight: 600; margin-top: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; }
-.ids, .when { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.ty { font-size: 12px; font-weight: 600; margin-top: 7px; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; padding: 0 4px; }
+.ids, .when { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.35;
+              font-variant-numeric: tabular-nums; }
 .nl { font-size: 10.5px; color: #9aa5b1; font-style: italic; margin-top: 2px; }
 .arrow { width: 64px; position: relative; height: 60px; margin: 0 -14px; }
 .arrow::before { content: ''; position: absolute; left: 4px; right: 10px; top: 29px; height: 2px; background: #c3cad4; }
-.arrow::after { content: ''; position: absolute; right: 4px; top: 25px; border: 5px solid transparent; border-left: 7px solid #c3cad4; }
+.arrow::after { content: ''; position: absolute; right: 4px; top: 25px; border: 5px solid transparent;
+                border-left: 7px solid #c3cad4; }
 .arrow span { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); font-size: 10.5px; color: #4a5560;
-              background: var(--card); border: 1px solid #e1e6ed; border-radius: 999px; padding: 0 6px; white-space: nowrap; }
+              background: var(--card); border: 1px solid #e1e6ed; border-radius: 999px; padding: 0 6px;
+              white-space: nowrap; }
 .ic { display: inline-block; background-position: center; background-size: contain; background-repeat: no-repeat; }
 """
 )
@@ -141,7 +146,8 @@ def _type_colors(types: pd.Series, palette: str | list[str] | None) -> dict[Any,
     colors = _resolve_palette_colors(palette, len(order))
     if colors:
         return {t: colors[i % len(colors)] for i, t in enumerate(order)}
-    return {t: TYPE_COLORS[i] if i < len(TYPE_COLORS) else _extra_color(i - len(TYPE_COLORS)) for i, t in enumerate(order)}
+    n = len(TYPE_COLORS)
+    return {t: TYPE_COLORS[i] if i < n else _extra_color(i - n) for i, t in enumerate(order)}
 
 
 def _board(g: pd.DataFrame, merge_s: float, icon_classes: dict[str, str]) -> str:
@@ -161,14 +167,19 @@ def _board(g: pd.DataFrame, merge_s: float, icon_classes: dict[str, str]) -> str
             out.append(f"<div class='arrow'><span>{_duration(gap)}</span></div>")
         icon = f"<i class='ic {icon_classes[first.sb_icon]}'></i>" if first.sb_icon else "<i></i>"
         n = len(run)
-        when = f"{first.sb_time.day} {first.sb_time:%b %Y}<br>{first.sb_time:%H:%M}" + (f"–{last.sb_time:%H:%M}" if n > 1 else "")
+        when = f"{first.sb_time.day} {first.sb_time:%b %Y}<br>{first.sb_time:%H:%M}"
+        if n > 1:
+            when += f"–{last.sb_time:%H:%M}"
         ids = esc(str(first.sb_id)) if n == 1 else f"{esc(str(first.sb_id))} … {esc(str(last.sb_id))}"
         unlocated = sum(not e.sb_located for e in run)
-        nl = "" if not unlocated else f"<div class='nl'>{'no location' if n == 1 else f'{unlocated} without location'}</div>"
+        nl = ""
+        if unlocated:
+            nl = f"<div class='nl'>{'no location' if n == 1 else f'{unlocated} without location'}</div>"
         badge = f"<b>×{n}</b>" if n > 1 else ""
         ty = esc(str(first.sb_type))
         out.append(
-            f"<div class='tile' title='{ty}' style='--c:{esc(first.sb_color)}'><div class='ico'>{icon}{badge}</div>"
+            f"<div class='tile' title='{ty}' style='--c:{esc(first.sb_color)}'>"
+            f"<div class='ico'>{icon}{badge}</div>"
             f"<div class='ty'>{ty}</div><div class='ids'>{ids}</div><div class='when'>{when}</div>{nl}</div>"
         )
     return f"<div class='board'>{''.join(out)}</div>"
@@ -178,7 +189,8 @@ def _label(group: Any) -> str:
     """'#<serial> <title>' as an id chip with the title under it; any other label as the chip."""
     text = str(group)
     sid, _, title = text.partition(" ") if text.startswith("#") else (text, "", "")
-    return f"<span class='inc-id'>{html.escape(sid)}</span>" + (f"<div class='ttl'>{html.escape(title)}</div>" if title else "")
+    chip = f"<span class='inc-id'>{html.escape(sid)}</span>"
+    return chip + (f"<div class='ttl'>{html.escape(title)}</div>" if title else "")
 
 
 @register()
@@ -206,7 +218,8 @@ def draw_incident_storyboard(
         str,
         AdvancedField(
             default="icon",
-            description="Event icons (data URI or URL). A missing column or empty value draws a dot of the type's colour.",
+            description="Event icons (data URI or URL). "
+            "A missing column or empty value draws a dot of the type's colour.",
         ),
     ] = "icon",
     color_column: Annotated[
@@ -221,14 +234,13 @@ def draw_incident_storyboard(
         str | list[str] | SkipJsonSchema[None],
         AdvancedField(
             default=None,
-            description="Event type colours, most frequent type first: a named matplotlib colormap or a list of colours.",
+            description="Event type colours, most frequent type first: "
+            "a named matplotlib colormap or a list of colours.",
         ),
     ] = None,
     merge_window_hours: Annotated[
         float,
-        AdvancedField(
-            default=12, ge=0, description="Same-type events this close share one tile (×N). 0 never merges."
-        ),
+        AdvancedField(default=12, ge=0, description="Same-type events this close share one tile (×N). 0 never merges."),
     ] = 12,
     widget_id: Annotated[
         str | SkipJsonSchema[None],

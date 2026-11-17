@@ -54,9 +54,7 @@ def test_rows_newest_incident_first():
 
 
 def test_same_type_within_window_merges():
-    html = draw_incident_storyboard(
-        _df([("#1 A", f"2025-01-01T0{h}:00:00Z", "Snare", 5 + h) for h in range(3)])
-    )
+    html = draw_incident_storyboard(_df([("#1 A", f"2025-01-01T0{h}:00:00Z", "Snare", 5 + h) for h in range(3)]))
 
     assert len(_tiles(html)) == 1
     assert "×3" in html
@@ -64,7 +62,9 @@ def test_same_type_within_window_merges():
 
 
 def test_merge_window_and_type_break_runs():
-    far = draw_incident_storyboard(_df([("#1 A", "2025-01-01T00:00:00Z", "Snare", 1), ("#1 A", "2025-01-01T13:00:00Z", "Snare", 2)]))
+    far = draw_incident_storyboard(
+        _df([("#1 A", "2025-01-01T00:00:00Z", "Snare", 1), ("#1 A", "2025-01-01T13:00:00Z", "Snare", 2)])
+    )
     between = draw_incident_storyboard(
         _df(
             [
@@ -107,7 +107,12 @@ def test_no_location_marked():
 
 
 def test_icon_or_dot():
-    with_icon = _df([("#1 A", "2025-01-01T00:00:00Z", "Snare", 1, {"icon": ICON}), ("#1 A", "2025-01-02T00:00:00Z", "Snare", 2, {"icon": ICON})])
+    with_icon = _df(
+        [
+            ("#1 A", "2025-01-01T00:00:00Z", "Snare", 1, {"icon": ICON}),
+            ("#1 A", "2025-01-02T00:00:00Z", "Snare", 2, {"icon": ICON}),
+        ]
+    )
     html = draw_incident_storyboard(with_icon)
     no_column = draw_incident_storyboard(_df([("#1 A", "2025-01-01T00:00:00Z", "Snare", 1)]).drop(columns="icon"))
     generic = draw_incident_storyboard(_df([("#1 A", "2025-01-01T00:00:00Z", "Snare", 1, {"icon": GENERIC})]))
@@ -119,9 +124,15 @@ def test_icon_or_dot():
 
 
 def test_color_precedence():
-    events = [("#1 A", "2025-01-01T00:00:00Z", "Snare", 1), ("#1 A", "2025-01-01T00:10:00Z", "Snare", 2), ("#1 A", "2025-01-02T00:00:00Z", "Fire", 3)]
+    events = [
+        ("#1 A", "2025-01-01T00:00:00Z", "Snare", 1),
+        ("#1 A", "2025-01-01T00:10:00Z", "Snare", 2),
+        ("#1 A", "2025-01-02T00:00:00Z", "Fire", 3),
+    ]
     default = draw_incident_storyboard(_df(events), merge_window_hours=0)
-    own = draw_incident_storyboard(_df([(*e, {"type_color": "#123456"}) for e in events]), color_column="type_color", palette=["#ffffff"])
+    own = draw_incident_storyboard(
+        _df([(*e, {"type_color": "#123456"}) for e in events]), color_column="type_color", palette=["#ffffff"]
+    )
     tuples = draw_incident_storyboard(_df([(*e, {"c": (255, 0, 0, 255)}) for e in events]), color_column="c")
 
     assert "--c:#2a78d6" in default  # most frequent type (Snare) takes the first default colour
