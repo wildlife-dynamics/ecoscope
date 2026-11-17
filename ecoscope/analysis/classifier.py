@@ -171,6 +171,7 @@ def apply_color_map(
     unique_non_na = s.dropna().unique()
     if order == "frequency":
         counts = s.value_counts()
+        counts = counts[counts > 0]  # unused categories of a categorical column get no color
         unique_non_na = pd.Index(sorted(counts.index, key=lambda v: (-counts[v], str(v))))
     k = len(unique_non_na)
 
