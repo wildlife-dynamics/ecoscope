@@ -34,6 +34,7 @@ from ._pydeck import (
     view_state_from_geodataframes,
     view_state_from_layers,
 )
+from ._storyboard import draw_incident_storyboard
 from ._sunburst import SunburstStyle, draw_sunburst_chart
 from ._table import draw_table
 from ._widget_tasks import (
@@ -66,6 +67,7 @@ __all__ = [
     "draw_pie_chart",
     "SunburstStyle",
     "draw_sunburst_chart",
+    "draw_incident_storyboard",
     "draw_time_series_bar_chart",
     "draw_chart",
     "ChartFigure",
