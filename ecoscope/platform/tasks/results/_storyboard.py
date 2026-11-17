@@ -1,6 +1,7 @@
 import base64
 import colorsys
 import html
+from urllib.parse import quote
 from typing import Annotated, Any
 
 import pandas as pd
@@ -112,10 +113,14 @@ def _own_icon(uri: Any) -> str:
             text = base64.b64decode(u.split(",", 1)[1]).decode(errors="ignore")
         except ValueError:
             return u
-    return "" if "<title>generic" in text else u
+    if "<title>generic" in text or not u.startswith(("data:", "https://", "http://")):
+        return ""
+    return quote(u, safe=":/?#[]@!$&*+,;=%-._~")  # nothing that can close the CSS url('...') it goes in
 
 
-def _css_color(c: Any) -> str:
+def _css_color(c: Any) -> str | None:
+    if c is None or (isinstance(c, float) and pd.isna(c)):
+        return None
     if isinstance(c, str):
         return c
     r, g, b, a = (list(c) + [255])[:4]
@@ -156,15 +161,15 @@ def _board(g: pd.DataFrame, merge_s: float, icon_classes: dict[str, str]) -> str
             out.append(f"<div class='arrow'><span>{_duration(gap)}</span></div>")
         icon = f"<i class='ic {icon_classes[first.sb_icon]}'></i>" if first.sb_icon else "<i></i>"
         n = len(run)
-        when = f"{first.sb_time:%-d %b %Y}<br>{first.sb_time:%H:%M}" + (f"–{last.sb_time:%H:%M}" if n > 1 else "")
+        when = f"{first.sb_time.day} {first.sb_time:%b %Y}<br>{first.sb_time:%H:%M}" + (f"–{last.sb_time:%H:%M}" if n > 1 else "")
         ids = esc(str(first.sb_id)) if n == 1 else f"{esc(str(first.sb_id))} … {esc(str(last.sb_id))}"
         unlocated = sum(not e.sb_located for e in run)
         nl = "" if not unlocated else f"<div class='nl'>{'no location' if n == 1 else f'{unlocated} without location'}</div>"
         badge = f"<b>×{n}</b>" if n > 1 else ""
         ty = esc(str(first.sb_type))
         out.append(
-            f"<div class='tile' style='--c:{esc(first.sb_color)}'><div class='ico'>{icon}{badge}</div>"
-            f"<div class='ty' title='{ty}'>{ty}</div><div class='ids'>{ids}</div><div class='when'>{when}</div>{nl}</div>"
+            f"<div class='tile' title='{ty}' style='--c:{esc(first.sb_color)}'><div class='ico'>{icon}{badge}</div>"
+            f"<div class='ty'>{ty}</div><div class='ids'>{ids}</div><div class='when'>{when}</div>{nl}</div>"
         )
     return f"<div class='board'>{''.join(out)}</div>"
 
@@ -264,16 +269,18 @@ def draw_incident_storyboard(
     if "id" in df.columns:
         df = df.drop_duplicates([group_column, "id"])
     df["sb_time"] = pd.to_datetime(df[time_column], utc=True, format="ISO8601")
-    df["sb_type"] = df[type_column]
+    df = df[df["sb_time"].notna()]  # an event without a time can't be placed on the board
+    if df.empty:
+        return _empty()
+    df["sb_type"] = df[type_column].fillna("(no type)")
     df["sb_id"] = df[id_column] if id_column in df.columns else ""
     df["sb_icon"] = df[icon_column].map(_own_icon) if icon_column in df.columns else ""
     geometry = df.geometry if "geometry" in df.columns else pd.Series(True, index=df.index)
     df["sb_located"] = [g is True or _located(g) for g in geometry]
-    if color_column:
-        df["sb_color"] = df[color_column].map(_css_color)
-    else:
-        events = df.drop_duplicates("id") if "id" in df.columns else df
-        df["sb_color"] = df["sb_type"].map(_type_colors(events["sb_type"], palette))
+    events = df.drop_duplicates("id") if "id" in df.columns else df
+    df["sb_color"] = df["sb_type"].map(_type_colors(events["sb_type"], palette))
+    if color_column:  # own colours win; a missing one falls back to the palette's
+        df["sb_color"] = df[color_column].map(_css_color).fillna(df["sb_color"])
     sort_ids = ["sb_time", id_column] if id_column in df.columns else ["sb_time"]
     df = df.sort_values(sort_ids, kind="stable")
 

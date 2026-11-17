@@ -174,3 +174,51 @@ def test_works_on_example_return():
 
     assert html.count("class='row'") == df["incident"].nunique()
     assert "no location" in html
+
+
+def test_icon_values_cannot_break_out_of_css():
+    evil = "http://x/a.svg');}</style><script>alert(1)</script>"
+    html = draw_incident_storyboard(
+        _df(
+            [
+                ("#1 A", "2025-01-01T00:00:00Z", "Snare", 1, {"icon": evil}),
+                ("#1 A", "2025-01-02T00:00:00Z", "Fire", 2, {"icon": "javascript:alert(1)"}),
+                ("#1 A", "2025-01-03T00:00:00Z", "Gun", 3, {"icon": "https://er.example/it's (1).svg"}),
+            ]
+        )
+    )
+
+    assert "<script>" not in html
+    assert "javascript:" not in html
+    assert "url('https://er.example/it%27s%20%281%29.svg')" in html
+
+
+def test_missing_values_still_draw():
+    df = _df(
+        [
+            ("#1 A", "2025-01-01T00:00:00Z", None, 1, {"c": None}),
+            ("#1 A", None, "Snare", 2, {"c": "#123456"}),
+            ("#1 A", "2025-01-02T00:00:00Z", "Snare", 3, {"c": "#123456"}),
+        ]
+    )
+    html = draw_incident_storyboard(df, color_column="c")
+
+    assert "(no type)" in html
+    assert "--c:#2a78d6" in html or "--c:#eb6834" in html  # the null colour falls back to the palette
+    assert len(_tiles(html)) == 2  # the event without a time can't be placed and is left out
+
+
+def test_dates_without_platform_specific_format():
+    import inspect
+
+    from ecoscope.platform.tasks.results import _storyboard
+
+    assert "%-d" not in inspect.getsource(_storyboard)  # unsupported by strftime on Windows
+    assert "1 Jan 2025" in draw_incident_storyboard(_df([("#1 A", "2025-01-01T05:00:00Z", "Snare", 1)]))
+
+
+def test_whole_tile_shows_full_type_on_hover():
+    name = "Invasive Plant Clearance Follow-up Survey"
+    html = draw_incident_storyboard(_df([("#1 A", "2025-01-01T00:00:00Z", name, 1)]))
+
+    assert re.search(rf"<div class='tile' title='{name}'", html)
