@@ -72,11 +72,6 @@ class TrajectorySegmentFilter(BaseModel, CacheableModel):
             json_schema_extra={"exclusiveMinimum": 0.001},
         ),
     ] = 500
-    # Provenance only (e.g. which named preset produced these bounds); not a user-facing
-    # field, so it's excluded from the schema and from the core TrajSegFilter translation.
-    # Dropped from dumps when unset: schema defaults are serialized instances, and a
-    # `"preset": null` there would have no matching property.
-    preset: SkipJsonSchema[str | None] = Field(default=None, exclude_if=lambda v: v is None)
 
     @model_validator(mode="after")
     def validate_filter_values(self) -> "TrajectorySegmentFilter":

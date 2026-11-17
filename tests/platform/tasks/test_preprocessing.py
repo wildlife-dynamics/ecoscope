@@ -18,7 +18,6 @@ from ecoscope.platform.tasks.preprocessing import (
     relocations_to_trajectory,
 )
 from ecoscope.platform.tasks.transformation._filtering import Coordinate
-from ecoscope.trajectory import TrajSegFilter
 
 # Degrees of longitude stepped per hourly fix, keyed by the test subject id below;
 # at the equator this gives ~1.1 km/h ("ele") and ~111 km/h ("heli").
@@ -174,24 +173,6 @@ def test_traj_segment_filter_maximum_greater_than_minimum():
             max_speed_kmhr=6,
             min_speed_kmhr=7,
         )
-
-
-def test_preset_is_accepted_and_omitted_from_schema():
-    f = TrajectorySegmentFilter(preset="elephant", max_speed_kmhr=12)
-    assert f.preset == "elephant"
-    assert "preset" not in TrajectorySegmentFilter.model_json_schema()["properties"]
-
-
-def test_preset_is_ignored_by_task():
-    core = TrajectorySegmentFilter(preset="elephant", max_speed_kmhr=12).to_traj_seg_filter()
-    assert core == TrajSegFilter(
-        min_length_meters=0.001,
-        max_length_meters=100000,
-        min_time_secs=1,
-        max_time_secs=172800,
-        min_speed_kmhr=0.01,
-        max_speed_kmhr=12,
-    )
 
 
 def test_duplicate_override_keys_rejected():
@@ -359,7 +340,6 @@ def test_overrides_schema():
         "$ref": "#/$defs/TrajectorySegmentFilterOverride"
     }
     assert "trajectory_segment_filter_override_column" not in props
-    assert "preset" not in schema["$defs"]["TrajectorySegmentFilter"]["properties"]
 
 
 def test_overrides_schema_accepts_null_and_empty_and_populated():
@@ -380,22 +360,6 @@ def test_overrides_schema_accepts_null_and_empty_and_populated():
 
     for value in (None, [], [{"key": "elephant", "filter": {}}]):
         jsonschema.validate(instance=value, schema=overrides_schema)
-
-
-def test_preset_omitted_from_serialized_defaults():
-    # `SkipJsonSchema` only hides `preset` from $defs; the field-level `default` for
-    # `trajectory_segment_filter` is separately serialized from a `TrajectorySegmentFilter()`
-    # instance, so it needs its own guard (`exclude_if` on the field).
-    from ecoscope.platform.tasks.config import set_traj_filters  # noqa: F401  (registers it)
-
-    relocs_schema = get_registry()[
-        "ecoscope.platform.tasks.preprocessing._preprocessing.relocations_to_trajectory"
-    ].json_schema
-    set_filters_schema = get_registry()["ecoscope.platform.tasks.config._set_traj_filters.set_traj_filters"].json_schema
-
-    assert "preset" not in relocs_schema["properties"]["trajectory_segment_filter"]["default"]
-    assert "preset" not in set_filters_schema["properties"]["trajectory_segment_filter"]["default"]
-    assert TrajectorySegmentFilter(preset="elephant").model_dump()["preset"] == "elephant"
 
 
 def test_empty_overrides_match_no_overrides():
