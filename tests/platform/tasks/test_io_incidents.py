@@ -241,3 +241,38 @@ def test_icon_that_is_not_svg_is_dropped(monkeypatch):
     df = _run([_event("A", 1, contains=["e1"], collection=True), _event("e1", 2)], ["A"], include_icons=True)
 
     assert list(df["icon"]) == [""]
+
+
+def test_all_members_missing_gives_empty_frame():
+    df = _run([_event("A", 1, contains=["e9"], collection=True)], ["A"])
+
+    assert df.empty
+    assert {"id", "incident", "geometry"} <= set(df.columns)
+
+
+def test_incidents_without_contains_column():
+    records = [_event("A", 1, collection=True)]
+    client = _client(records, ["A"])
+    plain = client.api.get_events.side_effect
+    client.api.get_events.side_effect = lambda **kw: plain(**kw).drop(columns="contains")
+
+    assert get_incident_events(client=client, time_range=TIME_RANGE).empty
+
+
+def test_name_lookups_fall_back_to_values(caplog):
+    from erclient.client import ERClientException  # type: ignore[import-untyped]
+
+    records = [_event("A", 1, contains=["e1"], collection=True), _event("e1", 2, image_url=None)]
+    records[1]["notes"] = None
+    del records[1]["event_category"]
+    client = _client(records, ["A"])
+    client.api.get_event_type_display_names_from_events.side_effect = ERClientException("down")
+    client.api.get_event_categories.side_effect = ERClientException("down")
+    with caplog.at_level(logging.WARNING):
+        df = get_incident_events(client=client, time_range=TIME_RANGE, include_icons=True)
+
+    assert list(df["event_type_display"]) == ["snare"]
+    assert df["event_category_display"].isna().all()
+    assert list(df["notes"]) == [""]
+    assert list(df["icon"]) == [""]
+    assert "display names unavailable" in caplog.text
