@@ -48,6 +48,24 @@ def test_color_map():
         )
 
 
+def test_color_map_most_frequent_first():
+    df = pd.DataFrame({"column_name": ["A", "C", "B", "C", "B", None, "C"]})
+    result = apply_color_map(df, "column_name", ["#FF0000", "#00FF00", "#0000FF"], order="frequency")
+
+    colors = dict(zip(result["column_name"], result["column_name_colormap"]))
+    assert colors["C"] == (255, 0, 0, 255)  # 3 rows
+    assert colors["B"] == (0, 255, 0, 255)  # 2 rows
+    assert colors["A"] == (0, 0, 255, 255)  # 1 row
+    assert colors[None] == (0, 0, 0, 0)
+
+
+def test_color_map_frequency_ties_by_name():
+    df = pd.DataFrame({"column_name": ["B", "A"]})
+    result = apply_color_map(df, "column_name", ["#FF0000", "#00FF00"], order="frequency")
+
+    assert list(result["column_name_colormap"]) == [(0, 255, 0, 255), (255, 0, 0, 255)]
+
+
 def test_color_map_from_dict():
     df = pd.DataFrame({"column_name": ["A", "B", "A", "C", "B", "C"]})
 

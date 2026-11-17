@@ -105,6 +105,15 @@ def test_apply_mpl_colormap_loops():
     assert len(more_classes_than_colors["colormap"].unique()) != len(more_classes_than_colors["value"].unique())
 
 
+def test_apply_named_colormap_by_frequency():
+    df = pd.DataFrame({"value": ["rare", "common", "common"]})
+    first = apply_color_map(df.copy(), "value", "tab10", output_column_name="c")
+    by_freq = apply_color_map(df.copy(), "value", "tab10", output_column_name="c", order="frequency")
+
+    assert first["c"][0] == by_freq["c"][1]  # the first color moves from the first-seen to the most common value
+    assert by_freq["c"][1] == by_freq["c"][2] != by_freq["c"][0]
+
+
 def test_apply_colormap_with_nan():
     df = pd.DataFrame(
         data={"value": [1, 2, 3, 4, np.nan]},

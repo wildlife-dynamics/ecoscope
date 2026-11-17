@@ -155,6 +155,13 @@ def apply_color_map(
         str | SkipJsonSchema[None],
         Field(description="The dataframe column that will contain the color values."),
     ] = None,
+    order: Annotated[
+        Literal["appearance", "frequency"],
+        AdvancedField(
+            default="appearance",
+            description="Which values get the first colors: in order of appearance, or the most common first.",
+        ),
+    ] = "appearance",
 ) -> AnyDataFrame:
     """
     Adds a color column to the dataframe based on the categorical values in the specified column.
@@ -165,6 +172,7 @@ def apply_color_map(
     colormap (str): Either a named mpl.colormap or a list of string hex values.
     output_column_name (str): The dataframe column that will contain the classification.
             Defaults to "<input_column_name>_colormap"
+    order (str): "appearance" (first seen first) or "frequency" (most common first, ties by name).
 
     Returns:
     pd.DataFrame: The dataframe with an additional color column.
@@ -178,6 +186,7 @@ def apply_color_map(
         input_column_name=input_column_name,
         cmap=colormap,
         output_column_name=output_column_name,
+        order=order,
     )
 
 
