@@ -9,6 +9,7 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 | I need to... | Task |
 |--------------|------|
 | Load events from EarthRanger | [`get_events`][ecoscope.platform.tasks.io.get_events] |
+| Load incidents and their events from EarthRanger | [`get_incident_events`][ecoscope.platform.tasks.io.get_incident_events] |
 | Load events with combined params | [`get_events_from_combined_params`][ecoscope.platform.tasks.io.get_events_from_combined_params] |
 | Load patrol events | [`get_patrol_events`][ecoscope.platform.tasks.io.get_patrol_events] |
 | Load patrols | [`get_patrols`][ecoscope.platform.tasks.io.get_patrols] |
@@ -57,6 +58,7 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 | I need to... | Task |
 |--------------|------|
 | Apply a colormap to a column | [`apply_color_map`][ecoscope.platform.tasks.transformation.apply_color_map] |
+| Give the most common values the first colors | [`color_map_by_frequency`][ecoscope.platform.tasks.transformation.color_map_by_frequency] |
 | Classify day vs. night | [`classify_is_night`][ecoscope.platform.tasks.transformation.classify_is_night] |
 | Classify by season | [`classify_seasons`][ecoscope.platform.tasks.transformation.classify_seasons] |
 | Apply a custom classification | [`apply_classification`][ecoscope.platform.tasks.transformation.apply_classification] |
@@ -133,6 +135,7 @@ The leg frame and the track frame must share group-key values for `join_summary_
 | Draw a bar chart | [`draw_bar_chart`][ecoscope.platform.tasks.results.draw_bar_chart] |
 | Draw a pie chart | [`draw_pie_chart`][ecoscope.platform.tasks.results.draw_pie_chart] |
 | Draw a sunburst chart | [`draw_sunburst_chart`][ecoscope.platform.tasks.results.draw_sunburst_chart] |
+| Draw incident storyboards | [`draw_incident_storyboard`][ecoscope.platform.tasks.results.draw_incident_storyboard] |
 | Draw a line chart | [`draw_line_chart`][ecoscope.platform.tasks.results.draw_line_chart] |
 | Draw an EcoPlot | [`draw_ecoplot`][ecoscope.platform.tasks.results.draw_ecoplot] |
 | Draw a historic timeseries | [`draw_historic_timeseries`][ecoscope.platform.tasks.results.draw_historic_timeseries] |

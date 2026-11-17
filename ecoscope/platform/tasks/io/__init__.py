@@ -27,6 +27,7 @@ from ._earthranger import (
     get_patrols,
     get_patrols_from_combined_params,
     get_spatial_features_group,
+    get_spatial_features_groups,
     get_subjectgroup_observations,
     process_events_details,
     set_event_details_params,
@@ -37,6 +38,7 @@ from ._earthranger import (
     unpack_events_from_patrols_df,
     unpack_events_from_patrols_df_and_combined_params,
 )
+from ._incidents import get_incident_events
 from ._persist import (
     persist_df,
     persist_df_wrapper,
@@ -75,6 +77,7 @@ __all__ = [
     "get_event_type_display_names_from_events",
     "get_event_type_from_event_details",
     "get_events",
+    "get_incident_events",
     "get_events_from_combined_params",
     "get_events_from_smart",
     "get_fields_from_event_type_schema",
@@ -90,6 +93,7 @@ __all__ = [
     "get_patrols",
     "get_patrols_from_combined_params",
     "get_spatial_features_group",
+    "get_spatial_features_groups",
     "get_subjectgroup_observations",
     "load_spatial_features_group",
     "persist_df",

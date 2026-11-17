@@ -154,6 +154,7 @@ packages = [
   "ecoscope.platform.tasks",
   "ecoscope.platform.tasks.analysis",
   "ecoscope.platform.tasks.config",
+  "ecoscope.platform.tasks.data_sets",
   "ecoscope.platform.tasks.filter",
   "ecoscope.platform.tasks.groupby",
   "ecoscope.platform.tasks.io",

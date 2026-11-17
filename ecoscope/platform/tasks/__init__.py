@@ -1,5 +1,6 @@
 from . import analysis as analysis
 from . import config as config
+from . import data_sets as data_sets
 from . import filter as filter
 from . import groupby as groupby
 from . import io as io
