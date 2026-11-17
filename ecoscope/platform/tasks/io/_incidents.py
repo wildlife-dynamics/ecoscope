@@ -100,7 +100,11 @@ def _icon_data_uri(url: Any) -> str:
         return ""
     if url not in _ICON_CACHE:
         try:
-            svg = requests.get(url, timeout=20).text
+            response = requests.get(url, timeout=20)
+            response.raise_for_status()
+            svg = response.text
+            if "<svg" not in svg:  # e.g. an error page: no icon rather than a blank one
+                raise ValueError("not an SVG")
             svg = svg[svg.find("<svg") :]
             end = svg.find(">")
             head = re.sub(r"""\s(width|height)=(["']).*?\2""", "", svg[:end])
@@ -234,7 +238,9 @@ def get_incident_events(
     out = out.drop(columns="member_id")
     for col, fmt in (("reported_by", _reporter), ("notes", _notes)):
         out[col] = out.get(col, pd.Series(None, index=out.index)).map(fmt)
-    out["time"] = pd.to_datetime(out["time"], utc=True, format="ISO8601")
+    for col in ("time", "incident_time", "incident_created_at", "incident_updated_at", "created_at", "updated_at"):
+        if col in out.columns:  # UTC datetimes, as EarthRanger's own reads give them
+            out[col] = pd.to_datetime(out[col], utc=True, format="ISO8601")
     urls = out.get("image_url", pd.Series(None, index=out.index))
     out["icon"] = urls.map(_icon_data_uri) if include_icons else ""
 

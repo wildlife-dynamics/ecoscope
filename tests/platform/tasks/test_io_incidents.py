@@ -220,3 +220,24 @@ def test_example_return_matches_schema():
     assert df["incident_id"].nunique() >= 2
     assert df.geometry.isna().any() or df.geometry.is_empty.any()
     assert df["reported_by"].str.startswith("Ranger ").all()
+
+
+def test_time_columns_are_utc_datetimes():
+    df = _run([_event("A", 1, contains=["e1"], collection=True), _event("e1", 2)], ["A"])
+
+    for col in ("time", "incident_time", "incident_created_at", "incident_updated_at", "created_at", "updated_at"):
+        assert str(df[col].dtype) == "datetime64[ns, UTC]", col
+
+
+def test_example_return_times_are_datetimes():
+    df = load_parquet(files("ecoscope.platform.tasks.io") / "get-incident-events.example-return.parquet")
+
+    assert str(df["incident_time"].dtype).startswith("datetime64")
+    assert str(df["created_at"].dtype).startswith("datetime64")
+
+
+def test_icon_that_is_not_svg_is_dropped(monkeypatch):
+    monkeypatch.setattr(_incidents.requests, "get", lambda url, timeout: MagicMock(text="<html>Not found</html>"))
+    df = _run([_event("A", 1, contains=["e1"], collection=True), _event("e1", 2)], ["A"], include_icons=True)
+
+    assert list(df["icon"]) == [""]
