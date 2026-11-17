@@ -410,9 +410,11 @@ def gather_dashboard(
     formatted_time_range = ""
     time_zone_label = ""
     if time_range:
+        # shown in the range's own timezone, whatever offset since/until arrived with
+        tz = time_range.timezone.utc_offset_as_datetime_timezone
         formatted_time_range = (
-            f"From {time_range.since.strftime(time_range.time_format)}"
-            f" to {time_range.until.strftime(time_range.time_format)}"
+            f"From {time_range.since.astimezone(tz).strftime(time_range.time_format)}"
+            f" to {time_range.until.astimezone(tz).strftime(time_range.time_format)}"
         )
         time_zone_label = time_range.timezone.label
 

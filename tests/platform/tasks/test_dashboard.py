@@ -87,6 +87,27 @@ def test_gather_dashboard(single_filter_dashboard: DashboardFixture):
     assert_dashboards_equal(dashboard, expected_dashboard)
 
 
+def test_time_range_shown_in_its_own_timezone():
+    from datetime import timezone
+
+    from ecoscope.platform.tasks.filter._filter import TimezoneInfo
+
+    nairobi = TimezoneInfo(label="UTC+03:00", tzCode="Africa/Nairobi", name="Africa/Nairobi", utc_offset="+03:00")
+    dashboard = gather_dashboard(
+        details=WorkflowDetails(name="d", description=""),
+        time_range=TimeRange(
+            since=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            until=datetime(2026, 10, 14, 21, 0, tzinfo=timezone.utc),
+            timezone=nairobi,
+            time_format="%d %b %Y %H:%M:%S %Z",
+        ),
+        widgets=[],
+        groupers=None,
+    )
+
+    assert dashboard.metadata.time_range == ("From 01 Jan 2026 03:00:00 UTC+03:00 to 15 Oct 2026 00:00:00 UTC+03:00")
+
+
 def test__get_view(single_filter_dashboard: DashboardFixture):
     _, dashboard = single_filter_dashboard
     assert dashboard._get_view((("TemporalGrouper_%B", "=", "January"),)) == [
