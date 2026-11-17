@@ -9,6 +9,7 @@ The Platform SDK ships ~80 tasks ready to use in your `spec.yaml`. This page hel
 | I need to... | Task |
 |--------------|------|
 | Load events from EarthRanger | [`get_events`][ecoscope.platform.tasks.io.get_events] |
+| Load incidents and their events from EarthRanger | [`get_incident_events`][ecoscope.platform.tasks.io.get_incident_events] |
 | Load events with combined params | [`get_events_from_combined_params`][ecoscope.platform.tasks.io.get_events_from_combined_params] |
 | Load patrol events | [`get_patrol_events`][ecoscope.platform.tasks.io.get_patrol_events] |
 | Load patrols | [`get_patrols`][ecoscope.platform.tasks.io.get_patrols] |

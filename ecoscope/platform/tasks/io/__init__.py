@@ -37,6 +37,7 @@ from ._earthranger import (
     unpack_events_from_patrols_df,
     unpack_events_from_patrols_df_and_combined_params,
 )
+from ._incidents import get_incident_events
 from ._persist import (
     persist_df,
     persist_df_wrapper,
@@ -75,6 +76,7 @@ __all__ = [
     "get_event_type_display_names_from_events",
     "get_event_type_from_event_details",
     "get_events",
+    "get_incident_events",
     "get_events_from_combined_params",
     "get_events_from_smart",
     "get_fields_from_event_type_schema",
