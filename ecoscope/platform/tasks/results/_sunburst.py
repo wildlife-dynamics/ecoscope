@@ -97,6 +97,13 @@ def draw_sunburst_chart(
         str | SkipJsonSchema[None],
         AdvancedField(default=None, description='The colour of "Other" slices. Defaults to grey.'),
     ] = None,
+    expand_other: Annotated[
+        bool,
+        AdvancedField(
+            default=False,
+            description='Keep the merged values inside "Other", so clicking "Other" shows them by name.',
+        ),
+    ] = False,
     plot_style: Annotated[
         SunburstStyle | SkipJsonSchema[None],
         AdvancedField(default=None, description="Additional style kwargs passed to go.Sunburst()."),
@@ -130,6 +137,7 @@ def draw_sunburst_chart(
     top_n (int): Keep the largest N slices within each parent; merge the rest into "Other".
     pinned_values (list[str]): Values never merged into "Other".
     other_color (str): The colour of "Other" slices.
+    expand_other (bool): Keep the merged values inside "Other" instead of dropping their names.
     plot_style (SunburstStyle): Additional style kwargs passed to go.Sunburst().
     layout_style (LayoutStyle): Additional kwargs passed to plotly.go.Figure(layout).
     widget_id (str): The id of the dashboard widget that this tile layer belongs to.
@@ -148,6 +156,7 @@ def draw_sunburst_chart(
         palette=_resolve_palette_colors(palette, dataframe[ring_columns[0]].nunique()),
         top_n=top_n,
         pinned_values=pinned_values,
+        expand_other=expand_other,
         style_kwargs=plot_style.model_dump(exclude_none=True) if plot_style else {},
         layout_kwargs=layout_style.model_dump(exclude_none=True) if layout_style else {},
         **({"other_color": other_color} if other_color else {}),

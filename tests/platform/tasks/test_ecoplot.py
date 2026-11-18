@@ -339,6 +339,16 @@ def test_draw_sunburst_chart_color_column_wins_over_palette(pie_dataframe):
     assert "#123456" not in plot
 
 
+def test_draw_sunburst_chart_expand_other(pie_dataframe):
+    kwargs = dict(ring_columns=["category"], value_column="value", top_n=1)
+
+    # B and C are merged; expanded, their names stay in the chart
+    assert '"labels":["A","Other (2 values)","B","C"]' in draw_sunburst_chart(
+        pie_dataframe, expand_other=True, **kwargs
+    )
+    assert '"labels":["A","Other (2 values)"]' in draw_sunburst_chart(pie_dataframe, **kwargs)
+
+
 def test_sunburst_style_round_trip():
     style = SunburstStyle(rotation=90, sort=False)
 
