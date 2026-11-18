@@ -449,6 +449,59 @@ def test_sunburst_palette_inherits(sunburst_df):
     assert colors["Natural"] == colors["Natural/Disease"] == "#222222"
 
 
+def test_sunburst_expand_other_keeps_values():
+    df = pd.DataFrame({"inc": list("aaaabbcd"), "type": list("ppqrsstu")})
+    t = sunburst_chart(df, ring_columns=["inc", "type"], top_n=1, expand_other=True).data[0]
+    slices = dict(zip(t.ids, t.values))
+    parents = dict(zip(t.ids, t.parents))
+
+    assert slices["a"] == 4 and slices["Other (3 values)"] == 4
+    assert slices["Other (3 values)/b"] == 2 and slices["Other (3 values)/c"] == 1
+    assert parents["Other (3 values)/b"] == "Other (3 values)"
+    assert dict(zip(t.ids, t.labels))["Other (3 values)/b"] == "b"
+    # the next ring stays under each real value, lumped within it
+    assert slices["Other (3 values)/b/s"] == 2
+    assert slices["a/Other (2 values)/q"] == 1
+
+
+def test_sunburst_expand_other_colours():
+    df = pd.DataFrame({"inc": list("aaaabbcd"), "type": list("ppqrsstu")})
+    palette = ["#111111", "#222222", "#333333", "#444444"]
+    t = sunburst_chart(
+        df, ring_columns=["inc", "type"], top_n=1, expand_other=True, palette=palette, other_color="#999999"
+    ).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    assert colors["a"] == colors["a/p"] == "#111111"
+    assert colors["Other (3 values)"] == colors["a/Other (2 values)"] == "#999999"
+    # values inside Other take the next unused colours, largest first, and their children follow
+    assert colors["Other (3 values)/b"] == colors["Other (3 values)/b/s"] == "#222222"
+    assert {colors["Other (3 values)/c"], colors["Other (3 values)/d"]} == {"#333333", "#444444"}
+
+
+def test_sunburst_expand_other_default_colours():
+    df = pd.DataFrame({"inc": list("aaabbc")})
+    t = sunburst_chart(df, ring_columns=["inc"], top_n=1, expand_other=True).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    assert len({colors["a"], colors["Other (2 values)/b"], colors["Other (2 values)/c"]}) == 3
+    assert "" not in colors.values()
+
+
+def test_sunburst_expand_other_maxdepth():
+    df = pd.DataFrame({"inc": list("aaabbc"), "type": list("pqrstu")})
+
+    assert sunburst_chart(df, ring_columns=["inc", "type"], top_n=1, expand_other=True).data[0].maxdepth == 2
+    styled = sunburst_chart(df, ring_columns=["inc"], top_n=1, expand_other=True, style_kwargs={"maxdepth": 3})
+    assert styled.data[0].maxdepth == 3
+
+
+def test_sunburst_expand_other_off_by_default():
+    df = pd.DataFrame({"inc": list("aaabbc")})
+
+    assert "Other (2 values)/b" not in sunburst_chart(df, ring_columns=["inc"], top_n=1).data[0].ids
+
+
 def test_sunburst_other_color():
     df = pd.DataFrame({"a": list("vvwy")})
     t = sunburst_chart(df, ring_columns=["a"], top_n=1, palette=["#111111"], other_color="#999999").data[0]

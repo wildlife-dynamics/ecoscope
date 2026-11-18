@@ -12,6 +12,7 @@ from ecoscope.base.utils import color_tuple_to_css
 
 try:
     import plotly.graph_objs as go  # type: ignore[import-untyped]
+    from plotly.colors import qualitative  # type: ignore[import-untyped]
     from plotly.subplots import make_subplots  # type: ignore[import-untyped]
     from sklearn.neighbors import KernelDensity  # type: ignore[import-untyped]
 except ModuleNotFoundError:
@@ -614,6 +615,7 @@ def sunburst_chart(
     top_n: int | None = None,
     pinned_values: list[str] | None = None,
     other_color: str = "#c9c7c0",
+    expand_other: bool = False,
     style_kwargs: dict | None = None,
     layout_kwargs: dict | None = None,
 ) -> go.Figure:
@@ -642,6 +644,11 @@ def sunburst_chart(
         Values never merged into "Other" and not counted towards top_n
     other_color: str
         The colour of "Other" slices
+    expand_other: bool
+        Keep the merged values inside "Other" instead of dropping their names: clicking "Other"
+        shows them, each with its own outer rings. Inner-ring values inside "Other" take the next
+        palette colours (largest first; plotly's default palette if none is given). Shows as many
+        levels at once as there are rings (maxdepth), so a merged value's rings appear once "Other" is opened
     style_kwargs: dict
         Additional style kwargs passed to go.Sunburst()
     layout_kwargs: dict
@@ -660,6 +667,10 @@ def sunburst_chart(
         return go.Figure(layout=layout_kwargs)
 
     size = data[value_column].fillna(0) if value_column else pd.Series(1, index=data.index)
+    if expand_other and top_n is not None:
+        slices = _expanded_slices(data, ring_columns, size, top_n, pinned_values, color_column, palette, other_color)
+        # "Other" adds a level; show only as many as there are rings, so the first view looks as usual
+        return _sunburst_figure(*slices, {"maxdepth": len(ring_columns), **(style_kwargs or {})}, layout_kwargs)
     others: list[set[str]] = [set() for _ in ring_columns]
     if top_n is not None:
         pinned = {_ring_label(v) for v in pinned_values or []}  # compared as text, like the rings
@@ -688,6 +699,10 @@ def sunburst_chart(
             in_other = any(part in others[d] for d, part in enumerate(path))
             colors.append(other_color if in_other else inner_colors.get(path[0], ""))
 
+    return _sunburst_figure(ids, labels, parents, values, colors, style_kwargs, layout_kwargs)
+
+
+def _sunburst_figure(ids, labels, parents, values, colors, style_kwargs, layout_kwargs) -> go.Figure:
     trace_kwargs = {
         "branchvalues": "total",
         "textinfo": "label+percent parent",
@@ -695,11 +710,62 @@ def sunburst_chart(
         "<br>%{percentRoot:.1%} of total<extra></extra>",
         **(style_kwargs or {}),
     }
-    fig = go.Figure(
+    return go.Figure(
         data=go.Sunburst(ids=ids, labels=labels, parents=parents, values=values, marker_colors=colors, **trace_kwargs),
         layout=layout_kwargs,
     )
-    return fig
+
+
+def _expanded_slices(
+    data: pd.DataFrame,
+    ring_columns: list[str],
+    size: pd.Series,
+    top_n: int,
+    pinned_values: list[str] | None,
+    color_column: str | None,
+    palette: list[str] | None,
+    other_color: str,
+) -> tuple[list, list, list, list, list]:
+    """Slices where each merged value sits under its "Other" instead of becoming it: a record's
+    path is its ring values, with "Other (k values)" put in front of any value merged in its ring."""
+    pinned = {_ring_label(v) for v in pinned_values or []}
+    # ranked within each record's real parents, so the rings under a merged value are kept and lumped too
+    lumped = [
+        _lump_to_top_n(data, ring_columns[:d], ring, size, top_n, pinned)[0] for d, ring in enumerate(ring_columns)
+    ]
+
+    inner = data[ring_columns[0]]
+    if color_column:
+        firsts = data.groupby(ring_columns[0], sort=False)[color_column].first()
+        inner_colors = {v: c if isinstance(c, str) else color_tuple_to_css(c) for v, c in firsts.items()}
+    else:
+        # largest first, so the kept values take the first colours and those inside Other the next ones
+        totals = size.groupby(inner).sum()
+        ranked = sorted(totals.index, key=lambda v: (-totals[v], v))
+        colours = palette or qualitative.Plotly
+        inner_colors = {v: colours[i % len(colours)] for i, v in enumerate(ranked)}
+
+    values: dict[tuple, float] = {}
+    colors: dict[tuple, str] = {}
+    rings = [data[r].tolist() for r in ring_columns]
+    for i, weight in enumerate(size.tolist()):
+        path: list[str] = []
+        for d in range(len(ring_columns)):
+            value, merged = rings[d][i], lumped[d].iat[i]
+            if value is None or pd.isna(value):
+                break
+            if merged != value:  # merged into "Other": keep the value, one level down
+                path.append(merged)
+                colors.setdefault(tuple(path), other_color)
+            path.append(value)
+            colors.setdefault(tuple(path), inner_colors.get(rings[0][i], ""))
+        for k in range(1, len(path) + 1):
+            values[tuple(path[:k])] = values.get(tuple(path[:k]), 0) + weight
+
+    ids = [_path_id(p) for p in values]
+    parents = [_path_id(p[:-1]) for p in values]
+    labels = [p[-1] for p in values]
+    return ids, labels, parents, list(values.values()), [colors[p] for p in values]
 
 
 def draw_historic_timeseries(
