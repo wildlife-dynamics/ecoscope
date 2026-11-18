@@ -555,6 +555,32 @@ def test_sunburst_color_ring_with_expand_other():
     assert colors["Other (2 values)/c/q"] == "#0000ff"
 
 
+def test_sunburst_expand_other_inner_color_column():
+    df = pd.DataFrame({"inc": list("aaabbc"), "color": ["#111111"] * 3 + ["#222222"] * 2 + ["#333333"]})
+    t = sunburst_chart(df, ring_columns=["inc"], color_column="color", top_n=1, expand_other=True).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    # values inside Other keep their own color_column colours
+    assert colors["a"] == "#111111"
+    assert colors["Other (2 values)/b"] == "#222222" and colors["Other (2 values)/c"] == "#333333"
+
+
+def test_sunburst_expand_other_missing_ends_path():
+    df = pd.DataFrame({"inc": list("aaabbc"), "type": ["p", "p", "q", "r", None, "s"]})
+    slices = dict(
+        zip(
+            *(lambda t: (t.ids, t.values))(
+                sunburst_chart(df, ring_columns=["inc", "type"], top_n=1, expand_other=True).data[0]
+            )
+        )
+    )
+
+    # b's record with no type counts for b but adds no outer slice
+    assert slices["Other (2 values)/b"] == 2
+    assert slices["Other (2 values)/b/r"] == 1
+    assert not [i for i in slices if i.startswith("Other (2 values)/b/") and i != "Other (2 values)/b/r"]
+
+
 def test_sunburst_color_ring_out_of_range():
     with pytest.raises(ValueError):
         sunburst_chart(_ring_df(), ring_columns=["inc", "type"], color_column="color", color_ring=2)
