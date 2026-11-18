@@ -616,6 +616,7 @@ def sunburst_chart(
     pinned_values: list[str] | None = None,
     other_color: str = "#c9c7c0",
     expand_other: bool = False,
+    color_ring: int = 0,
     style_kwargs: dict | None = None,
     layout_kwargs: dict | None = None,
 ) -> go.Figure:
@@ -633,10 +634,11 @@ def sunburst_chart(
         A numeric column summed for each slice's size; missing values count as 0.
         If not set, each record counts once
     color_column: str
-        A column of colours for the inner ring's values (RGBA tuples or css strings);
-        the first colour seen for a value is used. Outer slices take their inner ring's colour
+        A column of colours for the values of ring color_ring, the inner ring by default (RGBA
+        tuples or css strings); the first colour seen for a value is used. Outer slices take the
+        colour of their color_ring value
     palette: list[str]
-        Css colours cycled over the inner ring's values; ignored if color_column is set
+        Css colours cycled over the inner ring's values; ignored if color_column colours the inner ring
     top_n: int
         Keep the top_n largest slices within each parent and merge the rest into "Other (k values)",
         when two or more are left over
@@ -649,6 +651,9 @@ def sunburst_chart(
         shows them, each with its own outer rings. Inner-ring values inside "Other" take the next
         palette colours (largest first; plotly's default palette if none is given). Shows as many
         levels at once as there are rings (maxdepth), so a merged value's rings appear once "Other" is opened
+    color_ring: int
+        The ring (0 = inner) that color_column colours. Rings inside it take palette's colours, so
+        e.g. incidents can share one colour while their event types keep the event-type colours
     style_kwargs: dict
         Additional style kwargs passed to go.Sunburst()
     layout_kwargs: dict
@@ -663,12 +668,17 @@ def sunburst_chart(
     for ring in ring_columns:
         data[ring] = data[ring].map(_ring_label)
     data = data.dropna(subset=ring_columns[:1])
+    if not 0 <= color_ring < len(ring_columns):
+        raise ValueError(f"color_ring must be between 0 and {len(ring_columns) - 1}, got {color_ring}")
     if data.empty:
         return go.Figure(layout=layout_kwargs)
+    ring_colors = _value_colors(data, ring_columns[color_ring], color_column) if color_column else {}
 
     size = data[value_column].fillna(0) if value_column else pd.Series(1, index=data.index)
     if expand_other and top_n is not None:
-        slices = _expanded_slices(data, ring_columns, size, top_n, pinned_values, color_column, palette, other_color)
+        slices = _expanded_slices(
+            data, ring_columns, size, top_n, pinned_values, ring_colors, color_ring, palette, other_color
+        )
         # "Other" adds a level; show only as many as there are rings, so the first view looks as usual
         return _sunburst_figure(*slices, {"maxdepth": len(ring_columns), **(style_kwargs or {})}, layout_kwargs)
     others: list[set[str]] = [set() for _ in ring_columns]
@@ -678,9 +688,8 @@ def sunburst_chart(
             data[ring], others[depth] = _lump_to_top_n(data, ring_columns[:depth], ring, size, top_n, pinned)
 
     inner_colors: dict = {}
-    if color_column:
-        firsts = data.groupby(ring_columns[0], sort=False)[color_column].first()
-        inner_colors = {v: c if isinstance(c, str) else color_tuple_to_css(c) for v, c in firsts.items()}
+    if color_column and color_ring == 0:
+        inner_colors = ring_colors
     elif palette:
         inner = data[ring_columns[0]].unique()
         inner_colors = {v: palette[i % len(palette)] for i, v in enumerate(inner)}
@@ -697,9 +706,20 @@ def sunburst_chart(
             labels.append(path[-1])
             values.append(value)
             in_other = any(part in others[d] for d, part in enumerate(path))
-            colors.append(other_color if in_other else inner_colors.get(path[0], ""))
+            if in_other:
+                colors.append(other_color)
+            elif color_ring and depth >= color_ring:
+                colors.append(ring_colors.get(path[color_ring], ""))
+            else:
+                colors.append(inner_colors.get(path[0], ""))
 
     return _sunburst_figure(ids, labels, parents, values, colors, style_kwargs, layout_kwargs)
+
+
+def _value_colors(data: pd.DataFrame, ring: str, color_column: str) -> dict:
+    """Each ring value's colour: the first one color_column gives it, as css."""
+    firsts = data.groupby(ring, sort=False)[color_column].first()
+    return {v: c if isinstance(c, str) else color_tuple_to_css(c) for v, c in firsts.items()}
 
 
 def _sunburst_figure(ids, labels, parents, values, colors, style_kwargs, layout_kwargs) -> go.Figure:
@@ -722,7 +742,8 @@ def _expanded_slices(
     size: pd.Series,
     top_n: int,
     pinned_values: list[str] | None,
-    color_column: str | None,
+    ring_colors: dict,
+    color_ring: int,
     palette: list[str] | None,
     other_color: str,
 ) -> tuple[list, list, list, list, list]:
@@ -735,9 +756,8 @@ def _expanded_slices(
     ]
 
     inner = data[ring_columns[0]]
-    if color_column:
-        firsts = data.groupby(ring_columns[0], sort=False)[color_column].first()
-        inner_colors = {v: c if isinstance(c, str) else color_tuple_to_css(c) for v, c in firsts.items()}
+    if ring_colors and color_ring == 0:
+        inner_colors = ring_colors
     else:
         # largest first, so the kept values take the first colours and those inside Other the next ones
         totals = size.groupby(inner).sum()
@@ -758,7 +778,10 @@ def _expanded_slices(
                 path.append(merged)
                 colors.setdefault(tuple(path), other_color)
             path.append(value)
-            colors.setdefault(tuple(path), inner_colors.get(rings[0][i], ""))
+            if color_ring and d >= color_ring:
+                colors.setdefault(tuple(path), ring_colors.get(rings[color_ring][i], ""))
+            else:
+                colors.setdefault(tuple(path), inner_colors.get(rings[0][i], ""))
         for k in range(1, len(path) + 1):
             values[tuple(path[:k])] = values.get(tuple(path[:k]), 0) + weight
 

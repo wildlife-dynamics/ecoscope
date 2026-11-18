@@ -496,6 +496,70 @@ def test_sunburst_expand_other_maxdepth():
     assert styled.data[0].maxdepth == 3
 
 
+def _ring_df():
+    # incidents a, b; event types p, q coloured per type, as apply_color_map gives them
+    return pd.DataFrame(
+        {
+            "inc": list("aaabbc"),
+            "type": list("ppqpqq"),
+            "color": ["#ff0000", "#ff0000", "#0000ff", "#ff0000"] + ["#0000ff"] * 2,
+        }
+    )
+
+
+def test_sunburst_color_ring_colours_outer_ring():
+    t = sunburst_chart(
+        _ring_df(), ring_columns=["inc", "type"], color_column="color", color_ring=1, palette=["#333333"]
+    ).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    # the type keeps its colour under every incident; incidents take the palette
+    assert colors["a/p"] == colors["b/p"] == "#ff0000"
+    assert colors["a/q"] == colors["b/q"] == colors["c/q"] == "#0000ff"
+    assert colors["a"] == colors["b"] == colors["c"] == "#333333"
+
+
+def test_sunburst_color_ring_other_stays_grey():
+    df = pd.DataFrame({"inc": ["a"] * 6, "type": list("ppqrst"), "color": ["#ff0000"] * 6})
+    t = sunburst_chart(
+        df, ring_columns=["inc", "type"], color_column="color", color_ring=1, top_n=1, other_color="#999999"
+    ).data[0]
+
+    assert dict(zip(t.labels, t.marker.colors))["Other (4 values)"] == "#999999"
+
+
+def test_sunburst_color_ring_with_expand_other():
+    df = pd.DataFrame(
+        {
+            "inc": list("aaabbc"),
+            "type": list("ppqpqq"),
+            "color": ["#ff0000"] * 2 + ["#0000ff", "#ff0000", "#0000ff", "#0000ff"],
+        }
+    )
+    t = sunburst_chart(
+        df,
+        ring_columns=["inc", "type"],
+        color_column="color",
+        color_ring=1,
+        top_n=1,
+        expand_other=True,
+        palette=["#333333"],
+        other_color="#999999",
+    ).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    assert colors["a"] == colors["Other (2 values)/b"] == "#333333"
+    assert colors["Other (2 values)"] == "#999999"
+    # event types inside the grouped incidents keep their own colours
+    assert colors["Other (2 values)/b/p"] == colors["a/p"] == "#ff0000"
+    assert colors["Other (2 values)/c/q"] == "#0000ff"
+
+
+def test_sunburst_color_ring_out_of_range():
+    with pytest.raises(ValueError):
+        sunburst_chart(_ring_df(), ring_columns=["inc", "type"], color_column="color", color_ring=2)
+
+
 def test_sunburst_expand_other_off_by_default():
     df = pd.DataFrame({"inc": list("aaabbc")})
 

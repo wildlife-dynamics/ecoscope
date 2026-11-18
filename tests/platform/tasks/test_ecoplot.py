@@ -349,6 +349,14 @@ def test_draw_sunburst_chart_expand_other(pie_dataframe):
     assert '"labels":["A","Other (2 values)"]' in draw_sunburst_chart(pie_dataframe, **kwargs)
 
 
+def test_draw_sunburst_chart_color_ring():
+    df = pd.DataFrame({"inc": ["a", "a", "b"], "type": ["p", "q", "p"], "c": ["#ff0000", "#0000ff", "#ff0000"]})
+    plot = draw_sunburst_chart(df, ring_columns=["inc", "type"], color_column="c", color_ring=1, palette=["#333333"])
+
+    # incidents take the palette, event types their own colours
+    assert '"marker":{"colors":["#333333","#333333","#ff0000","#0000ff","#ff0000"]}' in plot
+
+
 def test_sunburst_style_round_trip():
     style = SunburstStyle(rotation=90, sort=False)
 

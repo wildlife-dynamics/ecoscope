@@ -68,8 +68,9 @@ def draw_sunburst_chart(
         str | SkipJsonSchema[None],
         AdvancedField(
             default=None,
-            description="A column of colours for the inner ring's values, e.g. from apply_color_map. "
-            "Outer slices take their inner ring's colour. Overrides palette.",
+            description="A column of colours, e.g. from apply_color_map, for the values of the ring "
+            "color_ring (the inner ring by default). Outer slices take that ring's colour. "
+            "Overrides palette when it colours the inner ring.",
         ),
     ] = None,
     palette: Annotated[
@@ -97,6 +98,14 @@ def draw_sunburst_chart(
         str | SkipJsonSchema[None],
         AdvancedField(default=None, description='The colour of "Other" slices. Defaults to grey.'),
     ] = None,
+    color_ring: Annotated[
+        Annotated[int, Field(ge=0)],
+        AdvancedField(
+            default=0,
+            description="The ring color_column colours, counted from 0 (the inner ring). Rings inside it "
+            "take palette's colours.",
+        ),
+    ] = 0,
     expand_other: Annotated[
         bool,
         AdvancedField(
@@ -137,6 +146,7 @@ def draw_sunburst_chart(
     top_n (int): Keep the largest N slices within each parent; merge the rest into "Other".
     pinned_values (list[str]): Values never merged into "Other".
     other_color (str): The colour of "Other" slices.
+    color_ring (int): The ring color_column colours (0 = inner); rings inside it take palette's colours.
     expand_other (bool): Keep the merged values inside "Other" instead of dropping their names.
     plot_style (SunburstStyle): Additional style kwargs passed to go.Sunburst().
     layout_style (LayoutStyle): Additional kwargs passed to plotly.go.Figure(layout).
@@ -157,6 +167,7 @@ def draw_sunburst_chart(
         top_n=top_n,
         pinned_values=pinned_values,
         expand_other=expand_other,
+        color_ring=color_ring,
         style_kwargs=plot_style.model_dump(exclude_none=True) if plot_style else {},
         layout_kwargs=layout_style.model_dump(exclude_none=True) if layout_style else {},
         **({"other_color": other_color} if other_color else {}),
