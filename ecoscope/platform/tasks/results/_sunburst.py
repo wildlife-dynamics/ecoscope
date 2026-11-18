@@ -48,6 +48,14 @@ class SunburstStyle(BaseModel, CacheableModel):
         str | SkipJsonSchema[None],
         AdvancedField(default=None, description="A plotly template for the hover text."),
     ] = None
+    leaf_opacity: Annotated[
+        Annotated[float, Field(ge=0, le=1)] | SkipJsonSchema[None],
+        AdvancedField(
+            default=None,
+            description="The opacity of the outermost slices; plotly draws them at 0.7. "
+            "Set 1 to show their colours exactly, e.g. to match other charts.",
+        ),
+    ] = None
 
 
 @register()

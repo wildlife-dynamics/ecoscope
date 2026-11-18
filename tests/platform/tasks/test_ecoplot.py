@@ -357,6 +357,12 @@ def test_draw_sunburst_chart_color_ring():
     assert '"marker":{"colors":["#333333","#333333","#ff0000","#0000ff","#ff0000"]}' in plot
 
 
+def test_draw_sunburst_chart_leaf_opacity(pie_dataframe):
+    plot = draw_sunburst_chart(pie_dataframe, ring_columns=["category"], plot_style=SunburstStyle(leaf_opacity=1))
+
+    assert '"leaf":{"opacity":1' in plot
+
+
 def test_sunburst_style_round_trip():
     style = SunburstStyle(rotation=90, sort=False)
 
