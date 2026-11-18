@@ -751,7 +751,7 @@ def _expanded_slices(
     for i, weight in enumerate(size.tolist()):
         path: list[str] = []
         for d in range(len(ring_columns)):
-            value, merged = rings[d][i], lumped[d].iat[i]
+            value, merged = rings[d][i], str(lumped[d].iat[i])
             if value is None or pd.isna(value):
                 break
             if merged != value:  # merged into "Other": keep the value, one level down
