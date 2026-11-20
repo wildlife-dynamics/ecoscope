@@ -720,13 +720,9 @@ def get_events(
         # The warehouse get_events accepts event type slugs directly, so pass the
         # values straight through — no value->id round-trip via get_event_types.
         #
-        # event_details: the warehouse serves it as a structured Arrow struct, which
-        # `from_arrow` lands as dicts, but that struct is derived from one event type's
-        # schema and so requires a single-type selection. Workflows also allow zero or
-        # many types (download-events offers "leave empty for all event types"), so fall
-        # back to the raw JSON form there and decode it below — either way the column
-        # ends up dicts of plain lists, as the ER API path serves it.
-        raw_details = include_details and len(event_types) != 1
+        # event_details always as raw JSON: the typed struct (single-type only) silently
+        # drops events whose stored details don't cast to the event type's schema.
+        raw_details = include_details
         table = warehouse_client.get_events(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
@@ -749,10 +745,6 @@ def get_events(
             from ecoscope.io.earthranger_utils import decode_raw_event_details
 
             decode_raw_event_details(events_df)
-        elif include_details:
-            from ecoscope.io.earthranger_utils import listify_typed_event_details
-
-            listify_typed_event_details(events_df)
         # Parity with the legacy path (geometry_from_event_geojson): when
         # force_point_geometry is set, reduce geometry to its centroid so downstream
         # point layers / gridding / .geometry.x|y keep working. Done per-geometry on
@@ -1651,6 +1643,22 @@ def _normalize_v1_schema(v1_schema: dict) -> dict:
     }
 
 
+def _choice_title(enum_names: dict, value):
+    """Map one stored choice to its title; runs per choice value, so strings take the fast path.
+
+    Stored details aren't validated: a legacy ``{name, value}`` choice resolves by its
+    ``value`` (as DAS's v2 read unwraps it), and anything else unhashable passes through.
+    """
+    if type(value) is str:
+        return enum_names.get(value, value)
+    if isinstance(value, dict) and "value" in value and value.keys() <= {"name", "value"}:
+        value = value["value"]
+    try:
+        return enum_names.get(value, value)
+    except TypeError:
+        return value
+
+
 def _resolve_event_details(
     details: dict, schema: dict | None, map_to_titles: bool = True, ordered: bool = True
 ) -> dict:
@@ -1683,8 +1691,8 @@ def _resolve_event_details(
         enum_names = prop_def.get("enumNames") or prop_def.get("items", {}).get("enumNames")
         if isinstance(enum_names, dict) and enum_names:
             if isinstance(value, list):
-                return [enum_names.get(v, v) for v in value]
-            return enum_names.get(value, value)
+                return [_choice_title(enum_names, v) for v in value]
+            return _choice_title(enum_names, value)
         return value
 
     result = {}
@@ -1701,6 +1709,9 @@ def _resolve_event_details(
             item_props = prop_def.get("items", {}).get("properties", {})
             new_list = []
             for item in resolved_value:
+                if not isinstance(item, dict):
+                    new_list.append(item)
+                    continue
                 new_item = {}
                 for ik, iv in item.items():
                     ip_def = item_props.get(ik, {})
