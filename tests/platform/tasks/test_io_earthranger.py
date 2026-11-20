@@ -2087,6 +2087,36 @@ def test_resolve_event_details_nested_subform_enums():
     assert resolved["my_list"] == [{"Status": "Okay"}]
 
 
+def test_resolve_event_details_legacy_name_value_choices():
+    """Legacy `{name, value}` choices resolve like their bare value, as the v2 ER API serves them."""
+    schema = {
+        "properties": {
+            "kind": {"title": "Kind", "enumNames": {"x": "Ex"}},
+            "tags": {"title": "Tags", "type": "array", "items": {"enumNames": {"t1": "Tag 1"}}},
+        },
+        "ordered_keys": ["kind", "tags"],
+    }
+    details = {
+        "kind": {"name": "Ex", "value": "x"},
+        "tags": [{"name": "Tag 1", "value": "t1"}, "t2"],
+    }
+
+    assert _resolve_event_details(details, schema) == {"Kind": "Ex", "Tags": ["Tag 1", "t2"]}
+
+
+def test_resolve_event_details_unhashable_choice_values_pass_through():
+    schema = {
+        "properties": {
+            "kind": {"title": "Kind", "enumNames": {"x": "Ex"}},
+            "tags": {"title": "Tags", "type": "array", "items": {"enumNames": {"t1": "Tag 1"}}},
+        },
+        "ordered_keys": ["kind", "tags"],
+    }
+    details = {"kind": {"id_510": "1"}, "tags": [{"id_1": "1"}, "t1"]}
+
+    assert _resolve_event_details(details, schema) == {"Kind": {"id_510": "1"}, "Tags": [{"id_1": "1"}, "Tag 1"]}
+
+
 def test_resolve_event_details_numpy_arrays():
     """Arrow-backed details carry numpy arrays where the ER API serves lists."""
     import numpy as np

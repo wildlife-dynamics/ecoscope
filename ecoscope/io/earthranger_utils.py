@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from datetime import datetime, tzinfo
 
 import geopandas as gpd  # type: ignore[import-untyped]
-import numpy as np
 import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
 import shapely.geometry
@@ -39,72 +38,68 @@ def normalize_column(df: pd.DataFrame, col: str, sort_columns: bool = False) -> 
 def decode_raw_event_details(df: pd.DataFrame, col: str = "event_details") -> None:
     """Decode a warehouse raw-JSON ``event_details`` column into dicts, in place.
 
-    Used by the warehouse branch of the ``get_events`` task. The warehouse serves
-    ``event_details`` as a JSON string when asked for raw details (``EVENTS_SCHEMA_V1``
-    types it ``pa.string()``); the typed-struct alternative is derived from a single
-    event type's schema and so cannot serve the multi- or all-event-type selections
-    workflows allow. The ER API path, by contrast, serves ``event_details`` already
-    parsed, and every downstream consumer -- notably ``normalize_column``
+    The warehouse serves ``event_details`` as a JSON string, where the ER API serves it
+    parsed; every downstream consumer -- notably ``normalize_column``
     (``pd.json_normalize``) and the ``process_events_details`` task, which no-ops on
-    anything that is not a ``dict`` -- depends on that. Decoding here keeps both paths'
-    output identical.
-
-    A null/absent payload becomes ``{}`` rather than ``None``, matching the ER API
-    (which serves ``"event_details": {}`` for an event without details) and keeping the
-    column free of the non-dict values ``pd.json_normalize`` rejects. A value that
-    fails to parse -- or parses to a non-object, e.g. a bare JSON scalar -- also
-    becomes ``{}``, with a warning: one malformed payload should not fail a download.
-    No-ops when the column is absent or already decoded.
+    anything that is not a ``dict`` -- depends on the parsed form, so decoding here keeps
+    both paths' output identical. See ``_decode_event_details`` for per-value handling;
+    malformed payloads are counted in a warning. No-ops when the column is absent.
     """
     if col not in df.columns:
         return
 
-    bad = 0
-
-    def decode(value):
-        nonlocal bad
-        if isinstance(value, dict):
-            return value
-        # None / NaN / pd.NA (the warehouse serves the column nullable) and "" are all
-        # "no details", not malformed input, so they decode quietly.
-        if not isinstance(value, str):
-            return {}
-        if value == "":
-            return {}
-        try:
-            decoded = json.loads(value)
-        except (TypeError, ValueError):
-            bad += 1
-            return {}
-        if not isinstance(decoded, dict):
-            bad += 1
-            return {}
-        return decoded
-
-    df[col] = [decode(v) for v in df[col]]
+    decoded = [_decode_event_details(v) for v in df[col]]
+    bad = sum(d is None for d in decoded)
+    df[col] = pd.Series([{} if d is None else d for d in decoded], index=df.index, dtype=object)
 
     if bad:
         logger.warning("Could not decode %s of %s `%s` JSON payloads; used {} instead.", bad, len(df), col)
 
 
-def listify_typed_event_details(df: pd.DataFrame, col: str = "event_details") -> None:
-    """Replace numpy arrays in a warehouse typed-struct ``event_details`` column with lists, in place.
+def _decode_event_details(value) -> dict | None:
+    """Parse one warehouse ``event_details`` value; ``None`` means malformed.
 
-    ``from_arrow`` lands list fields inside the struct as ``np.ndarray``; the ER API and
-    raw-JSON paths serve lists, which ``process_events_details`` relies on to resolve
-    multi-select choices (an ndarray there raises ``unhashable type``).
+    Null-likes and ``""`` become ``{}``, as the ER API serves an event without details.
     """
-    if col not in df.columns:
-        return
-
-    def listify(value):
-        if isinstance(value, np.ndarray):
-            return [listify(v) for v in value]
-        if isinstance(value, dict):
-            return {k: listify(v) for k, v in value.items()}
+    if isinstance(value, dict):
         return value
+    if not isinstance(value, str) or value == "":
+        return {}
+    try:
+        decoded = json.loads(value)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(decoded, dict):
+        return None
+    # Substring check skips the unwrap pass for the common payload with no choice dicts.
+    if '"value"' in value:
+        unwrap_legacy_choices(decoded)
+    return decoded
 
-    df[col] = [listify(v) for v in df[col]]
+
+_CHOICE_KEYS = frozenset({"name", "value"})
+
+
+def is_legacy_choice(value) -> bool:
+    """True for a legacy ``{name, value}`` choice dict."""
+    return isinstance(value, dict) and "value" in value and value.keys() <= _CHOICE_KEYS
+
+
+def unwrap_legacy_choices(details: dict) -> dict:
+    """Reduce legacy ``{name, value}`` choices to their ``value`` in place, as DAS's v2 read does.
+
+    Like DAS, only top-level fields and the items of top-level lists unwrap; choices inside
+    sub-form rows stay dicts. ``is_legacy_choice`` is inlined: this runs per decoded event.
+    """
+    for k, v in details.items():
+        if k == "updates":
+            continue
+        if type(v) is dict:
+            if "value" in v and v.keys() <= _CHOICE_KEYS:
+                details[k] = v["value"]
+        elif type(v) is list:
+            details[k] = [x["value"] if type(x) is dict and "value" in x and x.keys() <= _CHOICE_KEYS else x for x in v]
+    return details
 
 
 def dataframe_to_dict_or_list(events: gpd.GeoDataFrame | pd.DataFrame | dict | list[dict]) -> dict | list[dict]:
@@ -406,9 +401,12 @@ def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
     - the warehouse serves ``team`` as a resolved struct and ``members`` / ``assets``
       as lists of resolved subject structs, where the ER API serves bare ids; they are
       reduced to those ids so ``patrol_segments_from_patrols_df`` and the name-resolving
-      tasks see one shape (``add_patrol_team_names`` otherwise fails hashing a dict).
+      tasks see one shape (``add_patrol_team_names`` otherwise fails hashing a dict);
+    - each event's raw-JSON ``event_details`` is decoded as ``decode_raw_event_details``
+      does for ``get_events``.
     """
     records = table.to_pylist()
+    bad_details = 0
     for patrol in records:
         for segment in patrol.get("patrol_segments") or []:
             segment["time_range"] = {
@@ -419,6 +417,14 @@ def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
             _reduce_warehouse_segment_refs(segment)
             for event in segment.get("events") or []:
                 event["geojson"] = _synthesize_event_geojson(event)
+                if "event_details" in event:
+                    decoded = _decode_event_details(event["event_details"])
+                    if decoded is None:
+                        bad_details += 1
+                        decoded = {}
+                    event["event_details"] = decoded
+    if bad_details:
+        logger.warning("Could not decode %s patrol `event_details` JSON payloads; used {} instead.", bad_details)
     return pd.DataFrame(records)
 
 

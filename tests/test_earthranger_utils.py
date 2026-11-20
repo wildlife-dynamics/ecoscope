@@ -146,6 +146,52 @@ def test_decode_raw_event_details():
     ]
 
 
+def test_decode_raw_event_details_unwraps_legacy_name_value_choices():
+    df = pd.DataFrame(
+        {
+            "event_details": [
+                json.dumps(
+                    {
+                        "kind": {"name": "Ex", "value": "x"},
+                        "tags": [{"name": "Tag 1", "value": "t1"}],
+                        "rows": [{"status": {"name": "Okay", "value": "ok"}, "note": "n"}],
+                        "other": {"id_510": "1"},
+                    }
+                )
+            ]
+        }
+    )
+
+    decode_raw_event_details(df)
+
+    assert df["event_details"].tolist() == [
+        {
+            "kind": "x",
+            "tags": ["t1"],
+            "rows": [{"status": {"name": "Okay", "value": "ok"}, "note": "n"}],
+            "other": {"id_510": "1"},
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "details, expected",
+    [
+        ({"name": "n", "value": {"name": "X", "value": "x"}}, {"name": "n", "value": "x"}),
+        ({"name": "Ranger A", "value": {"count": 2}}, {"name": "Ranger A", "value": {"count": 2}}),
+        ({"rows": [{"a": {"b": {"name": "N", "value": "v"}}}]}, {"rows": [{"a": {"b": {"name": "N", "value": "v"}}}]}),
+        ({"updates": [{"name": "N", "value": "v"}]}, {"updates": [{"name": "N", "value": "v"}]}),
+    ],
+)
+def test_decode_raw_event_details_unwraps_only_top_level_choices(details, expected):
+    """Matches DAS's v2 read: the payload itself and anything below a top-level list item stay as-is."""
+    df = pd.DataFrame({"event_details": [json.dumps(details)]})
+
+    decode_raw_event_details(df)
+
+    assert df["event_details"].tolist() == [expected]
+
+
 @pytest.mark.parametrize(
     "value",
     [None, "", pd.NA, np.nan],
