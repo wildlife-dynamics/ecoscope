@@ -513,6 +513,176 @@ def test_draw_chart_time_breakdown_requires_time_interval(breakdown_dataframe):
         )
 
 
+@pytest.fixture
+def gappy_dataframe():
+    """A observed in May and July only, B in June only."""
+    return pd.DataFrame(
+        {
+            "subject": ["A", "B", "A", "A"],
+            "events": [2, 3, 4, 5],
+            "time": pd.to_datetime(["2024-05-10", "2024-06-10", "2024-07-10", "2024-07-20"], utc=True),
+        }
+    )
+
+
+def test_draw_chart_fill_empty_buckets_category(gappy_dataframe):
+    plot = draw_chart(
+        dataframe=gappy_dataframe,
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(StatSummaryParam(display_name="Observations", aggregator="count", column="time")),
+        category="subject",
+        fill_empty_buckets=True,
+    )
+
+    months = '["2024-05-01T00:00:00","2024-06-01T00:00:00","2024-07-01T00:00:00"]'
+    assert plot.count(f'"x":{months}') == 2  # both series span the shared range
+    assert '"name":"A","x":' in plot
+    assert '"y":[1,0,2]' in plot  # A: May 1, June none, July 2
+    assert '"y":[0,1,0]' in plot  # B: June only
+
+
+def test_draw_chart_fill_empty_buckets_metric_mode(gappy_dataframe):
+    plot = draw_chart(
+        dataframe=gappy_dataframe.loc[gappy_dataframe["subject"] == "A"],
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")),
+        fill_empty_buckets=True,
+    )
+
+    assert '"y":[2,0,9]' in plot
+
+
+def test_draw_chart_without_fill_skips_empty_buckets(gappy_dataframe):
+    plot = draw_chart(
+        dataframe=gappy_dataframe,
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(StatSummaryParam(display_name="Observations", aggregator="count", column="time")),
+        category="subject",
+    )
+
+    assert '"y":[1,2]' in plot  # A: May, July — June is left out
+    assert '"y":[1]' in plot
+
+
+@pytest.mark.parametrize(
+    "time_interval, times, first_bucket",
+    [
+        # 1 May 2024 is a Wednesday: weeks start on Monday 29 April
+        ("week", ["2024-05-01", "2024-05-15"], "2024-04-29T00:00:00"),
+        ("day", ["2024-05-01 08:00", "2024-05-03 09:00"], "2024-05-01T00:00:00"),
+        ("hour", ["2024-05-01 10:15", "2024-05-01 12:40"], "2024-05-01T10:00:00"),
+        ("year", ["2022-03-01", "2024-03-01"], "2022-01-01T00:00:00"),
+    ],
+)
+def test_draw_chart_fill_empty_buckets_intervals(time_interval, times, first_bucket):
+    dataframe = pd.DataFrame({"time": pd.to_datetime(times, utc=True)})
+
+    plot = draw_chart(
+        dataframe=dataframe,
+        x_axis="time",
+        time_interval=time_interval,
+        figures=_figs(StatSummaryParam(display_name="Observations", aggregator="count", column="time")),
+        fill_empty_buckets=True,
+    )
+
+    assert f'"x":["{first_bucket}"' in plot
+    assert '"y":[1,0,1]' in plot
+
+
+def test_draw_chart_fill_empty_buckets_requires_time_interval(gappy_dataframe):
+    with pytest.raises(ValueError, match="fill_empty_buckets requires a time_interval"):
+        draw_chart(
+            dataframe=gappy_dataframe,
+            x_axis="subject",
+            figures=_figs(StatSummaryParam(display_name="Observations", aggregator="count", column="time")),
+            fill_empty_buckets=True,
+        )
+
+
+def test_draw_chart_fill_empty_buckets_empty_dataframe(gappy_dataframe):
+    plot = draw_chart(
+        dataframe=gappy_dataframe.iloc[0:0],
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(StatSummaryParam(display_name="Observations", aggregator="count", column="time")),
+        category="subject",
+        category_layout="panels",
+        fill_empty_buckets=True,
+    )
+
+    assert isinstance(plot, str)
+
+
+def test_draw_chart_category_panels(gappy_dataframe):
+    dataframe = pd.concat(
+        [gappy_dataframe, gappy_dataframe.assign(subject="C")],
+        ignore_index=True,
+    )
+
+    plot = draw_chart(
+        dataframe=dataframe,
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(
+            StatSummaryParam(display_name="Observations", aggregator="count", column="time"),
+            chart_type="line",
+        ),
+        category="subject",
+        category_layout="panels",
+        panel_height=100,
+        widget_id="panels-test",
+    )
+
+    assert "panels-test" in plot
+    assert '"yaxis3"' in plot and '"yaxis4"' not in plot  # one panel per subject
+    for subject in ["A", "B", "C"]:
+        assert f'"text":"{subject}"' in plot  # each panel labelled with its value
+    assert '"showlegend":false' in plot
+    assert '"rangemode":"tozero"' in plot
+    assert '"height":372' in plot  # 3 panels x 100px + 72px of margins
+    assert "height:372px" in plot  # the div is fixed height too, so the widget scrolls
+    assert '"fillFrame": false' in plot or '"fillFrame":false' in plot
+    assert '"dtick":"M1"' not in plot  # plotly picks the ticks on a long panel axis
+
+
+def test_draw_chart_overlay_is_default(gappy_dataframe):
+    plot = draw_chart(
+        dataframe=gappy_dataframe,
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(StatSummaryParam(display_name="Observations", aggregator="count", column="time")),
+        category="subject",
+    )
+
+    assert '"yaxis2"' not in plot
+    assert '"showlegend":true' in plot
+    assert '"dtick":"M1"' in plot
+
+
+def test_draw_chart_color_column(gappy_dataframe):
+    dataframe = pd.concat([gappy_dataframe, gappy_dataframe.assign(subject="C")], ignore_index=True)
+    # A as an RGBA 0-255 tuple (the assign_subject_colors output), B as a css string, C without one
+    colors = {"A": (214, 39, 40, 255), "B": "#1f77b4", "C": None}
+    dataframe["subject_color"] = dataframe["subject"].map(colors)
+
+    plot = draw_chart(
+        dataframe=dataframe,
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(StatSummaryParam(display_name="Observations", aggregator="count", column="time")),
+        category="subject",
+        color_column="subject_color",
+        palette=["#111111", "#222222", "#333333"],
+    )
+
+    assert '"marker":{"color":"rgba(214, 39, 40, 1)"},"name":"A"' in plot
+    assert '"marker":{"color":"#1f77b4"},"name":"B"' in plot
+    assert '"marker":{"color":"#333333"},"name":"C"' in plot  # falls back to C's palette slot
+
+
 # ------------------------------------------------------------- config task
 
 
