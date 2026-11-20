@@ -647,6 +647,19 @@ def test_warehouse_patrols_table_decodes_event_details():
     assert events["event_details"].tolist() == [{"kind": "x", "count": 3}, {}]
 
 
+def test_warehouse_patrols_table_warns_on_malformed_event_details(caplog):
+    from ecoscope.io.earthranger_utils import unpack_events_from_patrols_df, warehouse_patrols_table_to_patrols_df
+
+    table = _make_nested_patrols_arrow_table(
+        event_times=("2015-02-01", "2015-02-01T01:00:00"),
+        event_details=["{not json", "[1]"],
+    )
+    with caplog.at_level("WARNING", logger="ecoscope.io.earthranger_utils"):
+        events = unpack_events_from_patrols_df(warehouse_patrols_table_to_patrols_df(table))
+    assert events["event_details"].tolist() == [{}, {}]
+    assert "Could not decode 2 patrol `event_details`" in caplog.text
+
+
 def test_warehouse_patrols_table_null_team_struct_is_none():
     from ecoscope.io.earthranger_utils import (
         patrol_segments_from_patrols_df,

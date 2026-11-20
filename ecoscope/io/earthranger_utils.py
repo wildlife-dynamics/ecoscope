@@ -60,42 +60,46 @@ def _decode_event_details(value) -> dict | None:
     """Parse one warehouse ``event_details`` value; ``None`` means malformed.
 
     Null-likes and ``""`` become ``{}``, as the ER API serves an event without details.
-    Legacy ``{name, value}`` choices are unwrapped, as DAS's v2 event read does. Runs
-    once per event, so the unwrap happens inside the C parser's ``object_hook`` and only
-    for payloads that contain ``"value"`` at all.
     """
     if isinstance(value, dict):
         return value
     if not isinstance(value, str) or value == "":
         return {}
     try:
-        if '"value"' not in value:
-            decoded = json.loads(value)
-        else:
-            decoded = json.loads(value, object_hook=_unwrap_legacy_choice_hook)
-            if not isinstance(decoded, dict) and isinstance(raw := json.loads(value), dict):
-                # The whole payload was {name, value}: only nested choices unwrap.
-                decoded = {k: unwrap_legacy_choices(v) for k, v in raw.items()}
+        decoded = json.loads(value)
     except (TypeError, ValueError):
         return None
-    return decoded if isinstance(decoded, dict) else None
+    if not isinstance(decoded, dict):
+        return None
+    # Substring check skips the unwrap pass for the common payload with no choice dicts.
+    if '"value"' in value:
+        unwrap_legacy_choices(decoded)
+    return decoded
 
 
-def _unwrap_legacy_choice_hook(d: dict):
-    if "value" in d and len(d) <= 2 and d.keys() <= {"name", "value"}:
-        return d["value"]
-    return d
+_CHOICE_KEYS = frozenset({"name", "value"})
 
 
-def unwrap_legacy_choices(value):
-    """Reduce legacy ``{"name", "value"}`` choice dicts to their ``value``, recursing into lists and dicts."""
-    if isinstance(value, dict):
-        if "value" in value and value.keys() <= {"name", "value"}:
-            return value["value"]
-        return {k: unwrap_legacy_choices(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [unwrap_legacy_choices(v) for v in value]
-    return value
+def is_legacy_choice(value) -> bool:
+    """True for a legacy ``{name, value}`` choice dict."""
+    return isinstance(value, dict) and "value" in value and value.keys() <= _CHOICE_KEYS
+
+
+def unwrap_legacy_choices(details: dict) -> dict:
+    """Reduce legacy ``{name, value}`` choices to their ``value`` in place, as DAS's v2 read does.
+
+    Like DAS, only top-level fields and the items of top-level lists unwrap; choices inside
+    sub-form rows stay dicts. ``is_legacy_choice`` is inlined: this runs per decoded event.
+    """
+    for k, v in details.items():
+        if k == "updates":
+            continue
+        if type(v) is dict:
+            if "value" in v and v.keys() <= _CHOICE_KEYS:
+                details[k] = v["value"]
+        elif type(v) is list:
+            details[k] = [x["value"] if type(x) is dict and "value" in x and x.keys() <= _CHOICE_KEYS else x for x in v]
+    return details
 
 
 def dataframe_to_dict_or_list(events: gpd.GeoDataFrame | pd.DataFrame | dict | list[dict]) -> dict | list[dict]:
@@ -402,6 +406,7 @@ def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
       does for ``get_events``.
     """
     records = table.to_pylist()
+    bad_details = 0
     for patrol in records:
         for segment in patrol.get("patrol_segments") or []:
             segment["time_range"] = {
@@ -413,7 +418,13 @@ def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
             for event in segment.get("events") or []:
                 event["geojson"] = _synthesize_event_geojson(event)
                 if "event_details" in event:
-                    event["event_details"] = _decode_event_details(event["event_details"]) or {}
+                    decoded = _decode_event_details(event["event_details"])
+                    if decoded is None:
+                        bad_details += 1
+                        decoded = {}
+                    event["event_details"] = decoded
+    if bad_details:
+        logger.warning("Could not decode %s patrol `event_details` JSON payloads; used {} instead.", bad_details)
     return pd.DataFrame(records)
 
 

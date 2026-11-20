@@ -720,9 +720,7 @@ def get_events(
         # The warehouse get_events accepts event type slugs directly, so pass the
         # values straight through — no value->id round-trip via get_event_types.
         #
-        # event_details always as raw JSON: the typed struct (single-type only) silently
-        # drops events whose stored details don't cast to the event type's schema.
-        raw_details = include_details
+        # Raw JSON details, so events whose details don't match their schema aren't dropped.
         table = warehouse_client.get_events(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
@@ -732,7 +730,7 @@ def get_events(
             include_details=include_details,
             include_updates=include_updates,
             include_related_events=include_related_events,
-            raw_details=raw_details,
+            raw_details=include_details,
         )
         events_df = gpd.GeoDataFrame.from_arrow(table).rename(
             columns={
@@ -741,7 +739,7 @@ def get_events(
                 "event_time": "time",
             }
         )
-        if raw_details:
+        if include_details:
             from ecoscope.io.earthranger_utils import decode_raw_event_details
 
             decode_raw_event_details(events_df)
@@ -1651,7 +1649,9 @@ def _choice_title(enum_names: dict, value):
     """
     if type(value) is str:
         return enum_names.get(value, value)
-    if isinstance(value, dict) and "value" in value and value.keys() <= {"name", "value"}:
+    from ecoscope.io.earthranger_utils import is_legacy_choice
+
+    if is_legacy_choice(value):
         value = value["value"]
     try:
         return enum_names.get(value, value)
@@ -1684,8 +1684,7 @@ def _resolve_event_details(
         ordered_keys = list(details.keys())
 
     def resolve(value, prop_def):
-        # Arrow-backed details (e.g. the warehouse's typed struct) carry ndarrays where
-        # the ER API serves lists; an ndarray would otherwise reach `enum_names.get`.
+        # Details built from Arrow carry ndarrays where JSON carries lists.
         if isinstance(value, np.ndarray):
             value = value.tolist()
         enum_names = prop_def.get("enumNames") or prop_def.get("items", {}).get("enumNames")

@@ -165,17 +165,31 @@ def test_decode_raw_event_details_unwraps_legacy_name_value_choices():
     decode_raw_event_details(df)
 
     assert df["event_details"].tolist() == [
-        {"kind": "x", "tags": ["t1"], "rows": [{"status": "ok", "note": "n"}], "other": {"id_510": "1"}}
+        {
+            "kind": "x",
+            "tags": ["t1"],
+            "rows": [{"status": {"name": "Okay", "value": "ok"}, "note": "n"}],
+            "other": {"id_510": "1"},
+        }
     ]
 
 
-def test_decode_raw_event_details_payload_shaped_like_a_choice_keeps_its_keys():
-    """Only nested choices unwrap: details whose own fields are `name` and `value` stay a dict."""
-    df = pd.DataFrame({"event_details": ['{"name": "n", "value": {"name": "X", "value": "x"}}']})
+@pytest.mark.parametrize(
+    "details, expected",
+    [
+        ({"name": "n", "value": {"name": "X", "value": "x"}}, {"name": "n", "value": "x"}),
+        ({"name": "Ranger A", "value": {"count": 2}}, {"name": "Ranger A", "value": {"count": 2}}),
+        ({"rows": [{"a": {"b": {"name": "N", "value": "v"}}}]}, {"rows": [{"a": {"b": {"name": "N", "value": "v"}}}]}),
+        ({"updates": [{"name": "N", "value": "v"}]}, {"updates": [{"name": "N", "value": "v"}]}),
+    ],
+)
+def test_decode_raw_event_details_unwraps_only_top_level_choices(details, expected):
+    """Matches DAS's v2 read: the payload itself and anything below a top-level list item stay as-is."""
+    df = pd.DataFrame({"event_details": [json.dumps(details)]})
 
     decode_raw_event_details(df)
 
-    assert df["event_details"].tolist() == [{"name": "n", "value": "x"}]
+    assert df["event_details"].tolist() == [expected]
 
 
 @pytest.mark.parametrize(
