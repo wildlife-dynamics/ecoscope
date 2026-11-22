@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, WithJsonSchema, model_validator
 from wt_registry import register
 from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
@@ -102,6 +102,34 @@ class AggregateStep(BaseModel, CacheableModel):
 
 
 ProcessingStep = Annotated[FilterStep | AggregateStep, Field(discriminator="type")]
+
+
+_STEP: TypeAdapter[FilterStep | AggregateStep] = TypeAdapter(ProcessingStep)
+
+
+def _parse(raw: Any, number: int) -> FilterStep | AggregateStep:
+    """The step model of one item of `steps`, or a `ValueError` saying what is wrong with it."""
+    if isinstance(raw, (FilterStep, AggregateStep)):
+        return raw
+    if not isinstance(raw, dict):
+        raise ValueError(f"step {number}: a step is an object, not {raw!r}")
+    try:
+        return _STEP.validate_python(raw)
+    except ValidationError as e:
+        error = e.errors(include_url=False)[0]
+    where = ".".join(str(part) for part in error["loc"] if part not in ("filter", "aggregate"))
+    match error["type"]:
+        case "union_tag_not_found":
+            problem = "a step needs a type, 'filter' or 'aggregate'"
+        case "union_tag_invalid":
+            problem = f"unknown step type {raw.get('type')!r}; a step is a 'filter' or an 'aggregate'"
+        case "value_error":
+            problem = str(error["ctx"]["error"])
+        case "missing":
+            problem = f"{where} is required"
+        case _:
+            problem = f"{where}: {error['msg']}"
+    raise ValueError(f"step {number}: {problem}")
 
 
 def _skipped_to_empty(df: Any) -> Any:
@@ -345,7 +373,12 @@ def apply_processing_steps(
     ],
     root_path: Annotated[str, Field(exclude=True)],
     steps: Annotated[
-        list[ProcessingStep],
+        list[Any],
+        # The form schema is a bare list of objects, with no `oneOf`/`anyOf`: this
+        # section is written by the steps editor, not rendered as a form, and a union
+        # in a form schema needs a branch selection nothing would make. The items are
+        # validated as `ProcessingStep` when the task runs.
+        WithJsonSchema({"type": "array", "items": {"type": "object"}}),
         Field(title="Processing Steps", description="Filter and aggregate steps, applied in order."),
     ] = [],  # noqa: B006
 ) -> Annotated[AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty, Field()]:
@@ -354,14 +387,16 @@ def apply_processing_steps(
     The preview goes to `data_sets/preview/<table_id>.json` in the results folder: the
     source table first, then the table after each step, each as its row count, its
     columns and their kinds, and its first rows. A step that cannot run is recorded
-    there with its error before the task raises.
+    there with its error before the task raises, and so is one that is not a valid
+    step.
 
     Args:
         df: The table's rows. A skipped upstream step is an empty table.
         table_id: The table's id in its data set.
         root_path: The results folder.
-        steps: The steps, applied in order. A filter keeps matching rows; an aggregate
-            replaces the rows with one per group and drops the geometry.
+        steps: The steps, applied in order, each a `ProcessingStep` or the JSON object
+            of one. A filter keeps matching rows; an aggregate replaces the rows with
+            one per group and drops the geometry.
 
     Returns:
         The table after the last step: a plain DataFrame once aggregated.
@@ -373,9 +408,9 @@ def apply_processing_steps(
     frame: pd.DataFrame = df
     entries = [_snapshot(frame)]
     failure = None
-    for done, step in enumerate(steps):
+    for done, raw in enumerate(steps):
         try:
-            frame = _apply(frame, step, done)
+            frame = _apply(frame, _parse(raw, done + 1), done)
         except Exception as e:
             failure = e
             entries.append({"rows": None, "columns": [], "sample": [], "error": str(e)})

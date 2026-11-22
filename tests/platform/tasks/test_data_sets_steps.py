@@ -424,10 +424,77 @@ def test_step_models_validate_the_contract_shapes():
         steps_of({"type": "aggregate", "time_bucket": {"column": "time", "interval": "hour"}})
 
 
-def test_steps_schema_is_a_discriminated_union_on_type():
-    schema = TypeAdapter(list[ProcessingStep]).json_schema()
-    assert schema["items"]["discriminator"]["propertyName"] == "type"
-    assert set(schema["items"]["discriminator"]["mapping"]) == {"filter", "aggregate"}
+def test_steps_form_schema_is_a_plain_array_of_objects():
+    from wt_registry.jsonschema import jsonschema_from_task_func
+
+    schema = jsonschema_from_task_func(apply_processing_steps)
+    assert schema["properties"]["steps"] == {
+        "type": "array",
+        "items": {"type": "object"},
+        "default": [],
+        "title": "Processing Steps",
+        "description": "Filter and aggregate steps, applied in order.",
+    }
+
+    def keys(node):
+        if isinstance(node, dict):
+            yield from node
+            for value in node.values():
+                yield from keys(value)
+        elif isinstance(node, list):
+            for value in node:
+                yield from keys(value)
+
+    assert not {"anyOf", "oneOf", "allOf", "discriminator", "$ref"} & set(keys(schema["properties"]["steps"]))
+    assert not {"FilterStep", "AggregateStep", "TimeBucket", "Measure"} & set(schema.get("$defs", {}))
+    assert not {"anyOf", "oneOf", "discriminator"} & set(keys({k: v for k, v in schema.items() if k != "$defs"}))
+
+
+def test_steps_are_taken_as_dicts_or_models(tmp_path, events):
+    as_dict = {"type": "filter", "column": "event_type", "op": "eq", "values": ["snare"]}
+    aggregate = {"type": "aggregate", "group_by": ["event_type"]}
+    result = apply_processing_steps(
+        df=events, table_id="events", root_path=str(tmp_path), steps=[as_dict, AggregateStep(**aggregate)]
+    )
+    assert result.to_dict("records") == [{"event_type": "snare", "count": 1}]
+    assert [s["rows"] for s in preview(tmp_path)["steps"]] == [5, 1, 1]
+
+
+@pytest.mark.parametrize(
+    "bad, message",
+    [
+        ({"type": "sort", "column": "x"}, "step 2: unknown step type 'sort'; a step is a 'filter' or an 'aggregate'"),
+        ({"column": "x"}, "step 2: a step needs a type, 'filter' or 'aggregate'"),
+        ({"type": "aggregate", "measures": [{"op": "sum"}]}, "step 2: measure 'sum' needs a column"),
+        (
+            {"type": "aggregate"},
+            "step 2: an aggregate step needs at least one of group_by, time_bucket and measures",
+        ),
+        ({"type": "filter", "op": "eq"}, "step 2: column is required"),
+        (
+            {"type": "filter", "column": "x", "op": "contains"},
+            "step 2: op: Input should be 'is_any_of', 'is_none_of', 'eq', 'ne', 'gt', 'ge', 'lt', 'le', "
+            "'is_empty' or 'is_not_empty'",
+        ),
+        (
+            {"type": "aggregate", "time_bucket": {"column": "time", "interval": "hour"}},
+            "step 2: time_bucket.interval: Input should be 'day', 'week', 'month' or 'year'",
+        ),
+        ("filter", "step 2: a step is an object, not 'filter'"),
+    ],
+)
+def test_invalid_step_is_recorded_at_its_position_then_raises(tmp_path, events, bad, message):
+    from wt_task import task
+
+    good = {"type": "filter", "column": "event_type", "op": "eq", "values": ["snare"]}
+    with pytest.raises(ValueError) as raised:
+        task(apply_processing_steps).validate().call(
+            df=events, table_id="events", root_path=str(tmp_path), steps=[good, bad, good]
+        )
+    assert str(raised.value) == message
+    written = preview(tmp_path)
+    assert [s["rows"] for s in written["steps"]] == [5, 1, None]
+    assert written["steps"][2] == {"rows": None, "columns": [], "sample": [], "error": message}
 
 
 def test_apply_processing_steps_is_registered_no_cache():
