@@ -169,3 +169,65 @@ def test_a_manifest_from_before_table_ids_still_reads(data_set_root):
 def test_read_refuses_a_binding_that_is_not_a_root_or_a_url_and_table(bound):
     with pytest.raises(DataSetSchemaError, match="patrol_legs: a binding is a results root or"):
         read_data_set_table(data_set_roots=json.dumps({"patrol_legs": bound}), table_type="patrol_legs")
+
+
+@pytest.fixture
+def generic_root(tmp_path, patrol_events_gdf, patrol_legs_df):
+    """What the steps leave behind: `events` filtered only, `legs` aggregated, `sightings` cut down but spatial."""
+    gather_data_sets(
+        data_set="patrols",
+        tables={
+            "events": {"table_type": "patrol_events", "frame": patrol_events_gdf, "allow_generic": True},
+            "legs": {
+                "table_type": "patrol_legs",
+                "frame": patrol_legs_df.groupby("patrol_type", as_index=False).size(),
+                "allow_generic": True,
+            },
+            "sightings": {
+                "table_type": "patrol_events",
+                "frame": patrol_events_gdf[["event_type", "geometry"]],
+                "allow_generic": True,
+            },
+        },
+        root_path=str(tmp_path),
+    )
+    return str(tmp_path)
+
+
+def bound(root, table_id, binding="table"):
+    return json.dumps({binding: {"url": root, "table_id": table_id}})
+
+
+def test_read_table_type_table_accepts_typed_table(generic_root, patrol_events_gdf):
+    assert read_data_set_manifest(data_set_root=generic_root).tables["events"].table_type == "patrol_events"
+    gdf = read_data_set_table(data_set_roots=bound(generic_root, "events"), table_type="table")
+    assert isinstance(gdf, gpd.GeoDataFrame) and gdf.crs == "EPSG:4326"
+    assert gdf["patrol_id"].tolist() == patrol_events_gdf["patrol_id"].tolist()
+
+
+def test_read_table_type_table_accepts_generic_table(generic_root):
+    assert read_data_set_manifest(data_set_root=generic_root).tables["legs"].table_type == "table"
+    df = read_data_set_table(data_set_roots=bound(generic_root, "legs"), table_type="table")
+    assert not isinstance(df, gpd.GeoDataFrame)
+    assert df.to_dict("list") == {"patrol_type": ["foot", "vehicle"], "size": [1, 1]}
+
+    gdf = read_data_set_table(
+        data_set_roots=bound(generic_root, "sightings", "shown"), table_type="table", binding="shown"
+    )
+    assert (
+        isinstance(gdf, gpd.GeoDataFrame) and gdf.crs == "EPSG:4326" and list(gdf.columns) == ["event_type", "geometry"]
+    )
+
+
+def test_read_typed_request_rejects_generic_table(generic_root):
+    with pytest.raises(DataSetSchemaError, match=r"expected a patrol_legs table, but 'legs'.*is a table table"):
+        read_data_set_table(data_set_roots=bound(generic_root, "legs", "patrol_legs"), table_type="patrol_legs")
+
+
+def test_read_table_type_table_validates_against_the_manifest_type(generic_root):
+    p = Path(generic_root) / "data_sets" / "manifest.json"
+    m = json.loads(p.read_text())
+    m["tables"]["legs"]["table_type"] = "patrol_legs"
+    p.write_text(json.dumps(m))
+    with pytest.raises(DataSetSchemaError, match="patrol_legs.*failed validation; missing fields"):
+        read_data_set_table(data_set_roots=bound(generic_root, "legs"), table_type="table")

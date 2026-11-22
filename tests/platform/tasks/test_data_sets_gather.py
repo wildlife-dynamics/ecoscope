@@ -1,3 +1,4 @@
+import geopandas as gpd  # type: ignore[import-untyped]
 import pandas as pd
 import pytest
 
@@ -133,3 +134,132 @@ def test_gather_refuses_a_table_id_that_is_not_a_plain_name(tmp_path, patrol_leg
             root_path=str(tmp_path),
         )
     assert not list(tmp_path.glob("data_sets/*"))
+
+
+def test_gather_writes_generic_when_allowed_and_schema_mismatches(tmp_path, patrol_events_gdf, patrol_legs_df):
+    counts = patrol_legs_df.groupby("patrol_type", as_index=False).size()
+    manifest = gather_data_sets(
+        data_set="patrols",
+        tables={
+            "events": {
+                "table_type": "patrol_events",
+                "frame": patrol_events_gdf.drop(columns="patrol_id").assign(details=[{"a": 1}, [1, 2], None]),
+                "allow_generic": True,
+            },
+            "legs": {"table_type": "patrol_legs", "frame": counts, "allow_generic": True},
+        },
+        root_path=str(tmp_path),
+    )
+    assert {i: (t.table_type, t.schema_version, t.path, t.rows) for i, t in manifest.tables.items()} == {
+        "events": ("table", TABLE_TYPES["table"].schema_version, "data_sets/events.arrow", 3),
+        "legs": ("table", TABLE_TYPES["table"].schema_version, "data_sets/legs.arrow", 2),
+    }
+    assert DataSetManifest.model_validate_json((tmp_path / "data_sets" / "manifest.json").read_text()) == manifest
+
+    legs = table_to_frame(read_table(str(tmp_path), "table", "1", "data_sets/legs.arrow"), "table")
+    assert type(legs) is pd.DataFrame
+    pd.testing.assert_frame_equal(legs, counts)
+
+    events = table_to_frame(read_table(str(tmp_path), "table", "1", "data_sets/events.arrow"), "table")
+    assert isinstance(events, gpd.GeoDataFrame) and events.crs == "EPSG:4326"
+    assert events.geometry.equals(patrol_events_gdf.geometry.reset_index(drop=True))
+    assert events["details"].tolist() == [{"a": 1}, [1, 2], None]
+
+
+def test_gather_still_fails_on_mismatch_without_allow_generic(tmp_path, patrol_legs_df):
+    counts = patrol_legs_df.groupby("patrol_type", as_index=False).size()
+    for entry in (
+        {"table_type": "patrol_legs", "frame": counts},
+        {"table_type": "patrol_legs", "frame": counts, "allow_generic": False},
+    ):
+        with pytest.raises(DataSetSchemaError, match="patrol_legs.*failed validation; missing fields"):
+            gather_data_sets(data_set="p", tables={"legs": entry}, root_path=str(tmp_path))
+    assert not list(tmp_path.glob("data_sets/*"))
+
+
+def test_gather_keeps_declared_type_when_schema_matches_with_allow_generic(tmp_path, patrol_events_gdf, patrol_legs_df):
+    manifest = gather_data_sets(
+        data_set="patrols",
+        tables={
+            "events": {"table_type": "patrol_events", "frame": patrol_events_gdf, "allow_generic": True},
+            "legs": {"table_type": "patrol_legs", "frame": patrol_legs_df.iloc[0:0], "allow_generic": True},
+            "tracks": {"table_type": "patrol_tracks", "frame": pd.DataFrame(), "allow_generic": True},
+        },
+        root_path=str(tmp_path),
+    )
+    assert {i: t.table_type for i, t in manifest.tables.items()} == {
+        "events": "patrol_events",
+        "legs": "patrol_legs",
+        "tracks": "patrol_tracks",
+    }
+
+
+def test_gather_reports_the_declared_type_when_a_frame_cannot_be_stored_at_all(tmp_path, patrol_legs_df):
+    frame = patrol_legs_df.assign(odd=[object(), object()])
+    with pytest.raises(DataSetSchemaError, match="patrol_legs: cannot"):
+        gather_data_sets(
+            data_set="p",
+            tables={"legs": {"table_type": "patrol_legs", "frame": frame, "allow_generic": True}},
+            root_path=str(tmp_path),
+        )
+
+
+def test_gather_accepts_a_table_declared_generic(tmp_path, patrol_legs_df):
+    manifest = gather_data_sets(
+        data_set="p",
+        tables={
+            "anything": {"table_type": "table", "frame": patrol_legs_df},
+            "nothing": typed({"table": pd.DataFrame()})["table"],
+        },
+        root_path=str(tmp_path),
+    )
+    assert {i: (t.table_type, t.rows) for i, t in manifest.tables.items()} == {
+        "anything": ("table", 2),
+        "nothing": ("table", 0),
+    }
+    nothing = table_to_frame(read_table(str(tmp_path), "table", "1", "data_sets/nothing.arrow"), "table")
+    assert nothing.empty and len(nothing.columns) == 0
+
+
+def test_gather_takes_processed_frames_through_task_validation(tmp_path, patrol_events_gdf, patrol_legs_df):
+    from wt_task import SKIP_SENTINEL, task
+
+    from ecoscope.platform.tasks.data_sets import apply_processing_steps
+
+    def processed(table_id, df, *steps):
+        return (
+            task(apply_processing_steps)
+            .validate()
+            .call(df=df, table_id=table_id, root_path=str(tmp_path), steps=list(steps))
+        )
+
+    aggregate = {"type": "aggregate", "group_by": ["patrol_type"]}
+    frames = {
+        "events": processed(
+            "events", patrol_events_gdf, {"type": "filter", "column": "event_type", "op": "ne", "values": ["snare"]}
+        ),
+        "legs": processed("legs", patrol_legs_df, aggregate),
+        "tracks": processed("tracks", SKIP_SENTINEL, aggregate),
+    }
+    types = {"events": "patrol_events", "legs": "patrol_legs", "tracks": "patrol_tracks"}
+    manifest = (
+        task(gather_data_sets)
+        .validate()
+        .call(
+            data_set="patrols",
+            tables={i: {"table_type": types[i], "frame": frames[i], "allow_generic": True} for i in types},
+            root_path=str(tmp_path),
+        )
+    )
+    assert {i: (t.table_type, t.rows) for i, t in manifest.tables.items()} == {
+        "events": ("patrol_events", 2),
+        "legs": ("table", 2),
+        "tracks": ("table", 0),
+    }
+    assert sorted(p.name for p in tmp_path.glob("data_sets/preview/*.json")) == [
+        "events.json",
+        "legs.json",
+        "tracks.json",
+    ]
+    tracks = table_to_frame(read_table(str(tmp_path), "table", "1", "data_sets/tracks.arrow"), "table")
+    assert list(tracks.columns) == ["patrol_type", "count"] and len(tracks) == 0

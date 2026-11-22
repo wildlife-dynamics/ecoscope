@@ -10,8 +10,9 @@ from ecoscope.platform.data_sets import (
 )
 
 
-def test_registry_has_the_five_initial_table_types():
+def test_registry_has_the_five_initial_table_types_and_the_generic_one():
     assert set(TABLE_TYPES) == {
+        "table",
         "patrol_tracks",
         "patrol_events",
         "patrol_legs",
@@ -21,6 +22,14 @@ def test_registry_has_the_five_initial_table_types():
     assert all(t.schema_version == "1" for t in TABLE_TYPES.values())
     assert TABLE_TYPES["patrol_legs"].spatial is False
     assert TABLE_TYPES["patrol_tracks"].spatial is True
+    assert len(TABLE_TYPES["table"].schema) == 0
+
+
+def test_generic_table_type_accepts_any_table(spatial_feature_groups_table):
+    validate_table(spatial_feature_groups_table, "table", "1")
+    validate_table(pa.table({}), "table")
+    with pytest.raises(DataSetSchemaError, match=r"table: schema_version mismatch, expected 1, found 2"):
+        validate_table(spatial_feature_groups_table, "table", "2")
 
 
 def test_validate_table_accepts_extra_columns_in_any_order(
