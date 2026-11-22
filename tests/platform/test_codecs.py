@@ -749,6 +749,15 @@ def time_range(since="2015-01-01T00:00:00"):
 # makes a new model with required fields fail until someone covers it.
 REQUIRED_FIELDS: dict[str, dict] = {
     "AllGrouper": {"index_name": "Everything"},
+    "FilterStep": {"type": "filter", "column": "event_type", "op": "is_any_of", "values": ["snare", 2, 2.5, True]},
+    "TimeBucket": {"column": "time", "interval": "week"},
+    "Measure": {"op": "sum", "column": "dist_meters"},
+    "AggregateStep": {
+        "type": "aggregate",
+        "group_by": ["event_type"],
+        "time_bucket": {"column": "time", "interval": "week"},
+        "measures": [{"op": "count"}, {"op": "sum", "column": "dist_meters"}],
+    },
     "_BaseSummaryParam": {"display_name": "Total"},
     "StatSummaryParam": {"display_name": "Total", "aggregator": "sum", "column": "distance"},
     "UniqueSummaryParam": {"display_name": "Species", "aggregator": "unique", "column": "species"},
