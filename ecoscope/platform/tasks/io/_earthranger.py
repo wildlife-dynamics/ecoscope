@@ -1519,8 +1519,11 @@ def _fetch_v2_schema(client: EarthRangerSource, event_type: str) -> dict:
             if not ref:
                 continue
             try:
-                # Strip v2 prefix to avoid double-prefixing in client.api._get
-                ref_schema = client.api._get(_strip_v2_prefix(ref), params={"s_format": "oneOf"})  # type: ignore[attr-defined]
+                # Strip v2 prefix to avoid double-prefixing in client.api._get. One attempt
+                # only as a ref to a choice list the site doesn't have answers 400 every time.
+                ref_schema = client.api._get(  # type: ignore[attr-defined]
+                    _strip_v2_prefix(ref), params={"s_format": "oneOf"}, max_retries=1
+                )
                 for choice in ref_schema.get("oneOf", []):
                     const = choice.get("const")
                     title = choice.get("title")
