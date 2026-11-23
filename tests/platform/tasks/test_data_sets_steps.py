@@ -445,6 +445,9 @@ def test_step_schemas_cover_each_task_params_without_the_table():
         "is_not_empty",
     ]
     assert schemas["add_temporal_index"]["required"] == ["time_col", "groupers"]
+    # A default a task gives in its `Field` rather than in its signature still counts.
+    assert schemas["map_values"]["required"] == ["column_name"]
+    assert schemas["map_values"]["properties"]["missing_values"]["default"] == "remove"
     assert schemas["summarize_df"]["properties"]["summary_params"]["items"]["oneOf"][0]["title"] == "Statistic"
     assert all("$defs" not in schema for schema in schemas.values())
 

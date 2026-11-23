@@ -7,7 +7,7 @@ from typing import Annotated, Any, Callable, get_type_hints
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, WithJsonSchema, create_model
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, WithJsonSchema
 from wt_registry import register
 from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
@@ -59,12 +59,17 @@ def _params_model(task: str) -> type[BaseModel]:
     """A model of the task's parameters other than `df`, typed as its signature types them."""
     func = STEP_TASKS[task]
     hints = get_type_hints(func, include_extras=True)
-    fields: dict[str, Any] = {
-        name: (hints[name], ... if parameter.default is inspect.Parameter.empty else parameter.default)
-        for name, parameter in inspect.signature(func).parameters.items()
-        if name != "df"
+    parameters = {name: p for name, p in inspect.signature(func).parameters.items() if name != "df"}
+    # Built as a class body would be, not with `create_model`: a parameter with no
+    # Python default is left unassigned, so that a default given in its `Field`, as
+    # `map_values` gives `missing_values`, stands whatever the pydantic version.
+    namespace: dict[str, Any] = {
+        "__module__": __name__,
+        "__annotations__": {name: hints[name] for name in parameters},
+        "model_config": ConfigDict(extra="forbid", arbitrary_types_allowed=True),
+        **{name: p.default for name, p in parameters.items() if p.default is not inspect.Parameter.empty},
     }
-    return create_model(task, __config__=ConfigDict(extra="forbid", arbitrary_types_allowed=True), **fields)
+    return type(task, (BaseModel,), namespace)
 
 
 def _inlined(node: Any, defs: dict[str, Any], seen: tuple[str, ...] = ()) -> Any:
