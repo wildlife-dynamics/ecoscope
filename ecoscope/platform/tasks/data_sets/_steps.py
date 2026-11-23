@@ -41,6 +41,10 @@ STEP_TASKS: dict[str, Callable[..., Any]] = {
 }
 
 
+# The keyword of the `steps` form schema that holds `processing_step_schemas()`.
+STEP_TASKS_KEYWORD = "ecoscope:step_tasks"
+
+
 class ProcessingStep(BaseModel):
     """One call of a task in `STEP_TASKS` on the table, with the task's own parameters."""
 
@@ -63,15 +67,42 @@ def _params_model(task: str) -> type[BaseModel]:
     return create_model(task, __config__=ConfigDict(extra="forbid", arbitrary_types_allowed=True), **fields)
 
 
+def _inlined(node: Any, defs: dict[str, Any], seen: tuple[str, ...] = ()) -> Any:
+    """The schema node with each local `$ref` replaced by the definition it names."""
+    if isinstance(node, list):
+        return [_inlined(item, defs, seen) for item in node]
+    if not isinstance(node, dict):
+        return node
+    ref = node.get("$ref")
+    if isinstance(ref, str) and ref.startswith("#/$defs/"):
+        name = ref.removeprefix("#/$defs/")
+        if name in seen:
+            raise ValueError(f"recursive schema definition {name!r}")
+        rest = {key: value for key, value in node.items() if key != "$ref"}
+        return {**_inlined(defs[name], defs, (*seen, name)), **_inlined(rest, defs, seen)}
+    inlined = {key: _inlined(value, defs, seen) for key, value in node.items() if key != "$defs"}
+    # Pydantic wraps a reference that has siblings in a one-item `allOf`.
+    match inlined.get("allOf"):
+        case [dict() as only]:
+            del inlined["allOf"]
+            inlined = {**only, **inlined}
+    return inlined
+
+
 def processing_step_schemas() -> dict[str, dict[str, Any]]:
     """The JSON schema of the `params` of each task a step may run, by task name.
 
     It is the schema a step's `params` is validated against: the task's parameters
     as its signature types them, without the table (`df`). A steps editor can render
     a step's form from it. Unlike a workflow's form, it keeps the parameters a task
-    hides from that form, such as the `groupers` of `add_temporal_index`.
+    hides from that form, such as the `groupers` of `add_temporal_index`. Each schema
+    stands alone: its definitions are inlined, so it has no `$ref` or `$defs`.
+
+    The form schema of `apply_processing_steps` carries this map on its `steps`
+    property, under `STEP_TASKS_KEYWORD`, which is how it reaches an editor.
     """
-    return {task: _params_model(task).model_json_schema() for task in STEP_TASKS}
+    schemas = {task: _params_model(task).model_json_schema() for task in STEP_TASKS}
+    return {task: _inlined(schema, schema.get("$defs", {})) for task, schema in schemas.items()}
 
 
 def _parse(raw: Any) -> tuple[str, dict[str, Any]]:
@@ -189,8 +220,9 @@ def apply_processing_steps(
         # section is written by the steps editor, not rendered as a form, and a union
         # in a form schema needs a branch selection nothing would make. Each item is
         # validated as a `ProcessingStep`, and its params against its task, when the
-        # task runs.
-        WithJsonSchema({"type": "array", "items": {"type": "object"}}),
+        # task runs. The tasks' params schemas ride along under a keyword no form
+        # validator reads, for the steps editor to render a step's form from.
+        WithJsonSchema({"type": "array", "items": {"type": "object"}, STEP_TASKS_KEYWORD: processing_step_schemas()}),
         Field(
             title="Processing Steps",
             description="Task calls applied to the table in order, each `{task, params}`.",

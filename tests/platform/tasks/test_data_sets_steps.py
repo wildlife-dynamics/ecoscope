@@ -316,6 +316,7 @@ def test_steps_form_schema_is_a_plain_array_of_objects():
     assert schema["properties"]["steps"] == {
         "type": "array",
         "items": {"type": "object"},
+        "ecoscope:step_tasks": processing_step_schemas(),
         "default": [],
         "title": "Processing Steps",
         "description": "Task calls applied to the table in order, each `{task, params}`.",
@@ -330,9 +331,13 @@ def test_steps_form_schema_is_a_plain_array_of_objects():
             for value in node:
                 yield from keys(value)
 
-    assert not {"anyOf", "oneOf", "allOf", "discriminator", "$ref"} & set(keys(schema["properties"]["steps"]))
+    form = {k: v for k, v in schema["properties"]["steps"].items() if k != "ecoscope:step_tasks"}
+    assert not {"anyOf", "oneOf", "allOf", "discriminator", "$ref"} & set(keys(form))
+    assert not {"$ref", "$defs"} & set(keys(schema["properties"]["steps"]["ecoscope:step_tasks"]))
     assert "ProcessingStep" not in schema.get("$defs", {})
-    assert not {"anyOf", "oneOf", "discriminator"} & set(keys({k: v for k, v in schema.items() if k != "$defs"}))
+    rest = {k: v for k, v in schema.items() if k != "$defs"}
+    rest["properties"] = {**schema["properties"], "steps": form}
+    assert not {"anyOf", "oneOf", "discriminator"} & set(keys(rest))
 
 
 def test_preview_values_only_for_low_cardinality_text(tmp_path):
@@ -416,15 +421,15 @@ def test_step_schemas_cover_each_task_params_without_the_table():
         assert "df" not in schema.get("required", []), name
     assert schemas["filter_df"]["required"] == ["column_name", "op"]
     assert list(schemas["filter_df"]["properties"]) == ["column_name", "op", "value", "reset_index", "values"]
-    assert schemas["filter_df"]["$defs"]["ComparisonOperator"]["enum"][-4:] == [
+    assert schemas["filter_df"]["properties"]["op"]["enum"][-4:] == [
         "is_any_of",
         "is_none_of",
         "is_empty",
         "is_not_empty",
     ]
     assert schemas["add_temporal_index"]["required"] == ["time_col", "groupers"]
-    assert "TemporalGrouper" in schemas["add_temporal_index"]["$defs"]
-    assert "StatSummaryParam" in schemas["summarize_df"]["$defs"]
+    assert schemas["summarize_df"]["properties"]["summary_params"]["items"]["oneOf"][0]["title"] == "Statistic"
+    assert all("$defs" not in schema for schema in schemas.values())
 
 
 def test_apply_processing_steps_is_registered_no_cache():
