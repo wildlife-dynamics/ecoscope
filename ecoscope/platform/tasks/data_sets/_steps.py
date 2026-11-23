@@ -244,9 +244,9 @@ def apply_processing_steps(
     - `map_values`: replace a column's values through a mapping.
     - `fill_na`: fill missing values.
     - `convert_values_to_timezone`: move date columns to a time zone.
-    - `add_temporal_index`: index the rows by a date column formatted per time
-      grouper, for a later `summarize_df` to group on (`groupby_cols` takes the
-      index name, `TemporalGrouper_<directive>`).
+    - `add_temporal_index`: add a column per time grouper, holding a date column
+      formatted its way and named `TemporalGrouper_<directive>`, for a later
+      `summarize_df` to group by.
     - `summarize_df`: replace the rows with one row per group, holding its statistics.
       A statistic cannot be taken over a column the rows are grouped by.
 
@@ -264,10 +264,13 @@ def apply_processing_steps(
 
     The preview goes to `data_sets/preview/<table_id>.json` in the results folder: the
     source table first, then the table after each step, each as its row count, its
-    columns and their kinds, and its first rows. Named index levels are shown, and
-    returned, as leading columns, because a table's file has no index. A step that
+    columns and their kinds, and its first rows. A step that
     cannot run is recorded there with its error before the task raises, and so is one
     that is not a valid step: an unknown task, or params its task does not accept.
+
+    A table has no index: the named index levels a task leaves on it, as
+    `add_temporal_index` and a grouped `summarize_df` do, become its leading columns
+    before the next step, the preview and the return.
 
     A table with no rows is not passed to the tasks: each step is still validated, and
     the table goes through unchanged.
@@ -295,16 +298,16 @@ def apply_processing_steps(
         try:
             task, kwargs = _parse(raw)
             if len(frame):
-                frame = _run(frame, task, kwargs)
+                frame = _flat(_run(frame, task, kwargs))
         except Exception as e:
             failure = ValueError(f"step {number}: {e}")
             entries.append({"rows": None, "columns": [], "sample": [], "error": str(failure)})
             break
-        entries.append({**_snapshot(_flat(frame)), "error": None})
+        entries.append({**_snapshot(frame), "error": None})
 
     if isinstance(preview_path, Path):
         preview_path.parent.mkdir(parents=True, exist_ok=True)
     _persist_text(json.dumps({"table_id": table_id, "steps": entries}, allow_nan=False), root_path, filename)
     if failure is not None:
         raise failure
-    return _flat(frame) if steps else frame  # type: ignore[return-value]
+    return frame  # type: ignore[return-value]

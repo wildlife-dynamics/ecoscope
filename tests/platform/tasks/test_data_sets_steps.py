@@ -118,6 +118,23 @@ def test_index_levels_a_step_adds_are_previewed_and_returned_as_columns(tmp_path
     }
 
 
+def test_a_later_step_reads_an_index_level_as_a_column(tmp_path, events):
+    result = apply(
+        events,
+        tmp_path,
+        step("add_temporal_index", time_col="time", groupers=[{"temporal_index": "%Y-%m"}]),
+        step("filter_df", column_name="TemporalGrouper_%Y-%m", op="equal", value="2025-01"),
+        step(
+            "summarize_df",
+            groupby_cols=["event_type"],
+            summary_params=[{"display_name": "events", "aggregator": "count", "column": "time"}],
+        ),
+        step("sort_values", column_name="events", ascending=False),
+    )
+    assert result.to_dict("records")[0] == {"event_type": "carcass", "events": 2.0}
+    assert list(result.columns) == ["event_type", "events"]
+
+
 def test_summary_without_groups_gives_one_row_and_drops_geometry(tmp_path, events):
     result = apply(
         events,
