@@ -1959,6 +1959,7 @@ class MockV2Client:
 
     def __init__(self, get_responses: dict | None = None):
         self.calls: list[tuple[str, bool]] = []
+        self.call_kwargs: dict[str, dict] = {}
         self._responses = get_responses or {}
 
     @contextmanager
@@ -1967,6 +1968,7 @@ class MockV2Client:
 
     def _get(self, url: str, return_response: bool = False, **kwargs):
         self.calls.append((url, return_response))
+        self.call_kwargs[url] = kwargs
         if url in self._responses:
             return self._responses[url]
         from ecoscope.io.earthranger import (  # type: ignore[import-untyped]
@@ -2328,6 +2330,8 @@ def test_fetch_v2_schema_with_choices():
         "mix": "Mix",
     }
     assert result["ordered_keys"] == ["herd_type"]
+    # max_retries counts attempts in ERClient: one attempt, as a bad ref answers 400 every time.
+    assert mock_client.call_kwargs["/activity/enums/herd_type_enum"]["max_retries"] == 1
 
 
 def test_fetch_v2_schema_ref_not_found():
