@@ -450,6 +450,14 @@ def test_step_schemas_cover_each_task_params_without_the_table():
     assert schemas["map_values"]["properties"]["missing_values"]["default"] == "remove"
     assert schemas["summarize_df"]["properties"]["summary_params"]["items"]["oneOf"][0]["title"] == "Statistic"
     assert all("$defs" not in schema for schema in schemas.values())
+    # Nor a pointer at one, as a discriminator's mapping would hold.
+    assert "#/$defs/" not in json.dumps(schemas)
+
+
+def test_preview_leaves_out_a_cell_that_holds_an_array(tmp_path):
+    frame = pd.DataFrame({"a": [pd.Series([1, 2]), pd.array([1, None])], "n": [1, 2]})
+    apply(frame, tmp_path)
+    assert preview(tmp_path)["steps"][0]["sample"] == [{"a": None, "n": 1}, {"a": None, "n": 2}]
 
 
 def test_apply_processing_steps_is_registered_no_cache():

@@ -86,6 +86,9 @@ def _inlined(node: Any, defs: dict[str, Any], seen: tuple[str, ...] = ()) -> Any
         rest = {key: value for key, value in node.items() if key != "$ref"}
         return {**_inlined(defs[name], defs, (*seen, name)), **_inlined(rest, defs, seen)}
     inlined = {key: _inlined(value, defs, seen) for key, value in node.items() if key != "$defs"}
+    # A discriminator's mapping points at the definitions, which are gone.
+    if isinstance(inlined.get("discriminator"), dict):
+        inlined["discriminator"] = {k: v for k, v in inlined["discriminator"].items() if k != "mapping"}
     # Pydantic wraps a reference that has siblings in a one-item `allOf`.
     match inlined.get("allOf"):
         case [dict() as only]:
@@ -164,7 +167,8 @@ def _skipped_to_empty(df: Any) -> Any:
 
 
 def _json_cell(value: Any) -> Any:
-    if value is None or isinstance(value, (list, tuple, dict, set, np.ndarray, bytes)):
+    unreadable = (list, tuple, dict, set, np.ndarray, bytes, pd.Series, pd.api.extensions.ExtensionArray)
+    if value is None or isinstance(value, unreadable):
         return None
     if isinstance(value, np.generic):
         value = value.item()

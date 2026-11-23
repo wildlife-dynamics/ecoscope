@@ -55,6 +55,8 @@ def column_kind(series: pd.Series) -> ColumnKind:
         return "text"
     if all(issubclass(t, (bool, np.bool_)) for t in types):
         return "boolean"
+    if all(issubclass(t, (int, float, np.integer, np.floating)) and not issubclass(t, bool) for t in types):
+        return "number"
     return "other"
 
 
@@ -85,7 +87,7 @@ def _coerce(value: Any, kind: ColumnKind, series: pd.Series, column: str) -> Any
         column_tz = getattr(series.dtype, "tz", None)
         if column_tz is None:
             return timestamp.tz_convert("UTC").tz_localize(None) if timestamp.tzinfo is not None else timestamp
-        return timestamp.tz_localize("UTC") if timestamp.tzinfo is None else timestamp
+        return timestamp.tz_localize(column_tz) if timestamp.tzinfo is None else timestamp
     return str(value)
 
 
@@ -114,8 +116,8 @@ def filter_df(
 
     An operand is read as the column's type: a number for a numeric column, `true` or
     `false` for a boolean one, a timestamp for a date one (one without an offset is
-    taken as UTC against a column that has a time zone), and text otherwise. An
-    operand that cannot be read that way is an error.
+    taken in the column's own time zone), and text otherwise. An operand that cannot
+    be read that way is an error.
 
     A row with no value passes only `ne` and `is_none_of`. `is_empty` keeps the rows
     with no value, and in a text column those with an empty string; `is_not_empty`
@@ -138,6 +140,8 @@ def filter_df(
             known = known.astype(object).map(str)
         elif kind == "boolean":
             known = known.astype(bool)
+        elif kind == "number" and not pd.api.types.is_numeric_dtype(known.dtype):
+            known = pd.to_numeric(known.astype(object))
 
         if op in (ComparisonOperator.IS_ANY_OF, ComparisonOperator.IS_NONE_OF):
             operands = [_coerce(v, kind, series, column_name) for v in values or []]
@@ -159,9 +163,11 @@ def filter_df(
                     passed = known < operand
                 case ComparisonOperator.NE:
                     passed = known != operand
-        # A row with no value passes only the negative tests.
-        negative = op in (ComparisonOperator.NE, ComparisonOperator.IS_NONE_OF)
-        result_df = df[passed.reindex(series.index, fill_value=negative).astype(bool)]
+        # A row with no value passes only the negative tests. The mask is set by
+        # position, since the index may repeat a label.
+        mask = np.full(len(series), op in (ComparisonOperator.NE, ComparisonOperator.IS_NONE_OF))
+        mask[series.notna().to_numpy()] = passed.to_numpy(dtype=bool)
+        result_df = df[mask]
 
     if reset_index:
         result_df = result_df.reset_index()

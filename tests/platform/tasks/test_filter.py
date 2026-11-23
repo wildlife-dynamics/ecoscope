@@ -107,3 +107,41 @@ def test_filter_comparison_without_a_value_fails_on_a_number_column(events):
 def test_filter_geometry_column_only_tests_emptiness(events):
     with pytest.raises(ValueError, match="geometry column 'geometry' can only be tested"):
         filter_df(events, "geometry", ComparisonOperator.EQUAL, "x")
+
+
+@pytest.mark.parametrize(
+    "op, value, kept",
+    [
+        (ComparisonOperator.NE, "x", ["y", None, "z"]),
+        (ComparisonOperator.EQUAL, "y", ["y"]),
+    ],
+)
+def test_filter_on_an_index_that_repeats_a_label(op, value, kept):
+    frame = pd.DataFrame({"a": ["x", "y", None, "z"]}, index=[0, 0, 1, 1])
+    assert filter_df(frame, "a", op, value)["a"].tolist() == kept
+    assert filter_df(frame, "a", ComparisonOperator.IS_ANY_OF, values=["x", "z"])["a"].tolist() == ["x", "z"]
+
+
+def test_filter_reads_an_operand_without_an_offset_in_the_column_time_zone():
+    times = pd.to_datetime(["2025-01-01 12:00", "2025-01-02 00:00", "2025-01-02 02:00", "2025-01-02 12:00"])
+    frame = pd.DataFrame({"time": times.tz_localize("Africa/Nairobi"), "n": [0, 1, 2, 3]})
+    assert filter_df(frame, "time", ComparisonOperator.GE, "2025-01-02")["n"].tolist() == [1, 2, 3]
+    assert filter_df(frame, "time", ComparisonOperator.EQUAL, "2025-01-02")["n"].tolist() == [1]
+    # One with an offset is that instant: midnight UTC is 03:00 in Nairobi.
+    assert filter_df(frame, "time", ComparisonOperator.GE, "2025-01-02T00:00:00Z")["n"].tolist() == [3]
+
+
+@pytest.mark.parametrize(
+    "column",
+    [
+        pd.Series([1, 2, 10, None], dtype=object),
+        pd.Series(pd.Categorical([1, 2, 10, None])),
+        pd.Series([1.0, 2.0, 10.0, None], dtype=object),
+    ],
+)
+def test_filter_compares_numbers_held_as_objects_as_numbers(column):
+    frame = pd.DataFrame({"a": column, "n": [0, 1, 2, 3]})
+    assert filter_df(frame, "a", ComparisonOperator.GT, "5")["n"].tolist() == [2]
+    assert filter_df(frame, "a", ComparisonOperator.LT, "9")["n"].tolist() == [0, 1]
+    assert filter_df(frame, "a", ComparisonOperator.EQUAL, "1")["n"].tolist() == [0]
+    assert filter_df(frame, "a", ComparisonOperator.IS_NONE_OF, values=["1", "2"])["n"].tolist() == [2, 3]
