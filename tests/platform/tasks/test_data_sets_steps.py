@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 from shapely.geometry import Point
 
-from ecoscope.platform.tasks.data_sets import apply_processing_steps
+from ecoscope.platform.tasks.data_sets import apply_processing_steps, processing_step_schemas
 from ecoscope.platform.tasks.data_sets._steps import STEP_TASKS, ProcessingStep
 
 
@@ -405,6 +405,26 @@ def test_unusable_table_id_is_refused_before_writing(tmp_path, events):
     with pytest.raises(ValueError, match="table id"):
         apply(events, tmp_path, table_id="../events")
     assert not list(tmp_path.rglob("*.json"))
+
+
+def test_step_schemas_cover_each_task_params_without_the_table():
+    schemas = processing_step_schemas()
+    assert list(schemas) == list(STEP_TASKS)
+    json.dumps(schemas)
+    for name, schema in schemas.items():
+        assert schema["type"] == "object" and "df" not in schema["properties"], name
+        assert "df" not in schema.get("required", []), name
+    assert schemas["filter_df"]["required"] == ["column_name", "op"]
+    assert list(schemas["filter_df"]["properties"]) == ["column_name", "op", "value", "reset_index", "values"]
+    assert schemas["filter_df"]["$defs"]["ComparisonOperator"]["enum"][-4:] == [
+        "is_any_of",
+        "is_none_of",
+        "is_empty",
+        "is_not_empty",
+    ]
+    assert schemas["add_temporal_index"]["required"] == ["time_col", "groupers"]
+    assert "TemporalGrouper" in schemas["add_temporal_index"]["$defs"]
+    assert "StatSummaryParam" in schemas["summarize_df"]["$defs"]
 
 
 def test_apply_processing_steps_is_registered_no_cache():

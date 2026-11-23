@@ -63,6 +63,17 @@ def _params_model(task: str) -> type[BaseModel]:
     return create_model(task, __config__=ConfigDict(extra="forbid", arbitrary_types_allowed=True), **fields)
 
 
+def processing_step_schemas() -> dict[str, dict[str, Any]]:
+    """The JSON schema of the `params` of each task a step may run, by task name.
+
+    It is the schema a step's `params` is validated against: the task's parameters
+    as its signature types them, without the table (`df`). A steps editor can render
+    a step's form from it. Unlike a workflow's form, it keeps the parameters a task
+    hides from that form, such as the `groupers` of `add_temporal_index`.
+    """
+    return {task: _params_model(task).model_json_schema() for task in STEP_TASKS}
+
+
 def _parse(raw: Any) -> tuple[str, dict[str, Any]]:
     """The task name and validated keyword arguments of one item of `steps`."""
     if isinstance(raw, ProcessingStep):
@@ -192,7 +203,8 @@ def apply_processing_steps(
     name with the table as `df` and `params` as its other arguments, and the table it
     returns goes to the next step. `params` is validated against the task's own
     signature, so it takes what that task takes in a workflow spec. The tasks a step
-    may run are those in `STEP_TASKS`:
+    may run are those in `STEP_TASKS`, and `processing_step_schemas()` gives the schema
+    of each one's `params`:
 
     - `filter_df`: keep the rows whose value in a column passes a test.
     - `sort_values`: order the rows by a column.
