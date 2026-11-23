@@ -1,161 +1,119 @@
+import inspect
 import json
 import math
+from functools import cache
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Callable, get_type_hints
 
 import numpy as np
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, WithJsonSchema, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, WithJsonSchema, create_model
 from wt_registry import register
 from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
-from ecoscope.platform.annotations import AnyDataFrameOrEmpty, AnyGeoDataFrameOrEmpty, CacheableModel
+from ecoscope.platform.annotations import AnyDataFrameOrEmpty, AnyGeoDataFrameOrEmpty
 from ecoscope.platform.data_sets import table_filename
 from ecoscope.platform.serde import _get_path, _persist_text
+from ecoscope.platform.tasks.analysis._summary import summarize_df
+from ecoscope.platform.tasks.transformation._conversion import convert_values_to_timezone
+from ecoscope.platform.tasks.transformation._filter import column_kind, filter_df
+from ecoscope.platform.tasks.transformation._indexing import add_temporal_index
+from ecoscope.platform.tasks.transformation._mapping import fill_na, map_columns, map_values
+from ecoscope.platform.tasks.transformation._sorting import sort_values
 
 PREVIEW_SAMPLE_ROWS = 100
 PREVIEW_MAX_VALUES = 50
 
-FilterOp = Literal["is_any_of", "is_none_of", "eq", "ne", "gt", "ge", "lt", "le", "is_empty", "is_not_empty"]
-MeasureOp = Literal["count", "sum", "mean", "min", "max", "median", "nunique"]
-TimeInterval = Literal["day", "week", "month", "year"]
-ColumnKind = Literal["text", "number", "date", "boolean", "geometry", "other"]
-
-_SINGLE_VALUE_OPS = ("eq", "ne", "gt", "ge", "lt", "le")
-_NUMERIC_ONLY_OPS = ("sum", "mean", "median")
-
-
-class FilterStep(BaseModel, CacheableModel):
-    """Keep the rows whose value in one column passes a test."""
-
-    model_config = ConfigDict(title="Filter")
-
-    type: Literal["filter"]
-    column: Annotated[str, Field(title="Column", description="The column to test.")]
-    op: Annotated[FilterOp, Field(title="Condition")]
-    values: Annotated[
-        list[bool | int | float | str],
-        Field(
-            title="Values",
-            description=(
-                "What to compare with. The comparisons (eq, ne, gt, ge, lt, le) use the first value; "
-                "is_empty and is_not_empty use none."
-            ),
-        ),
-    ] = []
+# The tasks a step may run, by name. Each takes the table as `df` and returns a table;
+# to allow another such task, add it here.
+STEP_TASKS: dict[str, Callable[..., Any]] = {
+    task.__name__: task
+    for task in (
+        filter_df,
+        sort_values,
+        map_columns,
+        map_values,
+        fill_na,
+        convert_values_to_timezone,
+        add_temporal_index,
+        summarize_df,
+    )
+}
 
 
-class TimeBucket(BaseModel, CacheableModel):
-    """Group rows by the day, week, month or year a date column falls in."""
+class ProcessingStep(BaseModel):
+    """One call of a task in `STEP_TASKS` on the table, with the task's own parameters."""
 
-    model_config = ConfigDict(title="Time Bucket")
+    model_config = ConfigDict(extra="forbid")
 
-    column: Annotated[str, Field(title="Column", description="The date column to bucket.")]
-    interval: Annotated[TimeInterval, Field(title="Interval")]
-
-
-class Measure(BaseModel, CacheableModel):
-    """One value computed per group."""
-
-    model_config = ConfigDict(title="Measure")
-
-    op: Annotated[MeasureOp, Field(title="Statistic")]
-    column: Annotated[
-        str | None,
-        Field(title="Column", description="The column to compute over. Not used by count."),
-    ] = None
-
-    @model_validator(mode="after")
-    def _column_unless_count(self) -> "Measure":
-        if self.op != "count" and not self.column:
-            raise ValueError(f"measure {self.op!r} needs a column")
-        return self
-
-    @property
-    def name(self) -> str:
-        return "count" if self.op == "count" else f"{self.op}_{self.column}"
+    task: str
+    params: dict[str, Any] = {}
 
 
-class AggregateStep(BaseModel, CacheableModel):
-    """Replace the rows with one row per group, holding the group's measures."""
-
-    model_config = ConfigDict(title="Aggregate")
-
-    type: Literal["aggregate"]
-    group_by: Annotated[
-        list[str],
-        Field(title="Group By", description="Columns whose distinct values make the groups."),
-    ] = []
-    time_bucket: Annotated[TimeBucket | None, Field(title="Time Bucket")] = None
-    measures: Annotated[
-        list[Measure],
-        Field(title="Measures", description="Values computed per group. Counts rows when none is given."),
-    ] = []
-
-    @model_validator(mode="after")
-    def _something_to_do(self) -> "AggregateStep":
-        if not (self.group_by or self.time_bucket or self.measures):
-            raise ValueError("an aggregate step needs at least one of group_by, time_bucket and measures")
-        if not self.measures:
-            self.measures = [Measure(op="count")]
-        return self
+@cache
+def _params_model(task: str) -> type[BaseModel]:
+    """A model of the task's parameters other than `df`, typed as its signature types them."""
+    func = STEP_TASKS[task]
+    hints = get_type_hints(func, include_extras=True)
+    fields: dict[str, Any] = {
+        name: (hints[name], ... if parameter.default is inspect.Parameter.empty else parameter.default)
+        for name, parameter in inspect.signature(func).parameters.items()
+        if name != "df"
+    }
+    return create_model(task, __config__=ConfigDict(extra="forbid", arbitrary_types_allowed=True), **fields)
 
 
-ProcessingStep = Annotated[FilterStep | AggregateStep, Field(discriminator="type")]
-
-
-_STEP: TypeAdapter[FilterStep | AggregateStep] = TypeAdapter(ProcessingStep)
-
-
-def _parse(raw: Any, number: int) -> FilterStep | AggregateStep:
-    """The step model of one item of `steps`, or a `ValueError` saying what is wrong with it."""
-    if isinstance(raw, (FilterStep, AggregateStep)):
-        return raw
+def _parse(raw: Any) -> tuple[str, dict[str, Any]]:
+    """The task name and validated keyword arguments of one item of `steps`."""
+    if isinstance(raw, ProcessingStep):
+        raw = raw.model_dump()
     if not isinstance(raw, dict):
-        raise ValueError(f"step {number}: a step is an object, not {raw!r}")
+        raise ValueError(f"a step is an object, not {raw!r}")
+    allowed = ", ".join(STEP_TASKS)
+    if "task" not in raw:
+        raise ValueError(f"a step needs a task, one of: {allowed}")
+    task = raw["task"]
+    if not isinstance(task, str) or task not in STEP_TASKS:
+        raise ValueError(f"unknown task {task!r}; a step runs one of: {allowed}")
+    if extra := sorted(set(raw) - {"task", "params"}):
+        raise ValueError(f"{task}: a step has a task and its params, not {extra[0]!r}")
+    params = raw.get("params") or {}
+    if not isinstance(params, dict):
+        raise ValueError(f"{task}: params is an object, not {params!r}")
     try:
-        return _STEP.validate_python(raw)
+        validated = _params_model(task).model_validate(params)
     except ValidationError as e:
         error = e.errors(include_url=False)[0]
-    where = ".".join(str(part) for part in error["loc"] if part not in ("filter", "aggregate"))
-    match error["type"]:
-        case "union_tag_not_found":
-            problem = "a step needs a type, 'filter' or 'aggregate'"
-        case "union_tag_invalid":
-            problem = f"unknown step type {raw.get('type')!r}; a step is a 'filter' or an 'aggregate'"
-        case "value_error":
-            problem = str(error["ctx"]["error"])
-        case "missing":
-            problem = f"{where} is required"
-        case _:
-            problem = f"{where}: {error['msg']}"
-    raise ValueError(f"step {number}: {problem}")
+        where = ".".join(str(part) for part in error["loc"])
+        match error["type"]:
+            case "missing":
+                problem = f"{where} is required"
+            case "extra_forbidden":
+                problem = f"no parameter {where!r}"
+            case _:
+                problem = f"{where}: {error['msg']}"
+        raise ValueError(f"{task}: {problem}") from None
+    return task, {name: getattr(validated, name) for name in type(validated).model_fields}
+
+
+def _run(df: pd.DataFrame, task: str, kwargs: dict[str, Any]) -> pd.DataFrame:
+    try:
+        # A shallow copy, so that a task assigning a column leaves the caller's frame alone.
+        return STEP_TASKS[task](df=df.copy(deep=False), **kwargs)
+    except KeyError as e:
+        raise ValueError(f"{task}: column {e.args[0]!r} not found") from e
+    except Exception as e:
+        raise ValueError(f"{task}: {e}") from e
+
+
+def _flat(df: pd.DataFrame) -> pd.DataFrame:
+    """The frame with its named index levels as leading columns: a table's file has no index."""
+    levels = [name for name in df.index.names if name is not None and name not in df.columns]
+    return df.reset_index(level=levels) if levels else df
 
 
 def _skipped_to_empty(df: Any) -> Any:
     return pd.DataFrame() if isinstance(df, SkipSentinel) else df
-
-
-def _column_kind(series: pd.Series) -> ColumnKind:
-    dtype = series.dtype
-    if dtype.name == "geometry":
-        return "geometry"
-    if pd.api.types.is_bool_dtype(dtype):
-        return "boolean"
-    if pd.api.types.is_numeric_dtype(dtype):
-        return "number"
-    if pd.api.types.is_datetime64_any_dtype(dtype):
-        return "date"
-    if isinstance(dtype, pd.CategoricalDtype):
-        series = series.astype(object)
-    elif not pd.api.types.is_object_dtype(dtype):
-        return "text" if pd.api.types.is_string_dtype(dtype) else "other"
-    types = {type(v) for v in series[series.notna()]}
-    if types <= {str}:
-        return "text"
-    if all(issubclass(t, (bool, np.bool_)) for t in types):
-        return "boolean"
-    return "other"
 
 
 def _json_cell(value: Any) -> Any:
@@ -179,7 +137,7 @@ def _snapshot(df: pd.DataFrame) -> dict[str, Any]:
     kinds = {}
     for position, name in enumerate(df.columns):
         series = df.iloc[:, position]
-        kind = kinds[position] = _column_kind(series)
+        kind = kinds[position] = column_kind(series)
         column: dict[str, Any] = {"name": str(name), "type": kind}
         if kind in ("text", "boolean"):
             distinct = series.dropna().unique()
@@ -200,164 +158,6 @@ def _snapshot(df: pd.DataFrame) -> dict[str, Any]:
     return {"rows": len(df), "columns": columns, "sample": [dict(zip(names, row)) for row in zip(*cells)]}
 
 
-def _require_columns(df: pd.DataFrame, columns: list[str], done: int) -> None:
-    for column in columns:
-        if column not in df.columns:
-            where = f"after step {done}" if done else "in the source table"
-            raise ValueError(f"column {column!r} not found {where}")
-
-
-def _coerce(value: Any, kind: ColumnKind, series: pd.Series, column: str) -> Any:
-    problem = ValueError(f"cannot compare value {value!r} with {kind} column {column!r}")
-    if kind == "number":
-        if isinstance(value, bool):
-            raise problem
-        try:
-            return float(value)
-        except ValueError:
-            raise problem from None
-    if kind == "boolean":
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, str) and value.strip().lower() in ("true", "false"):
-            return value.strip().lower() == "true"
-        raise problem
-    if kind == "date":
-        if not isinstance(value, str):
-            raise problem
-        try:
-            timestamp = pd.Timestamp(value)
-        except (ValueError, TypeError):
-            raise problem from None
-        if pd.isna(timestamp):
-            raise problem
-        column_tz = getattr(series.dtype, "tz", None)
-        if column_tz is None:
-            return timestamp.tz_convert("UTC").tz_localize(None) if timestamp.tzinfo is not None else timestamp
-        return timestamp.tz_localize("UTC") if timestamp.tzinfo is None else timestamp
-    return str(value)
-
-
-def _filter(df: pd.DataFrame, step: FilterStep, done: int) -> pd.DataFrame:
-    if len(df.columns) == 0:
-        return df
-    _require_columns(df, [step.column], done)
-    series = df[step.column]
-    kind = _column_kind(series)
-    present = series.notna()
-    if kind == "text":
-        present &= series.astype(object) != ""
-
-    if step.op == "is_empty":
-        return df[~present]
-    if step.op == "is_not_empty":
-        return df[present]
-
-    if kind == "geometry":
-        raise ValueError(f"geometry column {step.column!r} can only be tested with is_empty or is_not_empty")
-    if step.op in _SINGLE_VALUE_OPS and not step.values:
-        raise ValueError(f"filter {step.op!r} on column {step.column!r} needs a value")
-    values = [_coerce(v, kind, series, step.column) for v in step.values]
-
-    known = series[series.notna()]
-    if kind in ("text", "other"):
-        known = known.astype(object).map(str)
-    elif kind == "boolean":
-        known = known.astype(bool)
-    match step.op:
-        case "is_any_of":
-            passed = known.isin(values)
-        case "is_none_of":
-            passed = ~known.isin(values)
-        case "eq":
-            passed = known == values[0]
-        case "ne":
-            passed = known != values[0]
-        case "gt":
-            passed = known > values[0]
-        case "ge":
-            passed = known >= values[0]
-        case "lt":
-            passed = known < values[0]
-        case "le":
-            passed = known <= values[0]
-    # A row with no value passes only the negative tests.
-    mask = passed.reindex(series.index, fill_value=step.op in ("is_none_of", "ne"))
-    return df[mask.astype(bool)]
-
-
-def _bucket_start(series: pd.Series, interval: TimeInterval) -> pd.Series:
-    utc = series.dt.tz_localize("UTC") if series.dt.tz is None else series.dt.tz_convert("UTC")
-    day = utc.dt.floor("D")
-    match interval:
-        case "day":
-            return day
-        case "week":
-            return day - pd.to_timedelta(day.dt.dayofweek, unit="D")
-        case "month":
-            return day - pd.to_timedelta(day.dt.day - 1, unit="D")
-        case "year":
-            return day - pd.to_timedelta(day.dt.dayofyear - 1, unit="D")
-
-
-def _aggregate(df: pd.DataFrame, step: AggregateStep, done: int) -> pd.DataFrame:
-    bucket = step.time_bucket
-    keys = ([bucket.column] if bucket else []) + step.group_by
-    names = keys + [m.name for m in step.measures]
-    for name in names:
-        if names.count(name) > 1:
-            raise ValueError(f"the aggregate would produce column {name!r} twice")
-
-    if len(df.columns) == 0:
-        empty: dict[str, pd.Series] = {name: pd.Series(dtype=object) for name in names}
-        if bucket:
-            empty[bucket.column] = pd.Series(dtype="datetime64[ns, UTC]")
-        for measure in step.measures:
-            empty[measure.name] = pd.Series(dtype="int64" if measure.op in ("count", "nunique") else "float64")
-        return pd.DataFrame(empty)
-
-    measured = [m.column for m in step.measures if m.column is not None]
-    _require_columns(df, keys + measured, done)
-    kinds = {column: _column_kind(df[column]) for column in dict.fromkeys(keys + measured)}
-    for column in step.group_by:
-        if kinds[column] == "geometry":
-            raise ValueError(f"cannot group by geometry column {column!r}")
-    if bucket and kinds[bucket.column] != "date":
-        raise ValueError(f"time bucket column {bucket.column!r} is not a date column")
-    for measure in step.measures:
-        if measure.op in _NUMERIC_ONLY_OPS and kinds[measure.column] != "number":  # type: ignore[index]
-            raise ValueError(f"cannot {measure.op} {kinds[measure.column]} column {measure.column!r}")  # type: ignore[index]
-
-    # The row counter is positional so that it cannot collide with a column's name.
-    work = pd.DataFrame({i: df[column] for i, column in enumerate(dict.fromkeys(keys + measured))})
-    position = {column: i for i, column in enumerate(dict.fromkeys(keys + measured))}
-    rows = len(position)
-    work[rows] = 1
-    if bucket:
-        work[position[bucket.column]] = _bucket_start(work[position[bucket.column]], bucket.interval)
-    specs = {
-        str(i): (rows, "size") if m.op == "count" else (position[m.column], m.op)  # type: ignore[index]
-        for i, m in enumerate(step.measures)
-    }
-    if len(work) == 0:
-        result = work.iloc[:, : len(keys)].copy()
-        for i, measure in enumerate(step.measures):
-            result[f"m{i}"] = pd.Series(dtype="int64" if measure.op in ("count", "nunique") else "float64")
-    elif keys:
-        grouped = work.groupby([position[k] for k in keys], dropna=False, sort=True, observed=True)
-        result = grouped.agg(**specs).reset_index()
-    else:
-        result = pd.DataFrame({name: [work[column].agg(op)] for name, (column, op) in specs.items()})
-    result.columns = pd.Index(names)
-    return result
-
-
-def _apply(df: pd.DataFrame, step: FilterStep | AggregateStep, done: int) -> pd.DataFrame:
-    if isinstance(step, FilterStep):
-        return _filter(df, step, done)
-    return _aggregate(df, step, done)
-
-
 # Tagged `no-cache`: the preview file is written into this run's results folder. A hit
 # would return the frame without writing it, and the run would have no preview.
 @register(tags=["no-cache"])
@@ -376,30 +176,69 @@ def apply_processing_steps(
         list[Any],
         # The form schema is a bare list of objects, with no `oneOf`/`anyOf`: this
         # section is written by the steps editor, not rendered as a form, and a union
-        # in a form schema needs a branch selection nothing would make. The items are
-        # validated as `ProcessingStep` when the task runs.
+        # in a form schema needs a branch selection nothing would make. Each item is
+        # validated as a `ProcessingStep`, and its params against its task, when the
+        # task runs.
         WithJsonSchema({"type": "array", "items": {"type": "object"}}),
-        Field(title="Processing Steps", description="Filter and aggregate steps, applied in order."),
+        Field(
+            title="Processing Steps",
+            description="Task calls applied to the table in order, each `{task, params}`.",
+        ),
     ] = [],  # noqa: B006
 ) -> Annotated[AnyDataFrameOrEmpty | AnyGeoDataFrameOrEmpty, Field()]:
-    """Apply a data set table's filter and aggregate steps, and write a preview of each result.
+    """Run a data set table through a list of task calls, and write a preview of each result.
+
+    A step is `{"task": <name>, "params": {...}}`. It calls the registered task of that
+    name with the table as `df` and `params` as its other arguments, and the table it
+    returns goes to the next step. `params` is validated against the task's own
+    signature, so it takes what that task takes in a workflow spec. The tasks a step
+    may run are those in `STEP_TASKS`:
+
+    - `filter_df`: keep the rows whose value in a column passes a test.
+    - `sort_values`: order the rows by a column.
+    - `map_columns`: drop, keep, reorder and rename columns.
+    - `map_values`: replace a column's values through a mapping.
+    - `fill_na`: fill missing values.
+    - `convert_values_to_timezone`: move date columns to a time zone.
+    - `add_temporal_index`: index the rows by a date column formatted per time
+      grouper, for a later `summarize_df` to group on (`groupby_cols` takes the
+      index name, `TemporalGrouper_<directive>`).
+    - `summarize_df`: replace the rows with one row per group, holding its statistics.
+      A statistic cannot be taken over a column the rows are grouped by.
+
+    For example, the number of events per month and type::
+
+        [
+            {"task": "filter_df", "params": {"column_name": "event_type", "op": "is_not_empty"}},
+            {"task": "add_temporal_index",
+             "params": {"time_col": "time", "groupers": [{"temporal_index": "%Y-%m"}]}},
+            {"task": "summarize_df",
+             "params": {"groupby_cols": ["TemporalGrouper_%Y-%m", "event_type"],
+                        "summary_params": [
+                            {"display_name": "events", "aggregator": "count", "column": "time"}]}},
+        ]
 
     The preview goes to `data_sets/preview/<table_id>.json` in the results folder: the
     source table first, then the table after each step, each as its row count, its
-    columns and their kinds, and its first rows. A step that cannot run is recorded
-    there with its error before the task raises, and so is one that is not a valid
-    step.
+    columns and their kinds, and its first rows. Named index levels are shown, and
+    returned, as leading columns, because a table's file has no index. A step that
+    cannot run is recorded there with its error before the task raises, and so is one
+    that is not a valid step: an unknown task, or params its task does not accept.
+
+    A table with no rows is not passed to the tasks: each step is still validated, and
+    the table goes through unchanged.
 
     Args:
         df: The table's rows. A skipped upstream step is an empty table.
         table_id: The table's id in its data set.
         root_path: The results folder.
         steps: The steps, applied in order, each a `ProcessingStep` or the JSON object
-            of one. A filter keeps matching rows; an aggregate replaces the rows with
-            one per group and drops the geometry.
+            of one.
 
     Returns:
-        The table after the last step: a plain DataFrame once aggregated.
+        The table after the last step, of whatever shape the steps gave it: still a
+        GeoDataFrame after steps that keep the geometry, a plain DataFrame once
+        summarized.
     """
     table_filename(table_id)
     filename = f"data_sets/preview/{table_id}.json"
@@ -408,18 +247,20 @@ def apply_processing_steps(
     frame: pd.DataFrame = df
     entries = [_snapshot(frame)]
     failure = None
-    for done, raw in enumerate(steps):
+    for number, raw in enumerate(steps, start=1):
         try:
-            frame = _apply(frame, _parse(raw, done + 1), done)
+            task, kwargs = _parse(raw)
+            if len(frame):
+                frame = _run(frame, task, kwargs)
         except Exception as e:
-            failure = e
-            entries.append({"rows": None, "columns": [], "sample": [], "error": str(e)})
+            failure = ValueError(f"step {number}: {e}")
+            entries.append({"rows": None, "columns": [], "sample": [], "error": str(failure)})
             break
-        entries.append({**_snapshot(frame), "error": None})
+        entries.append({**_snapshot(_flat(frame)), "error": None})
 
     if isinstance(preview_path, Path):
         preview_path.parent.mkdir(parents=True, exist_ok=True)
     _persist_text(json.dumps({"table_id": table_id, "steps": entries}, allow_nan=False), root_path, filename)
     if failure is not None:
-        raise ValueError(str(failure)) from failure
-    return frame  # type: ignore[return-value]
+        raise failure
+    return _flat(frame) if steps else frame  # type: ignore[return-value]

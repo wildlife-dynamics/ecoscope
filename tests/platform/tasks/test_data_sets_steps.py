@@ -4,11 +4,10 @@ import geopandas as gpd  # type: ignore[import-untyped]
 import numpy as np
 import pandas as pd
 import pytest
-from pydantic import TypeAdapter, ValidationError
 from shapely.geometry import Point
 
 from ecoscope.platform.tasks.data_sets import apply_processing_steps
-from ecoscope.platform.tasks.data_sets._steps import AggregateStep, FilterStep, ProcessingStep
+from ecoscope.platform.tasks.data_sets._steps import STEP_TASKS, ProcessingStep
 
 
 @pytest.fixture
@@ -27,12 +26,12 @@ def events():
     )
 
 
-def steps_of(*items):
-    return TypeAdapter(list[ProcessingStep]).validate_python(list(items))
+def step(task, **params):
+    return {"task": task, "params": params}
 
 
 def apply(df, tmp_path, *items, table_id="events"):
-    return apply_processing_steps(df=df, table_id=table_id, root_path=str(tmp_path), steps=steps_of(*items))
+    return apply_processing_steps(df=df, table_id=table_id, root_path=str(tmp_path), steps=list(items))
 
 
 def preview(tmp_path, table_id="events"):
@@ -64,9 +63,9 @@ def test_no_steps_returns_frame_and_writes_source_preview(tmp_path, events):
     assert source["sample"][3]["dist_meters"] is None and source["sample"][4]["event_type"] is None
 
 
-def test_filter_is_any_of_keeps_matching_rows(tmp_path, events):
+def test_filter_step_keeps_matching_rows_and_the_geodataframe(tmp_path, events):
     result = apply(
-        events, tmp_path, {"type": "filter", "column": "event_type", "op": "is_any_of", "values": ["carcass", "snare"]}
+        events, tmp_path, step("filter_df", column_name="event_type", op="is_any_of", values=["carcass", "snare"])
     )
     assert isinstance(result, gpd.GeoDataFrame) and result.crs == "EPSG:4326"
     assert result["event_type"].tolist() == ["carcass", "snare", "carcass"]
@@ -76,227 +75,148 @@ def test_filter_is_any_of_keeps_matching_rows(tmp_path, events):
     assert [c["name"] for c in written["steps"][1]["columns"]] == list(events.columns)
 
 
-@pytest.mark.parametrize(
-    "column, op, values, kept",
-    [
-        ("event_type", "is_any_of", ["snare", "sighting"], [1, 3]),
-        ("event_type", "is_none_of", ["carcass"], [1, 3, 4]),
-        ("event_type", "eq", ["snare"], [1]),
-        ("event_type", "ne", ["carcass"], [1, 3, 4]),
-        ("dist_meters", "gt", [30], [0, 1]),
-        ("dist_meters", "ge", ["30"], [0, 1, 2]),
-        ("dist_meters", "lt", [30], [4]),
-        ("dist_meters", "le", [30.0], [2, 4]),
-        ("dist_meters", "is_empty", [], [3]),
-        ("dist_meters", "is_not_empty", [], [0, 1, 2, 4]),
-        ("event_type", "is_empty", [], [4]),
-        ("geometry", "is_not_empty", [], [0, 1, 2, 3]),
-        ("time", "ge", ["2025-01-13"], [2, 3, 4]),
-        ("time", "lt", ["2025-01-08T09:30:00+00:00"], [0]),
-        ("time", "eq", ["2025-01-08T12:30:00+03:00"], [1]),
-        ("is_collected", "eq", ["true"], [0, 2, 4]),
-        ("is_collected", "is_any_of", [False], [1, 3]),
-        ("event_type", "gt", ["sighting"], [1]),
-    ],
-)
-def test_filter_ops(tmp_path, events, column, op, values, kept):
-    result = apply(events, tmp_path, {"type": "filter", "column": column, "op": op, "values": values})
-    assert result.index.tolist() == kept
-
-
-def test_filter_value_not_coercible_fails_naming_column_and_value(tmp_path, events):
-    with pytest.raises(ValueError, match=r"'abc'.*number column 'dist_meters'"):
-        apply(events, tmp_path, {"type": "filter", "column": "dist_meters", "op": "gt", "values": ["abc"]})
-    last = preview(tmp_path)["steps"][-1]
-    assert last["rows"] is None and "'abc'" in last["error"] and "'dist_meters'" in last["error"]
-
-
-@pytest.mark.parametrize(
-    "column, value, kind",
-    [("time", "yesterday-ish", "date"), ("time", 5, "date"), ("is_collected", "maybe", "boolean")],
-)
-def test_filter_value_not_coercible_names_the_column_type(tmp_path, events, column, value, kind):
-    with pytest.raises(ValueError, match=rf"{value!r}.*{kind} column '{column}'"):
-        apply(events, tmp_path, {"type": "filter", "column": column, "op": "eq", "values": [value]})
-
-
-def test_filter_comparison_without_a_value_fails(tmp_path, events):
-    with pytest.raises(ValueError, match=r"'gt'.*'dist_meters'.*needs a value"):
-        apply(events, tmp_path, {"type": "filter", "column": "dist_meters", "op": "gt"})
-
-
-def test_aggregate_by_week_and_group_counts_and_sums(tmp_path, events):
+def test_summary_by_month_and_group(tmp_path, events):
     result = apply(
         events,
         tmp_path,
-        {"type": "filter", "column": "event_type", "op": "is_not_empty"},
-        {
-            "type": "aggregate",
-            "group_by": ["event_type"],
-            "time_bucket": {"column": "time", "interval": "week"},
-            "measures": [{"op": "count"}, {"op": "sum", "column": "dist_meters"}],
-        },
+        step("filter_df", column_name="event_type", op="is_not_empty"),
+        step("add_temporal_index", time_col="time", groupers=[{"temporal_index": "%Y-%m"}]),
+        step(
+            "summarize_df",
+            groupby_cols=["TemporalGrouper_%Y-%m", "event_type"],
+            summary_params=[
+                {"display_name": "events", "aggregator": "count", "column": "time"},
+                {"display_name": "distance", "aggregator": "sum", "column": "dist_meters"},
+            ],
+        ),
     )
-    assert list(result.columns) == ["time", "event_type", "count", "sum_dist_meters"]
-    assert str(result["time"].dtype) == "datetime64[ns, UTC]"
+    assert type(result) is pd.DataFrame
     assert result.to_dict("records") == [
-        {"time": pd.Timestamp("2025-01-06", tz="UTC"), "event_type": "carcass", "count": 1, "sum_dist_meters": 100.0},
-        {"time": pd.Timestamp("2025-01-06", tz="UTC"), "event_type": "snare", "count": 1, "sum_dist_meters": 250.5},
-        {"time": pd.Timestamp("2025-01-13", tz="UTC"), "event_type": "carcass", "count": 1, "sum_dist_meters": 30.0},
-        {"time": pd.Timestamp("2025-01-13", tz="UTC"), "event_type": "sighting", "count": 1, "sum_dist_meters": 0.0},
+        {"TemporalGrouper_%Y-%m": "2025-01", "event_type": "carcass", "events": 2.0, "distance": 130.0},
+        {"TemporalGrouper_%Y-%m": "2025-01", "event_type": "sighting", "events": 1.0, "distance": 0.0},
+        {"TemporalGrouper_%Y-%m": "2025-01", "event_type": "snare", "events": 1.0, "distance": 250.5},
     ]
     written = preview(tmp_path)
-    assert [s["rows"] for s in written["steps"]] == [5, 4, 4]
-    assert [(c["name"], c["type"]) for c in written["steps"][2]["columns"]] == [
-        ("time", "date"),
+    assert [s["rows"] for s in written["steps"]] == [5, 4, 4, 3]
+    assert [(c["name"], c["type"]) for c in written["steps"][3]["columns"]] == [
+        ("TemporalGrouper_%Y-%m", "text"),
         ("event_type", "text"),
-        ("count", "number"),
-        ("sum_dist_meters", "number"),
+        ("events", "number"),
+        ("distance", "number"),
     ]
-    assert written["steps"][2]["sample"][0] == {
-        "time": "2025-01-06T00:00:00+00:00",
-        "event_type": "carcass",
-        "count": 1,
-        "sum_dist_meters": 100.0,
+
+
+def test_index_levels_a_step_adds_are_previewed_and_returned_as_columns(tmp_path, events):
+    result = apply(events, tmp_path, step("add_temporal_index", time_col="time", groupers=[{"temporal_index": "%Y"}]))
+    assert isinstance(result, gpd.GeoDataFrame)
+    assert list(result.columns) == ["TemporalGrouper_%Y", *events.columns]
+    assert result.index.names == [None]
+    assert preview(tmp_path)["steps"][1]["columns"][0] == {
+        "name": "TemporalGrouper_%Y",
+        "type": "text",
+        "values": ["2025"],
     }
 
 
-@pytest.mark.parametrize(
-    "interval, starts",
-    [
-        ("day", ["2025-01-06", "2025-01-08", "2025-01-13", "2025-01-14", "2025-01-15"]),
-        ("week", ["2025-01-06", "2025-01-13"]),
-        ("month", ["2025-01-01"]),
-        ("year", ["2025-01-01"]),
-    ],
-)
-def test_aggregate_time_bucket_intervals_start_in_utc(tmp_path, events, interval, starts):
-    events["time"] = events["time"].dt.tz_convert("Africa/Nairobi")
-    result = apply(events, tmp_path, {"type": "aggregate", "time_bucket": {"column": "time", "interval": interval}})
-    assert list(result.columns) == ["time", "count"]
-    assert result["time"].tolist() == [pd.Timestamp(s, tz="UTC") for s in starts]
-    assert result["count"].sum() == 5
-
-
-def test_aggregate_measures_without_groups_give_one_row(tmp_path, events):
+def test_summary_without_groups_gives_one_row_and_drops_geometry(tmp_path, events):
     result = apply(
         events,
         tmp_path,
-        {
-            "type": "aggregate",
-            "measures": [
-                {"op": "count"},
-                {"op": "mean", "column": "dist_meters"},
-                {"op": "min", "column": "dist_meters"},
-                {"op": "max", "column": "time"},
-                {"op": "median", "column": "dist_meters"},
-                {"op": "nunique", "column": "event_type"},
+        step(
+            "summarize_df",
+            summary_params=[
+                {"display_name": "types", "aggregator": "nunique", "column": "event_type"},
+                {"display_name": "furthest", "aggregator": "max", "column": "dist_meters"},
             ],
-        },
+        ),
     )
-    assert list(result.columns) == [
-        "count",
-        "mean_dist_meters",
-        "min_dist_meters",
-        "max_time",
-        "median_dist_meters",
-        "nunique_event_type",
-    ]
-    assert result.iloc[0].tolist() == [5, 96.375, 5.0, pd.Timestamp("2025-01-15 12:00", tz="UTC"), 65.0, 3]
-
-
-def test_aggregate_group_by_alone_counts_rows_and_keeps_null_groups(tmp_path, events):
-    result = apply(events, tmp_path, {"type": "aggregate", "group_by": ["event_type"]})
-    assert list(result.columns) == ["event_type", "count"]
-    assert result["event_type"].tolist()[:3] == ["carcass", "sighting", "snare"] and pd.isna(result["event_type"][3])
-    assert result["count"].tolist() == [2, 1, 1, 1]
-
-
-def test_aggregate_drops_geometry_and_returns_plain_dataframe(tmp_path, events):
-    result = apply(events, tmp_path, {"type": "aggregate", "group_by": ["event_type"]})
     assert type(result) is pd.DataFrame
-    assert "geometry" not in result.columns
+    assert result.to_dict("records") == [{"types": 3.0, "furthest": 250.5}]
     assert all(c["type"] != "geometry" for c in preview(tmp_path)["steps"][1]["columns"])
 
 
-def test_step_on_missing_column_writes_error_entry_then_raises(tmp_path, events):
-    with pytest.raises(ValueError, match="column 'dist_meters' not found after step 1"):
+def test_steps_chain_through_other_tasks(tmp_path, events):
+    result = apply(
+        events,
+        tmp_path,
+        step("fill_na", value=0, columns=["dist_meters"]),
+        step("map_values", column_name="event_type", value_map={"snare": "Snare"}),
+        step("convert_values_to_timezone", timezone="Africa/Nairobi", columns=["time"]),
+        step("sort_values", column_name="dist_meters", ascending=False),
+        step(
+            "map_columns",
+            drop_columns=["is_collected"],
+            rename_columns=[{"original_name": "dist_meters", "new_name": "meters"}],
+        ),
+    )
+    assert isinstance(result, gpd.GeoDataFrame)
+    assert list(result.columns) == ["event_type", "time", "meters", "geometry"]
+    assert result["meters"].tolist() == [250.5, 100.0, 30.0, 5.0, 0.0]
+    assert result["event_type"].iloc[0] == "Snare"
+    assert str(result["time"].dt.tz) == "Africa/Nairobi"
+    assert [s["rows"] for s in preview(tmp_path)["steps"]] == [5] * 6
+
+
+def test_a_step_does_not_change_the_frame_it_was_given(tmp_path, events):
+    before = events.copy()
+    apply(events, tmp_path, step("add_temporal_index", time_col="time", groupers=[{"temporal_index": "%Y"}]))
+    assert events.equals(before) and events.index.names == [None]
+
+
+def test_every_step_task_takes_the_table_as_df():
+    import inspect
+
+    assert "apply_sql_query" not in STEP_TASKS
+    for name, task in STEP_TASKS.items():
+        assert next(iter(inspect.signature(task).parameters)) == "df", name
+
+
+def test_step_that_cannot_run_writes_error_entry_then_raises(tmp_path, events):
+    message = "step 2: filter_df: column 'dist_meters' not found"
+    with pytest.raises(ValueError) as raised:
         apply(
             events,
             tmp_path,
-            {"type": "aggregate", "group_by": ["event_type"]},
-            {"type": "filter", "column": "dist_meters", "op": "gt", "values": [1]},
-            {"type": "filter", "column": "count", "op": "gt", "values": [1]},
+            step("map_columns", retain_columns=["event_type"]),
+            step("filter_df", column_name="dist_meters", op="gt", value="1"),
+            step("sort_values", column_name="event_type"),
         )
+    assert str(raised.value) == message
     written = preview(tmp_path)
-    assert [s["rows"] for s in written["steps"]] == [5, 4, None]
-    assert written["steps"][2] == {
-        "rows": None,
-        "columns": [],
-        "sample": [],
-        "error": "column 'dist_meters' not found after step 1",
-    }
+    assert [s["rows"] for s in written["steps"]] == [5, 5, None]
+    assert written["steps"][2] == {"rows": None, "columns": [], "sample": [], "error": message}
 
 
-def test_first_step_on_missing_column_names_the_source(tmp_path, events):
-    with pytest.raises(ValueError, match="column 'nope' not found in the source table"):
-        apply(events, tmp_path, {"type": "filter", "column": "nope", "op": "is_empty"})
+def test_task_error_is_recorded_with_its_step_and_task(tmp_path, events):
+    message = "step 1: filter_df: cannot compare value 'abc' with number column 'dist_meters'"
+    with pytest.raises(ValueError) as raised:
+        apply(events, tmp_path, step("filter_df", column_name="dist_meters", op="gt", value="abc"))
+    assert str(raised.value) == message
+    assert preview(tmp_path)["steps"][-1]["error"] == message
 
 
-@pytest.mark.parametrize(
-    "step, message",
-    [
-        ({"type": "aggregate", "measures": [{"op": "sum", "column": "event_type"}]}, "cannot sum text column"),
-        ({"type": "aggregate", "time_bucket": {"column": "event_type", "interval": "day"}}, "not a date column"),
-        ({"type": "aggregate", "group_by": ["geometry"]}, "cannot group by geometry column 'geometry'"),
-        ({"type": "aggregate", "group_by": ["time"], "time_bucket": {"column": "time", "interval": "day"}}, "twice"),
-        ({"type": "filter", "column": "geometry", "op": "eq", "values": ["x"]}, "geometry column 'geometry'"),
-    ],
-)
-def test_step_that_cannot_run_records_its_error(tmp_path, events, step, message):
-    with pytest.raises(ValueError, match=message):
-        apply(events, tmp_path, step)
-    assert message in preview(tmp_path)["steps"][-1]["error"]
-
-
-def test_empty_frame_with_steps_writes_zero_rows(tmp_path, events):
+def test_table_without_rows_goes_through_unchanged(tmp_path, events):
     steps = [
-        {"type": "filter", "column": "event_type", "op": "eq", "values": ["snare"]},
-        {
-            "type": "aggregate",
-            "group_by": ["event_type"],
-            "time_bucket": {"column": "time", "interval": "month"},
-            "measures": [{"op": "count"}, {"op": "mean", "column": "dist_meters"}],
-        },
-        {"type": "filter", "column": "count", "op": "gt", "values": [0]},
+        step("filter_df", column_name="event_type", op="equal", value="snare"),
+        step(
+            "summarize_df",
+            groupby_cols=["event_type"],
+            summary_params=[{"display_name": "events", "aggregator": "count", "column": "time"}],
+        ),
     ]
     result = apply(events.iloc[0:0], tmp_path, *steps)
-    assert len(result) == 0
-    assert list(result.columns) == ["time", "event_type", "count", "mean_dist_meters"]
+    assert len(result) == 0 and list(result.columns) == list(events.columns)
     written = preview(tmp_path)
-    assert [s["rows"] for s in written["steps"]] == [0, 0, 0, 0]
-    assert [c["name"] for c in written["steps"][0]["columns"]] == list(events.columns)
+    assert [s["rows"] for s in written["steps"]] == [0, 0, 0]
     assert all(s["sample"] == [] for s in written["steps"])
 
-
-def test_columnless_empty_frame_with_steps_writes_zero_rows(tmp_path):
-    result = apply(
-        pd.DataFrame(),
-        tmp_path,
-        {"type": "filter", "column": "event_type", "op": "eq", "values": ["snare"]},
-        {"type": "aggregate", "time_bucket": {"column": "time", "interval": "day"}, "group_by": ["event_type"]},
-        {"type": "filter", "column": "count", "op": "gt", "values": [0]},
-    )
-    assert len(result) == 0 and list(result.columns) == ["time", "event_type", "count"]
-    written = preview(tmp_path)
-    assert [s["rows"] for s in written["steps"]] == [0, 0, 0, 0]
-    assert written["steps"][0]["columns"] == []
-    assert [c["type"] for c in written["steps"][2]["columns"]] == ["date", "text", "number"]
+    result = apply(events, tmp_path, step("filter_df", column_name="event_type", op="equal", value="none"), steps[1])
+    assert len(result) == 0 and list(result.columns) == list(events.columns)
 
 
-def test_aggregate_without_groups_on_an_empty_frame_gives_no_rows(tmp_path, events):
-    result = apply(events.iloc[0:0], tmp_path, {"type": "aggregate", "measures": [{"op": "count"}]})
-    assert len(result) == 0 and list(result.columns) == ["count"]
+def test_table_without_rows_still_has_its_steps_validated(tmp_path, events):
+    with pytest.raises(ValueError, match="step 1: unknown task 'explode'"):
+        apply(events.iloc[0:0], tmp_path, step("explode", column_name="event_type"))
 
 
 def test_skipped_upstream_step_is_an_empty_frame(tmp_path):
@@ -309,7 +229,7 @@ def test_skipped_upstream_step_is_an_empty_frame(tmp_path):
             df=SKIP_SENTINEL,
             table_id="legs",
             root_path=str(tmp_path),
-            steps=[{"type": "filter", "column": "patrol_type", "op": "eq", "values": ["foot"]}],
+            steps=[step("filter_df", column_name="patrol_type", op="equal", value="foot")],
         )
     )
     assert isinstance(result, pd.DataFrame) and result.empty and len(result.columns) == 0
@@ -326,10 +246,93 @@ def test_validated_call_takes_step_dicts_and_keeps_the_geodataframe(tmp_path, ev
             df=events,
             table_id="events",
             root_path=str(tmp_path),
-            steps=[{"type": "filter", "column": "event_type", "op": "eq", "values": ["snare"]}],
+            steps=[step("filter_df", column_name="event_type", op="equal", value="snare")],
         )
     )
     assert isinstance(result, gpd.GeoDataFrame) and len(result) == 1
+
+
+def test_steps_are_taken_as_dicts_or_models(tmp_path, events):
+    as_dict = step("filter_df", column_name="event_type", op="equal", value="snare")
+    as_model = ProcessingStep(task="sort_values", params={"column_name": "time"})
+    result = apply_processing_steps(df=events, table_id="events", root_path=str(tmp_path), steps=[as_dict, as_model])
+    assert result["event_type"].tolist() == ["snare"]
+    assert [s["rows"] for s in preview(tmp_path)["steps"]] == [5, 1, 1]
+
+
+def test_no_params_is_the_same_as_empty_params(tmp_path, events):
+    result = apply(events, tmp_path, {"task": "map_columns"})
+    assert list(result.columns) == list(events.columns)
+
+
+TASKS = ", ".join(STEP_TASKS)
+
+
+@pytest.mark.parametrize(
+    "bad, message",
+    [
+        (
+            {"task": "apply_sql_query", "params": {"query": "SELECT 1"}},
+            f"unknown task 'apply_sql_query'; a step runs one of: {TASKS}",
+        ),
+        ({"params": {"column_name": "x"}}, f"a step needs a task, one of: {TASKS}"),
+        ({"task": "filter_df", "params": {"op": "equal"}}, "filter_df: column_name is required"),
+        ({"task": "filter_df", "params": {"column_name": "x", "op": "equal", "df": 1}}, "filter_df: no parameter 'df'"),
+        (
+            {"task": "filter_df", "params": {"column_name": "x", "op": "contains"}},
+            "filter_df: op: Input should be 'equal', 'ge', 'gt', 'le', 'lt', 'ne', 'is_any_of', 'is_none_of', "
+            "'is_empty' or 'is_not_empty'",
+        ),
+        (
+            {"task": "add_temporal_index", "params": {"time_col": "time", "groupers": [{"temporal_index": "%W"}]}},
+            "add_temporal_index: groupers",
+        ),
+        ({"task": "sort_values", "params": ["time"]}, "sort_values: params is an object, not ['time']"),
+        (
+            {"task": "sort_values", "column_name": "time"},
+            "sort_values: a step has a task and its params, not 'column_name'",
+        ),
+        ("filter_df", "a step is an object, not 'filter_df'"),
+    ],
+)
+def test_invalid_step_is_recorded_at_its_position_then_raises(tmp_path, events, bad, message):
+    from wt_task import task
+
+    good = step("filter_df", column_name="event_type", op="equal", value="snare")
+    with pytest.raises(ValueError) as raised:
+        task(apply_processing_steps).validate().call(
+            df=events, table_id="events", root_path=str(tmp_path), steps=[good, bad, good]
+        )
+    assert str(raised.value).startswith(f"step 2: {message}")
+    written = preview(tmp_path)
+    assert [s["rows"] for s in written["steps"]] == [5, 1, None]
+    assert written["steps"][2] == {"rows": None, "columns": [], "sample": [], "error": str(raised.value)}
+
+
+def test_steps_form_schema_is_a_plain_array_of_objects():
+    from wt_registry.jsonschema import jsonschema_from_task_func
+
+    schema = jsonschema_from_task_func(apply_processing_steps)
+    assert schema["properties"]["steps"] == {
+        "type": "array",
+        "items": {"type": "object"},
+        "default": [],
+        "title": "Processing Steps",
+        "description": "Task calls applied to the table in order, each `{task, params}`.",
+    }
+
+    def keys(node):
+        if isinstance(node, dict):
+            yield from node
+            for value in node.values():
+                yield from keys(value)
+        elif isinstance(node, list):
+            for value in node:
+                yield from keys(value)
+
+    assert not {"anyOf", "oneOf", "allOf", "discriminator", "$ref"} & set(keys(schema["properties"]["steps"]))
+    assert "ProcessingStep" not in schema.get("$defs", {})
+    assert not {"anyOf", "oneOf", "discriminator"} & set(keys({k: v for k, v in schema.items() if k != "$defs"}))
 
 
 def test_preview_values_only_for_low_cardinality_text(tmp_path):
@@ -402,99 +405,6 @@ def test_unusable_table_id_is_refused_before_writing(tmp_path, events):
     with pytest.raises(ValueError, match="table id"):
         apply(events, tmp_path, table_id="../events")
     assert not list(tmp_path.rglob("*.json"))
-
-
-def test_step_models_validate_the_contract_shapes():
-    steps = steps_of(
-        {"type": "filter", "column": "event_type", "op": "is_empty"},
-        {"type": "aggregate", "group_by": ["event_type"]},
-    )
-    assert isinstance(steps[0], FilterStep) and steps[0].values == []
-    assert isinstance(steps[1], AggregateStep) and steps[1].time_bucket is None
-    assert [m.model_dump() for m in steps[1].measures] == [{"op": "count", "column": None}]
-    with pytest.raises(ValidationError, match="at least one"):
-        steps_of({"type": "aggregate"})
-    with pytest.raises(ValidationError, match="needs a column"):
-        steps_of({"type": "aggregate", "measures": [{"op": "sum"}]})
-    with pytest.raises(ValidationError):
-        steps_of({"type": "sort", "column": "x"})
-    with pytest.raises(ValidationError):
-        steps_of({"type": "filter", "column": "x", "op": "contains"})
-    with pytest.raises(ValidationError):
-        steps_of({"type": "aggregate", "time_bucket": {"column": "time", "interval": "hour"}})
-
-
-def test_steps_form_schema_is_a_plain_array_of_objects():
-    from wt_registry.jsonschema import jsonschema_from_task_func
-
-    schema = jsonschema_from_task_func(apply_processing_steps)
-    assert schema["properties"]["steps"] == {
-        "type": "array",
-        "items": {"type": "object"},
-        "default": [],
-        "title": "Processing Steps",
-        "description": "Filter and aggregate steps, applied in order.",
-    }
-
-    def keys(node):
-        if isinstance(node, dict):
-            yield from node
-            for value in node.values():
-                yield from keys(value)
-        elif isinstance(node, list):
-            for value in node:
-                yield from keys(value)
-
-    assert not {"anyOf", "oneOf", "allOf", "discriminator", "$ref"} & set(keys(schema["properties"]["steps"]))
-    assert not {"FilterStep", "AggregateStep", "TimeBucket", "Measure"} & set(schema.get("$defs", {}))
-    assert not {"anyOf", "oneOf", "discriminator"} & set(keys({k: v for k, v in schema.items() if k != "$defs"}))
-
-
-def test_steps_are_taken_as_dicts_or_models(tmp_path, events):
-    as_dict = {"type": "filter", "column": "event_type", "op": "eq", "values": ["snare"]}
-    aggregate = {"type": "aggregate", "group_by": ["event_type"]}
-    result = apply_processing_steps(
-        df=events, table_id="events", root_path=str(tmp_path), steps=[as_dict, AggregateStep(**aggregate)]
-    )
-    assert result.to_dict("records") == [{"event_type": "snare", "count": 1}]
-    assert [s["rows"] for s in preview(tmp_path)["steps"]] == [5, 1, 1]
-
-
-@pytest.mark.parametrize(
-    "bad, message",
-    [
-        ({"type": "sort", "column": "x"}, "step 2: unknown step type 'sort'; a step is a 'filter' or an 'aggregate'"),
-        ({"column": "x"}, "step 2: a step needs a type, 'filter' or 'aggregate'"),
-        ({"type": "aggregate", "measures": [{"op": "sum"}]}, "step 2: measure 'sum' needs a column"),
-        (
-            {"type": "aggregate"},
-            "step 2: an aggregate step needs at least one of group_by, time_bucket and measures",
-        ),
-        ({"type": "filter", "op": "eq"}, "step 2: column is required"),
-        (
-            {"type": "filter", "column": "x", "op": "contains"},
-            "step 2: op: Input should be 'is_any_of', 'is_none_of', 'eq', 'ne', 'gt', 'ge', 'lt', 'le', "
-            "'is_empty' or 'is_not_empty'",
-        ),
-        (
-            {"type": "aggregate", "time_bucket": {"column": "time", "interval": "hour"}},
-            "step 2: time_bucket.interval: Input should be 'day', 'week', 'month' or 'year'",
-        ),
-        ("filter", "step 2: a step is an object, not 'filter'"),
-    ],
-)
-def test_invalid_step_is_recorded_at_its_position_then_raises(tmp_path, events, bad, message):
-    from wt_task import task
-
-    good = {"type": "filter", "column": "event_type", "op": "eq", "values": ["snare"]}
-    with pytest.raises(ValueError) as raised:
-        task(apply_processing_steps).validate().call(
-            df=events, table_id="events", root_path=str(tmp_path), steps=[good, bad, good]
-        )
-    assert str(raised.value) == message
-    written = preview(tmp_path)
-    assert [s["rows"] for s in written["steps"]] == [5, 1, None]
-    assert written["steps"][2] == {"rows": None, "columns": [], "sample": [], "error": message}
 
 
 def test_apply_processing_steps_is_registered_no_cache():

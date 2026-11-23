@@ -233,10 +233,18 @@ def test_gather_takes_processed_frames_through_task_validation(tmp_path, patrol_
             .call(df=df, table_id=table_id, root_path=str(tmp_path), steps=list(steps))
         )
 
-    aggregate = {"type": "aggregate", "group_by": ["patrol_type"]}
+    aggregate = {
+        "task": "summarize_df",
+        "params": {
+            "groupby_cols": ["patrol_type"],
+            "summary_params": [{"display_name": "legs", "aggregator": "count", "column": "patrol_id"}],
+        },
+    }
     frames = {
         "events": processed(
-            "events", patrol_events_gdf, {"type": "filter", "column": "event_type", "op": "ne", "values": ["snare"]}
+            "events",
+            patrol_events_gdf,
+            {"task": "filter_df", "params": {"column_name": "event_type", "op": "ne", "value": "snare"}},
         ),
         "legs": processed("legs", patrol_legs_df, aggregate),
         "tracks": processed("tracks", SKIP_SENTINEL, aggregate),
@@ -254,12 +262,12 @@ def test_gather_takes_processed_frames_through_task_validation(tmp_path, patrol_
     assert {i: (t.table_type, t.rows) for i, t in manifest.tables.items()} == {
         "events": ("patrol_events", 2),
         "legs": ("table", 2),
-        "tracks": ("table", 0),
+        "tracks": ("patrol_tracks", 0),
     }
     assert sorted(p.name for p in tmp_path.glob("data_sets/preview/*.json")) == [
         "events.json",
         "legs.json",
         "tracks.json",
     ]
-    tracks = table_to_frame(read_table(str(tmp_path), "table", "1", "data_sets/tracks.arrow"), "table")
-    assert list(tracks.columns) == ["patrol_type", "count"] and len(tracks) == 0
+    legs = table_to_frame(read_table(str(tmp_path), "table", "1", "data_sets/legs.arrow"), "table")
+    assert legs.to_dict("records") == [{"patrol_type": "foot", "legs": 1.0}, {"patrol_type": "vehicle", "legs": 1.0}]
