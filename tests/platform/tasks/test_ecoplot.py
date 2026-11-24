@@ -355,6 +355,9 @@ def _json_plot_calls(sample_dataframe, pie_dataframe, historic_dataframe):
             historic_mean_column="mean",
             output_type="json",
         ),
+        "draw_sunburst_chart": lambda: draw_sunburst_chart(
+            pie_dataframe, ring_columns=["category"], value_column="value", output_type="json"
+        ),
     }
 
 
@@ -367,6 +370,7 @@ def _json_plot_calls(sample_dataframe, pie_dataframe, historic_dataframe):
         "draw_line_chart",
         "draw_pie_chart",
         "draw_historic_timeseries",
+        "draw_sunburst_chart",
     ],
 )
 def test_draw_plot_json_output(task_name, sample_dataframe, pie_dataframe, historic_dataframe):
