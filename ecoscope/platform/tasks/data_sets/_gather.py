@@ -3,15 +3,17 @@ from typing import Annotated, Any
 
 import pandas as pd
 from pydantic import BeforeValidator, Field
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 from wt_registry import register
 from wt_task.skip import SkippedDependencyFallback, SkipSentinel
 
 from ecoscope.platform.annotations import AnyDataFrameOrEmpty, AnyGeoDataFrameOrEmpty
 from ecoscope.platform.data_sets import (
+    GENERIC_TABLE_TYPE,
     MANIFEST_FILENAME,
     TABLE_TYPES,
     DataSetManifest,
+    DataSetSchemaError,
     DataSetTable,
     frame_to_table,
     get_table_type,
@@ -36,6 +38,9 @@ class GatherTable(TypedDict):
         SkippedDependencyFallback(_skipped_to_empty),
         BeforeValidator(_skipped_to_empty),
     ]
+    # Write the frame as a generic `table` when it does not fit `table_type`, as after
+    # a processing step that aggregates it.
+    allow_generic: NotRequired[bool]
 
 
 # Tagged `no-cache`: the task exists for the files it writes into this run's results
@@ -59,6 +64,8 @@ def gather_data_sets(
         data_set: The dataset output key.
         tables: Mapping of table id to `{table_type, frame}`. Two tables may share a
             type; where a data set has one table of a type, name it after the type.
+            With `allow_generic: true`, a frame that does not fit its type is written
+            as a generic `table` and the manifest says so.
         root_path: The results folder.
 
     Returns:
@@ -70,17 +77,28 @@ def gather_data_sets(
         get_table_type(entry["table_type"])
 
     converted = {}
+    written_as = {}
     for table_id, entry in tables.items():
         table_type, df = entry["table_type"], entry["frame"]
+        written_as[table_id] = table_type
         if df.empty and len(df.columns) == 0:
             converted[table_id] = TABLE_TYPES[table_type].schema.empty_table()
-        else:
+            continue
+        try:
             converted[table_id] = frame_to_table(df, table_type)
+        except DataSetSchemaError as e:
+            if not entry.get("allow_generic"):
+                raise
+            try:
+                converted[table_id] = frame_to_table(df, GENERIC_TABLE_TYPE)
+            except DataSetSchemaError:
+                raise e from None
+            written_as[table_id] = GENERIC_TABLE_TYPE
 
     entries = {}
     for table_id, table in converted.items():
         _, rows = write_table(table, root_path, table_id)
-        table_type = tables[table_id]["table_type"]
+        table_type = written_as[table_id]
         entries[table_id] = DataSetTable(
             table_type=table_type,
             path=table_filename(table_id),
