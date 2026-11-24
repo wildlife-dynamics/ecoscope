@@ -250,7 +250,7 @@ def fetch_arcgis_features(
 ) -> AnyGeoDataFrame:
     """Download every feature of an ArcGIS layer, read-only, as EPSG:4326 polygons/lines/points.
 
-    Returns one row per feature: the layer's attributes (dates as ISO 8601 UTC strings, Esri
+    Returns one row per feature: the layer's attributes (dates as ISO 8601 UTC strings, ArcGIS
     ``Shape__*`` measures dropped) plus ``esri_source`` (``arcgis:<item id>/<layer>``),
     ``esri_globalid`` (lower-case, no braces), ``esri_edit_date``, ``esri_filtered`` and
     ``esri_display_field`` (the layer's displayField, or None).

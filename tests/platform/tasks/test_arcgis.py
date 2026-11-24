@@ -244,11 +244,9 @@ def test_password_help_text() -> None:
 
 
 def test_messages_say_arcgis() -> None:
-    lines = [
-        line
-        for line in MODULE.read_text().splitlines()
-        if ("raise" in line or "Field(" in line or "description=" in line or "title=" in line or line.lstrip().startswith(('f"', '"')))
-        and not line.lstrip().startswith("#")
-    ]
+    # Everything after the module docstring (developer-facing) except comments: the task docstring,
+    # Field texts and error messages are all user-facing. `esri_*` identifiers don't match \bEsri\b.
+    source = MODULE.read_text().split('"""', 2)[2]
+    lines = [line for line in source.splitlines() if not line.lstrip().startswith("#")]
 
-    assert [line for line in lines if "Esri " in line] == []
+    assert [line for line in lines if re.search(r"\bEsri\b", line)] == []
