@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import requests
 from pydantic import SecretStr
 
 from ecoscope.platform.tasks.io import ESRI_DISPLAY_FIELD, _arcgis, fetch_arcgis_features
@@ -85,6 +86,38 @@ class FakeSession:
             return FakeResponse({"count": len(self.features)})
         start, size = params["resultOffset"], params["resultRecordCount"]
         return FakeResponse({"type": "FeatureCollection", "features": self.served[start : start + size]})
+
+
+class _FailingResponse(FakeResponse):
+    def raise_for_status(self) -> None:
+        raise requests.HTTPError(f"500 Server Error for url: {LAYER}/query?where=1%3D1&token=t0k3n")
+
+
+class _RaisingSession:
+    def __init__(self, response: Any = None, exc: Exception | None = None):
+        self.response, self.exc = response, exc
+
+    def request(self, method: str, url: str, timeout: int, **kwargs: Any) -> Any:
+        if self.exc:
+            raise self.exc
+        return self.response
+
+
+@pytest.mark.parametrize(
+    "fake",
+    [
+        _RaisingSession(response=_FailingResponse({})),
+        _RaisingSession(exc=requests.ConnectionError(f"HTTPSConnectionPool: {LAYER}/query?token=t0k3n failed")),
+    ],
+)
+def test_request_errors_do_not_leak_the_token(fake: _RaisingSession) -> None:
+    client = ReadOnlyArcGIS(LAYER, session=fake)
+    client._token = "t0k3n"
+    with pytest.raises(RuntimeError) as exc_info:
+        client.count("1=1")
+    exc = exc_info.value
+    assert "t0k3n" not in str(exc) and "token" not in str(exc)
+    assert exc.__suppress_context__ is True and exc.__cause__ is None
 
 
 @pytest.fixture

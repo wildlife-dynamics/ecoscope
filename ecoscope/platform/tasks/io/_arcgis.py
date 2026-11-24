@@ -79,8 +79,15 @@ class ReadOnlyArcGIS:
     def _request(self, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
         if (method.upper(), url) not in self._allowed:
             raise ArcGISReadOnlyError(f"Refusing {method} {url}: this task only reads from ArcGIS.")
-        response = self._session.request(method.upper(), url, timeout=_TIMEOUT_S, **kwargs)
-        response.raise_for_status()
+        import requests
+
+        try:
+            response = self._session.request(method.upper(), url, timeout=_TIMEOUT_S, **kwargs)
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            # requests' own messages embed the full URL, query string (and so the token) included.
+            status = exc.response.status_code if exc.response is not None else type(exc).__name__
+            raise RuntimeError(f"ArcGIS {method.upper()} {url} failed ({status}).") from None
         body = response.json()
         error = body.get("error") if isinstance(body, dict) else None
         if error:
