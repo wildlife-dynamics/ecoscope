@@ -23,6 +23,48 @@ _MODIS_DATA_START = datetime(2000, 2, 1, tzinfo=timezone.utc)
 # Analysis scale in meters (matches MODIS 500m resolution)
 _ANALYSIS_SCALE = 500.0
 
+# Water masking.
+# MYD13A1 carries a per-pixel land/water class in DetailedQA bits 11-13
+# (MOD13 VI QA layout): 0 shallow ocean, 1 land, 2 ocean coastlines and lake
+# shorelines, 3 shallow inland water, 4 ephemeral water, 5 deep inland water,
+# 6 moderate/continental ocean, 7 deep ocean. Only class 1 is kept as land.
+_DETAILED_QA_BAND = "DetailedQA"
+_LAND_WATER_BIT_OFFSET = 11
+_LAND_WATER_BIT_WIDTH_MASK = 0b111
+_LAND_CLASS = 1
+
+# MCD43A4 has no land/water QA band, so it falls back to the static MODIS
+# MOD44W annual 250 m land/water mask ("water_mask": 1 = water, 0 = land).
+_MODIS_WATER_MASK = "MODIS/006/MOD44W"
+_WATER_MASK_BAND = "water_mask"
+
+
+def _land_mask(img, ndvi_method: NDVIMethod):
+    """Return a binary Earth Engine image: 1 on land pixels, 0 on water.
+
+    Intended for ``ee.Image.updateMask`` so that water pixels are excluded from
+    downstream reductions (ROI means, composites, map tiles).
+
+    - MODIS MYD13A1 16-Day Composite: derived per image from the DetailedQA
+      land/water bits, so ``img`` must still include the DetailedQA band.
+    - MODIS MCD43A4 Daily NBAR: uses the most recent MOD44W static water mask;
+      ``img`` is not inspected.
+
+    Shared with ``create_ndvi_tile`` (ecoscope-workflows-ext-custom) so that the
+    NDVI trend and the NDVI map exclude the same pixels.
+    """
+    import ee
+
+    if ndvi_method == "MODIS MYD13A1 16-Day Composite":
+        return (
+            img.select(_DETAILED_QA_BAND)
+            .rightShift(_LAND_WATER_BIT_OFFSET)
+            .bitwiseAnd(_LAND_WATER_BIT_WIDTH_MASK)
+            .eq(_LAND_CLASS)
+        )
+    water = ee.ImageCollection(_MODIS_WATER_MASK).sort("system:time_start", False).first().select(_WATER_MASK_BAND)
+    return water.eq(0)
+
 
 def _validate_modis_start_date(time_range: TimeRange) -> TimeRange:
     """Validate that time range doesn't start before MODIS data availability."""
@@ -76,6 +118,15 @@ def calculate_ndvi_range(
             "'modis_16_day': Compare against same MODIS 16-day composite period (0-22)."
         ),
     ] = "month",
+    mask_water: Annotated[
+        bool,
+        Field(
+            description="Exclude water pixels (lakes, rivers, ocean) before averaging NDVI over the ROI. "
+            "'MODIS MYD13A1 16-Day Composite' uses the product's DetailedQA land/water flag; "
+            "'MODIS MCD43A4 Daily NBAR' uses the static MODIS MOD44W water mask. "
+            "Only pixels classified as land are kept (shorelines are excluded)."
+        ),
+    ] = False,
 ) -> AnyDataFrame:
     """Calculate NDVI values over an ROI using Earth Engine Image Collections.
 
@@ -97,6 +148,11 @@ def calculate_ndvi_range(
         - week: Compare against same ISO week number across historical years
         - day_of_year: Compare against same day of year across historical years
         - modis_16_day: Compare against same MODIS 16-day composite period (0-22) across historical years
+
+    Water masking:
+        When ``mask_water`` is True, non-land pixels are masked before the ROI mean is
+        taken, so large water bodies inside an ROI do not pull NDVI toward zero.
+        An ROI that is entirely water yields NaN NDVI values.
     """
     import ee
     import pandas as pd
@@ -123,15 +179,18 @@ def calculate_ndvi_range(
         n_images = image_size
 
     if ndvi_method == "MODIS MYD13A1 16-Day Composite":
+
+        def _scale_and_mask(img):
+            ndvi = img.select("NDVI").multiply(0.0001)
+            if mask_water:
+                ndvi = ndvi.updateMask(_land_mask(img, ndvi_method))
+            return ndvi.set("system:time_start", img.get("system:time_start")).set("id", img.get("id"))
+
         img_coll = (
             ee.ImageCollection(_MODIS_PRECOMPUTED)
             .filterDate(filter_start, filter_end)
-            .select("NDVI")
-            .map(
-                lambda img: img.multiply(0.0001)
-                .set("system:time_start", img.get("system:time_start"))
-                .set("id", img.get("id"))
-            )
+            .select(["NDVI", _DETAILED_QA_BAND] if mask_water else ["NDVI"])
+            .map(_scale_and_mask)
             .sort("system:time_start")
         )
     else:  # calculated
@@ -141,6 +200,12 @@ def calculate_ndvi_range(
             .select([_NIR_BAND, _RED_BAND])
             .sort("system:time_start")
         )
+        if mask_water:
+            img_coll = img_coll.map(
+                lambda img: img.updateMask(_land_mask(img, ndvi_method)).set(
+                    "system:time_start", img.get("system:time_start")
+                )
+            )
 
     # Avoid mutating input - work with a copy
     roi_with_time = roi.copy()

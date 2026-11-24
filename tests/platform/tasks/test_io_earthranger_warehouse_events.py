@@ -53,7 +53,6 @@ def _make_events_arrow_table(
     geometry_wkbs=None,
     event_times=None,
     event_details=None,
-    details_type=None,
     states=None,
 ):
     """Build a pa.Table matching EVENTS_SCHEMA_V1 with one row per event type.
@@ -62,11 +61,8 @@ def _make_events_arrow_table(
     event type); useful for exercising polygon -> centroid reduction.
     ``event_times`` optionally overrides the per-row event_time (tz-aware datetimes);
     useful for exercising sort-by-time parity.
-    ``event_details`` optionally overrides the per-row event_details. By default these
-    are raw JSON strings, as the warehouse serves them with ``raw_details=True`` (the
-    flat ``EVENTS_SCHEMA_V1`` types the column ``pa.string()``); pass ``details_type``
-    with a ``pa.struct`` to model typed mode instead, where the API swaps in a struct
-    derived from the single event type's schema and the values are dicts."""
+    ``event_details`` optionally overrides the per-row event_details: raw JSON strings,
+    as the warehouse serves them with ``raw_details=True``."""
     import datetime as dt
 
     import geoarrow.pyarrow as ga  # type: ignore[import-untyped]
@@ -86,13 +82,6 @@ def _make_events_arrow_table(
         )
 
     schema = EVENTS_SCHEMA_V1
-    if details_type is not None:
-        # Typed mode: the API replaces the flat schema's string event_details with the
-        # struct it derives from the event type's JSON-Schema.
-        schema = schema.set(
-            schema.get_field_index("event_details"),
-            pa.field("event_details", details_type),
-        )
 
     return pa.table(
         {
@@ -121,7 +110,7 @@ def _make_events_arrow_table(
 
 
 def _make_nested_patrols_arrow_table(
-    event_times=("2015-02-01",), event_type="hwc_rep", states=None, segment_extra=None
+    event_times=("2015-02-01",), event_type="hwc_rep", states=None, segment_extra=None, event_details=None
 ):
     """Build a pa.Table matching PATROLS_WITH_EVENTS_NESTED_SCHEMA_V1 (one patrol,
     one segment, one event per provided event_time). `segment_extra` adds or overrides
@@ -145,7 +134,7 @@ def _make_nested_patrols_arrow_table(
             "created_at": t,
             "geometry": Point(36.8 + i, -1.3).wkb,
             "is_collection": False,
-            "event_details": None,
+            "event_details": event_details[i] if event_details is not None else None,
         }
         for i, t in enumerate(event_times)
     ]
@@ -406,34 +395,19 @@ def test_get_events_via_warehouse_client_event_columns_subset():
     _assert_valid_events_gdf(result)
 
 
-def _details_struct():
-    """The typed event_details struct the API derives from one event type's JSON-Schema:
-    enum -> string, integer -> int64, date-time string stays string (no opt-in)."""
-    import pyarrow as pa
-
-    return pa.struct(
-        [
-            ("species", pa.string()),
-            ("count", pa.int64()),
-            ("notes", pa.string()),
-        ]
-    )
-
-
 @requires_dwh_events
 @pytest.mark.parametrize(
     "event_types, expect_raw",
     [
         ([], True),
-        (["hwc_rep"], False),
+        (["hwc_rep"], True),
         (["hwc_rep", "fire_rep"], True),
     ],
     ids=["all-types", "one-type", "many-types"],
 )
 def test_get_events_via_warehouse_client_details_mode_by_type_count(event_types, expect_raw):
-    """A single event type gets the typed struct; zero or many types fall back to raw
-    JSON, since the struct is derived from one event type's schema and the warehouse
-    rejects it otherwise (ERDW-276)."""
+    """Every selection gets raw JSON: the typed struct's default drop policy silently
+    omits events whose details don't cast to the schema."""
     mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
     mock_warehouse_client.get_events.return_value = _make_events_arrow_table()
@@ -480,8 +454,9 @@ def test_get_events_via_warehouse_client_no_details_stays_in_omit_mode(event_typ
 
 
 @requires_dwh_events
-def test_get_events_via_warehouse_client_decodes_raw_details_to_dicts():
-    """Multi-type selections get raw event_details as a JSON string; the task decodes it
+@pytest.mark.parametrize("event_types", [["hwc_rep"], ["hwc_rep", "fire_rep"]], ids=["one-type", "many-types"])
+def test_get_events_via_warehouse_client_decodes_raw_details_to_dicts(event_types):
+    """Raw event_details arrive as a JSON string; the task decodes it
     so the column matches the ER API path, which every downstream consumer assumes --
     process_events_details no-ops on non-dicts and normalize_json_column
     (pd.json_normalize) silently yields no columns for strings."""
@@ -497,7 +472,7 @@ def test_get_events_via_warehouse_client_decodes_raw_details_to_dicts():
     result = get_events(
         client=mock_legacy_client,
         time_range=_EVENT_TIME_RANGE,
-        event_types=["hwc_rep", "fire_rep"],
+        event_types=event_types,
         include_details=True,
         raise_on_empty=False,
     )
@@ -508,99 +483,22 @@ def test_get_events_via_warehouse_client_decodes_raw_details_to_dicts():
 
 
 @requires_dwh_events
-def test_get_events_via_warehouse_client_typed_details_arrive_as_dicts():
-    """Single-type selections get the typed struct, which from_arrow lands as dicts --
-    so no decode is needed and none is applied: absent schema fields stay None (rather
-    than being dropped) and a detail-less event stays a whole-cell None."""
-    mock_legacy_client = _source()
-    mock_warehouse_client = MagicMock()
-    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
-        event_type_values=("hwc_rep", "hwc_rep"),
-        event_category_values=("monitoring", "monitoring"),
-        event_details=[{"species": "elephant", "count": 3}, None],
-        details_type=_details_struct(),
-    )
-
-    mock_legacy_client.warehouse = mock_warehouse_client
-    result = get_events(
-        client=mock_legacy_client,
-        time_range=_EVENT_TIME_RANGE,
-        event_types=["hwc_rep"],
-        include_details=True,
-        raise_on_empty=False,
-    )
-
-    assert mock_warehouse_client.get_events.call_args.kwargs["raw_details"] is False
-    # `notes` is absent from the data but present in the struct -> padded in as None.
-    assert result["event_details"].tolist() == [
-        {"species": "elephant", "count": 3, "notes": None},
-        None,
-    ]
-    _assert_valid_events_gdf(result)
-
-
-@requires_dwh_events
-def test_get_events_via_warehouse_client_typed_details_lists_are_lists():
-    """from_arrow lands list fields inside the typed struct as numpy arrays; they must
-    arrive as lists, as the ER API serves them, or process_events_details raises
-    `TypeError: unhashable type: 'numpy.ndarray'` resolving a multi-select's choices."""
-    import pyarrow as pa
-
-    details_type = pa.struct(
-        [
-            ("species", pa.list_(pa.string())),
-            ("sightings", pa.list_(pa.struct([("tags", pa.list_(pa.string())), ("count", pa.int64())]))),
-        ]
-    )
-    mock_legacy_client = _source()
-    mock_warehouse_client = MagicMock()
-    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
-        event_details=[{"species": ["elephant", "lion"], "sightings": [{"tags": ["calf"], "count": 2}]}],
-        details_type=details_type,
-    )
-
-    mock_legacy_client.warehouse = mock_warehouse_client
-    result = get_events(
-        client=mock_legacy_client,
-        time_range=_EVENT_TIME_RANGE,
-        event_types=["hwc_rep"],
-        include_details=True,
-        raise_on_empty=False,
-    )
-
-    details = result["event_details"].iloc[0]
-    assert details == {"species": ["elephant", "lion"], "sightings": [{"tags": ["calf"], "count": 2}]}
-    assert type(details["species"]) is list
-    assert type(details["sightings"]) is list
-    assert type(details["sightings"][0]["tags"]) is list
-
-
-@requires_dwh_events
-@pytest.mark.parametrize("mode", ["typed", "raw"])
-def test_get_events_via_warehouse_client_details_normalize_into_columns(mode):
-    """End-to-end contract the download-events and event-details workflows rely on: in
-    either mode the details flatten into event_details__* columns."""
+def test_get_events_via_warehouse_client_details_normalize_into_columns():
+    """End-to-end contract the download-events and event-details workflows rely on: the
+    details flatten into event_details__* columns."""
     from ecoscope.platform.tasks.transformation import normalize_json_column
 
-    if mode == "typed":
-        table = _make_events_arrow_table(
-            event_details=[{"species": "elephant", "count": 3}],
-            details_type=_details_struct(),
-        )
-    else:
-        table = _make_events_arrow_table(event_details=['{"species": "elephant", "count": 3}'])
-
     mock_legacy_client = _source()
     mock_warehouse_client = MagicMock()
-    mock_warehouse_client.get_events.return_value = table
+    mock_warehouse_client.get_events.return_value = _make_events_arrow_table(
+        event_details=['{"species": "elephant", "count": 3}']
+    )
 
     mock_legacy_client.warehouse = mock_warehouse_client
     result = get_events(
         client=mock_legacy_client,
         time_range=_EVENT_TIME_RANGE,
-        # one type for typed; two would flip the request to raw, but the mock
-        # returns the table under test either way
-        event_types=["hwc_rep"] if mode == "typed" else ["hwc_rep", "fire_rep"],
+        event_types=["hwc_rep"],
         include_details=True,
         raise_on_empty=False,
     )
@@ -735,6 +633,31 @@ def test_warehouse_patrols_table_reduces_segment_refs_to_ids():
     assert legs["leg_member_days"].tolist() == [2.0]
     assert json.loads(legs["patrol_segment_details"].iloc[0]) == {"weather": "dry"}
     assert legs["patrol_type_details"].isna().all()
+
+
+def test_warehouse_patrols_table_decodes_event_details():
+    """Nested events carry raw-JSON details; they arrive as dicts, as the ER API serves them."""
+    from ecoscope.io.earthranger_utils import unpack_events_from_patrols_df, warehouse_patrols_table_to_patrols_df
+
+    table = _make_nested_patrols_arrow_table(
+        event_times=("2015-02-01", "2015-02-01T01:00:00"),
+        event_details=['{"kind": {"name": "Ex", "value": "x"}, "count": 3}', None],
+    )
+    events = unpack_events_from_patrols_df(warehouse_patrols_table_to_patrols_df(table))
+    assert events["event_details"].tolist() == [{"kind": "x", "count": 3}, {}]
+
+
+def test_warehouse_patrols_table_warns_on_malformed_event_details(caplog):
+    from ecoscope.io.earthranger_utils import unpack_events_from_patrols_df, warehouse_patrols_table_to_patrols_df
+
+    table = _make_nested_patrols_arrow_table(
+        event_times=("2015-02-01", "2015-02-01T01:00:00"),
+        event_details=["{not json", "[1]"],
+    )
+    with caplog.at_level("WARNING", logger="ecoscope.io.earthranger_utils"):
+        events = unpack_events_from_patrols_df(warehouse_patrols_table_to_patrols_df(table))
+    assert events["event_details"].tolist() == [{}, {}]
+    assert "Could not decode 2 patrol `event_details`" in caplog.text
 
 
 def test_warehouse_patrols_table_null_team_struct_is_none():

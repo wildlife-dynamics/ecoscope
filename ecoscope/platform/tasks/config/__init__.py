@@ -49,6 +49,7 @@ from ._set_traj_filters import (
     get_bounding_box,
     get_filter_point_coords,
     get_segment_filter,
+    get_segment_filter_overrides,
     set_traj_filters,
 )
 from ._set_vars import (
@@ -139,6 +140,7 @@ __all__ = [
     "get_patrol_track_filetypes",
     "get_rings_correction_from_args",
     "get_segment_filter",
+    "get_segment_filter_overrides",
     "get_skip_relocation_persist",
     "get_stroked_from_args",
     "get_style_barmode",

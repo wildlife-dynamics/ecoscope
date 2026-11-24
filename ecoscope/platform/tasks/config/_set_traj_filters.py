@@ -7,11 +7,20 @@ from wt_registry import register
 from ecoscope.platform.annotations import AdvancedField  # type: ignore[import-untyped]
 from ecoscope.platform.tasks.preprocessing._preprocessing import (  # type: ignore[import-untyped]
     TrajectorySegmentFilter,
+    TrajectorySegmentFilterOverride,
+    TrajectorySegmentFilterOverrides,
 )
 from ecoscope.platform.tasks.transformation._filtering import (  # type: ignore[import-untyped]
     BoundingBox,
     Coordinate,
 )
+
+TrajFilters = tuple[
+    BoundingBox,
+    list[Coordinate],
+    TrajectorySegmentFilter,
+    list[TrajectorySegmentFilterOverride] | None,
+]
 
 
 @register()
@@ -44,41 +53,52 @@ def set_traj_filters(
             description="Drop trajectory segments outside these length/time/speed bounds.",
         ),
     ] = TrajectorySegmentFilter(),
-) -> tuple[BoundingBox, list[Coordinate], TrajectorySegmentFilter]:
+    trajectory_segment_filter_overrides: Annotated[
+        # `None` stays in the schema: it means "not decided", distinct from `[]`.
+        TrajectorySegmentFilterOverrides | None,
+        AdvancedField(
+            default=None,
+            title="Filter Overrides",
+            description=(
+                "Use a different segment filter for specific values, e.g. a subject subtype or"
+                " patrol type. Values without an override use the filter above."
+                " Leave empty unless the workflow supports per-type filtering."
+            ),
+        ),
+    ] = None,
+) -> TrajFilters:
     if filter_point_coords is None:
         filter_point_coords = [
             Coordinate(x=180, y=90),
             Coordinate(x=0, y=0),
             Coordinate(x=1, y=1),
         ]
-    return bounding_box, filter_point_coords, trajectory_segment_filter
+    return bounding_box, filter_point_coords, trajectory_segment_filter, trajectory_segment_filter_overrides
 
 
 @register()
 def get_bounding_box(
-    filters: Annotated[
-        tuple[BoundingBox, list[Coordinate], TrajectorySegmentFilter],
-        Field(title=""),
-    ],
+    filters: Annotated[TrajFilters, Field(title="")],
 ) -> BoundingBox:
     return filters[0]
 
 
 @register()
 def get_filter_point_coords(
-    filters: Annotated[
-        tuple[BoundingBox, list[Coordinate], TrajectorySegmentFilter],
-        Field(title=""),
-    ],
+    filters: Annotated[TrajFilters, Field(title="")],
 ) -> list[Coordinate]:
     return filters[1]
 
 
 @register()
 def get_segment_filter(
-    filters: Annotated[
-        tuple[BoundingBox, list[Coordinate], TrajectorySegmentFilter],
-        Field(title=""),
-    ],
+    filters: Annotated[TrajFilters, Field(title="")],
 ) -> TrajectorySegmentFilter:
     return filters[2]
+
+
+@register()
+def get_segment_filter_overrides(
+    filters: Annotated[TrajFilters, Field(title="")],
+) -> list[TrajectorySegmentFilterOverride] | None:
+    return filters[3]

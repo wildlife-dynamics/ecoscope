@@ -4,6 +4,7 @@ from ._classification import (
     apply_color_map,
     classify_is_night,
     classify_seasons,
+    color_map_by_frequency,
 )
 from ._column_cleanup import drop_column_prefix, drop_duplicate_columns
 from ._concat import concat_dataframes
@@ -68,6 +69,7 @@ __all__ = [
     "apply_color_map",
     "classify_is_night",
     "classify_seasons",
+    "color_map_by_frequency",
     "concat_dataframes",
     "convert_column_values_to_numeric",
     "convert_column_values_to_string",

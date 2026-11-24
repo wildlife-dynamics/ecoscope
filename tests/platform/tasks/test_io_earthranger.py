@@ -1959,6 +1959,7 @@ class MockV2Client:
 
     def __init__(self, get_responses: dict | None = None):
         self.calls: list[tuple[str, bool]] = []
+        self.call_kwargs: dict[str, dict] = {}
         self._responses = get_responses or {}
 
     @contextmanager
@@ -1967,6 +1968,7 @@ class MockV2Client:
 
     def _get(self, url: str, return_response: bool = False, **kwargs):
         self.calls.append((url, return_response))
+        self.call_kwargs[url] = kwargs
         if url in self._responses:
             return self._responses[url]
         from ecoscope.io.earthranger import (  # type: ignore[import-untyped]
@@ -2085,6 +2087,36 @@ def test_resolve_event_details_nested_subform_enums():
 
     resolved = _resolve_event_details(details, schema)
     assert resolved["my_list"] == [{"Status": "Okay"}]
+
+
+def test_resolve_event_details_legacy_name_value_choices():
+    """Legacy `{name, value}` choices resolve like their bare value, as the v2 ER API serves them."""
+    schema = {
+        "properties": {
+            "kind": {"title": "Kind", "enumNames": {"x": "Ex"}},
+            "tags": {"title": "Tags", "type": "array", "items": {"enumNames": {"t1": "Tag 1"}}},
+        },
+        "ordered_keys": ["kind", "tags"],
+    }
+    details = {
+        "kind": {"name": "Ex", "value": "x"},
+        "tags": [{"name": "Tag 1", "value": "t1"}, "t2"],
+    }
+
+    assert _resolve_event_details(details, schema) == {"Kind": "Ex", "Tags": ["Tag 1", "t2"]}
+
+
+def test_resolve_event_details_unhashable_choice_values_pass_through():
+    schema = {
+        "properties": {
+            "kind": {"title": "Kind", "enumNames": {"x": "Ex"}},
+            "tags": {"title": "Tags", "type": "array", "items": {"enumNames": {"t1": "Tag 1"}}},
+        },
+        "ordered_keys": ["kind", "tags"],
+    }
+    details = {"kind": {"id_510": "1"}, "tags": [{"id_1": "1"}, "t1"]}
+
+    assert _resolve_event_details(details, schema) == {"Kind": {"id_510": "1"}, "Tags": [{"id_1": "1"}, "Tag 1"]}
 
 
 def test_resolve_event_details_numpy_arrays():
@@ -2298,6 +2330,8 @@ def test_fetch_v2_schema_with_choices():
         "mix": "Mix",
     }
     assert result["ordered_keys"] == ["herd_type"]
+    # max_retries counts attempts in ERClient: one attempt, as a bad ref answers 400 every time.
+    assert mock_client.call_kwargs["/activity/enums/herd_type_enum"]["max_retries"] == 1
 
 
 def test_fetch_v2_schema_ref_not_found():

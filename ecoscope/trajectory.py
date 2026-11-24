@@ -38,6 +38,18 @@ def get_tortuosity(gdf: gpd.GeoDataFrame):
     return gdf["dist_meters"].sum() / get_displacement(gdf)
 
 
+def traj_seg_filter_mask(gdf: gpd.GeoDataFrame, traj_seg_filter: TrajSegFilter) -> pd.Series:
+    """Boolean mask on `gdf.index`, True where a segment falls outside any of the six bounds."""
+    return (
+        (gdf["dist_meters"] < traj_seg_filter.min_length_meters)
+        | (gdf["dist_meters"] > traj_seg_filter.max_length_meters)
+        | (gdf["timespan_seconds"] < traj_seg_filter.min_time_secs)
+        | (gdf["timespan_seconds"] > traj_seg_filter.max_time_secs)
+        | (gdf["speed_kmhr"] < traj_seg_filter.min_speed_kmhr)
+        | (gdf["speed_kmhr"] > traj_seg_filter.max_speed_kmhr)
+    )
+
+
 class Trajectory(EcoDataFrame):
     """
     A trajectory represents a time-ordered collection of segments.
@@ -153,15 +165,7 @@ class Trajectory(EcoDataFrame):
             traj = deepcopy(self)
 
         assert type(traj_seg_filter) is TrajSegFilter
-        traj.gdf.loc[
-            (traj.gdf["dist_meters"] < traj_seg_filter.min_length_meters)
-            | (traj.gdf["dist_meters"] > traj_seg_filter.max_length_meters)
-            | (traj.gdf["timespan_seconds"] < traj_seg_filter.min_time_secs)
-            | (traj.gdf["timespan_seconds"] > traj_seg_filter.max_time_secs)
-            | (traj.gdf["speed_kmhr"] < traj_seg_filter.min_speed_kmhr)
-            | (traj.gdf["speed_kmhr"] > traj_seg_filter.max_speed_kmhr),
-            "junk_status",
-        ] = True
+        traj.gdf.loc[traj_seg_filter_mask(traj.gdf, traj_seg_filter), "junk_status"] = True
 
         if not inplace:
             return traj

@@ -1,0 +1,16 @@
+{
+  "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "bounds": [36.0, -1.5, 37.0, -0.5],
+  "opacity": 1.0,
+  "legend": {
+    "title": "NDVI",
+    "values": [
+      {"label": "0.10", "color": "#A0522D"},
+      {"label": "0.28", "color": "#C4A882"},
+      {"label": "0.46", "color": "#D4CC6A"},
+      {"label": "0.64", "color": "#8FBC6B"},
+      {"label": "0.82", "color": "#5A8C4A"},
+      {"label": "1.00", "color": "#2E5E2E"}
+    ]
+  }
+}

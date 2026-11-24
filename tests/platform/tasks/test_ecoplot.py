@@ -23,6 +23,7 @@ from ecoscope.platform.tasks.results._ecoplot import (
     draw_pie_chart,
     draw_time_series_bar_chart,
 )
+from ecoscope.platform.tasks.results._sunburst import SunburstStyle, draw_sunburst_chart
 
 
 @pytest.fixture
@@ -402,3 +403,61 @@ def test_plotly_json_spec_allows_extra_keys():
 
     assert spec.config is None
     assert spec.model_dump()["frames"] == []
+
+
+@pytest.mark.parametrize("widget_id", ["THIS IS A TEST ID", None])
+def test_draw_sunburst_chart(widget_id, pie_dataframe):
+    plot = draw_sunburst_chart(
+        pie_dataframe,
+        ring_columns=["category"],
+        value_column="value",
+        palette="Set2",
+        top_n=2,
+        plot_style=SunburstStyle(insidetextorientation="radial", maxdepth=2),
+        layout_style=LayoutStyle(title="t"),
+        widget_id=widget_id,
+    )
+
+    assert isinstance(plot, str)
+    assert "sunburst" in plot
+    if widget_id:
+        assert widget_id in plot
+
+
+def test_draw_sunburst_chart_color_column_wins_over_palette(pie_dataframe):
+    plot = draw_sunburst_chart(
+        pie_dataframe, ring_columns=["category"], color_column="color_column", palette=["#123456"]
+    )
+
+    assert "rgba(255, 0, 0, 1.0)" in plot
+    assert "#123456" not in plot
+
+
+def test_draw_sunburst_chart_expand_other(pie_dataframe):
+    kwargs = dict(ring_columns=["category"], value_column="value", top_n=1)
+
+    # B and C are merged; expanded, their names stay in the chart
+    assert '"labels":["A","Other (2 values)","B","C"]' in draw_sunburst_chart(
+        pie_dataframe, expand_other=True, **kwargs
+    )
+    assert '"labels":["A","Other (2 values)"]' in draw_sunburst_chart(pie_dataframe, **kwargs)
+
+
+def test_draw_sunburst_chart_color_ring():
+    df = pd.DataFrame({"inc": ["a", "a", "b"], "type": ["p", "q", "p"], "c": ["#ff0000", "#0000ff", "#ff0000"]})
+    plot = draw_sunburst_chart(df, ring_columns=["inc", "type"], color_column="c", color_ring=1, palette=["#333333"])
+
+    # incidents take the palette, event types their own colours
+    assert '"marker":{"colors":["#333333","#333333","#ff0000","#0000ff","#ff0000"]}' in plot
+
+
+def test_draw_sunburst_chart_leaf_opacity(pie_dataframe):
+    plot = draw_sunburst_chart(pie_dataframe, ring_columns=["category"], plot_style=SunburstStyle(leaf_opacity=1))
+
+    assert '"leaf":{"opacity":1' in plot
+
+
+def test_sunburst_style_round_trip():
+    style = SunburstStyle(rotation=90, sort=False)
+
+    assert SunburstStyle.model_validate(style.model_dump()) == style

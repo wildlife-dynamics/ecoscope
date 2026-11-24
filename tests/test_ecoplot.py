@@ -17,6 +17,7 @@ from ecoscope.plotting.plot import (
     pie_chart,
     speed,
     stacked_bar_chart,
+    sunburst_chart,
 )
 
 
@@ -357,3 +358,333 @@ def test_draw_historic_timeseries():
     assert chart.data[1].name == "Historic Min-Max"
     assert chart.data[2].name == "Historic Mean"
     assert chart.data[3].name == "NDVI"
+
+
+@pytest.fixture
+def sunburst_df():
+    return pd.DataFrame(
+        {
+            "cls": ["Illegal", "Illegal", "Illegal", "Natural", "Natural"],
+            "cause": ["Snare", "Snare", "Gun", "Disease", None],
+            "n": [1, 2, 3, 4, 5],
+        }
+    )
+
+
+def _slices(fig):
+    t = fig.data[0]
+    return dict(zip(t.ids, t.values))
+
+
+def test_sunburst_counts(sunburst_df):
+    fig = sunburst_chart(sunburst_df, ring_columns=["cls", "cause"])
+
+    assert _slices(fig) == {"Illegal": 3, "Natural": 2, "Illegal/Snare": 2, "Illegal/Gun": 1, "Natural/Disease": 1}
+    t = fig.data[0]
+    assert dict(zip(t.ids, t.parents))["Illegal/Gun"] == "Illegal"
+    assert dict(zip(t.ids, t.labels))["Illegal/Gun"] == "Gun"
+    assert t.branchvalues == "total"
+
+
+def test_sunburst_value_column(sunburst_df):
+    slices = _slices(sunburst_chart(sunburst_df, ring_columns=["cls", "cause"], value_column="n"))
+
+    assert slices["Illegal"] == 6
+    assert slices["Natural"] == 9
+    assert slices["Natural/Disease"] == 4
+
+
+def test_sunburst_value_column_nan_counts_as_zero():
+    df = pd.DataFrame({"a": ["x", "x"], "b": ["p", "q"], "n": [2, None]})
+
+    assert _slices(sunburst_chart(df, ring_columns=["a", "b"], value_column="n")) == {"x": 2, "x/p": 2, "x/q": 0}
+
+
+def test_sunburst_missing_ends_path(sunburst_df):
+    slices = _slices(sunburst_chart(sunburst_df, ring_columns=["cls", "cause"]))
+
+    assert not [i for i in slices if i.startswith("Natural/") and i != "Natural/Disease"]
+    assert slices["Natural"] == 2
+
+
+def test_sunburst_same_label_two_parents():
+    df = pd.DataFrame({"a": ["A", "B"], "b": ["Unknown", "Unknown"]})
+
+    assert {"A/Unknown", "B/Unknown"} <= set(sunburst_chart(df, ring_columns=["a", "b"]).data[0].ids)
+
+
+def test_sunburst_numeric_ring():
+    df = pd.DataFrame({"year": [2023, 2024, 2024]})
+
+    assert _slices(sunburst_chart(df, ring_columns=["year"])) == {"2023": 1, "2024": 2}
+
+
+def test_sunburst_top_n():
+    df = pd.DataFrame({"a": ["x"] * 15, "b": list("vvvvvwwwwyyyzzu")})
+    labels = list(sunburst_chart(df, ring_columns=["a", "b"], top_n=2).data[0].labels)
+
+    assert labels.count("Other (3 values)") == 1
+    assert {"v", "w"} <= set(labels)
+    assert not {"y", "z", "u"} & set(labels)
+
+
+def test_sunburst_top_n_pinned():
+    df = pd.DataFrame({"a": ["x"] * 10, "b": list("vvvwwyz") + ["(blank)"] * 3})
+    labels = set(sunburst_chart(df, ring_columns=["a", "b"], top_n=2, pinned_values=["(blank)"]).data[0].labels)
+
+    assert {"v", "w", "(blank)", "Other (2 values)"} <= labels
+
+
+def test_sunburst_top_n_no_other(sunburst_df):
+    labels = sunburst_chart(sunburst_df, ring_columns=["cls", "cause"], top_n=10).data[0].labels
+
+    assert not [x for x in labels if x.startswith("Other")]
+
+
+def test_sunburst_palette_inherits(sunburst_df):
+    t = sunburst_chart(sunburst_df, ring_columns=["cls", "cause"], palette=["#111111", "#222222"]).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    assert colors["Illegal"] == colors["Illegal/Snare"] == "#111111"
+    assert colors["Natural"] == colors["Natural/Disease"] == "#222222"
+
+
+def test_sunburst_expand_other_keeps_values():
+    df = pd.DataFrame({"inc": list("aaaabbcd"), "type": list("ppqrsstu")})
+    t = sunburst_chart(df, ring_columns=["inc", "type"], top_n=1, expand_other=True).data[0]
+    slices = dict(zip(t.ids, t.values))
+    parents = dict(zip(t.ids, t.parents))
+
+    assert slices["a"] == 4 and slices["Other (3 values)"] == 4
+    assert slices["Other (3 values)/b"] == 2 and slices["Other (3 values)/c"] == 1
+    assert parents["Other (3 values)/b"] == "Other (3 values)"
+    assert dict(zip(t.ids, t.labels))["Other (3 values)/b"] == "b"
+    # the next ring stays under each real value, lumped within it
+    assert slices["Other (3 values)/b/s"] == 2
+    assert slices["a/Other (2 values)/q"] == 1
+
+
+def test_sunburst_expand_other_colours():
+    df = pd.DataFrame({"inc": list("aaaabbcd"), "type": list("ppqrsstu")})
+    palette = ["#111111", "#222222", "#333333", "#444444"]
+    t = sunburst_chart(
+        df, ring_columns=["inc", "type"], top_n=1, expand_other=True, palette=palette, other_color="#999999"
+    ).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    assert colors["a"] == colors["a/p"] == "#111111"
+    assert colors["Other (3 values)"] == colors["a/Other (2 values)"] == "#999999"
+    # values inside Other take the next unused colours, largest first, and their children follow
+    assert colors["Other (3 values)/b"] == colors["Other (3 values)/b/s"] == "#222222"
+    assert {colors["Other (3 values)/c"], colors["Other (3 values)/d"]} == {"#333333", "#444444"}
+
+
+def test_sunburst_expand_other_default_colours():
+    df = pd.DataFrame({"inc": list("aaabbc")})
+    t = sunburst_chart(df, ring_columns=["inc"], top_n=1, expand_other=True).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    assert len({colors["a"], colors["Other (2 values)/b"], colors["Other (2 values)/c"]}) == 3
+    assert "" not in colors.values()
+
+
+def test_sunburst_expand_other_maxdepth():
+    df = pd.DataFrame({"inc": list("aaabbc"), "type": list("pqrstu")})
+
+    assert sunburst_chart(df, ring_columns=["inc", "type"], top_n=1, expand_other=True).data[0].maxdepth == 2
+    styled = sunburst_chart(df, ring_columns=["inc"], top_n=1, expand_other=True, style_kwargs={"maxdepth": 3})
+    assert styled.data[0].maxdepth == 3
+
+
+def _ring_df():
+    # incidents a, b; event types p, q coloured per type, as apply_color_map gives them
+    return pd.DataFrame(
+        {
+            "inc": list("aaabbc"),
+            "type": list("ppqpqq"),
+            "color": ["#ff0000", "#ff0000", "#0000ff", "#ff0000"] + ["#0000ff"] * 2,
+        }
+    )
+
+
+def test_sunburst_color_ring_colours_outer_ring():
+    t = sunburst_chart(
+        _ring_df(), ring_columns=["inc", "type"], color_column="color", color_ring=1, palette=["#333333"]
+    ).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    # the type keeps its colour under every incident; incidents take the palette
+    assert colors["a/p"] == colors["b/p"] == "#ff0000"
+    assert colors["a/q"] == colors["b/q"] == colors["c/q"] == "#0000ff"
+    assert colors["a"] == colors["b"] == colors["c"] == "#333333"
+
+
+def test_sunburst_color_ring_other_stays_grey():
+    df = pd.DataFrame({"inc": ["a"] * 6, "type": list("ppqrst"), "color": ["#ff0000"] * 6})
+    t = sunburst_chart(
+        df, ring_columns=["inc", "type"], color_column="color", color_ring=1, top_n=1, other_color="#999999"
+    ).data[0]
+
+    assert dict(zip(t.labels, t.marker.colors))["Other (4 values)"] == "#999999"
+
+
+def test_sunburst_color_ring_with_expand_other():
+    df = pd.DataFrame(
+        {
+            "inc": list("aaabbc"),
+            "type": list("ppqpqq"),
+            "color": ["#ff0000"] * 2 + ["#0000ff", "#ff0000", "#0000ff", "#0000ff"],
+        }
+    )
+    t = sunburst_chart(
+        df,
+        ring_columns=["inc", "type"],
+        color_column="color",
+        color_ring=1,
+        top_n=1,
+        expand_other=True,
+        palette=["#333333"],
+        other_color="#999999",
+    ).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    assert colors["a"] == colors["Other (2 values)/b"] == "#333333"
+    assert colors["Other (2 values)"] == "#999999"
+    # event types inside the grouped incidents keep their own colours
+    assert colors["Other (2 values)/b/p"] == colors["a/p"] == "#ff0000"
+    assert colors["Other (2 values)/c/q"] == "#0000ff"
+
+
+def test_sunburst_expand_other_inner_color_column():
+    df = pd.DataFrame({"inc": list("aaabbc"), "color": ["#111111"] * 3 + ["#222222"] * 2 + ["#333333"]})
+    t = sunburst_chart(df, ring_columns=["inc"], color_column="color", top_n=1, expand_other=True).data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    # values inside Other keep their own color_column colours
+    assert colors["a"] == "#111111"
+    assert colors["Other (2 values)/b"] == "#222222" and colors["Other (2 values)/c"] == "#333333"
+
+
+def test_sunburst_expand_other_missing_ends_path():
+    df = pd.DataFrame({"inc": list("aaabbc"), "type": ["p", "p", "q", "r", None, "s"]})
+    slices = dict(
+        zip(
+            *(lambda t: (t.ids, t.values))(
+                sunburst_chart(df, ring_columns=["inc", "type"], top_n=1, expand_other=True).data[0]
+            )
+        )
+    )
+
+    # b's record with no type counts for b but adds no outer slice
+    assert slices["Other (2 values)/b"] == 2
+    assert slices["Other (2 values)/b/r"] == 1
+    assert not [i for i in slices if i.startswith("Other (2 values)/b/") and i != "Other (2 values)/b/r"]
+
+
+def test_sunburst_color_ring_out_of_range():
+    with pytest.raises(ValueError):
+        sunburst_chart(_ring_df(), ring_columns=["inc", "type"], color_column="color", color_ring=2)
+
+
+def test_sunburst_expand_other_off_by_default():
+    df = pd.DataFrame({"inc": list("aaabbc")})
+
+    assert "Other (2 values)/b" not in sunburst_chart(df, ring_columns=["inc"], top_n=1).data[0].ids
+
+
+def test_sunburst_other_color():
+    df = pd.DataFrame({"a": list("vvwy")})
+    t = sunburst_chart(df, ring_columns=["a"], top_n=1, palette=["#111111"], other_color="#999999").data[0]
+
+    assert dict(zip(t.labels, t.marker.colors))["Other (2 values)"] == "#999999"
+
+
+def test_sunburst_color_column(sunburst_df):
+    sunburst_df["color"] = [(255, 0, 0, 255)] * 3 + [(0, 0, 255, 255)] * 2
+    t = sunburst_chart(sunburst_df, ring_columns=["cls", "cause"], color_column="color").data[0]
+    colors = dict(zip(t.ids, t.marker.colors))
+
+    assert colors["Illegal"] == colors["Illegal/Gun"] == "rgba(255, 0, 0, 1.0)"
+    assert colors["Natural/Disease"] == "rgba(0, 0, 255, 1.0)"
+
+
+def test_sunburst_style_override(sunburst_df):
+    t = sunburst_chart(
+        sunburst_df, ring_columns=["cls", "cause"], style_kwargs={"textinfo": "label", "maxdepth": 2}
+    ).data[0]
+
+    assert t.textinfo == "label"
+    assert t.maxdepth == 2
+
+
+def test_sunburst_empty():
+    df = pd.DataFrame({"a": pd.Series([], dtype=object), "b": pd.Series([], dtype=object)})
+
+    assert len(sunburst_chart(df, ring_columns=["a", "b"]).data) == 0
+
+
+def test_sunburst_all_missing_inner_ring():
+    df = pd.DataFrame({"a": [None, None], "b": ["x", "y"]})
+
+    assert len(sunburst_chart(df, ring_columns=["a", "b"]).data) == 0
+
+
+def test_sunburst_other_children_take_other_color():
+    df = pd.DataFrame({"a": list("vvwy"), "b": list("pqrs")})
+    t = sunburst_chart(
+        df, ring_columns=["a", "b"], top_n=1, palette=["#111111", "#222222"], other_color="#999999"
+    ).data[0]
+
+    assert dict(zip(t.ids, t.marker.colors))["Other (2 values)/r"] == "#999999"
+
+
+def test_sunburst_top_n_duplicate_index():
+    df = pd.DataFrame({"a": ["x", "y", "y", "y", "z"], "b": ["p", "q", "r", "r", "s"]}, index=[0, 0, 1, 1, 2])
+
+    assert _slices(sunburst_chart(df, ring_columns=["a", "b"], top_n=1)) == {
+        "y": 3,
+        "Other (2 values)": 2,
+        "y/r": 2,
+        "y/q": 1,
+        "Other (2 values)/p": 1,
+        "Other (2 values)/s": 1,
+    }
+
+
+def test_sunburst_whole_number_floats_label_as_ints():
+    df = pd.DataFrame({"year": [2020, 2021, None], "c": [1, None, 2.5]})
+
+    assert set(sunburst_chart(df, ring_columns=["year", "c"]).data[0].ids) == {"2020", "2021", "2020/1"}
+
+
+def test_sunburst_empty_string_ends_path():
+    df = pd.DataFrame({"a": ["", "x"], "b": ["p", ""]})
+
+    assert _slices(sunburst_chart(df, ring_columns=["a", "b"])) == {"x": 1}
+
+
+def test_sunburst_slash_in_value_keeps_ids_distinct():
+    df = pd.DataFrame({"a": ["x/y", "x"], "b": [None, "y"]})
+    ids = list(sunburst_chart(df, ring_columns=["a", "b"]).data[0].ids)
+
+    assert len(ids) == len(set(ids)) == 3
+
+
+def test_sunburst_real_other_value_keeps_its_colour():
+    df = pd.DataFrame({"a": ["Other (misc)", "v"]})
+    t = sunburst_chart(df, ring_columns=["a"], palette=["#111111", "#222222"]).data[0]
+
+    assert dict(zip(t.labels, t.marker.colors))["Other (misc)"] == "#111111"
+
+
+def test_sunburst_top_n_keeps_single_leftover():
+    df = pd.DataFrame({"a": ["x", "x", "y"]})
+
+    assert set(sunburst_chart(df, ring_columns=["a"], top_n=1).data[0].labels) == {"x", "y"}
+
+
+def test_sunburst_numeric_pinned_values():
+    df = pd.DataFrame({"year": [2020, 2020, 2021, 2022, 2023]})
+    labels = set(sunburst_chart(df, ring_columns=["year"], top_n=1, pinned_values=[2023]).data[0].labels)
+
+    assert labels == {"2020", "2023", "Other (2 values)"}

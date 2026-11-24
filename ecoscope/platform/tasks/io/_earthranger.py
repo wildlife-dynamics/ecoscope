@@ -720,13 +720,7 @@ def get_events(
         # The warehouse get_events accepts event type slugs directly, so pass the
         # values straight through — no value->id round-trip via get_event_types.
         #
-        # event_details: the warehouse serves it as a structured Arrow struct, which
-        # `from_arrow` lands as dicts, but that struct is derived from one event type's
-        # schema and so requires a single-type selection. Workflows also allow zero or
-        # many types (download-events offers "leave empty for all event types"), so fall
-        # back to the raw JSON form there and decode it below — either way the column
-        # ends up dicts of plain lists, as the ER API path serves it.
-        raw_details = include_details and len(event_types) != 1
+        # Raw JSON details, so events whose details don't match their schema aren't dropped.
         table = warehouse_client.get_events(
             since=time_range.since.isoformat(),
             until=time_range.until.isoformat(),
@@ -736,7 +730,7 @@ def get_events(
             include_details=include_details,
             include_updates=include_updates,
             include_related_events=include_related_events,
-            raw_details=raw_details,
+            raw_details=include_details,
         )
         events_df = gpd.GeoDataFrame.from_arrow(table).rename(
             columns={
@@ -745,14 +739,10 @@ def get_events(
                 "event_time": "time",
             }
         )
-        if raw_details:
+        if include_details:
             from ecoscope.io.earthranger_utils import decode_raw_event_details
 
             decode_raw_event_details(events_df)
-        elif include_details:
-            from ecoscope.io.earthranger_utils import listify_typed_event_details
-
-            listify_typed_event_details(events_df)
         # Parity with the legacy path (geometry_from_event_geojson): when
         # force_point_geometry is set, reduce geometry to its centroid so downstream
         # point layers / gridding / .geometry.x|y keep working. Done per-geometry on
@@ -1362,6 +1352,20 @@ def get_spatial_features_group(
 
 
 @register(tags=["io"])
+def get_spatial_features_groups(client: EarthRangerSource) -> RegionsGDF | EmptyDataFrame:
+    client = as_backends(client)
+    regions: list[pd.DataFrame] = []
+    for group in client.api.get_spatial_features_groups():
+        sfg = SpatialFeaturesGroup(**group)  # type: ignore[arg-type]
+        regions_gdf = sfg.features
+        regions_gdf["metadata"] = [{"id": sfg.id, "display_name": sfg.name}] * len(regions_gdf)  # type: ignore[assignment]
+        regions.append(regions_gdf)  # type: ignore[arg-type]
+    if not regions:
+        return cast(EmptyDataFrame, pd.DataFrame())
+    return cast(RegionsGDF, pd.concat(regions, ignore_index=True))
+
+
+@register(tags=["io"])
 def get_fields_from_event_type_schema(
     client: EarthRangerSource,
     event_type: SingleEventTypeAnnotation,
@@ -1515,8 +1519,11 @@ def _fetch_v2_schema(client: EarthRangerSource, event_type: str) -> dict:
             if not ref:
                 continue
             try:
-                # Strip v2 prefix to avoid double-prefixing in client.api._get
-                ref_schema = client.api._get(_strip_v2_prefix(ref), params={"s_format": "oneOf"})  # type: ignore[attr-defined]
+                # Strip v2 prefix to avoid double-prefixing in client.api._get. One attempt
+                # only as a ref to a choice list the site doesn't have answers 400 every time.
+                ref_schema = client.api._get(  # type: ignore[attr-defined]
+                    _strip_v2_prefix(ref), params={"s_format": "oneOf"}, max_retries=1
+                )
                 for choice in ref_schema.get("oneOf", []):
                     const = choice.get("const")
                     title = choice.get("title")
@@ -1637,6 +1644,24 @@ def _normalize_v1_schema(v1_schema: dict) -> dict:
     }
 
 
+def _choice_title(enum_names: dict, value):
+    """Map one stored choice to its title; runs per choice value, so strings take the fast path.
+
+    Stored details aren't validated: a legacy ``{name, value}`` choice resolves by its
+    ``value`` (as DAS's v2 read unwraps it), and anything else unhashable passes through.
+    """
+    if type(value) is str:
+        return enum_names.get(value, value)
+    from ecoscope.io.earthranger_utils import is_legacy_choice
+
+    if is_legacy_choice(value):
+        value = value["value"]
+    try:
+        return enum_names.get(value, value)
+    except TypeError:
+        return value
+
+
 def _resolve_event_details(
     details: dict, schema: dict | None, map_to_titles: bool = True, ordered: bool = True
 ) -> dict:
@@ -1662,15 +1687,14 @@ def _resolve_event_details(
         ordered_keys = list(details.keys())
 
     def resolve(value, prop_def):
-        # Arrow-backed details (e.g. the warehouse's typed struct) carry ndarrays where
-        # the ER API serves lists; an ndarray would otherwise reach `enum_names.get`.
+        # Details built from Arrow carry ndarrays where JSON carries lists.
         if isinstance(value, np.ndarray):
             value = value.tolist()
         enum_names = prop_def.get("enumNames") or prop_def.get("items", {}).get("enumNames")
         if isinstance(enum_names, dict) and enum_names:
             if isinstance(value, list):
-                return [enum_names.get(v, v) for v in value]
-            return enum_names.get(value, value)
+                return [_choice_title(enum_names, v) for v in value]
+            return _choice_title(enum_names, value)
         return value
 
     result = {}
@@ -1687,6 +1711,9 @@ def _resolve_event_details(
             item_props = prop_def.get("items", {}).get("properties", {})
             new_list = []
             for item in resolved_value:
+                if not isinstance(item, dict):
+                    new_list.append(item)
+                    continue
                 new_item = {}
                 for ik, iv in item.items():
                     ip_def = item_props.get(ik, {})

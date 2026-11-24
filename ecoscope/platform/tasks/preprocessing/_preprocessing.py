@@ -1,6 +1,7 @@
-from typing import Annotated
+from collections import Counter
+from typing import TYPE_CHECKING, Annotated
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
@@ -11,6 +12,9 @@ from ecoscope.platform.schemas import (
     TrajectoryGDF,
 )
 from ecoscope.platform.tasks.transformation._filtering import Coordinate
+
+if TYPE_CHECKING:
+    from ecoscope.trajectory import TrajSegFilter
 
 
 class TrajectorySegmentFilter(BaseModel, CacheableModel):
@@ -79,6 +83,37 @@ class TrajectorySegmentFilter(BaseModel, CacheableModel):
             raise ValueError("max_speed_kmhr must be greater than min_speed_kmhr")
         return self
 
+    def to_traj_seg_filter(self) -> "TrajSegFilter":
+        from ecoscope.trajectory import TrajSegFilter
+
+        return TrajSegFilter(
+            min_length_meters=self.min_length_meters,
+            max_length_meters=self.max_length_meters,
+            min_time_secs=self.min_time_secs,
+            max_time_secs=self.max_time_secs,
+            min_speed_kmhr=self.min_speed_kmhr,
+            max_speed_kmhr=self.max_speed_kmhr,
+        )
+
+
+class TrajectorySegmentFilterOverride(BaseModel, CacheableModel):
+    key: Annotated[str, Field(title="Value")]
+    filter: Annotated[TrajectorySegmentFilter, Field(title="Filter")]
+
+
+def _unique_override_keys(
+    overrides: list[TrajectorySegmentFilterOverride],
+) -> list[TrajectorySegmentFilterOverride]:
+    duplicates = [key for key, count in Counter(o.key for o in overrides).items() if count > 1]
+    if duplicates:
+        raise ValueError(f"Duplicate trajectory segment filter override key(s): {', '.join(duplicates)}")
+    return overrides
+
+
+TrajectorySegmentFilterOverrides = Annotated[
+    list[TrajectorySegmentFilterOverride], AfterValidator(_unique_override_keys)
+]
+
 
 @register()
 def process_relocations(
@@ -130,23 +165,69 @@ def relocations_to_trajectory(
             ),
         ),
     ] = None,
+    trajectory_segment_filter_overrides: Annotated[
+        # `None` must stay visible in the schema (unlike `trajectory_segment_filter` above):
+        # its default is `None` itself, and `null` is a meaningful value downstream
+        # ("not decided" vs. `[]`'s "deliberately none"), so the schema must accept it.
+        TrajectorySegmentFilterOverrides | None,
+        AdvancedField(
+            default=None,
+            title="Filter Overrides",
+            description=(
+                "Use a different segment filter for specific values, e.g. a subject subtype or"
+                " patrol type. Values without an override use the filter above."
+                " Leave empty unless the workflow supports per-type filtering."
+            ),
+        ),
+    ] = None,
+    # Bare `SkipJsonSchema[str | None]` crashes schema generation for a function param
+    # (unlike a model field); the `T | SkipJsonSchema[None]` + `Field(exclude=True)`
+    # idiom (see `warning` on `gather_dashboard`) is schema-safe.
+    trajectory_segment_filter_override_column: Annotated[str | SkipJsonSchema[None], Field(exclude=True)] = None,
 ) -> TrajectoryGDF:
     from ecoscope.relocations import Relocations
-    from ecoscope.trajectory import (
-        Trajectory,
-        TrajSegFilter,
-    )
+    from ecoscope.trajectory import Trajectory, traj_seg_filter_mask
 
     if trajectory_segment_filter is None:
         trajectory_segment_filter = TrajectorySegmentFilter()
 
+    if trajectory_segment_filter_overrides:
+        if trajectory_segment_filter_override_column is None:
+            raise ValueError("Filter overrides aren't supported by this workflow; remove them to run it.")
+        if trajectory_segment_filter_override_column not in relocations.columns:
+            raise ValueError(
+                f"trajectory_segment_filter_override_column "
+                f"{trajectory_segment_filter_override_column!r} not found in relocations columns"
+            )
+
     # trajectory creation
     traj = Trajectory.from_relocations(Relocations(gdf=relocations))
 
-    traj_seg_filter = TrajSegFilter(**trajectory_segment_filter.model_dump())
+    default = trajectory_segment_filter.to_traj_seg_filter()
 
-    # trajectory filtering
-    traj.apply_traj_filter(traj_seg_filter, inplace=True)
+    if trajectory_segment_filter_overrides:
+        gdf = traj.gdf
+        # Relocation columns reach the trajectory as `extra__<col>`; one named like a
+        # trajectory column is dropped instead, and only `groupby_col` keeps its values.
+        col = trajectory_segment_filter_override_column
+        assert isinstance(col, str)  # checked above; narrows `SkipJsonSchema[None]` for mypy
+        if col.startswith("extra_") or col == "groupby_col":
+            traj_col = col
+        else:
+            traj_col = f"extra__{col}"
+        if traj_col not in gdf.columns:
+            raise ValueError(f"{col!r} can't key filter overrides: building the trajectory replaces that column.")
+        # Override keys are strings, whatever the column's dtype.
+        key = gdf[traj_col].map(str, na_action="ignore")
+        lookup = {o.key: o.filter.to_traj_seg_filter() for o in trajectory_segment_filter_overrides}
+
+        junk = traj_seg_filter_mask(gdf, default) & ~key.isin(lookup)  # NaN keys fall here
+        for k, f in lookup.items():
+            junk |= traj_seg_filter_mask(gdf, f) & (key == k)
+        gdf.loc[junk, "junk_status"] = True
+    else:
+        traj.apply_traj_filter(default, inplace=True)
+
     traj.remove_filtered(inplace=True)
 
     if traj.gdf.empty:
