@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from dataclasses import dataclass
@@ -13,7 +14,7 @@ from wt_registry import register
 from wt_task import task
 from wt_task.skip import SkippedDependencyFallback
 
-from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, EmptyDataFrame
+from ecoscope.platform.annotations import AdvancedField, AnyDataFrame, AnyGeoDataFrame, EmptyDataFrame
 from ecoscope.platform.connections import EarthRangerClient, EarthRangerSource, as_backends
 from ecoscope.platform.indexes import CompositeFilter
 from ecoscope.platform.jsonschema import labeled_literal_items
@@ -28,6 +29,7 @@ from ecoscope.platform.schemas import (
 )
 from ecoscope.platform.serde import _persist_bytes, _read_path_if_file_exists
 from ecoscope.platform.tasks.filter._filter import TimeRange
+from ecoscope.platform.tasks.io._arcgis import ESRI_EDIT_DATE, ESRI_GLOBALID, ESRI_SOURCE
 from ecoscope.platform.tasks.io._persist import (
     _fallback_to_empty_grouped,
     _hash_grouper_key,
@@ -1363,6 +1365,79 @@ def get_spatial_features_groups(client: EarthRangerSource) -> RegionsGDF | Empty
     if not regions:
         return cast(EmptyDataFrame, pd.DataFrame())
     return cast(RegionsGDF, pd.concat(regions, ignore_index=True))
+
+
+_FEATURE_COLUMNS = [
+    "er_id",
+    "name",
+    "feature_type",
+    ESRI_SOURCE,
+    ESRI_GLOBALID,
+    ESRI_EDIT_DATE,
+    "attributes_json",
+]
+
+
+@register(tags=["io"])
+def get_er_feature_group_features(
+    client: EarthRangerSource,
+    feature_group_name: Annotated[
+        str,
+        Field(
+            title="Feature group",
+            description="The EarthRanger feature group to read. Empty if it doesn't exist.",
+        ),
+    ],
+) -> AnyGeoDataFrame:
+    """Read the features in an EarthRanger feature group (empty if the group doesn't exist).
+
+    Returns ``er_id``, ``name``, ``feature_type``, ``esri_source`` / ``esri_globalid`` /
+    ``esri_edit_date`` (from the feature's attributes; null for features drawn in EarthRanger),
+    ``attributes_json`` and the geometry in EPSG:4326.
+    """
+    import geopandas as gpd
+    from shapely.geometry import shape
+
+    client = as_backends(client)
+    api = client.api
+    matches = [
+        g
+        for g in api.get_feature_groups()
+        if (g.get("name") or "").strip() == feature_group_name.strip()
+    ]
+    if len(matches) > 1:
+        raise ValueError(
+            f"{len(matches)} EarthRanger feature groups are named {feature_group_name!r}; "
+            "rename one so the sync can tell them apart."
+        )
+    members: list[dict] = []
+    if matches:
+        for collection in api.get_feature_group(matches[0]["id"]).get("features") or []:
+            if isinstance(collection, dict):
+                members.extend(collection.get("features") or [])
+
+    rows, geometries = [], []
+    for member in members:
+        props = member.get("properties") or {}
+        attrs = props.get("attributes") or {}
+        rows.append(
+            {
+                "er_id": str(member.get("id") or props.get("pk")),
+                "name": props.get("name"),
+                "feature_type": props.get("feature_type"),
+                ESRI_SOURCE: attrs.get(ESRI_SOURCE),
+                ESRI_GLOBALID: attrs.get(ESRI_GLOBALID),
+                ESRI_EDIT_DATE: attrs.get(ESRI_EDIT_DATE),
+                "attributes_json": json.dumps(attrs, sort_keys=True, default=str),
+            }
+        )
+        geometries.append(shape(member["geometry"]) if member.get("geometry") else None)
+    return cast(
+        AnyGeoDataFrame,
+        gpd.GeoDataFrame(
+            rows, columns=_FEATURE_COLUMNS, geometry=geometries, crs="EPSG:4326"
+        ),
+    )
 
 
 @register(tags=["io"])
