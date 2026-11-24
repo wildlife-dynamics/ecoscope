@@ -1400,11 +1400,7 @@ def get_er_feature_group_features(
 
     client = as_backends(client)
     api = client.api
-    matches = [
-        g
-        for g in api.get_feature_groups()
-        if (g.get("name") or "").strip() == feature_group_name.strip()
-    ]
+    matches = [g for g in api.get_feature_groups() if (g.get("name") or "").strip() == feature_group_name.strip()]
     if len(matches) > 1:
         raise ValueError(
             f"{len(matches)} EarthRanger feature groups are named {feature_group_name!r}; "
@@ -1434,9 +1430,7 @@ def get_er_feature_group_features(
         geometries.append(shape(member["geometry"]) if member.get("geometry") else None)
     return cast(
         AnyGeoDataFrame,
-        gpd.GeoDataFrame(
-            rows, columns=_FEATURE_COLUMNS, geometry=geometries, crs="EPSG:4326"
-        ),
+        gpd.GeoDataFrame(rows, columns=_FEATURE_COLUMNS, geometry=geometries, crs="EPSG:4326"),
     )
 
 

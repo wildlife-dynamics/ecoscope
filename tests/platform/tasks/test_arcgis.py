@@ -226,7 +226,10 @@ def test_frame_carries_display_field() -> None:
 
 
 def test_display_field_reserved_name_clash() -> None:
-    info = {**LAYER_INFO, "fields": [*LAYER_INFO["fields"], {"name": "esri_display_field", "type": "esriFieldTypeString"}]}
+    info = {
+        **LAYER_INFO,
+        "fields": [*LAYER_INFO["fields"], {"name": "esri_display_field", "type": "esriFieldTypeString"}],
+    }
 
     with pytest.raises(ValueError, match="reserves"):
         features_to_frame(_features(), info, "arcgis:abc123/0", False)

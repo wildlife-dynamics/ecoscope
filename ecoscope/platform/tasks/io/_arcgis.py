@@ -52,9 +52,7 @@ def normalise_layer_url(layer_url: str) -> str:
         raise ValueError(f"Not a URL: {layer_url!r}")
     path = parts.path.rstrip("/")
     if not _LAYER_URL.search(path):
-        raise ValueError(
-            f"Expected a feature layer URL ending in /FeatureServer/<layer number>, got {layer_url!r}"
-        )
+        raise ValueError(f"Expected a feature layer URL ending in /FeatureServer/<layer number>, got {layer_url!r}")
     return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
 
 
@@ -115,7 +113,9 @@ class ReadOnlyArcGIS:
         return self._get(self.layer_url, {"f": "json"})
 
     def count(self, where: str) -> int:
-        return int(self._get(self.layer_url + "/query", {"where": where, "returnCountOnly": "true", "f": "json"})["count"])
+        return int(
+            self._get(self.layer_url + "/query", {"where": where, "returnCountOnly": "true", "f": "json"})["count"]
+        )
 
     def query_page(self, where: str, order_by: str, offset: int, page_size: int) -> dict[str, Any]:
         return self._get(
@@ -204,7 +204,9 @@ def features_to_frame(
         raise ValueError(f"{int(missing.sum())} ArcGIS feature(s) have no GlobalID; refusing to sync.")
     duplicated = frame[ESRI_GLOBALID].duplicated(keep=False)
     if duplicated.any():
-        raise ValueError(f"Duplicate GlobalIDs in the ArcGIS layer: {sorted(set(frame.loc[duplicated, ESRI_GLOBALID]))[:5]}")
+        raise ValueError(
+            f"Duplicate GlobalIDs in the ArcGIS layer: {sorted(set(frame.loc[duplicated, ESRI_GLOBALID]))[:5]}"
+        )
     return cast(AnyGeoDataFrame, frame)
 
 
@@ -279,4 +281,3 @@ def fetch_arcgis_features(
             f"ArcGIS reported {expected} features but returned {len(features)}; refusing to sync a partial layer."
         )
     return features_to_frame(features, info, source_id, filtered=where != ALL_FEATURES)
-

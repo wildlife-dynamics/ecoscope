@@ -8,9 +8,7 @@ from ecoscope.platform.connections import EarthRangerBackends
 from ecoscope.platform.tasks.io import get_er_feature_group_features
 
 
-def _member(
-    er_id: str, name: str, attrs: dict[str, Any], i: int, geom: Any = None
-) -> dict[str, Any]:
+def _member(er_id: str, name: str, attrs: dict[str, Any], i: int, geom: Any = None) -> dict[str, Any]:
     geom = geom or MultiPolygon([Polygon([(i, 0), (i + 1, 0), (i + 1, 1), (i, 1)])])
     return {
         "type": "Feature",
@@ -34,26 +32,19 @@ class FakeAPI:
 
     def get_feature_groups(self) -> list[dict[str, Any]]:
         self.calls.append(("get_feature_groups",))
-        return [
-            {"id": k, "name": g["name"], "feature_count": len(g["members"])}
-            for k, g in self.groups.items()
-        ]
+        return [{"id": k, "name": g["name"], "feature_count": len(g["members"])} for k, g in self.groups.items()]
 
     def get_feature_group(self, group_id: str) -> dict[str, Any]:
         self.calls.append(("get_feature_group", group_id))
         members = self.groups[group_id]["members"]
         return {
             "id": group_id,
-            "features": [{"type": "FeatureCollection", "features": members}]
-            if members
-            else [],
+            "features": [{"type": "FeatureCollection", "features": members}] if members else [],
         }
 
 
 def _read(api: FakeAPI, name: str):
-    return get_er_feature_group_features(
-        EarthRangerBackends(api=api, warehouse=None), name
-    )  # type: ignore[arg-type]
+    return get_er_feature_group_features(EarthRangerBackends(api=api, warehouse=None), name)  # type: ignore[arg-type]
 
 
 def _synced(letter: str, i: int, er_id: str) -> dict[str, Any]:
@@ -71,8 +62,15 @@ def test_missing_group_returns_empty_with_columns() -> None:
 
     assert len(out) == 0
     assert list(out.columns) == [
-        "er_id", "name", "feature_type", "esri_source", "esri_globalid", "esri_edit_date", "attributes_json", "geometry",
-    ]  # fmt: skip
+        "er_id",
+        "name",
+        "feature_type",
+        "esri_source",
+        "esri_globalid",
+        "esri_edit_date",
+        "attributes_json",
+        "geometry",
+    ]
 
 
 def test_reads_members_and_sync_stamps() -> None:
@@ -117,11 +115,7 @@ def test_reads_only_target_group() -> None:
 
 
 def test_duplicate_group_names_raise() -> None:
-    api = FakeAPI(
-        {"g1": {"name": "Dup", "members": []}, "g2": {"name": "Dup", "members": []}}
-    )
+    api = FakeAPI({"g1": {"name": "Dup", "members": []}, "g2": {"name": "Dup", "members": []}})
 
-    with pytest.raises(
-        ValueError, match="2 EarthRanger feature groups are named 'Dup'"
-    ):
+    with pytest.raises(ValueError, match="2 EarthRanger feature groups are named 'Dup'"):
         _read(api, "Dup")
