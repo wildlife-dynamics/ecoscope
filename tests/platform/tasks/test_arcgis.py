@@ -282,3 +282,54 @@ def test_messages_say_arcgis() -> None:
     lines = [line for line in source.splitlines() if not line.lstrip().startswith("#")]
 
     assert [line for line in lines if re.search(r"\bEsri\b", line)] == []
+
+
+@pytest.mark.parametrize(
+    "url", ["services.example.com/ORG/FeatureServer/0", "ftp://services.example.com/FeatureServer/0"]
+)
+def test_rejects_non_http_urls(url: str) -> None:
+    with pytest.raises(ValueError, match="Not a URL"):
+        _arcgis.normalise_layer_url(url)
+
+
+def test_default_session_is_requests() -> None:
+    assert isinstance(_arcgis._new_session(), requests.Session)
+
+
+def test_other_arcgis_errors_are_not_auth_errors() -> None:
+    body = {"error": {"code": 500, "message": "Unable to complete operation.", "details": ["Bad layer"]}}
+    client = ReadOnlyArcGIS(LAYER, session=_RaisingSession(response=FakeResponse(body)))
+    client._token = "t0k3n"
+
+    with pytest.raises(RuntimeError, match=r"ArcGIS returned an error \(500\): Unable to complete") as exc_info:
+        client.layer_info()
+    assert not isinstance(exc_info.value, ArcGISAuthError)
+    assert "t0k3n" not in str(exc_info.value)
+
+
+def test_token_response_without_a_token_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(_arcgis, "_new_session", lambda: FakeSession(token_body={"expires": 0}))
+
+    with pytest.raises(ArcGISAuthError, match="did not return a token"):
+        _fetch()
+
+
+def test_source_id_falls_back_to_the_layer_url() -> None:
+    assert _arcgis.esri_source_id(LAYER + "/?f=json", {}) == "arcgis:" + LAYER.lower()
+
+
+@pytest.mark.parametrize("missing", [None, float("nan")])
+def test_features_without_a_globalid_are_refused(missing: Any) -> None:
+    features = _features()
+    features[2]["properties"]["GlobalID"] = missing
+
+    with pytest.raises(ValueError, match="1 ArcGIS feature\\(s\\) have no GlobalID"):
+        features_to_frame(features, LAYER_INFO, "arcgis:abc123/0", False)
+
+
+def test_duplicate_globalids_are_refused() -> None:
+    features = _features()
+    features[1]["properties"]["GlobalID"] = features[0]["properties"]["GlobalID"]
+
+    with pytest.raises(ValueError, match="Duplicate GlobalIDs.*aaaaaaaa-0000-4000-8000-000000000001"):
+        features_to_frame(features, LAYER_INFO, "arcgis:abc123/0", False)
