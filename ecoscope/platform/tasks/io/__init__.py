@@ -1,3 +1,11 @@
+from ._arcgis import (
+    ESRI_DISPLAY_FIELD,
+    ESRI_EDIT_DATE,
+    ESRI_FILTERED,
+    ESRI_GLOBALID,
+    ESRI_SOURCE,
+    fetch_arcgis_features,
+)
 from ._downloader import download_roi
 from ._earthengine import calculate_ndvi_range, determine_season_windows
 from ._earthranger import (
@@ -57,6 +65,11 @@ from ._spatial_features import (
 )
 
 __all__ = [
+    "ESRI_DISPLAY_FIELD",
+    "ESRI_EDIT_DATE",
+    "ESRI_FILTERED",
+    "ESRI_GLOBALID",
+    "ESRI_SOURCE",
     "EarthRangerSpatialFeatures",
     "LocalFileSpatialFeatures",
     "RemoteFileSpatialFeatures",
@@ -68,6 +81,7 @@ __all__ = [
     "determine_season_windows",
     "download_grouped_event_attachments",
     "download_roi",
+    "fetch_arcgis_features",
     "get_analysis_field_from_event_details",
     "get_analysis_field_label_from_event_details",
     "get_analysis_field_unit_from_event_details",
