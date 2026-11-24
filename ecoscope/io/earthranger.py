@@ -28,7 +28,7 @@ from ecoscope.io.earthranger_utils import (
 from ecoscope.io.utils import clean_time_cols
 from ecoscope.relocations import Relocations
 
-# Relative to service_root (.../api/v1.0); `_post`/`_patch`/`_delete` always prefix it, so this reaches /api/v2.0
+# Relative to service_root (.../api/v1.0); `_get`/`_post`/`_patch`/`_delete` always prefix it, so this reaches /api/v2.0
 # without swapping service_root on a client shared between threads.
 _V2 = "../v2.0/"
 

@@ -20,6 +20,7 @@ def _io():
         ("POST", "../v2.0/features/", "https://x.pamdas.org/api/v2.0/features/"),
         ("PATCH", "../v2.0/feature/abc/", "https://x.pamdas.org/api/v2.0/feature/abc/"),
         ("DELETE", "../v2.0/feature/abc/", "https://x.pamdas.org/api/v2.0/feature/abc/"),
+        ("GET", "../v2.0/feature/abc/", "https://x.pamdas.org/api/v2.0/feature/abc/"),
     ],
 )
 def test_v2_paths_resolve_to_api_v2(method, path, expected):
@@ -37,6 +38,15 @@ def test_create_spatial_feature_posts_v2_body():
         "../v2.0/features/",
         {"name": "AV61", "feature_type": "t1", "feature_geometry": GEOM, "description": "", "attributes": {"a": 1}},
     )
+
+
+def test_get_spatial_feature_uses_v2_feature_path():
+    er = _io()
+    collection = {"features": [{"type": "Feature", "geometry": GEOM, "properties": {"a": 1}}]}
+    with patch.object(EarthRangerIO, "_get", return_value=collection) as get:
+        out = er.get_spatial_feature("x")
+    assert get.call_args.args[0] == "../v2.0/feature/x/"
+    assert len(out) == 1
 
 
 def test_update_and_delete_use_v2_feature_path():
