@@ -155,7 +155,7 @@ def _epoch_ms_to_iso(value: Any) -> str | None:
 
 
 def _empty_frame(attribute_columns: list[str]) -> AnyGeoDataFrame:
-    import geopandas as gpd
+    import geopandas as gpd  # type: ignore[import-untyped]
 
     columns = attribute_columns + [ESRI_SOURCE, ESRI_GLOBALID, ESRI_EDIT_DATE, ESRI_FILTERED, ESRI_DISPLAY_FIELD]
     return cast(AnyGeoDataFrame, gpd.GeoDataFrame(columns=columns, geometry=[], crs="EPSG:4326"))
@@ -165,7 +165,7 @@ def features_to_frame(
     features: list[dict[str, Any]], layer_info: dict[str, Any], source_id: str, filtered: bool
 ) -> AnyGeoDataFrame:
     """GeoJSON features (EPSG:4326) → one row per feature with normalised ``esri_*`` columns."""
-    import geopandas as gpd
+    import geopandas as gpd  # type: ignore[import-untyped]
 
     fields = layer_info.get("fields", [])
     globalid_field = layer_info.get("globalIdField")
