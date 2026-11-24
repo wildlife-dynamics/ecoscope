@@ -28,6 +28,10 @@ from ecoscope.io.earthranger_utils import (
 from ecoscope.io.utils import clean_time_cols
 from ecoscope.relocations import Relocations
 
+# Relative to service_root (.../api/v1.0); `_post`/`_patch`/`_delete` always prefix it, so this reaches /api/v2.0
+# without swapping service_root on a client shared between threads.
+_V2 = "../v2.0/"
+
 EventSortOptions = Literal[
     "event_time",
     "updated_at",
@@ -1358,7 +1362,7 @@ class EarthRangerIO(ERClient):
             spatial_features_group_id is None
         ), "Either spatial_features_group_name or spatial_features_group_id must be provided, not both."
         if spatial_features_group_id is None and spatial_features_group_name is not None:
-            spatial_feature_groups = self._get("spatialfeaturegroup")
+            spatial_feature_groups = self._get("featuregroups")
 
             for sfg in spatial_feature_groups:
                 if spatial_features_group_name == sfg.get("name", None):
@@ -1368,7 +1372,7 @@ class EarthRangerIO(ERClient):
                 raise ERClientNotFound(f"No Spatial Feature Group with name {spatial_features_group_name} found")
 
         params = clean_kwargs(addl_kwargs, spatial_features_group_id=spatial_features_group_id)
-        object = f"spatialfeaturegroup/{spatial_features_group_id}/"
+        object = f"featuregroup/{spatial_features_group_id}/"
         spatial_features_group = self._get(object, **params)
         spatial_features = []
 
@@ -1397,7 +1401,7 @@ class EarthRangerIO(ERClient):
         with a warning, so that one malformed group does not fail the whole listing.
         """
         groups = []
-        for sfg in self._get("spatialfeaturegroup"):
+        for sfg in self._get("featuregroups"):
             if sfg.get("feature_count") == 0:
                 continue
             try:
@@ -1407,6 +1411,23 @@ class EarthRangerIO(ERClient):
                 continue
             groups.append(group)
         return groups
+
+    def get_feature_groups(self) -> list[dict]:
+        """List every feature group (raw API JSON)."""
+        return self._get("featuregroups")
+
+    def get_feature_group(self, group_id: str) -> dict:
+        """Get one feature group; its `features` is a list of GeoJSON FeatureCollections."""
+        return self._get(f"featuregroup/{group_id}/")
+
+    def get_feature_group_member_ids(self, group_id: str) -> list[str]:
+        """Ids of the features in a feature group, flattened across its FeatureCollections."""
+        group = self.get_feature_group(group_id)
+        return [f["id"] for fc in group["features"] for f in fc["features"]]
+
+    def get_feature_types(self) -> list[dict]:
+        """List every feature type (raw API JSON)."""
+        return self._get("featuretypes")
 
     def get_spatial_feature(self, spatial_feature_id: str | None = None, **addl_kwargs) -> gpd.GeoDataFrame:
         """
@@ -1426,13 +1447,48 @@ class EarthRangerIO(ERClient):
 
         params = clean_kwargs(addl_kwargs, spatial_feature_id=spatial_feature_id)
 
-        object = f"spatialfeature/{spatial_feature_id}/"
+        object = f"{_V2}feature/{spatial_feature_id}/"
         spatial_feature = self._get(object, **params)
         return gpd.GeoDataFrame.from_features(spatial_feature["features"])
 
     """
     POST Functions
     """
+
+    def create_feature_group(self, name: str, description: str = "") -> dict:
+        """Create a feature group."""
+        return self._post("featuregroups/", {"name": name, "description": description})
+
+    def set_feature_group_members(self, group_id: str, feature_ids: list[str]) -> dict:
+        """Replace the members of a feature group with `feature_ids`."""
+        return self._patch(f"featuregroup/{group_id}/", {"features": feature_ids})
+
+    def create_feature_type(self, name: str) -> dict:
+        """Create a feature type."""
+        return self._post("featuretypes/", {"name": name})
+
+    def create_spatial_feature(
+        self, name: str, feature_type_id: str, geometry: dict, attributes: dict, description: str = ""
+    ) -> dict:
+        """Create a spatial feature from a GeoJSON geometry dict."""
+        return self._post(
+            f"{_V2}features/",
+            {
+                "name": name,
+                "feature_type": feature_type_id,
+                "feature_geometry": geometry,
+                "description": description,
+                "attributes": attributes,
+            },
+        )
+
+    def update_spatial_feature(self, feature_id: str, **fields) -> dict:
+        """Patch a spatial feature with `fields` (e.g. name, feature_geometry, attributes)."""
+        return self._patch(f"{_V2}feature/{feature_id}/", fields)
+
+    def delete_spatial_feature(self, feature_id: str) -> None:
+        """Delete a spatial feature."""
+        self._delete(f"{_V2}feature/{feature_id}/")
 
     def post_source(
         self,
