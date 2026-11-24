@@ -110,9 +110,15 @@ _EVENT_FIELDS: list[tuple[str, pa.DataType]] = [
     ("geometry", _geometry()),
 ]
 
+# The type of a table with no registered schema, such as one a data set's processing
+# steps aggregated. Any frame can be written as one, and a reader asking for one is
+# given a table of any type.
+GENERIC_TABLE_TYPE = "table"
+
 TABLE_TYPES: dict[str, TableType] = {
     t.name: t
     for t in [
+        _table_type(GENERIC_TABLE_TYPE, [], spatial=False),
         _table_type(
             "patrol_tracks",
             [
@@ -270,8 +276,20 @@ def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.T
     return table
 
 
+def _has_geometry(table: pa.Table) -> bool:
+    return any(
+        isinstance(field.type, pa.ExtensionType) and field.type.extension_name.startswith("geoarrow.")
+        for field in table.schema
+    )
+
+
 def table_to_frame(table: pa.Table, table_type: str) -> pd.DataFrame | gpd.GeoDataFrame:
-    df = gpd.GeoDataFrame.from_arrow(table) if TABLE_TYPES[table_type].spatial else table.to_pandas()
+    """The frame of a table: a GeoDataFrame for a spatial type, otherwise a DataFrame.
+
+    A generic table is spatial when it has a geometry column.
+    """
+    spatial = _has_geometry(table) if table_type == GENERIC_TABLE_TYPE else TABLE_TYPES[table_type].spatial
+    df = gpd.GeoDataFrame.from_arrow(table) if spatial else table.to_pandas()
     if (raw := (table.schema.metadata or {}).get(TREE_COLUMNS_KEY)) is not None:
         for name in json.loads(raw):
             df[name] = object_series([decode_cell(v) for v in df[name]], df.index)

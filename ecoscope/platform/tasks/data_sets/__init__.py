@@ -1,5 +1,13 @@
 from ._gather import gather_data_sets
 from ._read import read_data_set_manifest, read_data_set_table
 from ._select import select_spatial_features_group
+from ._steps import apply_processing_steps, processing_step_schemas
 
-__all__ = ["gather_data_sets", "read_data_set_manifest", "read_data_set_table", "select_spatial_features_group"]
+__all__ = [
+    "apply_processing_steps",
+    "gather_data_sets",
+    "processing_step_schemas",
+    "read_data_set_manifest",
+    "read_data_set_table",
+    "select_spatial_features_group",
+]
