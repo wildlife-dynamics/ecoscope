@@ -268,15 +268,11 @@ def test_display_field_reserved_name_clash() -> None:
         features_to_frame(_features(), info, "arcgis:abc123/0", False)
 
 
-def test_password_help_text() -> None:
-    field = fetch_arcgis_features.model_fields["password"] if hasattr(fetch_arcgis_features, "model_fields") else None
-    description = (
-        field.description
-        if field is not None
-        else inspect.signature(fetch_arcgis_features).parameters["password"].annotation.__metadata__[0].description
-    )
+def test_password_has_no_help_text() -> None:
+    field = inspect.signature(fetch_arcgis_features).parameters["password"].annotation.__metadata__[0]
 
-    assert description == "Stored with this setup on the platform. A Viewer account is enough."
+    assert field.title == "ArcGIS password"
+    assert field.description is None
 
 
 def test_messages_say_arcgis() -> None:

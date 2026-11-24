@@ -237,7 +237,6 @@ def fetch_arcgis_features(
         SecretStr,
         Field(
             title="ArcGIS password",
-            description="Stored with this setup on the platform. A Viewer account is enough.",
         ),
     ],
     portal_url: Annotated[
