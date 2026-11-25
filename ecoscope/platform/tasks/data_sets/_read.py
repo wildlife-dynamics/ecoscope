@@ -6,6 +6,7 @@ from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrameOrEmpty, AnyGeoDataFrameOrEmpty
 from ecoscope.platform.data_sets import (
+    GENERIC_TABLE_TYPE,
     MANIFEST_FILENAME,
     DataSetManifest,
     DataSetSchemaError,
@@ -64,13 +65,17 @@ def read_data_set_table(
     table's id is the binding's name. The binding is named after the table type unless
     a workflow reads two tables of one type and names them apart.
 
+    A step asking for the generic type `table` is given the bound table whatever its
+    type, checked against the type its manifest names.
+
     Args:
         data_set_roots: JSON map of binding names to bound tables.
-        table_type: The type the bound table must have.
+        table_type: The type the bound table must have; `table` accepts any.
         binding: The binding's name in the map. Defaults to `table_type`.
 
     Returns:
-        A GeoDataFrame for spatial table types, otherwise a DataFrame.
+        A GeoDataFrame for spatial table types and for a generic table with a
+        geometry column, otherwise a DataFrame.
     """
     try:
         roots = json.loads(data_set_roots)
@@ -96,10 +101,10 @@ def read_data_set_table(
             f"available: {', '.join(sorted(manifest.tables))}"
         )
     entry = manifest.tables[table_id]
-    if entry.table_type != table_type:
+    if table_type != GENERIC_TABLE_TYPE and entry.table_type != table_type:
         raise DataSetSchemaError(
             f"{name}: expected a {table_type} table, but {table_id!r} in the data set at {root!r} "
             f"is a {entry.table_type} table"
         )
-    table = read_table(root, table_type, entry.schema_version, entry.path)
-    return table_to_frame(table, table_type)  # type: ignore[return-value]
+    table = read_table(root, entry.table_type, entry.schema_version, entry.path)
+    return table_to_frame(table, entry.table_type)  # type: ignore[return-value]
