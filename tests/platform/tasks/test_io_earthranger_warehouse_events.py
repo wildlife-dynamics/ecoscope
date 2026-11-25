@@ -673,6 +673,35 @@ def test_warehouse_patrols_table_null_team_struct_is_none():
     assert legs["patrol_team"].isna().all()
 
 
+def test_warehouse_patrols_events_drop_wkb_geometry():
+    """Nested events' raw WKB `geometry` is dropped once `geojson` is built, as the ER API
+    serves no such field; the frame must stay encodable by the step cache."""
+    from shapely.geometry import Point
+
+    from ecoscope.io.earthranger_utils import unpack_events_from_patrols_df, warehouse_patrols_table_to_patrols_df
+    from ecoscope.platform.codecs import encode_dataframe
+
+    patrols_df = warehouse_patrols_table_to_patrols_df(
+        _make_nested_patrols_arrow_table(event_times=("2015-02-01", "2015-02-01T01:00:00"))
+    )
+    encode_dataframe(patrols_df)
+
+    event = patrols_df["patrol_segments"].iloc[0][0]["events"][0]
+    assert "geometry" not in event
+    assert event["geojson"] == {
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": (36.8, -1.3)},
+        "properties": {"datetime": "2015-02-01T00:00:00+00:00"},
+    }
+
+    events = unpack_events_from_patrols_df(patrols_df)
+    assert events.geometry.tolist() == [Point(36.8, -1.3), Point(37.8, -1.3)]
+    assert events["time"].tolist() == [
+        pd.Timestamp("2015-02-01", tz="UTC"),
+        pd.Timestamp("2015-02-01T01:00:00", tz="UTC"),
+    ]
+
+
 @requires_dwh_events
 def test_get_patrols_via_warehouse_client_empty():
     mock_legacy_client = _source()
