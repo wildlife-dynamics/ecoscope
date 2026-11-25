@@ -1,6 +1,7 @@
 import datetime
 import json
 import math
+import threading
 import typing
 import warnings
 from contextlib import contextmanager
@@ -28,10 +29,6 @@ from ecoscope.io.earthranger_utils import (
 from ecoscope.io.utils import clean_time_cols
 from ecoscope.relocations import Relocations
 
-# Relative to service_root (.../api/v1.0); `_get`/`_post`/`_patch`/`_delete` always prefix it, so this reaches /api/v2.0
-# without swapping service_root on a client shared between threads.
-_V2 = "../v2.0/"
-
 EventSortOptions = Literal[
     "event_time",
     "updated_at",
@@ -51,6 +48,8 @@ SAFE_QUERY_PARAM_LIST_SIZE = 50
 
 
 class EarthRangerIO(ERClient):
+    _v2_scope = threading.local()  # per thread: ids of the clients inside `_use_v2_api`
+
     def __init__(self, sub_page_size: int = 4000, tcp_limit: int = 5, **kwargs):
         if "server" in kwargs:
             self.server = kwargs.pop("server")
@@ -89,14 +88,22 @@ class EarthRangerIO(ERClient):
     @contextmanager
     def _use_v2_api(self):
         """
-        Context manager to safely handle switching the internal client
-        service root to the v2 api base where required, and then switch back to v1
+        Send this thread's requests through this client to the v2 api.
+
+        Other threads sharing the client stay on v1: the switch is per thread and
+        `service_root` is never changed.
         """
-        self.service_root = f"{self.server}/api/v2.0"
+        previous = getattr(self._v2_scope, "ids", frozenset())
+        self._v2_scope.ids = previous | {id(self)}
         try:
             yield
         finally:
-            self.service_root = f"{self.server}/api/v1.0"
+            self._v2_scope.ids = previous
+
+    def _er_url(self, path):
+        if id(self) in getattr(self._v2_scope, "ids", ()):
+            return f"{self.server}/api/v2.0/{path}"
+        return super()._er_url(path)
 
     """
     GET Functions
@@ -1447,8 +1454,8 @@ class EarthRangerIO(ERClient):
 
         params = clean_kwargs(addl_kwargs, spatial_feature_id=spatial_feature_id)
 
-        object = f"{_V2}feature/{spatial_feature_id}/"
-        spatial_feature = self._get(object, **params)
+        with self._use_v2_api():
+            spatial_feature = self._get(f"feature/{spatial_feature_id}/", **params)
         return gpd.GeoDataFrame.from_features(spatial_feature["features"])
 
     """
@@ -1471,24 +1478,27 @@ class EarthRangerIO(ERClient):
         self, name: str, feature_type_id: str, geometry: dict, attributes: dict, description: str = ""
     ) -> dict:
         """Create a spatial feature from a GeoJSON geometry dict."""
-        return self._post(
-            f"{_V2}features/",
-            {
-                "name": name,
-                "feature_type": feature_type_id,
-                "feature_geometry": geometry,
-                "description": description,
-                "attributes": attributes,
-            },
-        )
+        with self._use_v2_api():
+            return self._post(
+                "features/",
+                {
+                    "name": name,
+                    "feature_type": feature_type_id,
+                    "feature_geometry": geometry,
+                    "description": description,
+                    "attributes": attributes,
+                },
+            )
 
     def update_spatial_feature(self, feature_id: str, **fields) -> dict:
         """Patch a spatial feature with `fields` (e.g. name, feature_geometry, attributes)."""
-        return self._patch(f"{_V2}feature/{feature_id}/", fields)
+        with self._use_v2_api():
+            return self._patch(f"feature/{feature_id}/", fields)
 
     def delete_spatial_feature(self, feature_id: str) -> None:
         """Delete a spatial feature."""
-        self._delete(f"{_V2}feature/{feature_id}/")
+        with self._use_v2_api():
+            self._delete(f"feature/{feature_id}/")
 
     def post_source(
         self,
