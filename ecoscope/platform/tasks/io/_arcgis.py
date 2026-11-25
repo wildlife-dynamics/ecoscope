@@ -232,6 +232,8 @@ def fetch_arcgis_features(
             description="The layer's REST URL, ending in /FeatureServer/<layer number>.",
         ),
     ],
+    # Temporary: task-level credentials so this can run on Desktop.
+    # Replace with an ArcGIS data source (wildlife-dynamics/compose#3735).
     username: Annotated[str, Field(title="ArcGIS username")],
     password: Annotated[
         SecretStr,
