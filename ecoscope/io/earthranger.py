@@ -88,10 +88,11 @@ class EarthRangerIO(ERClient):
     @contextmanager
     def _use_v2_api(self):
         """
-        Send this thread's requests through this client to the v2 api.
+        Context manager to safely send this client's requests to the v2 api where required,
+        and then switch back to v1.
 
-        Other threads sharing the client stay on v1: the switch is per thread and
-        `service_root` is never changed.
+        The switch applies only to the current thread, so other threads sharing the client
+        stay on v1, and `service_root` is never changed.
         """
         previous = getattr(self._v2_scope, "ids", frozenset())
         self._v2_scope.ids = previous | {id(self)}
