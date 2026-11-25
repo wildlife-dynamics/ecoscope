@@ -170,7 +170,17 @@ def test_without_group_time_orders_by_first_event():
 
 
 def test_empty_dataframe():
-    assert "No incidents" in draw_incident_storyboard(pd.DataFrame(columns=["incident", "time"]))
+    html = draw_incident_storyboard(pd.DataFrame(columns=["incident", "time"]))
+    assert "No incidents" in html
+    assert "class='snap'" not in html  # nothing to download
+
+
+def test_png_download_button():
+    html = draw_incident_storyboard(_df([("#1 A", "2025-01-01T00:00:00Z", "Snare", 1)]))
+
+    assert html.count("<button class='snap'") == 1
+    assert "a.download = 'incident-storyboard.png'" in html
+    assert html.index("<script>") > html.index("class='row'")  # after the rows it measures
 
 
 def test_widget_id():
@@ -199,7 +209,7 @@ def test_icon_values_cannot_break_out_of_css():
         )
     )
 
-    assert "<script>" not in html
+    assert "alert(1)" not in html
     assert "javascript:" not in html
     assert "url('https://er.example/it%27s%20%281%29.svg')" in html
 
