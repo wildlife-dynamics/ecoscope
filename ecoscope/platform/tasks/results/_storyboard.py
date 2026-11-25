@@ -322,6 +322,9 @@ def draw_incident_storyboard(
     if "id" in df.columns:
         df = df.drop_duplicates([group_column, "id"])
     df["sb_time"] = pd.to_datetime(df[time_column], utc=True, format="ISO8601")
+    tz = getattr(df[time_column].dtype, "tz", None)
+    if tz is not None:  # show times in the column's own timezone (e.g. from convert_values_to_timezone), not UTC
+        df["sb_time"] = df["sb_time"].dt.tz_convert(tz)
     df = df[df["sb_time"].notna()]  # an event without a time can't be placed on the board
     if df.empty:
         return _empty()
