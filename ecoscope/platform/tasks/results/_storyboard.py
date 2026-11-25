@@ -81,8 +81,48 @@ STORYBOARD_CSS = (
               background: var(--card); border: 1px solid #e1e6ed; border-radius: 999px; padding: 0 6px;
               white-space: nowrap; }
 .ic { display: inline-block; background-position: center; background-size: contain; background-repeat: no-repeat; }
+.snap { position: fixed; top: 6px; right: 8px; z-index: 10; width: 30px; height: 30px; padding: 0; cursor: pointer;
+        border: 1px solid #e1e6ed; border-radius: 6px; background: #fff; color: #4a5560; opacity: 0;
+        transition: opacity .15s; display: flex; align-items: center; justify-content: center; }
+body:hover .snap, .snap:focus-visible { opacity: 1; }
+.snap:hover { color: var(--ink); background: #f3f5f8; }
 """
 )
+
+# A camera button, shown on hover like Plotly's, that saves the whole storyboard (every row, full width,
+# not just what's scrolled into view) as a PNG: the page is drawn into an SVG <foreignObject>, painted on a
+# canvas and saved. No libraries, no network.
+SNAPSHOT_HTML = """<button class='snap' type='button' title='Download as PNG' aria-label='Download storyboard as PNG'>
+<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' aria-hidden='true'>
+<path d='M3 8h4l2-3h6l2 3h4v12H3z'/><circle cx='12' cy='13.5' r='3.5'/></svg></button>
+<script>
+document.querySelector('.snap').addEventListener('click', () => {
+  const body = document.body;
+  const boards = [...document.querySelectorAll('.scroll')].map(s => s.offsetLeft + s.scrollWidth);
+  const w = Math.max(body.scrollWidth, ...boards) + 16;
+  const h = body.scrollHeight + 16;
+  const doc = document.documentElement.cloneNode(true);
+  doc.querySelectorAll('.snap, script').forEach(n => n.remove());
+  doc.querySelector('head').insertAdjacentHTML('beforeend', '<style>html,body{height:auto!important;'
+    + 'overflow:visible!important;background:#fff!important}.scroll{overflow:visible!important}</style>');
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>`
+    + `<foreignObject width='100%' height='100%'>${new XMLSerializer().serializeToString(doc)}</foreignObject></svg>`;
+  // 4x for print quality, scaled down to stay under Safari's ~16.7M-pixel canvas limit
+  const scale = Math.min(4, Math.sqrt(16e6 / (w * h))), img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = w * scale; c.height = h * scale;
+    const ctx = c.getContext('2d');
+    ctx.scale(scale, scale); ctx.drawImage(img, 0, 0);
+    c.toBlob(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b); a.download = 'incident-storyboard.png'; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }, 'image/png');
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+});
+</script>"""
 
 
 def _page(css: str, body: str) -> str:
@@ -317,4 +357,4 @@ def draw_incident_storyboard(
     body = "".join(rows)
     if widget_id:
         body = f"<div id='{html.escape(widget_id)}'>{body}</div>"
-    return _page(STORYBOARD_CSS + icon_css, body)
+    return _page(STORYBOARD_CSS + icon_css, body + SNAPSHOT_HTML)
