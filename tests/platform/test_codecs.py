@@ -12,6 +12,7 @@ every round-trip below would still pass while nothing cached.
 import datetime
 import importlib
 import json
+import os
 import pkgutil
 import zoneinfo
 from typing import Any
@@ -497,6 +498,10 @@ STRICT_FRAMES = {
     "range columns": pd.DataFrame([[1, 2]]),
     "no columns": pd.DataFrame(),
     "duplicate labels": pd.DataFrame([[1, 2]], columns=["a", "a"]),
+    "bool labels": pd.DataFrame([[1, 2]], columns=[True, False]),
+    "mixed labels": pd.DataFrame([[1, 2]], columns=pd.Index([0, "a"], dtype=object)),
+    "tuple labels": pd.DataFrame([[1, 2]], columns=pd.Index([("a", 1), ("b", 2)], tupleize_cols=False)),
+    "multiindex labels with ints": pd.DataFrame([[1, 2]], columns=pd.MultiIndex.from_tuples([("a", 1), ("a", 2)])),
     "duplicate multiindex labels": pd.DataFrame(
         [[1, 2]], columns=pd.MultiIndex.from_tuples([("a", "x"), ("a", "x")], names=["l", "m"])
     ),
@@ -508,6 +513,7 @@ STRICT_FRAMES = {
     "timedelta64[s]": pd.DataFrame({"a": pd.to_timedelta([1, None], unit="h").astype("timedelta64[s]")}),
     "string[pyarrow]": pd.DataFrame({"a": pd.Series(["x", None], dtype="string[pyarrow]")}),
     "sparse": pd.DataFrame({"a": pd.arrays.SparseArray([0, 0, 1])}),
+    "sparse complex": pd.DataFrame({"a": pd.arrays.SparseArray([0j, 0j, 1 + 1j])}),
     "complex": pd.DataFrame({"a": np.array([1 + 2j, np.nan], dtype="complex128")}),
     "categorical, int categories": pd.DataFrame({"a": pd.Categorical([1, 2, 1])}),
     "categorical, ordered, unused category": pd.DataFrame(
@@ -544,7 +550,16 @@ STRICT_FRAMES = {
         {"a": [1, 2, 3]}, geometry=_P, crs=4326, index=pd.CategoricalIndex([1.5, 2.5, 1.5])
     ),
     "geo without geometry": gpd.GeoDataFrame({"a": [1, 2]}),
+    "geo, attrs": _with_attrs(
+        gpd.GeoDataFrame({"a": [1, 2, 3]}, geometry=_P, crs=4326), {"grouper": {"index_name": "month"}}
+    ),
+    "geo, int labels": gpd.GeoDataFrame({0: [1, 2, 3], "pt": _P}, geometry="pt", crs=4326),
+    "geo, duplicate labels": gpd.GeoDataFrame(
+        pd.DataFrame([[1, 2, _P[0]]], columns=["a", "a", "geometry"]), geometry="geometry", crs=4326
+    ),
+    "attrs JSON cannot hold": _with_attrs(pd.DataFrame({"a": [1]}), {"since": datetime.date(2024, 1, 1), 1: (2, 3)}),
     "plain frame holding geometry": pd.DataFrame({"g": gpd.GeoSeries(_P, crs=4326)}),
+    "plain frame holding geometry, attrs": _with_attrs(pd.DataFrame({"g": gpd.GeoSeries(_P, crs=4326)}), {"k": 1}),
 }
 
 
@@ -571,7 +586,45 @@ def test_roundtrip_is_exact(df):
         check_flags=True,
     )
     assert out.attrs == df.attrs
+    if isinstance(df, gpd.GeoDataFrame):
+        assert out._geometry_column_name == df._geometry_column_name
     assert digest_dataframe(out) == digest_dataframe(df)
+
+
+def test_a_time_cell_with_a_zone_is_declined_outside_strict_too(monkeypatch):
+    monkeypatch.setenv("WT_CACHE__STRICT", "false")
+    with pytest.raises(Undigestible):
+        FRAME.encode(pd.DataFrame({"a": [datetime.time(1, tzinfo=datetime.timezone.utc)]}))
+
+
+def test_a_set_cell_digests_alike_in_every_process():
+    """Iteration order follows `PYTHONHASHSEED`, so a digest of it would never hit in another process."""
+    import subprocess
+    import sys
+
+    script = (
+        "import pandas as pd; from ecoscope.platform.codecs import digest_dataframe; "
+        "print(digest_dataframe(pd.DataFrame({'a': [{'apple', 'banana', 'cherry'}, {'d': frozenset('xyz')}]})))"
+    )
+    digests = {
+        subprocess.run(
+            [sys.executable, "-c", script],
+            env={**os.environ, "PYTHONHASHSEED": seed},
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        for seed in ("1", "2", "3")
+    }
+    assert len(digests) == 1
+
+
+def test_array_cells_differing_past_reprs_truncation_digest_apart():
+    a = np.zeros(2000)
+    b = a.copy()
+    b[1000] = 1
+    assert digest_dataframe(pd.DataFrame({"a": [a]})) != digest_dataframe(pd.DataFrame({"a": [b]}))
+    assert digest_dataframe(pd.DataFrame({"a": [[a]]})) != digest_dataframe(pd.DataFrame({"a": [[b]]}))
 
 
 @pytest.mark.parametrize(
