@@ -10,6 +10,7 @@ every round-trip below would still pass while nothing cached.
 """
 
 import datetime
+import enum
 import importlib
 import json
 import os
@@ -27,7 +28,7 @@ import pytest
 import pytz
 from pandas.testing import assert_frame_equal
 from pydantic import BaseModel
-from shapely.geometry import Point
+from shapely.geometry import LineString, Point
 from wt_contracts import Cacheable, ModelDumpCacheable, declared_structure
 from wt_task.cache import Tree, Undigestible, resolve_structure
 from wt_task.skip import SKIP_SENTINEL
@@ -541,6 +542,12 @@ STRICT_FRAMES = {
     "NaN inside a list": pd.DataFrame({"a": [[1.0, np.nan], [None]]}),
     "uuids": pd.DataFrame({"a": [__import__("uuid").UUID(int=1), None]}),
     "shapely in an object column": pd.DataFrame({"a": [Point(0, 0), None]}),
+    "numpy datetime and timedelta cells": pd.DataFrame(
+        {
+            "a": pd.Series([np.timedelta64(5, "s"), np.timedelta64("NaT", "s"), np.datetime64(1, "D")], dtype=object),
+            "b": [[np.timedelta64(5, "s")], [np.timedelta64(3)], []],
+        }
+    ),
     # frames
     "flags": pd.DataFrame({"a": [1]}).set_flags(allows_duplicate_labels=False),
     "nested attrs": _with_attrs(pd.DataFrame({"a": [1]}), {"nested": {"k": [1, 2]}}),
@@ -550,6 +557,8 @@ STRICT_FRAMES = {
         {"a": [1, 2, 3]}, geometry=_P, crs=4326, index=pd.CategoricalIndex([1.5, 2.5, 1.5])
     ),
     "geo without geometry": gpd.GeoDataFrame({"a": [1, 2]}),
+    "geo, no active geometry": gpd.GeoDataFrame({"a": [1, 2, 3], "g": gpd.GeoSeries(_P, crs=4326)}),
+    "geo, range labels": gpd.GeoDataFrame(pd.DataFrame([[1, p] for p in _P]), geometry=1, crs=4326),
     "geo, attrs": _with_attrs(
         gpd.GeoDataFrame({"a": [1, 2, 3]}, geometry=_P, crs=4326), {"grouper": {"index_name": "month"}}
     ),
@@ -559,6 +568,15 @@ STRICT_FRAMES = {
     ),
     "attrs JSON cannot hold": _with_attrs(pd.DataFrame({"a": [1]}), {"since": datetime.date(2024, 1, 1), 1: (2, 3)}),
     "plain frame holding geometry": pd.DataFrame({"g": gpd.GeoSeries(_P, crs=4326)}),
+    "plain frame holding geometry, range labels": pd.DataFrame({"g": gpd.GeoSeries(_P, crs=4326)}).set_axis(
+        pd.RangeIndex(1), axis=1
+    ),
+    "Int64 index with a missing value": pd.DataFrame({"x": [1, 2]}, index=pd.Index([1, None], dtype="Int64")),
+    "boolean index": pd.DataFrame({"x": [1, 2]}, index=pd.Index([True, False], dtype="boolean")),
+    "Float64 index": pd.DataFrame({"x": [1, 2]}, index=pd.Index([1.5, None], dtype="Float64")),
+    "multiindex with an Int64 level": pd.DataFrame(
+        {"x": [1]}, index=pd.MultiIndex.from_arrays([pd.array([1], dtype="Int64"), ["a"]])
+    ),
     "plain frame holding geometry, attrs": _with_attrs(pd.DataFrame({"g": gpd.GeoSeries(_P, crs=4326)}), {"k": 1}),
 }
 
@@ -591,10 +609,29 @@ def test_roundtrip_is_exact(df):
     assert digest_dataframe(out) == digest_dataframe(df)
 
 
-def test_a_time_cell_with_a_zone_is_declined_outside_strict_too(monkeypatch):
+class _Str(enum.StrEnum):
+    A = "a"
+
+
+class _Int(enum.IntEnum):
+    X = 1
+
+
+@pytest.mark.parametrize(
+    "df",
+    [
+        pd.DataFrame({"a": [datetime.time(1, tzinfo=datetime.timezone.utc)]}),
+        pd.DataFrame({"a": pd.Series([_Str.A], dtype=object)}),
+        pd.DataFrame({"a": [[_Str.A]]}),
+        pd.DataFrame({"a": [{_Int.X: 1}]}),
+        pd.DataFrame({_Str.A: [1]}),
+    ],
+    ids=["tz-aware time", "enum cell", "enum in a list", "enum dict key", "enum label"],
+)
+def test_what_would_read_back_as_something_else_is_declined_outside_strict_too(df, monkeypatch):
     monkeypatch.setenv("WT_CACHE__STRICT", "false")
     with pytest.raises(Undigestible):
-        FRAME.encode(pd.DataFrame({"a": [datetime.time(1, tzinfo=datetime.timezone.utc)]}))
+        FRAME.encode(df)
 
 
 def test_a_set_cell_digests_alike_in_every_process():
@@ -623,6 +660,13 @@ def test_array_cells_differing_past_reprs_truncation_digest_apart():
     a = np.zeros(2000)
     b = a.copy()
     b[1000] = 1
+    assert digest_dataframe(pd.DataFrame({"a": [a]})) != digest_dataframe(pd.DataFrame({"a": [b]}))
+    assert digest_dataframe(pd.DataFrame({"a": [[a]]})) != digest_dataframe(pd.DataFrame({"a": [[b]]}))
+
+
+def test_geometry_cells_differing_past_reprs_truncation_digest_apart():
+    a = LineString([(i, i) for i in range(30)])
+    b = LineString([(i, i) for i in range(29)] + [(99, 99)])
     assert digest_dataframe(pd.DataFrame({"a": [a]})) != digest_dataframe(pd.DataFrame({"a": [b]}))
     assert digest_dataframe(pd.DataFrame({"a": [[a]]})) != digest_dataframe(pd.DataFrame({"a": [[b]]}))
 
