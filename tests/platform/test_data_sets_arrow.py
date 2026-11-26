@@ -105,8 +105,7 @@ def test_registered_struct_column_stays_a_struct():
 
 def test_frame_to_table_wraps_a_cell_json_cannot_carry(patrol_events_gdf):
     gdf = patrol_events_gdf.copy()
-    # Datetimes ride through the cell codec; a set does not.
-    gdf["details"] = [{"tags": {"a", "b"}}, {}, {}]
+    gdf["details"] = [{"tags": object()}, {}, {}]
     with pytest.raises(DataSetSchemaError, match=r"patrol_events.*details"):
         frame_to_table(gdf, "patrol_events")
 

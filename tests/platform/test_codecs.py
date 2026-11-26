@@ -15,6 +15,7 @@ import json
 import pkgutil
 import zoneinfo
 from typing import Any
+from unittest import mock
 
 import dateutil.tz
 import geopandas as gpd
@@ -455,6 +456,188 @@ def test_roundtrip_of_a_frame_without_geometry_returns_a_plain_dataframe():
     out = roundtrip(FRAME, df)
     assert type(out) is pd.DataFrame
     pd.testing.assert_frame_equal(out, df)
+
+
+# --------------------------------------------------------------------------- #
+# frame round-trips -- strict, across the shapes parquet does not carry as is
+# --------------------------------------------------------------------------- #
+
+_P = [Point(0, 0), Point(1, 1), Point(2, 2)]
+
+
+def _with_attrs(df, attrs):
+    df.attrs = attrs
+    return df
+
+
+STRICT_FRAMES = {
+    # indexes
+    "multiindex": pd.DataFrame({"x": [1, 2]}, index=pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], names=["g", "v"])),
+    "multiindex with int names": pd.DataFrame(
+        {"x": [1, 2]}, index=pd.MultiIndex.from_tuples([("a", 1), ("b", 2)], names=[0, 1])
+    ),
+    "multiindex with categorical level": pd.DataFrame(
+        {"x": [1, 2]}, index=pd.MultiIndex.from_arrays([pd.Categorical([1, 2]), ["a", "b"]], names=["c", "s"])
+    ),
+    "multiindex from groupby": pd.DataFrame({"g": ["a", "a", "b"], "h": [1, 2, 1], "x": [1, 2, 3]})
+    .groupby(["g", "h"])
+    .sum(),
+    "range index, negative step": pd.DataFrame({"x": [1, 2]}, index=pd.RangeIndex(3, 1, -1)),
+    "int index with gaps": pd.DataFrame({"x": [1, 2, 3]}).iloc[[0, 2]],
+    "string-dtype index": pd.DataFrame({"x": [1, 2]}, index=pd.Index(["a", "b"], dtype="string")),
+    "index named 0": pd.DataFrame({"x": [1, 2]}, index=pd.Index(["p", "q"], name=0)),
+    "datetime index with freq": pd.DataFrame(
+        {"x": [1, 2, 3]}, index=pd.date_range("2024-01-01", periods=3, tz="Africa/Nairobi")
+    ),
+    "timedelta index with freq": pd.DataFrame({"x": [1, 2]}, index=pd.timedelta_range("1h", periods=2, freq="h")),
+    "categorical index, int categories": pd.DataFrame({"x": [1, 2]}, index=pd.CategoricalIndex([1, 2], name="k")),
+    "object index mixing types": pd.DataFrame({"x": [1, 2]}, index=pd.Index([1, "a"], dtype=object)),
+    "object index with NaN": pd.DataFrame({"x": [1, 2]}, index=pd.Index(["a", np.nan], dtype=object)),
+    # column labels
+    "range columns": pd.DataFrame([[1, 2]]),
+    "no columns": pd.DataFrame(),
+    "duplicate labels": pd.DataFrame([[1, 2]], columns=["a", "a"]),
+    "duplicate multiindex labels": pd.DataFrame(
+        [[1, 2]], columns=pd.MultiIndex.from_tuples([("a", "x"), ("a", "x")], names=["l", "m"])
+    ),
+    # dtypes
+    "datetime64[s]": pd.DataFrame({"a": pd.to_datetime(["2024-01-01", None]).astype("datetime64[s]")}),
+    "datetime, zoneinfo zone": pd.DataFrame(
+        {"a": pd.date_range("2024-01-01", periods=2, tz=zoneinfo.ZoneInfo("Africa/Nairobi"))}
+    ),
+    "timedelta64[s]": pd.DataFrame({"a": pd.to_timedelta([1, None], unit="h").astype("timedelta64[s]")}),
+    "string[pyarrow]": pd.DataFrame({"a": pd.Series(["x", None], dtype="string[pyarrow]")}),
+    "sparse": pd.DataFrame({"a": pd.arrays.SparseArray([0, 0, 1])}),
+    "complex": pd.DataFrame({"a": np.array([1 + 2j, np.nan], dtype="complex128")}),
+    "categorical, int categories": pd.DataFrame({"a": pd.Categorical([1, 2, 1])}),
+    "categorical, ordered, unused category": pd.DataFrame(
+        {"a": pd.Categorical([3, 1], categories=[3, 2, 1], ordered=True)}
+    ),
+    "categorical, datetime categories": pd.DataFrame(
+        {"a": pd.Categorical(pd.to_datetime(["2024-01-01", "2024-01-02"]))}
+    ),
+    "categorical from pd.cut": pd.DataFrame({"a": pd.cut([1, 5, 9], bins=[0, 3, 6, 10])}),
+    # object columns
+    "object ints": pd.DataFrame({"a": pd.Series([1, 2], dtype=object)}),
+    "object ints with None": pd.DataFrame({"a": pd.Series([1, None], dtype=object)}),
+    "object bools": pd.DataFrame({"a": pd.Series([True, False], dtype=object)}),
+    "object numpy scalars": pd.DataFrame({"a": pd.Series([np.int64(1), np.float32(1.5), np.str_("x")], dtype=object)}),
+    "strings with NaN (left merge)": pd.DataFrame({"k": [1, 2]}).merge(
+        pd.DataFrame({"k": [1], "s": ["x"]}), how="left"
+    ),
+    "strings with pd.NA": pd.DataFrame({"a": pd.Series(["x", pd.NA], dtype=object)}),
+    "NaN beside None": pd.DataFrame({"a": ["x", np.nan, None]}),
+    "all NaN": pd.DataFrame({"a": pd.Series([np.nan, np.nan], dtype=object)}),
+    "decimals": pd.DataFrame({"a": [__import__("decimal").Decimal("1.10"), None]}),
+    "bytes, dates, times mixed": pd.DataFrame({"a": [b"x", datetime.date(2024, 1, 1), datetime.time(1, 2)]}),
+    "sets, frozensets, int-keyed dicts": pd.DataFrame({"a": [{1, 2}, frozenset({3}), {1: "x"}]}),
+    "numpy array cells": pd.DataFrame({"a": [np.array([1, 2]), np.array([[1.5]]), None]}),
+    "NaN inside a list": pd.DataFrame({"a": [[1.0, np.nan], [None]]}),
+    "uuids": pd.DataFrame({"a": [__import__("uuid").UUID(int=1), None]}),
+    "shapely in an object column": pd.DataFrame({"a": [Point(0, 0), None]}),
+    # frames
+    "flags": pd.DataFrame({"a": [1]}).set_flags(allows_duplicate_labels=False),
+    "nested attrs": _with_attrs(pd.DataFrame({"a": [1]}), {"nested": {"k": [1, 2]}}),
+    "geo, tree column": gpd.GeoDataFrame({"d": [{"k": 1}, [1], (2,)]}, geometry=_P, crs=4326),
+    "geo, string-NaN column": gpd.GeoDataFrame({"s": ["x", np.nan, "z"]}, geometry=_P, crs=4326),
+    "geo, categorical index": gpd.GeoDataFrame(
+        {"a": [1, 2, 3]}, geometry=_P, crs=4326, index=pd.CategoricalIndex([1.5, 2.5, 1.5])
+    ),
+    "geo without geometry": gpd.GeoDataFrame({"a": [1, 2]}),
+    "plain frame holding geometry": pd.DataFrame({"g": gpd.GeoSeries(_P, crs=4326)}),
+}
+
+
+def _cells_by_repr(df):
+    """Object columns as the `repr` of each cell, which names its type and lets NaN equal NaN."""
+    out = df.copy()
+    for i, dtype in enumerate(df.dtypes):
+        if dtype == object:
+            out.isetitem(i, [repr(v) for v in df.iloc[:, i]])
+    return out
+
+
+@pytest.mark.parametrize("df", STRICT_FRAMES.values(), ids=STRICT_FRAMES.keys())
+def test_roundtrip_is_exact(df):
+    out = roundtrip(FRAME, df)
+    assert type(out) is type(df)
+    pd.testing.assert_frame_equal(
+        _cells_by_repr(out),
+        _cells_by_repr(df),
+        check_index_type=True,
+        check_column_type=True,
+        check_exact=True,
+        check_freq=True,
+        check_flags=True,
+    )
+    assert out.attrs == df.attrs
+    assert digest_dataframe(out) == digest_dataframe(df)
+
+
+@pytest.mark.parametrize(
+    "df",
+    [
+        pd.DataFrame({"a": pd.Series([[1], None], dtype=pd.ArrowDtype(pa.list_(pa.int64())))}),
+        pd.DataFrame({"a": [datetime.time(1, tzinfo=datetime.timezone.utc)]}),
+    ],
+    ids=["nested arrow dtype", "tz-aware time cell"],
+)
+def test_a_frame_that_would_not_read_back_is_declined(df, monkeypatch):
+    """Left uncached rather than served as something other than what the step returned."""
+    monkeypatch.setenv("WT_CACHE__STRICT", "true")
+    with pytest.raises(Undigestible):
+        FRAME.encode(df)
+
+
+def test_the_read_back_check_is_skipped_outside_strict(monkeypatch):
+    """A deployed run does not pay for the extra decode and digests."""
+    monkeypatch.setenv("WT_CACHE__STRICT", "false")
+    decode = mock.Mock(wraps=codecs.decode_dataframe)
+    monkeypatch.setattr(codecs, "decode_dataframe", decode)
+    FRAME.encode(pd.DataFrame({"a": [1]}))
+    decode.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        (pd.DataFrame({"a": ["x", np.nan]}), pd.DataFrame({"a": ["x", None]})),
+        (pd.DataFrame({"a": pd.Series([1, 2], dtype=object)}), pd.DataFrame({"a": ["1", "2"]})),
+        (pd.DataFrame({"a": pd.Categorical([1, 2])}), pd.DataFrame({"a": pd.Categorical([1, 2], ordered=True)})),
+        (
+            pd.DataFrame({"a": pd.Series(["x"], dtype="string[python]")}),
+            pd.DataFrame({"a": pd.Series(["x"], dtype="string[pyarrow]")}),
+        ),
+        (
+            pd.DataFrame({"x": [1]}, index=pd.Index(["p"], name=0)),
+            pd.DataFrame({"x": [1]}, index=pd.Index(["p"], name="0")),
+        ),
+        (
+            pd.DataFrame({"x": [1, 2]}, index=pd.Index([1, "a"])),
+            pd.DataFrame({"x": [1, 2]}, index=pd.Index(["1", "a"])),
+        ),
+        (pd.DataFrame([[1]]), pd.DataFrame([[1]], columns=pd.Index([0]))),
+        (pd.DataFrame({"a": [1]}), pd.DataFrame({"a": [1]}).set_flags(allows_duplicate_labels=False)),
+        (
+            pd.DataFrame({"x": [1, 2]}, index=pd.date_range("2024-01-01", periods=2)),
+            pd.DataFrame({"x": [1, 2]}, index=pd.DatetimeIndex(["2024-01-01", "2024-01-02"])),
+        ),
+    ],
+    ids=[
+        "NaN vs None",
+        "object ints vs strings",
+        "ordered",
+        "string storage",
+        "int vs str index name",
+        "object index mixed vs strings",
+        "range vs int columns",
+        "flags",
+        "index freq",
+    ],
+)
+def test_digest_distinguishes_what_the_codec_preserves(a, b):
+    """Otherwise a hit could stand in for a miss that tasks treat differently."""
+    assert digest_dataframe(a) != digest_dataframe(b)
 
 
 # --------------------------------------------------------------------------- #
