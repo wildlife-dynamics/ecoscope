@@ -90,7 +90,7 @@ def _fallback_hash(obj: Any) -> Any:
             raise TypeError(f"cannot content-hash column {label!r}: values are neither hashable nor reprable") from e
 
 
-def _frame_metadata(df: AnyDataFrame) -> dict[str, Any]:
+def _frame_metadata(df: AnyDataFrame, index_missing: list[list[str]], missing: list[list[str]]) -> dict[str, Any]:
     """The parts of a frame's identity that live outside its cells.
 
     `hash_pandas_object` sees values only, so two frames differing just in
@@ -118,10 +118,10 @@ def _frame_metadata(df: AnyDataFrame) -> dict[str, Any]:
         "index_names": [repr(n) for n in index.names],
         "index_dtypes": [_dtype_token(level.dtype) for level in levels],
         "index_freq": index.freqstr if isinstance(index, (pd.DatetimeIndex, pd.TimedeltaIndex)) else None,
-        "index_missing": [_missing_kinds(level) for level in levels],
+        "index_missing": index_missing,
         "columns_type": type(df.columns).__name__,
         "columns_names": [repr(n) for n in df.columns.names],
-        "missing": {str(i): kinds for i in range(df.shape[1]) if (kinds := _missing_kinds(df.iloc[:, i]))},
+        "missing": {str(i): kinds for i, kinds in enumerate(missing) if kinds},
         "crs": crs,
         "attrs": {str(k): v for k, v in df.attrs.items()},
         "flags": df.flags.allows_duplicate_labels,
@@ -161,7 +161,13 @@ def _missing_kinds(values: Any) -> list[str]:
 
 def _cell_types(column: pd.Series) -> set[type]:
     """Types of a column's cells, leaving out pandas' missing values (`None`, float NaN)."""
-    return {type(v) for v in column if not (v is None or (isinstance(v, float) and v != v))}
+    import numpy as np
+
+    array = np.asarray(column, dtype=object)
+    is_missing = np.asarray(pd.isna(array))
+    # `map(type, ...)` runs in C; only the missing cells, usually few, need a Python check.
+    types = set(map(type, array[~is_missing]))
+    return types | {type(v) for v in array[is_missing] if not (v is None or (isinstance(v, float) and v != v))}
 
 
 _TEMPORAL_CELL_TYPES = (datetime.datetime, datetime.timedelta, type(pd.NaT))
@@ -208,7 +214,7 @@ def _cell_token(value: Any) -> str:
     return repr(value)
 
 
-def _hashed_by_cell(column: Any) -> bool:
+def _hashed_by_cell(column: Any, missing_kinds: list[str]) -> bool:
     """Whether pandas' own hash would lose a distinction between this column's cells.
 
     It hashes an object column through `str`, without raising, so `1` digests
@@ -217,15 +223,29 @@ def _hashed_by_cell(column: Any) -> bool:
     if column.dtype != object:
         return False
     types = _cell_types(column)
-    return len(types) > 1 or any(t is not str for t in types) or len(_missing_kinds(column)) > 1
+    return len(types) > 1 or any(t is not str for t in types) or len(missing_kinds) > 1
 
 
 def _by_cell_hash(column: Any) -> Any:
+    import numpy as np
+
+    values = np.asarray(column, dtype=object)
     try:
-        tokens = [_cell_token(v) for v in column]
+        # JSON's C encoder refuses whatever `repr` might render inexactly (sets, arrays, timestamps,
+        # numpy ints, objects), so one call clears the whole column for plain `repr`.
+        json.dumps(values.tolist())
+        return _hash_tokens(list(map(repr, values)))
+    except (TypeError, ValueError):
+        pass
+    try:
+        tokens = [_cell_token(v) for v in values]
     except Exception as e:
         label = column.name if isinstance(column, pd.Series) else "<index>"
         raise TypeError(f"cannot content-hash column {label!r}: values are neither hashable nor reprable") from e
+    return _hash_tokens(tokens)
+
+
+def _hash_tokens(tokens: list[str]) -> Any:
     return pd.util.hash_pandas_object(pd.Series(tokens, dtype=object), index=False).values
 
 
@@ -244,8 +264,10 @@ def digest_dataframe(df: AnyDataFrame) -> str:
     digest = hashlib.sha256()
     levels = [df.index.get_level_values(i) for i in range(df.index.nlevels)]
     columns = [df.iloc[:, i] for i in range(len(df.columns))]
-    levels_by_cell = [_hashed_by_cell(level) for level in levels]
-    by_cell = [_hashed_by_cell(column) for column in columns]
+    levels_missing = [_missing_kinds(level) for level in levels]
+    columns_missing = [_missing_kinds(column) for column in columns]
+    levels_by_cell = [_hashed_by_cell(level, kinds) for level, kinds in zip(levels, levels_missing)]
+    by_cell = [_hashed_by_cell(column, kinds) for column, kinds in zip(columns, columns_missing)]
     try:
         if any(by_cell) or any(levels_by_cell):
             raise TypeError("an object column is hashed cell by cell")
@@ -262,7 +284,8 @@ def digest_dataframe(df: AnyDataFrame) -> str:
         for column, is_by_cell in zip(columns, by_cell):
             digest.update(np.ascontiguousarray(_by_cell_hash(column) if is_by_cell else _fallback_hash(column)))
     digest.update(json.dumps([[repr(c), _dtype_token(dt)] for c, dt in zip(df.columns, df.dtypes)]).encode())
-    digest.update(json.dumps(_frame_metadata(df), sort_keys=True, default=str).encode())
+    metadata = _frame_metadata(df, levels_missing, columns_missing)
+    digest.update(json.dumps(metadata, sort_keys=True, default=str).encode())
     return digest.hexdigest()
 
 
