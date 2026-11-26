@@ -30,7 +30,8 @@ from typing import TYPE_CHECKING, Any
 import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
 import pytz
-from wt_task.cache import SKIP, Codec, Tree, Undigestible, load_settings
+from wt_task.cache import SKIP, Codec, Tree, Undigestible
+from wt_task.cache._tree import strict  # the active run's setting; not exported
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -166,12 +167,44 @@ def _cell_types(column: pd.Series) -> set[type]:
 _TEMPORAL_CELL_TYPES = (datetime.datetime, datetime.timedelta, type(pd.NaT))
 
 
+_REPR_EXACT = frozenset({str, int, float, bool, type(None)})
+
+
+def _repr_is_exact(value: Any) -> bool:
+    """Whether `repr` alone is exact and stable: only these scalars, in plain lists, tuples and dicts."""
+    kind = type(value)
+    if kind in _REPR_EXACT:
+        return True
+    if kind is list or kind is tuple:
+        return all(_repr_is_exact(v) for v in value)
+    if kind is dict:
+        return all(type(k) in _REPR_EXACT and _repr_is_exact(v) for k, v in value.items())
+    return False
+
+
 def _cell_token(value: Any) -> str:
-    """`repr`, plus what pandas leaves out of it: the unit, a naive fold, and which library the zone is from."""
+    """`repr`, plus what it leaves out: a timestamp's unit, naive fold and zone library, every element of a large
+    array, and nothing of a set's iteration order, which varies with `PYTHONHASHSEED`.
+    """
+    import numpy as np
+
     if isinstance(value, pd.Timestamp):
         return f"{value!r}/{value.unit}/{value.fold}/{type(value.tz).__module__}"
     if isinstance(value, pd.Timedelta):
         return f"{value!r}/{value.unit}"
+    if _repr_is_exact(value):
+        return repr(value)
+    if isinstance(value, (list, tuple)):
+        return f"{type(value).__name__}[{','.join(_cell_token(v) for v in value)}]"
+    if isinstance(value, dict):
+        return f"{type(value).__name__}{{{','.join(f'{_cell_token(k)}:{_cell_token(v)}' for k, v in value.items())}}}"
+    if isinstance(value, (set, frozenset)):
+        return f"{type(value).__name__}{{{','.join(sorted(_cell_token(v) for v in value))}}}"
+    if isinstance(value, np.ndarray):
+        if value.dtype == object:
+            return f"ndarray/{value.shape}[{','.join(_cell_token(v) for v in value.ravel())}]"
+        content = hashlib.sha256(np.ascontiguousarray(value).tobytes()).hexdigest()
+        return f"ndarray/{value.dtype.str}/{value.shape}/{content}"
     return repr(value)
 
 
@@ -369,7 +402,9 @@ def _cell_to_json(value: Any) -> dict[str, Any]:
         return node
     if isinstance(value, datetime.date):  # after `datetime`, which subclasses it
         return {"k": "date", "v": value.isoformat()}
-    if isinstance(value, datetime.time) and value.tzinfo is None:
+    if isinstance(value, datetime.time):
+        if value.tzinfo is not None:
+            raise UnencodableValue(f"{value!r}: a time's zone cannot be stored inside a dataframe cell")
         return {"k": "time", "v": value.isoformat(), "f": value.fold}
     if isinstance(value, pd.Timedelta):
         return {"k": "timedelta", "v": int(value.asm8.astype("int64")), "u": value.unit}
@@ -465,6 +500,31 @@ def encode_cell(value: Any) -> str:
     return json.dumps(_cell_to_json(value))
 
 
+# The node kinds a Studio data set may hold: tables outlive the version that
+# wrote them, and an older reader refuses any other kind.
+_DATA_SET_CELL_KINDS = frozenset(
+    {"j", "list", "tuple", "dict", "nat", "timestamp", "datetime", "timedelta", "pytimedelta"}
+)
+
+
+def _data_set_kinds_only(node: dict[str, Any]) -> None:
+    if node["k"] not in _DATA_SET_CELL_KINDS:
+        raise UnencodableValue(f"a {node['k']!r} cell cannot be stored in a data set")
+    if node["k"] in ("list", "tuple"):
+        for child in node["v"]:
+            _data_set_kinds_only(child)
+    elif node["k"] == "dict":
+        for child in node["v"].values():
+            _data_set_kinds_only(child)
+
+
+def encode_data_set_cell(value: Any) -> str:
+    """`encode_cell`, limited to the node kinds every data set reader knows."""
+    node = _cell_to_json(value)
+    _data_set_kinds_only(node)
+    return json.dumps(node)
+
+
 def decode_cell(text: str) -> Any:
     return _cell_from_json(json.loads(text))
 
@@ -503,7 +563,7 @@ def _to_parquet(column: pd.Series) -> tuple[Any, dict[str, Any]]:
         spec["ordered"] = bool(dtype.ordered)
         return column.cat.codes.to_numpy(), spec
     if dtype.kind == "c":
-        spec["astype"] = str(dtype)
+        spec.setdefault("astype", str(dtype))  # a sparse column's dtype, if it was one
         spec["tree"] = True
         return [encode_cell(complex(v)) for v in column], spec
     if dtype.kind in "mM":
@@ -527,15 +587,11 @@ def _frame_tree_column(column: pd.Series) -> bool:
     """An object column parquet would not read back cell for cell.
 
     Wider than `tree_columns`: a column of numbers comes back numeric, a column
-    of sets as arrays, and NaN beside `None` as all `None`. Exact types, since
-    Arrow reads a `str` subclass back as `str`.
+    of sets as arrays, NaN beside `None` as all `None`, and a `time` without its
+    zone. Exact types, since Arrow reads a `str` subclass back as `str`.
     """
     types = _cell_types(column)
-    return (
-        len(types) > 1
-        or any(t not in (str, bytes, datetime.date, datetime.time) for t in types)
-        or len(_missing_kinds(column)) > 1
-    )
+    return len(types) > 1 or any(t not in (str, bytes, datetime.date) for t in types) or len(_missing_kinds(column)) > 1
 
 
 def _from_parquet(column: pd.Series, spec: dict[str, Any]) -> Any:
@@ -610,13 +666,21 @@ def _index_from_parquet(index: pd.Index, spec: dict[str, Any]) -> pd.Index:
     return index
 
 
+def _labels_are_strings(labels: pd.Index) -> bool:
+    if any(n is not None and not isinstance(n, str) for n in labels.names):
+        return False
+    if isinstance(labels, pd.MultiIndex):
+        return all(isinstance(part, str) for label in labels for part in label)
+    return all(isinstance(label, str) for label in labels)
+
+
 def encode_dataframe(df: AnyDataFrame) -> bytes:
     """Encode a frame as (geo)parquet, index included.
 
     `_persist_df` writes `index=False` because its output is an export; a cache
     entry has to round-trip, and `merge_df` produces a MultiIndex that
-    `index=False` silently discards. `index=None` rather than `True`, which
-    would store a `RangeIndex` as an int64 column and read it back as one.
+    `index=False` silently discards. `index=None` stores a `RangeIndex` as
+    start/stop/step, so it reads back as one.
 
     What parquet cannot carry as is (see `_to_parquet`) is rewritten into
     something it can, and recorded under `FRAME_SPEC_KEY` for decode to undo.
@@ -631,18 +695,22 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
     frame = df.copy(deep=False)
     spec: dict[str, Any] = {}
 
-    if df.columns.has_duplicates:
-        # Parquet refuses duplicate names, so write positional ones and keep the labels.
-        if is_geo:
-            raise UnencodableValue("a GeoDataFrame with duplicate column labels")
+    if isinstance(df.columns, pd.RangeIndex):
+        spec["column_range"] = [df.columns.start, df.columns.stop, df.columns.step]
+    elif df.columns.has_duplicates or not _labels_are_strings(df.columns):
+        # Parquet refuses duplicate names and pandas writes others as their `str`,
+        # so write positional names and keep the labels.
         spec["labels"] = {
             "values": [_cell_to_json(c) for c in df.columns],
             "names": [_cell_to_json(n) for n in df.columns.names],
             "multi": isinstance(df.columns, pd.MultiIndex),
         }
         frame.columns = [f"__ecoscope_column_{i}__" for i in range(df.shape[1])]
-    elif isinstance(df.columns, pd.RangeIndex):
-        spec["column_range"] = [df.columns.start, df.columns.stop, df.columns.step]
+        if is_geo and df._geometry_column_name is not None:
+            # geopandas does not follow a relabelling, so point it at the new name.
+            active = df.columns.get_loc(df._geometry_column_name)
+            spec["labels"]["active"] = active
+            frame = frame.set_geometry(frame.columns[active])
 
     columns = {}
     for i in range(frame.shape[1]):
@@ -662,6 +730,10 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
 
     if not df.flags.allows_duplicate_labels:
         spec["flags"] = False
+    if df.attrs:
+        # geopandas writes no attrs, and pandas only JSON-native ones.
+        spec["attrs"] = _cell_to_json(dict(df.attrs))
+        frame.attrs = {}
 
     buffer = io.BytesIO()
     if has_geometry(frame):
@@ -674,7 +746,6 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
         if is_geo:
             spec["geo"] = True
             frame = pd.DataFrame(frame)
-            frame.attrs = df.attrs
         frame.to_parquet(buffer, index=None)
     data = buffer.getvalue()
     return _with_schema_metadata(data, {FRAME_SPEC_KEY: json.dumps(spec).encode()}) if spec else data
@@ -722,14 +793,16 @@ def decode_dataframe(data: bytes) -> pd.DataFrame:
             if labels["multi"]
             else pd.Index(values, name=names[0], tupleize_cols=False)
         )
+        if (active := labels.get("active")) is not None:
+            df = df.set_geometry(df.columns[active])
     if (bounds := spec.get("column_range")) is not None:
         df.columns = pd.RangeIndex(*bounds, name=df.columns.name)
     if (index_spec := spec.get("index")) is not None:
         df.index = _index_from_parquet(df.index, index_spec)
     if (geo := spec.get("geo")) is not None:
-        attrs = df.attrs
         df = gpd.GeoDataFrame(df) if geo else pd.DataFrame(df)
-        df.attrs = attrs
+    if (attrs := spec.get("attrs")) is not None:
+        df.attrs = _cell_from_json(attrs)
     if spec.get("flags") is False:
         df = df.set_flags(allows_duplicate_labels=False)
     return df
@@ -742,7 +815,7 @@ def _encode_frame(df: AnyDataFrame) -> bytes:
     in tests and CI: the extra decode and digests about triple a write.
     """
     data = encode_dataframe(df)
-    if not load_settings().strict:
+    if not strict():
         return data
     try:
         same = digest_dataframe(decode_dataframe(data)) == digest_dataframe(df)
