@@ -416,8 +416,8 @@ def test_hash_df_filenames_are_pinned():
     df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
     gdf = gpd.GeoDataFrame({"a": [1]}, geometry=[Point(0, 0)], crs="EPSG:4326")
 
-    assert _hash_df(df) == "2af484c"
-    assert _hash_df(gdf) == "abb8f29"
+    assert _hash_df(df) == "b0483f2"
+    assert _hash_df(gdf) == "a8eb6a3"
 
 
 def test_hash_df_stays_seven_characters():

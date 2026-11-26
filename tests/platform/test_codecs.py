@@ -419,6 +419,30 @@ def test_roundtrip_of_an_empty_geodataframe():
     assert out.crs == gdf.crs
 
 
+@pytest.mark.parametrize(
+    "df",
+    [
+        pd.DataFrame({"a": pd.Series([], dtype="int64")}),
+        pd.DataFrame({"a": [1]}),
+        pd.DataFrame({"a": [1, 2, 3]}),
+        pd.DataFrame({"a": [1, 2]}, index=pd.RangeIndex(5, 9, 2, name="r")),
+        gpd.GeoDataFrame({"a": [1, 2]}, geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:4326"),
+        pd.DataFrame({"a": [[1], (2,)]}),
+    ],
+    ids=["empty", "one-row", "several-rows", "offset-step-named", "geo", "tree-column"],
+)
+def test_roundtrip_keeps_a_range_index(df):
+    """Tasks branch on `RangeIndex`, so an int64 `Index` of the same values is a different hit."""
+    out = roundtrip(FRAME, df)
+    pd.testing.assert_index_equal(out.index, df.index, exact=True)
+
+
+def test_roundtrip_keeps_an_int_index_that_is_not_a_range():
+    df = pd.DataFrame({"a": [1, 2]}, index=pd.Index([0, 1]))
+    out = roundtrip(FRAME, df)
+    pd.testing.assert_index_equal(out.index, df.index, exact=True)
+
+
 def test_roundtrip_of_a_frame_carrying_attrs():
     df = pd.DataFrame({"a": [1]})
     df.attrs = {"source": "warehouse"}
@@ -471,6 +495,12 @@ def test_digest_distinguishes_frames_differing_only_in_attrs():
 def test_digest_distinguishes_frames_differing_only_in_index():
     a = pd.DataFrame({"x": [1, 2]}, index=["p", "q"])
     b = pd.DataFrame({"x": [1, 2]}, index=["r", "s"])
+    assert digest_dataframe(a) != digest_dataframe(b)
+
+
+def test_digest_distinguishes_a_range_index_from_an_int_index_of_the_same_values():
+    a = pd.DataFrame({"x": [1, 2]})
+    b = pd.DataFrame({"x": [1, 2]}, index=pd.Index([0, 1]))
     assert digest_dataframe(a) != digest_dataframe(b)
 
 

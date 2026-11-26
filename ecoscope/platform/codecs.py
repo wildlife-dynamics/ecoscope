@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
     from ecoscope.platform.annotations import AnyDataFrame
 
-FRAME_CODEC_ID = "ecoscope.frame/v2"
+FRAME_CODEC_ID = "ecoscope.frame/v3"
 ARROW_CODEC_ID = "ecoscope.arrow/v1"
 KEYED_CODEC_ID = "ecoscope.keyed/v1"
 GROUPER_CODEC_ID = "ecoscope.grouper/v1"
@@ -105,6 +105,8 @@ def _frame_metadata(df: AnyDataFrame) -> dict[str, Any]:
 
     index = df.index
     return {
+        # Values and dtype alone can't tell a `RangeIndex` from an int64 `Index`, and tasks branch on it.
+        "index_type": type(index).__name__,
         "index_names": [None if n is None else str(n) for n in index.names],
         "index_dtypes": [str(index.get_level_values(i).dtype) for i in range(index.nlevels)],
         "crs": crs,
@@ -379,7 +381,8 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
 
     `_persist_df` writes `index=False` because its output is an export; a cache
     entry has to round-trip, and `merge_df` produces a MultiIndex that
-    `index=False` silently discards.
+    `index=False` silently discards. `index=None` rather than `True`, which
+    would store a `RangeIndex` as an int64 column and read it back as one.
 
     Raises:
         UnencodableValue: If a structural cell holds something JSON cannot carry,
@@ -397,9 +400,9 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
 
     buffer = io.BytesIO()
     if has_geometry(df):
-        gpd.GeoDataFrame(df).to_parquet(buffer, index=True)
+        gpd.GeoDataFrame(df).to_parquet(buffer, index=None)
     else:
-        df.to_parquet(buffer, index=True)
+        df.to_parquet(buffer, index=None)
     data = buffer.getvalue()
 
     extra = {}
