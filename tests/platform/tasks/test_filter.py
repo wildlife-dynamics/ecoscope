@@ -145,3 +145,40 @@ def test_filter_compares_numbers_held_as_objects_as_numbers(column):
     assert filter_df(frame, "a", ComparisonOperator.LT, "9")["n"].tolist() == [0, 1]
     assert filter_df(frame, "a", ComparisonOperator.EQUAL, "1")["n"].tolist() == [0]
     assert filter_df(frame, "a", ComparisonOperator.IS_NONE_OF, values=["1", "2"])["n"].tolist() == [2, 3]
+
+
+def test_filter_reset_index_renumbers_without_keeping_the_old_index():
+    frame = pd.DataFrame({"a": [1, 2, 3, 4]}, index=[10, 11, 12, 13])
+    result = filter_df(frame, "a", ComparisonOperator.GE, "3", reset_index=True)
+    assert result.index.tolist() == [0, 1]
+    assert result.columns.tolist() == ["a"]
+    # Filtering again keeps working: before, each reset added a column ("index",
+    # then "level_0") and the third one raised.
+    for _ in range(3):
+        result = filter_df(result, "a", ComparisonOperator.GE, "3", reset_index=True)
+    assert result.columns.tolist() == ["a"]
+
+
+def test_filter_without_reset_index_keeps_the_old_index():
+    frame = pd.DataFrame({"a": [1, 2, 3, 4]}, index=[10, 11, 12, 13])
+    assert filter_df(frame, "a", ComparisonOperator.GE, "3").index.tolist() == [12, 13]
+
+
+@pytest.mark.parametrize(
+    "column, op, value, values, kept",
+    [
+        ("dist_meters", "gt", 30, None, [0, 1]),
+        ("dist_meters", "ge", 30.0, None, [0, 1, 2]),
+        ("is_collected", "equal", True, None, [0, 2, 4]),
+        ("dist_meters", "is_any_of", "", [5, 100], [0, 4]),
+        ("is_collected", "is_any_of", "", [False], [1, 3]),
+    ],
+)
+def test_filter_operands_given_as_numbers_or_booleans(events, column, op, value, values, kept):
+    result = filter_df(events, column, ComparisonOperator(op), value, values=values)
+    assert result.index.tolist() == kept
+
+
+def test_filter_boolean_operand_is_not_a_number(events):
+    with pytest.raises(ValueError, match="cannot compare value True with number column 'dist_meters'"):
+        filter_df(events, "dist_meters", ComparisonOperator.EQUAL, True)
