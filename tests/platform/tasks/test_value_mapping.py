@@ -58,6 +58,53 @@ def test_map_values_replace(sample_df, value_map):
     pd.testing.assert_frame_equal(result_df, expected_df)
 
 
+def test_map_values_to_an_output_column_keeps_the_source():
+    df = pd.DataFrame({"season": ["Dry", "Wet", "Unknown"]})
+    result = map_values(
+        df,
+        "season",
+        {"Dry": "#f57c00", "Wet": "#255084"},
+        missing_values="replace",
+        replacement="#cccccc",
+        output_column_name="season_colour",
+    )
+    assert result["season"].tolist() == ["Dry", "Wet", "Unknown"]
+    assert result["season_colour"].tolist() == ["#f57c00", "#255084", "#cccccc"]
+
+
+def test_map_values_preserve_into_an_output_column_copies_unmapped_values():
+    df = pd.DataFrame({"status": ["open", "closed"]})
+    result = map_values(df, "status", {"open": "Open"}, missing_values="preserve", output_column_name="label")
+    assert result["label"].tolist() == ["Open", "closed"]
+    assert result["status"].tolist() == ["open", "closed"]
+
+
+@pytest.mark.parametrize("column", [[1, 2, 3], [1.0, 2.0, 3.0], np.array([1, 2, 3], dtype="int32")])
+def test_map_values_numeric_column_from_text_keys(column):
+    df = pd.DataFrame({"code": column})
+    result = map_values(df, "code", {"1": "one", "2": "two"}, missing_values="preserve")
+    assert result["code"].tolist() == ["one", "two", 3]
+
+
+def test_map_values_boolean_column_from_text_keys():
+    df = pd.DataFrame({"flag": [True, False]})
+    result = map_values(df, "flag", {"True": "yes", "False": "no"}, missing_values="remove")
+    assert result["flag"].tolist() == ["yes", "no"]
+
+
+def test_map_values_warns_when_nothing_matched(caplog):
+    df = pd.DataFrame({"category": ["x", "y"]})
+    with caplog.at_level("WARNING"):
+        map_values(df, "category", {"A": "Alpha"}, missing_values="preserve")
+    assert "none of the values in 'category' matched" in caplog.text
+
+
+def test_map_values_no_warning_when_something_matched(caplog, sample_df, value_map):
+    with caplog.at_level("WARNING"):
+        map_values(sample_df, "category", value_map, missing_values="preserve")
+    assert "matched" not in caplog.text
+
+
 def test_assign_value():
     df = pd.DataFrame({"col1": [1, 2, 3]})
     result = assign_value(df, "col1", 5)
