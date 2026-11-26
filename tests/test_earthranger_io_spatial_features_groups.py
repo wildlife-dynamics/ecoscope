@@ -35,7 +35,7 @@ def test_get_spatial_features_groups_fetches_data_for_each_group():
     ):
         groups = er.get_spatial_features_groups()
 
-    get.assert_called_once_with("spatialfeaturegroup")
+    get.assert_called_once_with("featuregroups")
     assert [g["id"] for g in groups] == ["a", "b"]
     assert all(isinstance(g["features"], gpd.GeoDataFrame) for g in groups)
     assert groups[0]["name"] == "Blocks"
@@ -70,14 +70,14 @@ def _collection(crs=True):
 def test_get_spatial_features_groups_skips_a_group_it_cannot_read():
     er = _io()
     responses = {
-        "spatialfeaturegroup": [
+        "featuregroups": [
             {"id": "good", "name": "Blocks", "feature_count": 1},
             {"id": "hollow", "name": "Hollow", "feature_count": 3},
             {"id": "no-crs", "name": "No CRS"},
         ],
-        "spatialfeaturegroup/good/": {"id": "good", "name": "Blocks", "features": [_collection()]},
-        "spatialfeaturegroup/hollow/": {"id": "hollow", "name": "Hollow", "features": []},
-        "spatialfeaturegroup/no-crs/": {"id": "no-crs", "name": "No CRS", "features": [_collection(crs=False)]},
+        "featuregroup/good/": {"id": "good", "name": "Blocks", "features": [_collection()]},
+        "featuregroup/hollow/": {"id": "hollow", "name": "Hollow", "features": []},
+        "featuregroup/no-crs/": {"id": "no-crs", "name": "No CRS", "features": [_collection(crs=False)]},
     }
     with patch.object(EarthRangerIO, "_get", side_effect=lambda path, **kw: responses[path]):
         with pytest.warns(UserWarning) as caught:
