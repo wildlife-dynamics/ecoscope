@@ -79,3 +79,74 @@ def test_percentile():
 def test_apply_arithmetic_operation(a, b, operation, expected):
     result = apply_arithmetic_operation(a, b, operation)
     assert result == expected
+
+
+# --- apply_arithmetic_operation_over_rows ------------------------------------------
+
+
+@pytest.fixture
+def numbers():
+    return pd.DataFrame({"a": [10, 6], "b": [3, 8], "c": [2, 1]})
+
+
+def test_over_rows_two_columns(numbers):
+    from ecoscope.platform.tasks.analysis._aggregation import apply_arithmetic_operation_over_rows
+
+    result = apply_arithmetic_operation_over_rows(numbers, "a", "b", output_column="out", operation="subtract")
+    assert result["out"].tolist() == [7, -2]
+
+
+@pytest.mark.parametrize(
+    "operation, expected",
+    [
+        ("add", [15, 15]),
+        ("subtract", [5, -3]),  # (a - b) - c, left to right
+        ("multiply", [60, 48]),
+        ("min", [2, 1]),
+        ("max", [10, 8]),
+    ],
+)
+def test_over_rows_list_of_columns(numbers, operation, expected):
+    from ecoscope.platform.tasks.analysis._aggregation import apply_arithmetic_operation_over_rows
+
+    result = apply_arithmetic_operation_over_rows(
+        numbers, columns=["a", "b", "c"], output_column="out", operation=operation
+    )
+    assert result["out"].tolist() == expected
+
+
+@pytest.mark.parametrize("operation, expected", [("min", [3, 6]), ("max", [10, 8])])
+def test_over_rows_min_max_of_two_columns(numbers, operation, expected):
+    # The built-in min/max raised "The truth value of a Series is ambiguous".
+    from ecoscope.platform.tasks.analysis._aggregation import apply_arithmetic_operation_over_rows
+
+    result = apply_arithmetic_operation_over_rows(numbers, "a", "b", output_column="out", operation=operation)
+    assert result["out"].tolist() == expected
+
+
+@pytest.mark.parametrize(
+    "kwargs, message",
+    [
+        ({}, "Give column_a and column_b, or columns"),
+        ({"column_a": "a"}, "Give column_a and column_b, or columns"),
+        ({"column_a": "a", "column_b": "b", "columns": ["a", "b"]}, "not both"),
+        ({"columns": ["a"]}, "at least two"),
+    ],
+)
+def test_over_rows_needs_one_form(numbers, kwargs, message):
+    from ecoscope.platform.tasks.analysis._aggregation import apply_arithmetic_operation_over_rows
+
+    with pytest.raises(ValueError, match=message):
+        apply_arithmetic_operation_over_rows(numbers, output_column="out", operation="add", **kwargs)
+
+
+def test_over_rows_validates_keyword_arguments_as_a_workflow_passes_them(numbers):
+    from pydantic import validate_call
+
+    from ecoscope.platform.tasks.analysis._aggregation import apply_arithmetic_operation_over_rows
+
+    validated = validate_call(config={"arbitrary_types_allowed": True})(apply_arithmetic_operation_over_rows)
+    result = validated(df=numbers, columns=["a", "b", "c"], output_column="total", operation="add")
+    assert result["total"].tolist() == [15, 15]
+    result = validated(df=numbers, column_a="a", column_b="c", output_column="diff", operation="subtract")
+    assert result["diff"].tolist() == [8, 5]

@@ -1,8 +1,10 @@
+from functools import reduce
 from operator import add, floordiv, mod, mul, pow, sub, truediv
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Callable, Literal, cast
 
 import numpy as np
 from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrame, AnyGeoDataFrame
@@ -111,15 +113,54 @@ def apply_arithmetic_operation(
     return operations[operation](a, b)  # type: ignore[operator]
 
 
+# Row-wise versions: the built-in min/max can't compare two columns element by element
+# ("The truth value of a Series is ambiguous"), so columns use numpy's.
+row_operations = cast(dict[str, Callable[[Any, Any], Any]], {**operations, "min": np.minimum, "max": np.maximum})
+
+
 @register()
 def apply_arithmetic_operation_over_rows(
     df: AnyDataFrame,
-    column_a: Annotated[str, Field(description="The first column name")],
-    column_b: Annotated[str, Field(description="The second column name")],
+    column_a: Annotated[
+        str | SkipJsonSchema[None],
+        Field(description="The first column name. Use with column_b, or use columns instead."),
+    ] = None,
+    column_b: Annotated[
+        str | SkipJsonSchema[None],
+        Field(description="The second column name. Use with column_a, or use columns instead."),
+    ] = None,
+    *,
     output_column: Annotated[str, Field(description="The output column name")],
     operation: Annotated[Operations, Field(description="The arithmetic operation to apply")],
+    columns: Annotated[
+        list[str] | SkipJsonSchema[None],
+        Field(
+            description="Two or more columns, combined left to right, e.g. a + b + c. "
+            "Use instead of column_a and column_b."
+        ),
+    ] = None,
 ) -> AnyDataFrame:
-    df[output_column] = operations[operation](df[column_a], df[column_b])  # type: ignore[operator]
+    """Apply an arithmetic operation across columns, row by row, into `output_column`.
+
+    Give either `column_a` and `column_b`, or `columns` (two or more). Columns are
+    combined left to right: for "subtract" `[a, b, c]` gives `(a - b) - c`, and
+    "min" / "max" give the row-wise minimum / maximum.
+
+    Raises:
+        ValueError: Neither or both forms are given, or `columns` has fewer than two.
+    """
+    if columns is not None:
+        if column_a is not None or column_b is not None:
+            raise ValueError("Give either column_a and column_b, or columns, not both.")
+        if len(columns) < 2:
+            raise ValueError(f"columns needs at least two columns, got {columns!r}.")
+        names = list(columns)
+    elif column_a is not None and column_b is not None:
+        names = [column_a, column_b]
+    else:
+        raise ValueError("Give column_a and column_b, or columns.")
+
+    df[output_column] = reduce(row_operations[operation], (df[name] for name in names))
     return cast(AnyDataFrame, df)
 
 
