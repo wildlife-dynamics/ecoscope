@@ -37,7 +37,8 @@ try:
 except ImportError:
     from wt_task.cache import load_settings
 
-    def strict() -> bool:  # misses run-scoped settings, but keeps every task module importable
+    def strict() -> bool:
+        """The settings' strict flag: blind to run-scoped settings, but keeps every task module importable."""
         return load_settings().strict
 
 
@@ -148,6 +149,7 @@ def _dtype_token(dtype: Any) -> str:
 
 
 def _missing_kind(value: Any) -> str | None:
+    """Which missing value `value` is, if any; `pd.isna` treats all three alike."""
     if value is None:
         return "none"
     if value is pd.NA:
@@ -239,6 +241,7 @@ def _hashed_by_cell(column: Any, missing_kinds: list[str]) -> bool:
 
 
 def _by_cell_hash(column: Any) -> Any:
+    """Per-row hashes of an object column that pandas' own hash would blur (see `_hashed_by_cell`)."""
     import numpy as np
 
     values = np.asarray(column, dtype=object)
@@ -258,6 +261,7 @@ def _by_cell_hash(column: Any) -> Any:
 
 
 def _hash_tokens(tokens: list[str]) -> Any:
+    """Per-row hashes of cell tokens; an object Series, so pandas does not re-infer the strings."""
     return pd.util.hash_pandas_object(pd.Series(tokens, dtype=object), index=False).values
 
 
@@ -548,6 +552,7 @@ _DATA_SET_CELL_KINDS = frozenset(
 
 
 def _data_set_kinds_only(node: dict[str, Any]) -> None:
+    """Raise unless every node in the tree is of a kind in `_DATA_SET_CELL_KINDS`."""
     if node["k"] not in _DATA_SET_CELL_KINDS:
         raise UnencodableValue(f"a {node['k']!r} cell cannot be stored in a data set")
     if node["k"] in ("list", "tuple"):
@@ -635,6 +640,7 @@ def _frame_tree_column(column: pd.Series) -> bool:
 
 
 def _from_parquet(column: pd.Series, spec: dict[str, Any]) -> Any:
+    """Undo `_to_parquet`; a Series rather than its array, which `isetitem` would re-infer."""
     import numpy as np
 
     if spec.get("tree"):
@@ -691,6 +697,7 @@ def _index_to_parquet(index: pd.Index) -> tuple[pd.Index | None, dict[str, Any]]
 
 
 def _index_from_parquet(index: pd.Index, spec: dict[str, Any]) -> pd.Index:
+    """Undo `_index_to_parquet`."""
     if levels := spec.get("levels"):
         arrays = [
             _from_parquet(pd.Series(index.get_level_values(i)), levels[str(i)])
@@ -710,6 +717,7 @@ def _index_from_parquet(index: pd.Index, spec: dict[str, Any]) -> pd.Index:
 
 
 def _labels_are_strings(labels: pd.Index) -> bool:
+    """Whether every label and name is exactly `str`, as parquet writes them; a subclass would read back as its base."""
     if any(n is not None and type(n) is not str for n in labels.names):
         return False
     if isinstance(labels, pd.MultiIndex):
