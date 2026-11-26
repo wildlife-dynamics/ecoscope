@@ -31,7 +31,15 @@ import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
 import pytz
 from wt_task.cache import SKIP, Codec, Tree, Undigestible
-from wt_task.cache._tree import strict  # the active run's setting; not exported
+
+try:
+    from wt_task.cache._tree import strict  # the active run's setting; not exported
+except ImportError:
+    from wt_task.cache import load_settings
+
+    def strict() -> bool:  # misses run-scoped settings, but keeps every task module importable
+        return load_settings().strict
+
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -190,7 +198,7 @@ def _repr_is_exact(value: Any) -> bool:
 
 def _cell_token(value: Any) -> str:
     """`repr`, plus what it leaves out: a timestamp's unit, naive fold and zone library, every element of a large
-    array, and nothing of a set's iteration order, which varies with `PYTHONHASHSEED`.
+    array or geometry, and nothing of a set's iteration order, which varies with `PYTHONHASHSEED`.
     """
     import numpy as np
 
@@ -211,6 +219,10 @@ def _cell_token(value: Any) -> str:
             return f"ndarray/{value.shape}[{','.join(_cell_token(v) for v in value.ravel())}]"
         content = hashlib.sha256(np.ascontiguousarray(value).tobytes()).hexdigest()
         return f"ndarray/{value.dtype.str}/{value.shape}/{content}"
+    import shapely
+
+    if isinstance(value, shapely.Geometry):  # its repr stops at about 80 characters
+        return f"{type(value).__name__}/{value.wkb_hex}"
     return repr(value)
 
 
@@ -375,17 +387,20 @@ def _cell_to_json(value: Any) -> dict[str, Any]:
     """
     import numpy as np
 
+    if isinstance(value, (np.datetime64, np.timedelta64)):  # `.item()` would drop the unit
+        return {"k": "np64", "d": value.dtype.str, "v": int(value.view("i8"))}
     # Before the JSON scalars: `np.float64` is a `float`, and would come back as one.
     if isinstance(value, (np.bool_, np.number, np.str_, np.bytes_)):
         return {"k": "np", "d": value.dtype.str, "v": _cell_to_json(value.item())}
     if value is pd.NA:
         return {"k": "na"}
-    if value is None or isinstance(value, (str, bool, int, float)):
+    # Exact types throughout: a subclass, an enum say, would come back as its base.
+    if value is None or type(value) in (str, bool, int, float):
         return {"k": "j", "v": value}
     if isinstance(value, complex):
         return {"k": "complex", "v": [value.real, value.imag]}
-    if isinstance(value, (list, tuple)):
-        return {"k": "list" if isinstance(value, list) else "tuple", "v": [_cell_to_json(v) for v in value]}
+    if type(value) in (list, tuple):
+        return {"k": "list" if type(value) is list else "tuple", "v": [_cell_to_json(v) for v in value]}
     if isinstance(value, np.ndarray) and value.dtype.kind in "biufcUS":
         return {
             "k": "ndarray",
@@ -393,10 +408,10 @@ def _cell_to_json(value: Any) -> dict[str, Any]:
             "s": list(value.shape),
             "v": _cell_to_json(value.ravel().tolist()),
         }
-    if isinstance(value, (set, frozenset)):
+    if type(value) in (set, frozenset):
         return {"k": type(value).__name__, "v": [_cell_to_json(v) for v in value]}
-    if isinstance(value, dict):
-        if not all(isinstance(k, str) for k in value):
+    if type(value) is dict:
+        if not all(type(k) is str for k in value):
             return {"k": "pairs", "v": [[_cell_to_json(k), _cell_to_json(v)] for k, v in value.items()]}
         return {"k": "dict", "v": {k: _cell_to_json(v) for k, v in value.items()}}
     if value is pd.NaT:  # before the datetime kinds: it is an instance of `datetime`
@@ -471,6 +486,8 @@ def _cell_from_json(node: dict[str, Any]) -> Any:
     match node:
         case {"k": "j", "v": value}:
             return value
+        case {"k": "np64", "d": dtype, "v": count}:
+            return np.array(count, dtype="i8").view(dtype)[()]
         case {"k": "np", "d": dtype, "v": item}:
             return np.dtype(dtype).type(_cell_from_json(item))
         case {"k": "na"}:
@@ -651,20 +668,23 @@ def _index_to_parquet(index: pd.Index) -> tuple[pd.Index | None, dict[str, Any]]
     for i in range(index.nlevels):
         level = index.get_level_values(i)
         values, level_spec = _to_parquet(pd.Series(level))
-        if isinstance(level.dtype, pd.StringDtype):  # an index level, unlike a column, reads back as object
+        # An index level, unlike a column, reads back with a numpy dtype.
+        if isinstance(level.dtype, pd.StringDtype):
             level_spec.setdefault("string", [level.dtype.storage, level.dtype.na_value is not pd.NA])
+        elif isinstance(level.dtype, pd.api.extensions.ExtensionDtype) and level.dtype.kind in "iufb":
+            level_spec.setdefault("astype", str(level.dtype))
         arrays.append(level if values is None else values)
         if level_spec:
             spec.setdefault("levels", {})[str(i)] = level_spec
     names = list(index.names)
-    if any(n is not None and not isinstance(n, str) for n in names):
+    if any(n is not None and type(n) is not str for n in names):
         spec["names"] = [_cell_to_json(n) for n in names]
     if isinstance(index, (pd.DatetimeIndex, pd.TimedeltaIndex)) and index.freq is not None:
         spec["freq"] = index.freqstr
     if "levels" not in spec and "names" not in spec:
         return None, spec
     # pandas would write a non-string name as its `str` anyway, with a warning.
-    written = [n if n is None or isinstance(n, str) else str(n) for n in names]
+    written = [n if n is None or type(n) is str else str(n) for n in names]
     if isinstance(index, pd.MultiIndex):
         return pd.MultiIndex.from_arrays(arrays, names=written), spec
     return pd.Index(arrays[0], name=written[0], tupleize_cols=False), spec
@@ -690,11 +710,11 @@ def _index_from_parquet(index: pd.Index, spec: dict[str, Any]) -> pd.Index:
 
 
 def _labels_are_strings(labels: pd.Index) -> bool:
-    if any(n is not None and not isinstance(n, str) for n in labels.names):
+    if any(n is not None and type(n) is not str for n in labels.names):
         return False
     if isinstance(labels, pd.MultiIndex):
-        return all(isinstance(part, str) for label in labels for part in label)
-    return all(isinstance(label, str) for label in labels)
+        return all(type(part) is str for label in labels for part in label)
+    return all(type(label) is str for label in labels)
 
 
 def encode_dataframe(df: AnyDataFrame) -> bytes:
@@ -718,9 +738,11 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
     frame = df.copy(deep=False)
     spec: dict[str, Any] = {}
 
-    if isinstance(df.columns, pd.RangeIndex):
+    range_labels = isinstance(df.columns, pd.RangeIndex)
+    if range_labels:
         spec["column_range"] = [df.columns.start, df.columns.stop, df.columns.step]
-    elif df.columns.has_duplicates or not _labels_are_strings(df.columns):
+    # pandas writes a RangeIndex of names as is; geopandas wants strings.
+    if (not range_labels or has_geometry(df)) and (df.columns.has_duplicates or not _labels_are_strings(df.columns)):
         # Parquet refuses duplicate names and pandas writes others as their `str`,
         # so write positional names and keep the labels.
         spec["labels"] = {
@@ -760,8 +782,12 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
 
     buffer = io.BytesIO()
     if has_geometry(frame):
-        if not is_geo:
-            spec["geo"] = False
+        if not is_geo or frame._geometry_column_name is None:
+            # geoparquet needs an active geometry; decode takes it away again.
+            if is_geo:
+                spec["no_active_geometry"] = True
+            else:
+                spec["geo"] = False
             first = next(n for n, dt in zip(frame.columns, frame.dtypes) if isinstance(dt, gpd.array.GeometryDtype))
             frame = gpd.GeoDataFrame(frame, geometry=first)
         frame.to_parquet(buffer, index=None)
@@ -816,14 +842,18 @@ def decode_dataframe(data: bytes) -> pd.DataFrame:
             if labels["multi"]
             else pd.Index(values, name=names[0], tupleize_cols=False)
         )
-        if (active := labels.get("active")) is not None:
-            df = df.set_geometry(df.columns[active])
     if (bounds := spec.get("column_range")) is not None:
         df.columns = pd.RangeIndex(*bounds, name=df.columns.name)
+    if labels is not None and (active := labels.get("active")) is not None:
+        df = df.set_geometry(df.columns[active])
     if (index_spec := spec.get("index")) is not None:
         df.index = _index_from_parquet(df.index, index_spec)
     if (geo := spec.get("geo")) is not None:
         df = gpd.GeoDataFrame(df) if geo else pd.DataFrame(df)
+    if spec.get("no_active_geometry"):
+        df = gpd.GeoDataFrame(pd.DataFrame(df))
+        if df._geometry_column_name is not None:  # geopandas activates a column named "geometry"
+            df._geometry_column_name = None
     if (attrs := spec.get("attrs")) is not None:
         df.attrs = _cell_from_json(attrs)
     if spec.get("flags") is False:
