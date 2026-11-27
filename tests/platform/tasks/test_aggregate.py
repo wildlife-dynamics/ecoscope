@@ -56,6 +56,44 @@ def test_first_unique():
     assert result == 1
 
 
+def test_first_unique_is_a_plain_python_value():
+    result = dataframe_column_first_unique(pd.DataFrame({"year": [2024, 2023]}), "year")
+    assert result == 2024 and type(result) is int
+
+
+def test_first_unique_text_column():
+    assert dataframe_column_first_unique(pd.DataFrame({"name": ["Tsavo", "Mara"]}), "name") == "Tsavo"
+
+
+def test_first_unique_skips_empty_cells():
+    df = pd.DataFrame({"name": [None, float("nan"), "Tsavo"]})
+    assert dataframe_column_first_unique(df, "name") == "Tsavo"
+
+
+def test_first_unique_as_text():
+    df = pd.DataFrame({"year": [2024.0, 2023.0]})
+    assert dataframe_column_first_unique(df, "year", as_text=True) == "2024.0"
+    assert dataframe_column_first_unique(pd.DataFrame({"n": [7]}), "n", as_text=True) == "7"
+
+
+def test_first_unique_timestamp():
+    df = pd.DataFrame({"t": pd.to_datetime(["2025-01-02", "2025-01-01"])})
+    assert dataframe_column_first_unique(df, "t") == pd.Timestamp("2025-01-02")
+
+
+@pytest.mark.parametrize(
+    "df, column, message",
+    [
+        (pd.DataFrame(), "data", "the table is empty"),
+        (pd.DataFrame({"data": [1]}), "missing", "'missing' not found"),
+        (pd.DataFrame({"data": [None, None]}), "data", "no non-empty value"),
+    ],
+)
+def test_first_unique_errors(df, column, message):
+    with pytest.raises(ValueError, match=message):
+        dataframe_column_first_unique(df, column)
+
+
 def test_percentile():
     df = pd.DataFrame({"data": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})
     result = dataframe_column_percentile(df, "data", 50)

@@ -1,5 +1,5 @@
 from operator import add, floordiv, mod, mul, pow, sub, truediv
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
 import numpy as np
 from pydantic import Field
@@ -61,8 +61,33 @@ def dataframe_column_nunique(
 def dataframe_column_first_unique(
     df: AnyDataFrame,
     column_name: ColumnName,
-) -> Annotated[int, Field(description="The first unique value in the column")]:
-    return df[column_name].unique()[0]
+    as_text: Annotated[
+        bool,
+        Field(description="Return the value as text, e.g. for a title or a file name."),
+    ] = False,
+) -> Annotated[Any, Field(description="The first non-empty value in the column")]:
+    """The first non-empty value of a column.
+
+    Typically used to turn the one value of a grouped table (a subject name, a site,
+    a ranch) into a label. Empty cells (None/NaN) are skipped, and a numpy scalar is
+    returned as the plain Python value (`2024`, not `np.int64(2024)`). With
+    `as_text=True` the value is returned as text.
+
+    Raises:
+        ValueError: The table is empty, `column_name` is not one of its columns, or
+            the column has no non-empty value.
+    """
+    if df is None or df.empty:
+        raise ValueError(f"Can't read a value from column {column_name!r}: the table is empty")
+    if column_name not in df.columns:
+        raise ValueError(f"Column {column_name!r} not found")
+    values = df[column_name].dropna().unique()
+    if len(values) == 0:
+        raise ValueError(f"Column {column_name!r} has no non-empty value")
+    value = values[0]
+    if isinstance(value, np.generic):
+        value = value.item()
+    return str(value) if as_text else value
 
 
 @register()
