@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Annotated, cast
 
 import pandas as pd
@@ -8,25 +9,46 @@ from wt_registry import register
 from ecoscope.platform.annotations import AnyDataFrame
 from ecoscope.platform.tasks.filter import TimezoneInfo
 
+logger = logging.getLogger(__name__)
+
 
 @register()
 def convert_column_values_to_string(
     df: AnyDataFrame,
     columns: Annotated[list[str], Field(description="The columns to convert.")],
+    skip_missing: Annotated[
+        bool,
+        Field(description="Skip listed columns that aren't in the table instead of failing."),
+    ] = False,
 ) -> AnyDataFrame:
     """
     Casts the values of the listed columns to type string
     None and NaN values will also be converted to string
 
+    Columns made by reshaping data (e.g. a pivot of incidents by area) may be absent
+    for a period with no data in them; `skip_missing=True` leaves those out (and logs
+    them) instead of raising a KeyError.
+
     Args:
         df (AnyDataFrame): The input DataFrame.
         columns (list[str]): List of columns to cast to string.
+        skip_missing (bool): Skip listed columns that aren't in the table.
 
     Returns:
         AnyDataFrame: The modified DataFrame.
+
+    Raises:
+        KeyError: A listed column isn't in the table and `skip_missing` is False.
     """
+    missing = [col for col in columns if col not in df.columns]
+    if missing:
+        if not skip_missing:
+            raise KeyError(f"Columns not found: {missing}")
+        logger.info("convert_column_values_to_string: skipped columns not in the table: %s", missing)
+
     for col in columns:
-        df[col] = df[col].astype(str)
+        if col in df.columns:
+            df[col] = df[col].astype(str)
 
     return cast(AnyDataFrame, df)
 

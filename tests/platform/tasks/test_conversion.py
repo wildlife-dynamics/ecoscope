@@ -25,6 +25,24 @@ def test_convert_column_values_to_string():
     assert df["value2"].to_list() == ["6", "7", "8", "None", "10"]
 
 
+def test_convert_column_values_to_string_missing_column_raises_before_converting():
+    df = pd.DataFrame({"present": [1, 2]})
+    with pytest.raises(KeyError, match=r"Columns not found: \['Outside AOO'\]"):
+        convert_column_values_to_string(df, ["present", "Outside AOO"])
+    # Nothing was converted: the check runs before any column changes.
+    assert df["present"].to_list() == [1, 2]
+
+
+def test_convert_column_values_to_string_skip_missing(caplog):
+    df = pd.DataFrame({"Core AOO": [1, 2], "Non-core AOO": [3.5, None]})
+    with caplog.at_level("INFO"):
+        df = convert_column_values_to_string(df, ["Core AOO", "Non-core AOO", "Outside AOO"], skip_missing=True)
+    assert df["Core AOO"].to_list() == ["1", "2"]
+    assert df["Non-core AOO"].to_list() == ["3.5", "nan"]
+    assert "Outside AOO" not in df.columns
+    assert "Outside AOO" in caplog.text
+
+
 @pytest.mark.parametrize(
     "timezone, expected_dtype",
     [
