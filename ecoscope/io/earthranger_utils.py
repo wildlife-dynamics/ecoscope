@@ -389,7 +389,8 @@ def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
     ``get_patrol_observations_from_patrols_df`` already consume, so both downstream
     consumers work unchanged:
 
-    - each event gets a synthesized ``geojson`` (see ``_synthesize_event_geojson``);
+    - each event gets a synthesized ``geojson`` (see ``_synthesize_event_geojson``)
+      and loses its raw WKB ``geometry``;
     - each segment gets ``time_range = {"start_time": <time_range_start>,
       "end_time": <time_range_end>}`` (the warehouse serves flat
       ``time_range_start``/``time_range_end`` fields);
@@ -417,6 +418,8 @@ def warehouse_patrols_table_to_patrols_df(table: pa.Table) -> pd.DataFrame:
             _reduce_warehouse_segment_refs(segment)
             for event in segment.get("events") or []:
                 event["geojson"] = _synthesize_event_geojson(event)
+                # The ER API serves no raw `geometry` on nested events.
+                event.pop("geometry", None)
                 if "event_details" in event:
                     decoded = _decode_event_details(event["event_details"])
                     if decoded is None:
