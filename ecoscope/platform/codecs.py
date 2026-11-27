@@ -25,7 +25,7 @@ import json
 import struct
 import uuid
 import zoneinfo
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 import pyarrow as pa  # type: ignore[import-untyped]
@@ -76,7 +76,7 @@ TREE_COLUMNS_KEY = b"ecoscope:tree_columns"
 FRAME_SPEC_KEY = b"ecoscope:frame"
 
 
-def has_geometry(df: AnyDataFrame) -> bool:
+def has_geometry(df: pd.DataFrame) -> bool:
     """Whether `df` carries at least one geometry-dtype column."""
     import geopandas as gpd  # type: ignore[import-untyped]
 
@@ -99,7 +99,7 @@ def _fallback_hash(obj: Any) -> Any:
             raise TypeError(f"cannot content-hash column {label!r}: values are neither hashable nor reprable") from e
 
 
-def _frame_metadata(df: AnyDataFrame, index_missing: list[list[str]], missing: list[list[str]]) -> dict[str, Any]:
+def _frame_metadata(df: pd.DataFrame, index_missing: list[list[str]], missing: list[list[str]]) -> dict[str, Any]:
     """The parts of a frame's identity that live outside its cells.
 
     `hash_pandas_object` sees values only, so two frames differing just in
@@ -224,7 +224,7 @@ def _cell_token(value: Any) -> str:
     import shapely
 
     if isinstance(value, shapely.Geometry):  # its repr stops at about 80 characters
-        return f"{type(value).__name__}/{value.wkb_hex}"
+        return f"{type(value).__name__}/{shapely.to_wkb(value, hex=True)}"
     return repr(value)
 
 
@@ -265,7 +265,7 @@ def _hash_tokens(tokens: list[str]) -> Any:
     return pd.util.hash_pandas_object(pd.Series(tokens, dtype=object), index=False).values
 
 
-def digest_dataframe(df: AnyDataFrame) -> str:
+def digest_dataframe(df: pd.DataFrame) -> str:
     """Return a full sha256 over a dataframe's content.
 
     Covers every row and the index, column names and dtypes, index names and
@@ -461,7 +461,7 @@ def _cell_to_json(value: Any) -> dict[str, Any]:
     import shapely
 
     if isinstance(value, shapely.Geometry):
-        return {"k": "wkb", "v": value.wkb_hex}
+        return {"k": "wkb", "v": shapely.to_wkb(value, hex=True)}
     raise UnencodableValue(f"{type(value).__name__} cannot be stored inside a dataframe cell")
 
 
@@ -597,7 +597,7 @@ def _to_parquet(column: pd.Series) -> tuple[Any, dict[str, Any]]:
     dtype = column.dtype
     if isinstance(dtype, pd.SparseDtype):
         spec["astype"] = str(dtype)
-        column = column.sparse.to_dense()
+        column = column.sparse.to_dense()  # type: ignore[attr-defined]
         replacement, dtype = column.array, column.dtype
     if isinstance(dtype, pd.ArrowDtype) and pa.types.is_nested(dtype.pyarrow_dtype):
         # pandas writes these but cannot read its own metadata for them back.
@@ -660,8 +660,8 @@ def _from_parquet(column: pd.Series, spec: dict[str, Any]) -> Any:
     if (string := spec.get("string")) is not None:
         storage, nan = string
         column = column.astype(pd.StringDtype(storage, na_value=np.nan if nan else pd.NA))
-    if (dtype := spec.get("astype")) is not None:
-        column = column.astype(pd.api.types.pandas_dtype(dtype))
+    if (astype := spec.get("astype")) is not None:
+        column = column.astype(pd.api.types.pandas_dtype(astype))
     return column
 
 
@@ -711,7 +711,7 @@ def _index_from_parquet(index: pd.Index, spec: dict[str, Any]) -> pd.Index:
             index = pd.Index(arrays[0], name=index.name, tupleize_cols=False)
     if (names := spec.get("names")) is not None:
         index = index.set_names([_cell_from_json(n) for n in names])
-    if (freq := spec.get("freq")) is not None:
+    if (freq := spec.get("freq")) is not None and isinstance(index, (pd.DatetimeIndex, pd.TimedeltaIndex)):
         index = type(index)(index, freq=freq)
     return index
 
@@ -725,7 +725,7 @@ def _labels_are_strings(labels: pd.Index) -> bool:
     return all(type(label) is str for label in labels)
 
 
-def encode_dataframe(df: AnyDataFrame) -> bytes:
+def encode_dataframe(df: pd.DataFrame) -> bytes:
     """Encode a frame as (geo)parquet, index included.
 
     `_persist_df` writes `index=False` because its output is an export; a cache
@@ -747,7 +747,7 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
     spec: dict[str, Any] = {}
 
     range_labels = isinstance(df.columns, pd.RangeIndex)
-    if range_labels:
+    if isinstance(df.columns, pd.RangeIndex):
         spec["column_range"] = [df.columns.start, df.columns.stop, df.columns.step]
     # pandas writes a RangeIndex of names as is; geopandas wants strings.
     if (not range_labels or has_geometry(df)) and (df.columns.has_duplicates or not _labels_are_strings(df.columns)):
@@ -759,11 +759,11 @@ def encode_dataframe(df: AnyDataFrame) -> bytes:
             "multi": isinstance(df.columns, pd.MultiIndex),
         }
         frame.columns = [f"__ecoscope_column_{i}__" for i in range(df.shape[1])]
-        if is_geo and df._geometry_column_name is not None:
+        if is_geo and (geometry_name := cast(Any, df)._geometry_column_name) is not None:
             # geopandas does not follow a relabelling, so point it at the new name.
-            active = df.columns.get_loc(df._geometry_column_name)
+            active = df.columns.get_loc(geometry_name)
             spec["labels"]["active"] = active
-            frame = frame.set_geometry(frame.columns[active])
+            frame = cast(Any, frame).set_geometry(frame.columns[active])
 
     columns = {}
     for i in range(frame.shape[1]):
@@ -851,17 +851,18 @@ def decode_dataframe(data: bytes) -> pd.DataFrame:
             else pd.Index(values, name=names[0], tupleize_cols=False)
         )
     if (bounds := spec.get("column_range")) is not None:
-        df.columns = pd.RangeIndex(*bounds, name=df.columns.name)
+        start, stop, step = bounds
+        df.columns = pd.RangeIndex(start, stop, step, name=df.columns.name)
     if labels is not None and (active := labels.get("active")) is not None:
-        df = df.set_geometry(df.columns[active])
+        df = cast(Any, df).set_geometry(df.columns[active])
     if (index_spec := spec.get("index")) is not None:
         df.index = _index_from_parquet(df.index, index_spec)
     if (geo := spec.get("geo")) is not None:
         df = gpd.GeoDataFrame(df) if geo else pd.DataFrame(df)
     if spec.get("no_active_geometry"):
         df = gpd.GeoDataFrame(pd.DataFrame(df))
-        if df._geometry_column_name is not None:  # geopandas activates a column named "geometry"
-            df._geometry_column_name = None
+        if cast(Any, df)._geometry_column_name is not None:  # geopandas activates a column named "geometry"
+            cast(Any, df)._geometry_column_name = None
     if (attrs := spec.get("attrs")) is not None:
         df.attrs = _cell_from_json(attrs)
     if spec.get("flags") is False:
