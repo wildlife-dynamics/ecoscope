@@ -1,7 +1,8 @@
 import logging
 from collections.abc import Collection
-from typing import Annotated, Literal, cast, get_args
+from typing import Annotated, Any, Literal, cast, get_args
 
+import numpy as np
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from wt_registry import register
@@ -10,6 +11,15 @@ from ecoscope.platform.annotations import AdvancedField, AnyDataFrame
 from ecoscope.platform.tasks.transformation._unit import Unit, is_linear_unit_conversion, with_unit
 
 logger = logging.getLogger(__name__)
+
+
+def _text_key(value: Any) -> str | None:
+    """`value` as the text a form would key it by: 1 and 1.0 as "1", True as "True"."""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    if isinstance(value, (int, float, bool, np.integer, np.floating, np.bool_)):
+        return str(value.item() if isinstance(value, np.generic) else value)
+    return None
 
 
 @register()
@@ -28,19 +38,59 @@ def map_values(
         str | SkipJsonSchema[None],
         Field(default=None, description="The replacement for values not in value_map."),
     ] = None,
+    output_column_name: Annotated[
+        str | SkipJsonSchema[None],
+        Field(
+            default=None,
+            description="Write the mapped values to this column instead of replacing column_name.",
+        ),
+    ] = None,
 ) -> AnyDataFrame:
+    """Map the values of a column through `value_map`.
+
+    By default the mapped values replace `column_name`. With `output_column_name` they
+    go to that column instead and `column_name` is kept, e.g. to add a colour column
+    (`{"Dry": "#f57c00", "Wet": "#255084"}`) while keeping the original as the label.
+
+    Values not in `value_map` are handled by `missing_values`: "preserve" keeps the
+    original value, "remove" leaves them empty, "replace" uses `replacement`.
+
+    Keys from a form are always text, so a number or boolean in the column is also
+    looked up by its text: 1 and 1.0 match the key "1", True matches "True". A warning
+    is logged when the column has values but none of them matched.
+    """
+    source = df[column_name]
+
+    def lookup(value: Any) -> Any:
+        try:
+            if value in value_map:
+                return value_map[value]
+        except TypeError:  # unhashable value
+            return np.nan
+        key = _text_key(value)
+        return value_map[key] if key is not None and key in value_map else np.nan
+
+    mapped = source.map(lookup)
+    if source.notna().any() and mapped.notna().sum() == 0 and value_map:
+        logger.warning(
+            "map_values: none of the values in %r matched a key of value_map (keys: %s)",
+            column_name,
+            sorted(value_map)[:10],
+        )
+
     match missing_values:
         case "preserve":
-            df[column_name] = df[column_name].map(value_map).fillna(df[column_name])
+            mapped = mapped.fillna(source)
         case "remove":
-            df[column_name] = df[column_name].map(value_map)
+            pass
         case "replace":
             if replacement is None:
                 raise ValueError("replacement param must be provided if missing_values is 'replace'")
-            df[column_name] = df[column_name].map(value_map).fillna(replacement)
+            mapped = mapped.fillna(replacement)
         case _:
             raise ValueError("Invalid selection for missing_values")
 
+    df[output_column_name or column_name] = mapped
     return cast(AnyDataFrame, df)
 
 
