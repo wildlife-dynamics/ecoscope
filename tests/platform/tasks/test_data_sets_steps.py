@@ -465,3 +465,22 @@ def test_apply_processing_steps_is_registered_no_cache():
 
     entry = next(e for e in get_registry().values() if e.function_name == "apply_processing_steps")
     assert "no-cache" in entry.metadata.tags
+
+
+@pytest.mark.parametrize("value", [30, 30.0, "30"])
+def test_filter_step_accepts_a_number_operand(tmp_path, events, value):
+    result = apply(events, tmp_path, step("filter_df", column_name="dist_meters", op="gt", value=value))
+    assert result.index.tolist() == [0, 1]
+
+
+def test_filter_step_accepts_boolean_and_number_list_operands(tmp_path, events):
+    result = apply(events, tmp_path, step("filter_df", column_name="is_collected", op="equal", value=False))
+    assert result.index.tolist() == [1, 3]
+    result = apply(events, tmp_path, step("filter_df", column_name="dist_meters", op="is_any_of", values=[5, 100]))
+    assert result.index.tolist() == [0, 4]
+
+
+def test_filter_step_operands_are_text_boxes_in_the_schema():
+    properties = processing_step_schemas()["filter_df"]["properties"]
+    assert properties["value"]["type"] == "string"
+    assert properties["values"]["items"] == {"type": "string"}

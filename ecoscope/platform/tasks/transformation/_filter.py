@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal, cast
 import numpy as np
 import pandas as pd
 from pydantic import Field
-from pydantic.json_schema import SkipJsonSchema
+from pydantic.json_schema import SkipJsonSchema, WithJsonSchema
 from wt_registry import register
 
 from ecoscope.platform.annotations import AnyDataFrame
@@ -13,6 +13,11 @@ from ecoscope.platform.annotations import AnyDataFrame
 logger = logging.getLogger(__name__)
 
 ColumnKind = Literal["text", "number", "date", "boolean", "geometry", "other"]
+
+# An operand may be given as text (as a form sends it) or as a number or boolean (as a
+# spec or a data set's processing step can). Either way it is read as the column's type.
+# Its schema stays a plain string, so forms and the steps editor show a text box.
+Operand = str | int | float | bool
 
 
 class ComparisonOperator(Enum):
@@ -103,12 +108,16 @@ def filter_df(
     column_name: Annotated[str, Field(description="The column name to filter on.")],
     op: Annotated[ComparisonOperator, Field(description="The comparison operator")],
     value: Annotated[
-        str,
+        Operand,
+        WithJsonSchema({"type": "string"}),
         Field(description="The comparison operand, read as the column's type. Used by equal, ne, gt, ge, lt and le."),
     ] = "",
-    reset_index: Annotated[bool, Field(description="If reset index, default is False")] = False,
+    reset_index: Annotated[
+        bool,
+        Field(description="Number the kept rows 0, 1, 2, ... instead of keeping their index. Default is False."),
+    ] = False,
     values: Annotated[
-        list[str] | SkipJsonSchema[None],
+        list[Annotated[Operand, WithJsonSchema({"type": "string"})]] | SkipJsonSchema[None],
         Field(description="The operands of is_any_of and is_none_of, each read as the column's type."),
     ] = None,
 ) -> AnyDataFrame:
@@ -117,12 +126,16 @@ def filter_df(
     An operand is read as the column's type: a number for a numeric column, `true` or
     `false` for a boolean one, a timestamp for a date one (one without an offset is
     taken in the column's own time zone), and text otherwise. An operand that cannot
-    be read that way is an error.
+    be read that way is an error. An operand may be given as text or, from a spec or
+    a processing step, as a number or boolean: `30` and `"30"` filter the same way.
 
     A row with no value passes only `ne` and `is_none_of`. `is_empty` keeps the rows
     with no value, and in a text column those with an empty string; `is_not_empty`
     keeps the rest. `is_any_of` with no `values` keeps nothing, and `is_none_of` with
     none keeps everything. A geometry column can only be tested for emptiness.
+
+    `reset_index` renumbers the kept rows from 0 and drops the old index; it does not
+    keep it as a column.
     """
     series = df[column_name]
     kind = column_kind(series)
@@ -170,6 +183,6 @@ def filter_df(
         result_df = df[mask]
 
     if reset_index:
-        result_df = result_df.reset_index()
+        result_df = result_df.reset_index(drop=True)
 
     return cast(AnyDataFrame, result_df)
