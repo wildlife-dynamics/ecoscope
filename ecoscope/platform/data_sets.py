@@ -15,7 +15,7 @@ from ecoscope.platform.codecs import (
     TREE_COLUMNS_KEY,
     UnencodableValue,
     decode_cell,
-    encode_cell,
+    encode_data_set_cell,
     object_series,
     tree_columns,
 )
@@ -245,7 +245,7 @@ def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.T
 
     Columns beyond the registered schema that hold a `list`, `tuple` or `dict`, or
     mix scalar types, are stored as JSON text the way the step cache stores them
-    (`codecs.encode_cell`), and named in the schema metadata so `table_to_frame`
+    (`codecs.encode_data_set_cell`), and named in the schema metadata so `table_to_frame`
     restores them; a numpy array inside such a cell is stored as a list. Arrow would
     otherwise infer a struct per column, which fails on conflicting value types and
     reads back as something other than what was written.
@@ -256,7 +256,7 @@ def frame_to_table(df: pd.DataFrame | gpd.GeoDataFrame, table_type: str) -> pa.T
         df = df.copy()
         for name in trees:
             try:
-                df[name] = [encode_cell(_plain(v)) for v in df[name]]
+                df[name] = [encode_data_set_cell(_plain(v)) for v in df[name]]
             except UnencodableValue as e:
                 raise DataSetSchemaError(f"{table_type}: cannot store column {name!r}: {e}") from e
     try:

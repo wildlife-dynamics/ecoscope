@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError
 
+from ecoscope.platform.codecs import FRAME
 from ecoscope.platform.tasks.analysis._patrol_summary import (
     CustomMetric,
     MergedAreaCoveredMetric,
@@ -305,6 +306,14 @@ def test_join_summary_tables_merges_reset_frames_on_shared_columns():
     assert sorted(joined["patrol_type"]) == ["A", "B", "C"]
     row_a = joined[joined["patrol_type"] == "A"].iloc[0]
     assert row_a["Patrol Count"] == 2 and row_a["Leg Count"] == 3
+
+
+def test_join_summary_tables_merges_a_cached_frame_with_a_fresh_one_on_shared_columns():
+    left = FRAME.decode(FRAME.encode(pd.DataFrame({"patrol_type": ["A", "B"], "Patrol Count": [2, 1]})))
+    right = pd.DataFrame({"patrol_type": ["A", "C"], "Leg Count": [3, 1]})
+    joined = join_summary_tables([left, right])
+    assert list(joined.columns) == ["patrol_type", "Patrol Count", "Leg Count"]
+    assert sorted(joined["patrol_type"]) == ["A", "B", "C"]
 
 
 def test_join_summary_tables_ungrouped_one_row_frames_join_on_index():

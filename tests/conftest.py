@@ -13,6 +13,8 @@ import ecoscope
 from ecoscope import Relocations
 
 os.environ["USE_PYGEOS"] = "0"
+# Strict step cache, as in CI: among other things, frame codecs check each write reads back.
+os.environ.setdefault("WT_CACHE__STRICT", "true")
 
 
 _METERS_PER_DEGREE = 111_320.0  # approx metres per degree of latitude
