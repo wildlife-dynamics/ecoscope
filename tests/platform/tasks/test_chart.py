@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 import pytest
 from pydantic import ValidationError
@@ -30,7 +32,12 @@ from ecoscope.platform.tasks.config.set_chart import (
     set_chart_style,
 )
 from ecoscope.platform.tasks.results._chart import ChartFigure, draw_chart
-from ecoscope.platform.tasks.results._ecoplot import MONTH_IN_MILLISECONDS, PlotStyle
+from ecoscope.platform.tasks.results._ecoplot import (
+    MONTH_IN_MILLISECONDS,
+    ExportConfig,
+    PlotlyJsonSpec,
+    PlotStyle,
+)
 
 
 def _figs(*params, chart_type="bar"):
@@ -217,6 +224,44 @@ def test_draw_chart_ratio_na_on_zero_denominator(time_series_dataframe):
     )
 
     assert '"y":[0.31,null]' in plot
+
+
+def test_draw_chart_json_output(time_series_dataframe):
+    spec = draw_chart(
+        dataframe=time_series_dataframe,
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(StatSummaryParam(display_name="Total Events", aggregator="sum", column="events")),
+        output_type="json",
+    )
+
+    assert isinstance(spec, PlotlyJsonSpec)
+    assert spec.layout["barmode"] == "group"
+    assert spec.data[0]["name"] == "Total Events"
+    assert spec.config == ExportConfig().model_dump()
+
+
+def test_draw_chart_json_output_is_strict_json(time_series_dataframe):
+    time_series_dataframe["km"] = [10.0, 6.0, 0.0, 0.0, 0.0]
+    spec = draw_chart(
+        dataframe=time_series_dataframe,
+        x_axis="time",
+        time_interval="month",
+        figures=_figs(
+            RatioSummaryParam(
+                display_name="Events per Km",
+                aggregator="ratio",
+                numerator=RatioOperand(aggregator="sum", column="events"),
+                denominator=RatioOperand(aggregator="sum", column="km"),
+            )
+        ),
+        output_type="json",
+    )
+
+    def _reject(constant):
+        raise ValueError(f"non-strict JSON constant: {constant}")
+
+    json.loads(spec.model_dump_json(), parse_constant=_reject)
 
 
 def test_draw_chart_line_mode(time_series_dataframe):
