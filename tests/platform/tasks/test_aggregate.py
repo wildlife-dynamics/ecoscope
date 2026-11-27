@@ -3,6 +3,7 @@ import pytest
 
 from ecoscope.platform.tasks.analysis import (
     apply_arithmetic_operation,
+    apply_arithmetic_operation_over_rows,
     dataframe_column_first_unique,
     dataframe_column_max,
     dataframe_column_mean,
@@ -79,3 +80,59 @@ def test_percentile():
 def test_apply_arithmetic_operation(a, b, operation, expected):
     result = apply_arithmetic_operation(a, b, operation)
     assert result == expected
+
+
+# --- apply_arithmetic_operation_over_rows ------------------------------------------
+
+
+@pytest.fixture
+def numbers():
+    return pd.DataFrame({"a": [10, 6], "b": [3, 8], "c": [2, 1]})
+
+
+def test_over_rows_two_columns(numbers):
+    result = apply_arithmetic_operation_over_rows(numbers, ["a", "b"], "out", "subtract")
+    assert result["out"].tolist() == [7, -2]
+
+
+@pytest.mark.parametrize(
+    "operation, expected",
+    [
+        ("add", [15, 15]),
+        ("subtract", [5, -3]),  # (a - b) - c, left to right
+        ("multiply", [60, 48]),
+        ("min", [2, 1]),
+        ("max", [10, 8]),
+    ],
+)
+def test_over_rows_three_columns(numbers, operation, expected):
+    result = apply_arithmetic_operation_over_rows(
+        numbers, columns=["a", "b", "c"], output_column="out", operation=operation
+    )
+    assert result["out"].tolist() == expected
+
+
+@pytest.mark.parametrize("operation, expected", [("min", [3, 6]), ("max", [10, 8])])
+def test_over_rows_min_max_of_two_columns(numbers, operation, expected):
+    # The built-in min/max raised "The truth value of a Series is ambiguous".
+    result = apply_arithmetic_operation_over_rows(numbers, ["a", "b"], "out", operation)
+    assert result["out"].tolist() == expected
+
+
+@pytest.mark.parametrize("columns", [[], ["a"]])
+def test_over_rows_needs_two_columns(numbers, columns):
+    with pytest.raises(ValueError, match="at least two"):
+        apply_arithmetic_operation_over_rows(numbers, columns, "out", "add")
+
+
+def test_over_rows_validates_as_a_workflow_passes_arguments(numbers):
+    from pydantic import ValidationError, validate_call
+
+    validated = validate_call(config={"arbitrary_types_allowed": True})(apply_arithmetic_operation_over_rows)
+    result = validated(df=numbers, columns=["a", "b", "c"], output_column="total", operation="add")
+    assert result["total"].tolist() == [15, 15]
+    with pytest.raises(ValidationError):
+        validated(df=numbers, columns=["a"], output_column="total", operation="add")
+    # The old two-column parameters are gone.
+    with pytest.raises(ValidationError):
+        validated(df=numbers, column_a="a", column_b="b", output_column="total", operation="add")
