@@ -11,7 +11,7 @@ from ecoscope.platform.annotations import (
     JsonSerializableDataFrameModel,
 )
 from ecoscope.platform.tasks.results._chart import _resolve_palette_colors
-from ecoscope.platform.tasks.results._ecoplot import ExportArgs, LayoutStyle
+from ecoscope.platform.tasks.results._ecoplot import LayoutStyle, PlotlyJsonSpec, PlotOutputType, _render_figure
 
 
 class SunburstStyle(BaseModel, CacheableModel):
@@ -129,6 +129,10 @@ def draw_sunburst_chart(
         LayoutStyle | SkipJsonSchema[None],
         AdvancedField(default=None, description="Additional kwargs passed to plotly.go.Figure(layout)."),
     ] = None,
+    output_type: Annotated[
+        PlotOutputType,
+        Field(description="Whether to return rendered HTML or a Plotly figure JSON spec."),
+    ] = "html",
     widget_id: Annotated[
         str | SkipJsonSchema[None],
         Field(
@@ -139,7 +143,7 @@ def draw_sunburst_chart(
             exclude=True,
         ),
     ] = None,
-) -> Annotated[str, Field()]:
+) -> Annotated[str | PlotlyJsonSpec, Field()]:
     """
     Generates a sunburst chart: one ring per column, inside out, each slice sized by
     its row count or summed value_column. A missing value ends a row's path, so it
@@ -162,7 +166,7 @@ def draw_sunburst_chart(
         If set this MUST match the widget title as defined downstream in create_widget tasks
 
     Returns:
-    The generated chart html as a string
+    The generated chart html as a string, or a PlotlyJsonSpec if output_type is "json"
     """
     from ecoscope.plotting import sunburst_chart
 
@@ -181,4 +185,4 @@ def draw_sunburst_chart(
         **({"other_color": other_color} if other_color else {}),
     )
 
-    return plot.to_html(**ExportArgs(div_id=widget_id).model_dump(exclude_none=True))
+    return _render_figure(plot, output_type, widget_id)
